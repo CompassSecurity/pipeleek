@@ -15,14 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version: stable
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@6be2b51fd78feca86af91f5186b7964d76cb1256 # v2.22.10
         with:
-          args: '-no-fail -fmt json -out results.json ./...'
-      
+          args: "-no-fail -fmt json -out results.json ./..."
+
       - name: Check Gosec Results
         run: |
           FOUND=$(jq '.Stats.found // 0' results.json)
@@ -33,3 +35,8 @@ jobs:
           else
             echo "✅ No security issues found."
           fi
+
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0
+        with:
+          inputs: .

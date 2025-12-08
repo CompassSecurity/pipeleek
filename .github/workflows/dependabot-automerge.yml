@@ -20,7 +20,7 @@ jobs:
     
     # Only run this job if the PR author is Dependabot
     # This prevents the workflow from running on PRs from other contributors
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     
     steps:
       # Checkout is not needed since we're only using gh CLI to interact with the PR
