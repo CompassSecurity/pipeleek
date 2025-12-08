@@ -188,7 +188,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		return err
 	}
 
-	assetFiles := []string{"logo.png", "favicon.ico", "social.png"}
+	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleek.svg", "pipeleek-anim.svg"}
 	for _, fname := range assetFiles {
 		src := filepath.Join("docs", fname)
 		dst := filepath.Join(assetsDir, fname)
@@ -366,6 +366,33 @@ func copyFile(src, dst string) error {
 	return err
 }
 
+func inlineSVGIntoGettingStarted(docsDir string) error {
+	gettingStartedPath := filepath.Join(docsDir, "introduction", "getting_started.md")
+	// #nosec G304 - Reading markdown from controlled internal path during docs generation
+	mdContent, err := os.ReadFile(gettingStartedPath)
+	if err != nil {
+		return err
+	}
+
+	mdStr := string(mdContent)
+	placeholder := "<!-- INLINE_SVG:pipeleek-anim.svg -->"
+	if !strings.Contains(mdStr, placeholder) {
+		return nil
+	}
+	svgPath := filepath.Join("docs", "pipeleek-anim.svg")
+	// #nosec G304 - Reading SVG from controlled internal path during docs generation
+	svgContent, err := os.ReadFile(svgPath)
+	if err != nil {
+		return err
+	}
+
+	svgStr := strings.TrimSpace(string(svgContent))
+
+	mdStr = strings.Replace(mdStr, placeholder, svgStr, -1)
+	// #nosec G306 - Documentation markdown file should be world-readable
+	return os.WriteFile(gettingStartedPath, []byte(mdStr), format.FilePublicRead)
+}
+
 // Generate generates the CLI documentation
 func Generate(opts GenerateOptions) {
 	if _, err := os.Stat("cmd/pipeleek/main.go"); os.IsNotExist(err) {
@@ -391,6 +418,11 @@ func Generate(opts GenerateOptions) {
 
 	if err := copySubfolders("docs", filepath.Join(outputDir, "pipeleek")); err != nil {
 		log.Fatal().Err(err).Msg("Failed to copy docs subfolders")
+	}
+
+	// Inline SVG into getting_started.md
+	if err := inlineSVGIntoGettingStarted(filepath.Join(outputDir, "pipeleek")); err != nil {
+		log.Fatal().Err(err).Msg("Failed to inline SVG into getting_started.md")
 	}
 
 	opts.RootCmd.DisableAutoGenTag = true

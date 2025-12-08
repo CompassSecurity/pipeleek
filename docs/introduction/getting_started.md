@@ -10,66 +10,9 @@ keywords:
   - secrets scanning tutorial
 ---
 
-<style>
-  @keyframes slide {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
-  }
-  .secret-stream {
-    display: flex;
-    gap: 30px;
-    animation: slide 20s linear infinite;
-    font-size: 2em;
-    margin: 20px 0;
-    min-width: 200%;
-  }
-  .stream-container {
-    overflow: hidden;
-    width: 100%;
-    display: flex;
-  }
-</style>
-
-<p align="center">
-  <img style="max-height: 10rem" src="https://github.com/CompassSecurity/pipeleek/blob/main/docs/logo.png?raw=true" alt="Pipeleek Logo - CI/CD Pipeline Secrets Scanner">
+<p align="center" class="docs-intro-mascot" style="max-height: 10rem" aria-label="Pipeleek mascot animation">
+  <!-- INLINE_SVG:pipeleek-anim.svg -->
 </p>
-
-<div class="stream-container">
-  <div class="secret-stream">
-    <span>💎</span>
-    <span>🗝️</span>
-    <span>🔐</span>
-    <span>💳</span>
-    <span>🎫</span>
-    <span>🪙</span>
-    <span>💰</span>
-    <span>🔑</span>
-    <span>💎</span>
-    <span>🗝️</span>
-    <span>🔐</span>
-    <span>💳</span>
-    <span>🎫</span>
-    <span>🪙</span>
-    <span>💰</span>
-    <span>🔑</span>
-    <span>💎</span>
-    <span>🗝️</span>
-    <span>🔐</span>
-    <span>💳</span>
-    <span>🎫</span>
-    <span>🪙</span>
-    <span>💰</span>
-    <span>🔑</span>
-    <span>💎</span>
-    <span>🗝️</span>
-    <span>🔐</span>
-    <span>💳</span>
-    <span>🎫</span>
-    <span>🪙</span>
-    <span>💰</span>
-    <span>🔑</span>
-  </div>
-</div>
 
 ## Why Pipeleek? {#why}
 
