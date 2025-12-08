@@ -23,8 +23,8 @@ jobs:
       - name: Run Gosec Security Scanner
         uses: securego/gosec@bfec35a303e24e2a929b586822eca8486accc670 # v2.22.10
         with:
-          args: '-no-fail -fmt json -out results.json ./...'
-      
+          args: "-no-fail -fmt json -out results.json ./..."
+
       - name: Check Gosec Results
         run: |
           FOUND=$(jq '.Stats.found // 0' results.json)
@@ -35,3 +35,11 @@ jobs:
           else
             echo "✅ No security issues found."
           fi
+
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0
+        with:
+          inputs: |
+            .github/workflows/fishy.yml
+            my-actions/
+            other-org/other-repo@main
