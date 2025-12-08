@@ -188,7 +188,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		return err
 	}
 
-	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleek-anim.svg"}
+	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleek.svg", "pipeleek-anim.svg"}
 	for _, fname := range assetFiles {
 		src := filepath.Join("docs", fname)
 		dst := filepath.Join(assetsDir, fname)
@@ -367,7 +367,6 @@ func copyFile(src, dst string) error {
 }
 
 func inlineSVGIntoGettingStarted(docsDir string) error {
-	// Read the getting_started.md file
 	gettingStartedPath := filepath.Join(docsDir, "introduction", "getting_started.md")
 	// #nosec G304 - Reading markdown from controlled internal path during docs generation
 	mdContent, err := os.ReadFile(gettingStartedPath)
@@ -376,30 +375,20 @@ func inlineSVGIntoGettingStarted(docsDir string) error {
 	}
 
 	mdStr := string(mdContent)
-
-	// Find and replace all SVG placeholders
-	placeholder := "<!-- INLINE_SVG:pipeleak-anim.svg -->"
+	placeholder := "<!-- INLINE_SVG:pipeleek-anim.svg -->"
 	if !strings.Contains(mdStr, placeholder) {
-		// No placeholder found, nothing to do
 		return nil
 	}
-
-	// Read the SVG file from docs source directory (not the copied one)
-	svgPath := filepath.Join("docs", "pipeleak-anim.svg")
+	svgPath := filepath.Join("docs", "pipeleek-anim.svg")
 	// #nosec G304 - Reading SVG from controlled internal path during docs generation
 	svgContent, err := os.ReadFile(svgPath)
 	if err != nil {
 		return err
 	}
 
-	// Remove XML declaration from SVG content
-	svgStr := string(svgContent)
-	svgStr = strings.TrimPrefix(svgStr, `<?xml version="1.0" encoding="utf-8"?>`)
-	svgStr = strings.TrimSpace(svgStr)
+	svgStr := strings.TrimSpace(string(svgContent))
 
-	// Replace placeholder with inline SVG
 	mdStr = strings.Replace(mdStr, placeholder, svgStr, -1)
-	// Write the modified content back
 	// #nosec G306 - Documentation markdown file should be world-readable
 	return os.WriteFile(gettingStartedPath, []byte(mdStr), format.FilePublicRead)
 }

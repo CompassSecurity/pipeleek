@@ -1,11 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="375" height="375" viewBox="0 0 375 375">
   <defs>
-    <clipPath id="a">
-      <path d="M0 0h375v375H0Z" clip-rule="evenodd"/>
-    </clipPath>
-    <clipPath id="b">
-      <path d="M0 0h375v375H0Z" clip-rule="evenodd"/>
-    </clipPath>
     <clipPath id="c">
       <path d="M0 0h375v375H0Z" clip-rule="evenodd"/>
     </clipPath>
@@ -365,278 +360,265 @@
     </clipPath>
   </defs>
   <g clip-path="url(#c)">
-    <g clip-path="url(#d)">
-      <g clip-path="url(#e)">
-        <g clip-path="url(#f)">
-          <g clip-path="url(#g)" opacity=".5">
-            <path d="M114.3 14.091h67.934v126.583H114.3Z" fill="#406b36"/>
-          </g>
+    <title>Root</title>
+    <g style="" clip-path="url(#d)">
+      <title>Leaf Colors</title>
+      <g clip-path="url(#e)" style="">
+        <title>Leaf Top</title>
+        <g clip-path="url(#f)" style="">
+          <path d="M114.3 14.091h67.934v126.583H114.3Z" fill="#406b36" clip-path="url(#g)" opacity=".5" style=""/>
         </g>
       </g>
-      <g clip-path="url(#h)">
+      <g clip-path="url(#h)" style="">
+        <title>Leaf Top</title>
         <g clip-path="url(#i)">
-          <g clip-path="url(#j)" opacity=".5">
-            <path d="M140.109 12.905h63.781v98.662h-63.78Z" fill="#406b36"/>
-          </g>
+          <path d="M140.109 12.905h63.781v98.662h-63.78Z" fill="#406b36" style="" clip-path="url(#j)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#k)">
+      <g clip-path="url(#k)" style="">
+        <title>Leaf Top</title>
         <g clip-path="url(#l)">
-          <g clip-path="url(#m)" opacity=".5">
-            <path d="M170.813 0h59.184v110.738h-59.184Z" fill="#406b36"/>
-          </g>
+          <path d="M170.813 0h59.184v110.738h-59.184Z" fill="#406b36" clip-path="url(#m)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#n)">
+      <g clip-path="url(#n)" style="">
+        <title>Leaf Top</title>
         <g clip-path="url(#o)">
-          <g clip-path="url(#p)" opacity=".5">
-            <path d="M174.818 19.876h79.356v109.735h-79.356Z" fill="#406b36"/>
-          </g>
+          <path d="M174.818 19.876h79.356v109.735h-79.356Z" fill="#406b36" clip-path="url(#p)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#q)">
+      <g clip-path="url(#q)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#r)">
-          <g clip-path="url(#s)" opacity=".5">
-            <path d="M178.674 72.83h64.969v79.688h-64.969Z" fill="#406b36"/>
-          </g>
+          <path d="M178.674 72.83h64.969v79.688h-64.969Z" fill="#406b36" clip-path="url(#s)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#t)">
+      <g clip-path="url(#t)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#u)">
-          <g clip-path="url(#v)" opacity=".5">
-            <path d="M149.157 85.883H203v64.57h-53.843Z" fill="#406b36"/>
-          </g>
+          <path d="M149.157 85.883H203v64.57h-53.843Z" fill="#406b36" clip-path="url(#v)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#w)">
+      <g clip-path="url(#w)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#x)">
-          <g clip-path="url(#y)" opacity=".5">
-            <path d="M138.774 111.99h59.332v80.19h-59.332Z" fill="#b9cf7e"/>
-          </g>
+          <path d="M138.774 111.99h59.332v80.19h-59.332Z" fill="#b9cf7e" clip-path="url(#y)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#z)">
+      <g clip-path="url(#z)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#A)">
-          <g clip-path="url(#B)" opacity=".5">
-            <path d="M147.08 108.28h66.155v78.82H147.08Z" fill="#b9cf7e"/>
-          </g>
+          <path d="M147.08 108.28h66.155v78.82H147.08Z" fill="#b9cf7e" clip-path="url(#B)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#C)">
+      <g clip-path="url(#C)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#D)">
-          <g clip-path="url(#E)" opacity=".5">
-            <path d="M173.038 116.587h55.624v71.268h-55.624Z" fill="#b9cf7e"/>
-          </g>
+          <path d="M173.038 116.587h55.624v71.268h-55.624Z" fill="#b9cf7e" clip-path="url(#E)" opacity=".5"/>
         </g>
       </g>
-      <g clip-path="url(#F)">
-        <g clip-path="url(#G)">
-          <g clip-path="url(#H)" opacity=".5">
-            <path d="M160.875 182.446h46.13v151.726h-46.13Z" fill="#dbdbb7"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#I)">
+      <g clip-path="url(#I)" style="">
+        <title>Leaf Middle</title>
         <g clip-path="url(#J)">
-          <g clip-path="url(#K)" opacity=".5">
-            <path d="M157.315 162.421h51.915v53.944h-51.915Z" fill="#dbdbb7"/>
+          <path d="M157.315 162.421h51.915v53.944h-51.915Z" fill="#dbdbb7" clip-path="url(#K)" opacity=".5"/>
+        </g>
+      </g>
+      <g clip-path="url(#F)" style="">
+        <title>Trunk</title>
+        <g clip-path="url(#G)">
+          <path d="M160.875 182.446h46.13v151.726h-46.13Z" fill="#dbdbb7" clip-path="url(#H)" opacity=".5"/>
+        </g>
+      </g>
+    </g>
+    <g clip-path="url(#d)">
+      <title>Drops</title>
+      <g style="">
+        <title>Drop-1</title>
+        <g clip-path="url(#L)" style="">
+          <title>Drop Color</title>
+          <g clip-path="url(#M)">
+            <path d="M197.66 282.569h36.49v38.77h-36.49Z" fill="#d3ab02" clip-path="url(#N)" opacity=".5"/>
+          </g>
+        </g>
+        <g clip-path="url(#aW)" style="">
+          <title>Outline Drop</title>
+          <g clip-path="url(#aX)">
+            <path d="M195.287 282.717h40.383v39.159h-40.383Z" clip-path="url(#aY)"/>
           </g>
         </g>
       </g>
-      <g clip-path="url(#L)">
-        <g clip-path="url(#M)">
-          <g clip-path="url(#N)" opacity=".5">
-            <path d="M197.66 282.569h36.49v38.77h-36.49Z" fill="#d3ab02"/>
+      <g style="">
+        <title>Drop-2</title>
+        <g clip-path="url(#O)" style="">
+          <title>Drop Color</title>
+          <g clip-path="url(#P)">
+            <path d="M194.694 265.956h63.317v34.56h-63.317Z" fill="#d3ab02" clip-path="url(#Q)" opacity=".5"/>
+          </g>
+        </g>
+        <g clip-path="url(#aT)" style="">
+          <title>Outline Drop</title>
+          <g clip-path="url(#aU)">
+            <path d="M192.914 263.434h67.725v37.527h-67.725Z" clip-path="url(#aV)"/>
           </g>
         </g>
       </g>
-      <g clip-path="url(#O)">
-        <g clip-path="url(#P)">
-          <g clip-path="url(#Q)" opacity=".5">
-            <path d="M194.694 265.956h63.317v34.56h-63.317Z" fill="#d3ab02"/>
+      <g style="">
+        <title>Drop-3</title>
+        <g clip-path="url(#U)" style="">
+          <title>Drop Color</title>
+          <g clip-path="url(#V)">
+            <path d="M217.685 246.97h23.592v23.139h-23.592Z" fill="#d3ab02" clip-path="url(#W)" opacity=".5"/>
+          </g>
+        </g>
+        <g clip-path="url(#aZ)" style="">
+          <title>Outline Drop</title>
+          <g clip-path="url(#ba)">
+            <path d="M217.092 246.673h23.71v23.436h-23.71Z" clip-path="url(#bb)"/>
           </g>
         </g>
       </g>
-      <g clip-path="url(#R)">
-        <g clip-path="url(#S)">
-          <g clip-path="url(#T)" opacity=".5">
-            <path d="M193.952 250.38h28.885v28.332h-28.885Z" fill="#d3ab02"/>
+      <g style="">
+        <title>Drop-4</title>
+        <g clip-path="url(#R)" style="">
+          <title>Drop Color</title>
+          <g clip-path="url(#S)">
+            <path d="M193.952 250.38h28.885v28.332h-28.885Z" fill="#d3ab02" clip-path="url(#T)" opacity=".5"/>
+          </g>
+        </g>
+        <g clip-path="url(#aQ)" style="">
+          <title>Outline Drop</title>
+          <g clip-path="url(#aR)">
+            <path d="M192.172 250.084h32.532v29.221h-32.532Z" clip-path="url(#aS)"/>
           </g>
         </g>
       </g>
-      <g clip-path="url(#U)">
-        <g clip-path="url(#V)">
-          <g clip-path="url(#W)" opacity=".5">
-            <path d="M217.685 246.97h23.592v23.139h-23.592Z" fill="#d3ab02"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#X)">
+    </g>
+    <g clip-path="url(#d)">
+      <title>Outlines</title>
+      <g clip-path="url(#X)" style="">
+        <title>Outline</title>
         <g clip-path="url(#Y)">
-          <g clip-path="url(#Z)">
-            <path d="M116.82 13.646h63.486v313.955h-63.485Z"/>
-          </g>
+          <path d="M116.82 13.646h63.486v313.955h-63.485Z" clip-path="url(#Z)"/>
         </g>
       </g>
-      <g clip-path="url(#aa)">
+      <g clip-path="url(#aa)" style="">
+        <title>Outline</title>
         <g clip-path="url(#ab)">
-          <g clip-path="url(#ac)">
-            <path d="M116.227 5.933h88.257v177.202h-88.257Z"/>
-          </g>
+          <path d="M116.227 5.933h88.257v177.202h-88.257Z" clip-path="url(#ac)"/>
         </g>
       </g>
-      <g clip-path="url(#ad)">
+      <g clip-path="url(#ad)" style="">
+        <title>Outline</title>
         <g clip-path="url(#ae)">
-          <g clip-path="url(#af)">
-            <path d="M177.784 1.632h78.912V183.19h-78.912Z"/>
-          </g>
+          <path d="M177.784 1.632h78.912V183.19h-78.912Z" clip-path="url(#af)"/>
         </g>
       </g>
-      <g clip-path="url(#ag)">
+      <g clip-path="url(#ag)" style="">
+        <title>Outline</title>
         <g clip-path="url(#ah)">
-          <g clip-path="url(#ai)">
-            <path d="M139.515 11.57h57.256v120.325h-57.256Z"/>
-          </g>
+          <path d="M139.515 11.57h57.256v120.325h-57.256Z" clip-path="url(#ai)"/>
         </g>
       </g>
-      <g clip-path="url(#aj)">
+      <g clip-path="url(#aj)" style="">
+        <title>Outline</title>
         <g clip-path="url(#ak)">
-          <g clip-path="url(#al)">
-            <path d="M174.818 8.9h70.605v105.632h-70.605Z"/>
-          </g>
+          <path d="M174.818 8.9h70.605v105.632h-70.605Z" clip-path="url(#al)"/>
         </g>
       </g>
-      <g clip-path="url(#am)">
+      <g clip-path="url(#am)" style="">
+        <title>Outline</title>
         <g clip-path="url(#an)">
-          <g clip-path="url(#ao)">
-            <path d="M157.76 20.618h40.79v70.746h-40.79Z"/>
-          </g>
+          <path d="M157.76 20.618h40.79v70.746h-40.79Z" clip-path="url(#ao)"/>
         </g>
       </g>
-      <g clip-path="url(#ap)">
+      <g clip-path="url(#ap)" style="">
+        <title>Outline</title>
         <g clip-path="url(#aq)">
-          <g clip-path="url(#ar)">
-            <path d="M176.746 2.077h42.72v56.569h-42.72Z"/>
-          </g>
+          <path d="M176.746 2.077h42.72v56.569h-42.72Z" clip-path="url(#ar)"/>
         </g>
       </g>
-      <g clip-path="url(#as)">
-        <g clip-path="url(#at)">
-          <g clip-path="url(#au)">
-            <path d="M149.898 312.68h27.59v31.253h-27.59Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#av)">
-        <g clip-path="url(#aw)">
-          <g clip-path="url(#ax)">
-            <path d="M164.138 313.421h15.575v29.933h-15.575Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#ay)">
-        <g clip-path="url(#az)">
-          <g clip-path="url(#aA)">
-            <path d="M166.808 312.828h25.068v41.127h-25.068Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#aB)">
-        <g clip-path="url(#aC)">
-          <g clip-path="url(#aD)">
-            <path d="M166.808 314.46h17.058v30.117h-17.058Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#aE)">
-        <g clip-path="url(#aF)">
-          <g clip-path="url(#aG)">
-            <path d="M182.086 315.646h17.651v37.095h-17.651Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#aH)">
-        <g clip-path="url(#aI)">
-          <g clip-path="url(#aJ)">
-            <path d="M174.966 314.608h19.58v34.723h-19.58Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#aK)">
-        <g clip-path="url(#aL)">
-          <g clip-path="url(#aM)">
-            <path d="M187.278 315.498h19.876v36.18h-19.876Z"/>
-          </g>
-        </g>
-      </g>
-      <g clip-path="url(#aN)">
+      <g clip-path="url(#aN)" style="">
+        <title>Outline</title>
         <g clip-path="url(#aO)">
-          <g clip-path="url(#aP)">
-            <path d="M161.023 167.539h47.466v162.05h-47.466Z"/>
-          </g>
+          <path d="M161.023 167.539h47.466v162.05h-47.466Z" clip-path="url(#aP)"/>
         </g>
       </g>
-      <g clip-path="url(#aQ)">
-        <g clip-path="url(#aR)">
-          <g clip-path="url(#aS)">
-            <path d="M192.172 250.084h32.532v29.221h-32.532Z"/>
-          </g>
+    </g>
+    <g clip-path="url(#d)">
+      <title>Stump</title>
+      <g clip-path="url(#as)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#at)">
+          <path d="M149.898 312.68h27.59v31.253h-27.59Z" clip-path="url(#au)"/>
         </g>
       </g>
-      <g clip-path="url(#aT)">
-        <g clip-path="url(#aU)">
-          <g clip-path="url(#aV)">
-            <path d="M192.914 263.434h67.725v37.527h-67.725Z"/>
-          </g>
+      <g clip-path="url(#av)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#aw)">
+          <path d="M164.138 313.421h15.575v29.933h-15.575Z" clip-path="url(#ax)"/>
         </g>
       </g>
-      <g clip-path="url(#aW)">
-        <g clip-path="url(#aX)">
-          <g clip-path="url(#aY)">
-            <path d="M195.287 282.717h40.383v39.159h-40.383Z"/>
-          </g>
+      <g clip-path="url(#ay)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#az)">
+          <path d="M166.808 312.828h25.068v41.127h-25.068Z" clip-path="url(#aA)"/>
         </g>
       </g>
-      <g clip-path="url(#aZ)">
-        <g clip-path="url(#ba)">
-          <g clip-path="url(#bb)">
-            <path d="M217.092 246.673h23.71v23.436h-23.71Z"/>
-          </g>
+      <g clip-path="url(#aB)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#aC)">
+          <path d="M166.808 314.46h17.058v30.117h-17.058Z" clip-path="url(#aD)"/>
         </g>
       </g>
-      <g clip-path="url(#bc)">
+      <g clip-path="url(#aE)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#aF)">
+          <path d="M182.086 315.646h17.651v37.095h-17.651Z" clip-path="url(#aG)"/>
+        </g>
+      </g>
+      <g clip-path="url(#aH)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#aI)">
+          <path d="M174.966 314.608h19.58v34.723h-19.58Z" clip-path="url(#aJ)"/>
+        </g>
+      </g>
+      <g clip-path="url(#aK)" style="">
+        <title>Stump</title>
+        <g clip-path="url(#aL)">
+          <path d="M187.278 315.498h19.876v36.18h-19.876Z" clip-path="url(#aM)"/>
+        </g>
+      </g>
+    </g>
+    <g clip-path="url(#d)">
+      <title>Face</title>
+      <g clip-path="url(#bc)" style="">
+        <title>Eye Left</title>
         <g clip-path="url(#bd)">
-          <g clip-path="url(#be)">
-            <path d="M170.22 213.15h22.694v23.404H170.22Z"/>
-          </g>
+          <path d="M170.22 213.15h22.694v23.404H170.22Z" clip-path="url(#be)"/>
         </g>
       </g>
-      <g clip-path="url(#bf)">
+      <g clip-path="url(#bf)" style="">
+        <title>Eye Right</title>
         <g clip-path="url(#bg)">
-          <g clip-path="url(#bh)">
-            <path d="M183.124 213.298h21.36v26.366h-21.36Z"/>
-          </g>
+          <path d="M183.124 213.298h21.36v26.366h-21.36Z" clip-path="url(#bh)"/>
         </g>
       </g>
-      <g clip-path="url(#bi)">
+      <g clip-path="url(#bi)" style="">
+        <title>Nose</title>
         <g clip-path="url(#bj)">
-          <g clip-path="url(#bk)">
-            <path d="M179.861 228.576h18.096v33.648h-18.096Z"/>
-          </g>
+          <path d="M179.861 228.576h18.096v33.648h-18.096Z" clip-path="url(#bk)"/>
         </g>
       </g>
-      <g clip-path="url(#bl)">
+      <g clip-path="url(#bl)" style="">
+        <title>Iris Left</title>
         <g clip-path="url(#bm)">
-          <g clip-path="url(#bn)">
-            <path d="M174.818 217.155h15.45v14.981h-15.45Z"/>
-          </g>
+          <path d="M174.818 217.155h15.45v14.981h-15.45Z" clip-path="url(#bn)"/>
         </g>
       </g>
-      <g clip-path="url(#bo)">
+      <g clip-path="url(#bo)" style="">
+        <title>Iris Right</title>
         <g clip-path="url(#bp)">
-          <g clip-path="url(#bq)">
-            <path d="M188.91 220.27h14.668v14.388H188.91Z"/>
-          </g>
+          <path d="M188.91 220.27h14.668v14.388H188.91Z" clip-path="url(#bq)"/>
         </g>
       </g>
     </g>
