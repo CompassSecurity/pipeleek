@@ -188,7 +188,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		return err
 	}
 
-	assetFiles := []string{"logo.png", "favicon.ico", "social.png"}
+	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleak-anim.svg"}
 	for _, fname := range assetFiles {
 		src := filepath.Join("docs", fname)
 		dst := filepath.Join(assetsDir, fname)
@@ -366,6 +366,42 @@ func copyFile(src, dst string) error {
 	return err
 }
 
+func inlineSVGIntoGettingStarted(docsDir string) error {
+	// Read the getting_started.md file
+	gettingStartedPath := filepath.Join(docsDir, "introduction", "getting_started.md")
+	// #nosec G304 - Reading markdown from controlled internal path during docs generation
+	mdContent, err := os.ReadFile(gettingStartedPath)
+	if err != nil {
+		return err
+	}
+
+	mdStr := string(mdContent)
+
+	// Find and replace all SVG placeholders
+	placeholder := "<!-- INLINE_SVG:pipeleak-anim.svg -->"
+	if strings.Contains(mdStr, placeholder) {
+		// Read the SVG file from docs source directory (not the copied one)
+		svgPath := filepath.Join("docs", "pipeleak-anim.svg")
+		// #nosec G304 - Reading SVG from controlled internal path during docs generation
+		svgContent, err := os.ReadFile(svgPath)
+		if err != nil {
+			return err
+		}
+
+		// Remove XML declaration from SVG content
+		svgStr := string(svgContent)
+		svgStr = strings.TrimPrefix(svgStr, `<?xml version="1.0" encoding="utf-8"?>`)
+		svgStr = strings.TrimSpace(svgStr)
+
+		// Replace placeholder with inline SVG
+		mdStr = strings.Replace(mdStr, placeholder, svgStr, -1)
+	}
+
+	// Write the modified content back
+	// #nosec G306 - Documentation markdown file should be world-readable
+	return os.WriteFile(gettingStartedPath, []byte(mdStr), format.FilePublicRead)
+}
+
 // Generate generates the CLI documentation
 func Generate(opts GenerateOptions) {
 	if _, err := os.Stat("cmd/pipeleek/main.go"); os.IsNotExist(err) {
@@ -391,6 +427,11 @@ func Generate(opts GenerateOptions) {
 
 	if err := copySubfolders("docs", filepath.Join(outputDir, "pipeleek")); err != nil {
 		log.Fatal().Err(err).Msg("Failed to copy docs subfolders")
+	}
+
+	// Inline SVG into getting_started.md
+	if err := inlineSVGIntoGettingStarted(filepath.Join(outputDir, "pipeleek")); err != nil {
+		log.Fatal().Err(err).Msg("Failed to inline SVG into getting_started.md")
 	}
 
 	opts.RootCmd.DisableAutoGenTag = true
