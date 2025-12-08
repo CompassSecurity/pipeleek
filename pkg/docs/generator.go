@@ -188,7 +188,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		return err
 	}
 
-	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleak-anim.svg"}
+	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleek-anim.svg"}
 	for _, fname := range assetFiles {
 		src := filepath.Join("docs", fname)
 		dst := filepath.Join(assetsDir, fname)

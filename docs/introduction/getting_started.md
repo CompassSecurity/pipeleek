@@ -10,8 +10,8 @@ keywords:
   - secrets scanning tutorial
 ---
 
-<p align="center" class="docs-intro-mascot" style="max-height: 10rem">
-  <!-- INLINE_SVG:pipeleak-anim.svg -->
+<p align="center" class="docs-intro-mascot" style="max-height: 10rem" aria-label="Pipeleek mascot animation">
+  <!-- INLINE_SVG:pipeleek-anim.svg -->
 </p>
 
 ## Why Pipeleek? {#why}
