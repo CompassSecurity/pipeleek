@@ -1,5 +1,5 @@
 <p align="center">
-  <img height="200" src="https://github.com/CompassSecurity/pipeleek/blob/main/docs/logo.png?raw=true">
+  <img height="200" src="https://raw.githubusercontent.com/CompassSecurity/pipeleek/refs/heads/main/docs/pipeleek-anim.svg">
 </p>
 
 ![GitHub Release](https://img.shields.io/github/v/release/CompassSecurity/pipeleek)
