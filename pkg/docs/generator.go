@@ -188,7 +188,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		return err
 	}
 
-	assetFiles := []string{"logo.png", "favicon.ico", "social.png", "pipeleek.svg", "pipeleek-anim.svg"}
+	assetFiles := []string{"favicon.ico", "social.png", "pipeleek.svg", "pipeleek-anim.svg"}
 	for _, fname := range assetFiles {
 		src := filepath.Join("docs", fname)
 		dst := filepath.Join(assetsDir, fname)
@@ -216,7 +216,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		"theme": map[string]interface{}{
 			"name":       "material",
 			"custom_dir": "pipeleek/overrides",
-			"logo":       "assets/logo.png",
+			"logo":       "assets/pipeleek.svg",
 			"favicon":    "assets/favicon.ico",
 			"palette": []map[string]interface{}{
 				{
