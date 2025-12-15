@@ -1,11 +1,12 @@
 package vuln
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/CompassSecurity/pipeleek/pkg/gitlab/nist"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/CompassSecurity/pipeleek/pkg/nist"
 	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
@@ -24,7 +25,14 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 		baseURL = envURL
 	}
 
-	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, installedVersion.Version, installedVersion.Enterprise)
+	// Build CPE name for GitLab
+	edition := "community"
+	if installedVersion.Enterprise {
+		edition = "enterprise"
+	}
+	cpeName := fmt.Sprintf("cpe:2.3:a:gitlab:gitlab:%s:*:*:*:%s:*:*:*", installedVersion.Version, edition)
+
+	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
 	if err != nil {
 		log.Fatal().Msg("Unable fetch vulnerabilities from NIST")
 	}

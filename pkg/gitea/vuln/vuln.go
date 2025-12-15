@@ -1,11 +1,12 @@
 package vuln
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/CompassSecurity/pipeleek/pkg/gitea/nist"
 	"github.com/CompassSecurity/pipeleek/pkg/gitea/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/CompassSecurity/pipeleek/pkg/nist"
 	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
@@ -24,7 +25,10 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 		baseURL = envURL
 	}
 
-	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, installedVersion.Version)
+	// Build CPE name for Gitea
+	cpeName := fmt.Sprintf("cpe:2.3:a:gitea:gitea:%s:*:*:*:*:*:*:*", installedVersion.Version)
+
+	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
 	if err != nil {
 		log.Fatal().Msg("Unable fetch vulnerabilities from NIST")
 	}

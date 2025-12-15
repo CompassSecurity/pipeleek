@@ -1,11 +1,10 @@
-// Package nist provides functionality to fetch vulnerability data from the NIST NVD API for Gitea.
+// Package nist provides functionality to fetch vulnerability data from the NIST NVD API.
 package nist
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
@@ -23,18 +22,12 @@ type nvdResponse struct {
 	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
 }
 
-// FetchVulns retrieves all CVE vulnerabilities for a specific Gitea version from the NIST NVD API.
+// FetchVulns retrieves all CVE vulnerabilities for a specific CPE name from the NIST NVD API.
 // It automatically handles pagination if the total results exceed the page size.
-// Accepts a retryablehttp client and base URL to allow dependency injection for testing.
-func FetchVulns(client *retryablehttp.Client, baseURL, version string) (string, error) {
-	baseCPEUrl := strings.Join([]string{
-		baseURL,
-		"?cpeName=cpe:2.3:a:gitea:gitea:",
-		version,
-		":*:*:*:*:*:*:*",
-	}, "")
-
-	firstPageURL := fmt.Sprintf("%s&resultsPerPage=%d&startIndex=0", baseCPEUrl, resultsPerPage)
+// Accepts a retryablehttp client, base URL, and full CPE name to allow dependency injection for testing.
+// CPE name should be in format: cpe:2.3:a:vendor:product:version:*:*:*:edition:*:*:*
+func FetchVulns(client *retryablehttp.Client, baseURL, cpeName string) (string, error) {
+	firstPageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=0", baseURL, cpeName, resultsPerPage)
 	firstPageData, err := fetchPage(client, firstPageURL)
 	if err != nil {
 		return "{}", err
@@ -54,7 +47,7 @@ func FetchVulns(client *retryablehttp.Client, baseURL, version string) (string, 
 	allVulns := firstPageData.Vulnerabilities
 
 	for startIndex := resultsPerPage; startIndex < firstPageData.TotalResults; startIndex += resultsPerPage {
-		pageURL := fmt.Sprintf("%s&resultsPerPage=%d&startIndex=%d", baseCPEUrl, resultsPerPage, startIndex)
+		pageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=%d", baseURL, cpeName, resultsPerPage, startIndex)
 		pageData, err := fetchPage(client, pageURL)
 		if err != nil {
 			log.Warn().Err(err).Int("startIndex", startIndex).Msg("failed to fetch page, continuing with partial results")

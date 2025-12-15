@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -69,7 +68,7 @@ func TestFetchVulns_NoPagination(t *testing.T) {
 	// Create a properly configured retryable client
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	// Parse the result
@@ -90,7 +89,7 @@ func TestFetchVulns_WithPagination(t *testing.T) {
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	// Parse the result
@@ -116,46 +115,13 @@ func TestFetchVulns_WithPagination(t *testing.T) {
 	assert.Equal(t, 250, len(cveIDs))
 }
 
-func TestFetchVulns_EnterpriseEdition(t *testing.T) {
-	server := mockNVDServer(t, 5, 100)
-	defer server.Close()
-
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "17.0.0", true)
-	require.NoError(t, err)
-
-	// Verify the URL contains enterprise edition
-	// (This is indirectly tested by checking the result is valid)
-	var response nvdResponse
-	err = json.Unmarshal([]byte(result), &response)
-	require.NoError(t, err)
-	assert.Equal(t, 5, len(response.Vulnerabilities))
-}
-
-func TestFetchVulns_CommunityEdition(t *testing.T) {
-	server := mockNVDServer(t, 3, 100)
-	defer server.Close()
-
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "17.0.0", false)
-	require.NoError(t, err)
-
-	// Verify the URL contains community edition
-	var response nvdResponse
-	err = json.Unmarshal([]byte(result), &response)
-	require.NoError(t, err)
-	assert.Equal(t, 3, len(response.Vulnerabilities))
-}
-
 func TestFetchVulns_EmptyResponse(t *testing.T) {
 	server := mockNVDServer(t, 0, 100)
 	defer server.Close()
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "99.99.99", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:99.99.99:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -176,7 +142,7 @@ func TestFetchVulns_HTTPError(t *testing.T) {
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
 	client.RetryMax = 0 // Disable retries for faster test
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
 }
@@ -191,7 +157,7 @@ func TestFetchVulns_InvalidJSON(t *testing.T) {
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
 }
@@ -203,7 +169,7 @@ func TestFetchVulns_LargePagination(t *testing.T) {
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "15.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -230,7 +196,7 @@ func TestFetchVulns_ExactPageBoundary(t *testing.T) {
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -248,7 +214,7 @@ func TestFetchVulns_MultiplePagesExactBoundary(t *testing.T) {
 
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "16.0.0", false)
+	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -257,76 +223,4 @@ func TestFetchVulns_MultiplePagesExactBoundary(t *testing.T) {
 
 	assert.Equal(t, 200, response.TotalResults)
 	assert.Equal(t, 200, len(response.Vulnerabilities))
-}
-
-// TestEditionMapping verifies the edition string mapping
-func TestEditionMapping(t *testing.T) {
-	tests := []struct {
-		name       string
-		enterprise bool
-		expected   string
-	}{
-		{
-			name:       "community edition",
-			enterprise: false,
-			expected:   "community",
-		},
-		{
-			name:       "enterprise edition",
-			enterprise: true,
-			expected:   "enterprise",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			edition := "community"
-			if tt.enterprise {
-				edition = "enterprise"
-			}
-			assert.Equal(t, tt.expected, edition)
-		})
-	}
-}
-
-// TestCPEStringFormat verifies the CPE string is correctly formatted
-func TestCPEStringFormat(t *testing.T) {
-	tests := []struct {
-		name       string
-		version    string
-		enterprise bool
-		expected   string
-	}{
-		{
-			name:       "community edition",
-			version:    "18.4.0",
-			enterprise: false,
-			expected:   "cpe:2.3:a:gitlab:gitlab:18.4.0:*:*:*:community:*:*:*",
-		},
-		{
-			name:       "enterprise edition",
-			version:    "17.5.2",
-			enterprise: true,
-			expected:   "cpe:2.3:a:gitlab:gitlab:17.5.2:*:*:*:enterprise:*:*:*",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			edition := "community"
-			if tt.enterprise {
-				edition = "enterprise"
-			}
-
-			cpeString := strings.Join([]string{
-				"cpe:2.3:a:gitlab:gitlab:",
-				tt.version,
-				":*:*:*:",
-				edition,
-				":*:*:*",
-			}, "")
-
-			assert.Equal(t, tt.expected, cpeString)
-		})
-	}
 }
