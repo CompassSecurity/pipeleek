@@ -74,6 +74,21 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 }
 
 func Scan(cmd *cobra.Command, args []string) {
+	// Apply config file values to common scan options
+	flags.ApplyConfigToCommonScanOptions(cmd, &options.CommonScanOptions, &maxArtifactSize)
+
+	// Get values with priority: CLI flag > config file > default
+	githubURL := config.GetStringValue(cmd, "github", func(c *config.Config) string { return c.GitHub.URL })
+	accessToken := config.GetStringValue(cmd, "token", func(c *config.Config) string { return c.GitHub.Token })
+	
+	// Update options with config-aware values
+	if githubURL != "" {
+		options.GitHubURL = githubURL
+	}
+	if accessToken != "" {
+		options.AccessToken = accessToken
+	}
+
 	if err := config.ValidateURL(options.GitHubURL, "GitHub URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitHub URL")
 	}

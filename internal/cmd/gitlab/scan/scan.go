@@ -77,8 +77,12 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	gitlabUrl, _ := cmd.Flags().GetString("gitlab")
-	gitlabApiToken, _ := cmd.Flags().GetString("token")
+	// Apply config file values to common scan options
+	flags.ApplyConfigToCommonScanOptions(cmd, &options.CommonScanOptions, &maxArtifactSize)
+
+	// Get values with priority: CLI flag > config file > default
+	gitlabUrl := config.GetStringValue(cmd, "gitlab", func(c *config.Config) string { return c.GitLab.URL })
+	gitlabApiToken := config.GetStringValue(cmd, "token", func(c *config.Config) string { return c.GitLab.Token })
 
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")
