@@ -30,7 +30,7 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 
 	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
 	if err != nil {
-		log.Fatal().Msg("Unable fetch vulnerabilities from NIST")
+		log.Fatal().Msg("Unable to fetch vulnerabilities from NIST")
 	}
 
 	result := gjson.Get(vulnsJsonStr, "vulnerabilities")
