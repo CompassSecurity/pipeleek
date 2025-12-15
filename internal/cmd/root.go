@@ -13,6 +13,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab"
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
@@ -39,6 +40,7 @@ var (
 		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com",
 		Version: getVersion(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			loadConfigFile(cmd)
 			initLogger(cmd)
 			setGlobalLogLevel(cmd)
 			httpclient.SetIgnoreProxy(IgnoreProxy)
@@ -51,6 +53,7 @@ var (
 	LogDebug      bool
 	LogLevel      string
 	IgnoreProxy   bool
+	ConfigFile    string
 )
 
 func Execute() error {
@@ -70,6 +73,7 @@ func init() {
 	rootCmd.AddCommand(devops.NewAzureDevOpsRootCmd())
 	rootCmd.AddCommand(gitea.NewGiteaRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
+	rootCmd.PersistentFlags().StringVarP(&ConfigFile, "config", "c", "", "Config file path (YAML, JSON, or TOML). Example: ~/.config/pipeleek/config.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
 	rootCmd.PersistentFlags().StringVarP(&LogFile, "logfile", "l", "", "Log output to a file")
 	rootCmd.PersistentFlags().BoolVarP(&LogDebug, "verbose", "v", false, "Enable debug logging (shortcut for --log-level=debug)")
@@ -252,4 +256,13 @@ func setGlobalLogLevel(cmd *cobra.Command) {
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Info().Msg("Log level set to info (default)")
+}
+
+// loadConfigFile loads the configuration from a file if specified
+func loadConfigFile(cmd *cobra.Command) {
+	// Load config file if specified or search in standard locations
+	_, err := config.LoadConfig(ConfigFile)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration file")
+	}
 }

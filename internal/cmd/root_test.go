@@ -105,6 +105,13 @@ func TestGlobalColorFlagRegistered(t *testing.T) {
 	}
 }
 
+func TestGlobalConfigFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("config")
+	if flag == nil {
+		t.Fatal("Global config flag not registered")
+	}
+}
+
 func TestGlobalLogFileFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("logfile")
 	if flag == nil {
