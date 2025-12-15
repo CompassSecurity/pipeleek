@@ -5,6 +5,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/scan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/secrets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/variables"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/vuln"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -26,6 +27,7 @@ func NewGiteaRootCmd() *cobra.Command {
 	giteaCmd.AddCommand(scan.NewScanCmd())
 	giteaCmd.AddCommand(secrets.NewSecretsCommand())
 	giteaCmd.AddCommand(variables.NewVariablesCommand())
+	giteaCmd.AddCommand(vuln.NewVulnCmd())
 
 	giteaCmd.PersistentFlags().StringVarP(&giteaUrl, "gitea", "g", "https://gitea.com", "Gitea instance URL")
 	giteaCmd.PersistentFlags().StringVarP(&giteaApiToken, "token", "t", "", "Gitea API Token")
