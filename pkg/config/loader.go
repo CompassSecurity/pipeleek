@@ -144,13 +144,4 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.url", "https://api.github.com")
 }
 
-// BindFlagsToViper binds command-line flags to Viper for priority handling.
-// This ensures flags override config file values.
-func BindFlagsToViper(v *viper.Viper, flagMappings map[string]string) error {
-	for flagName, viperKey := range flagMappings {
-		if err := v.BindPFlag(viperKey, nil); err != nil {
-			return fmt.Errorf("failed to bind flag %s: %w", flagName, err)
-		}
-	}
-	return nil
-}
+
