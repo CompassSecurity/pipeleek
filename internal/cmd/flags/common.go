@@ -54,6 +54,7 @@ func ApplyConfigToCommonScanOptions(cmd *cobra.Command, opts *config.CommonScanO
 		})
 	}
 
-	// Note: hit-timeout uses Duration type, which needs special handling
-	// For now, we'll skip it since it's more complex and less commonly configured
+	// Note: hit-timeout uses Duration type which requires parsing from string in config
+	// This can be added if needed in the future by parsing c.Common.HitTimeout string
+	// and converting it to time.Duration
 }

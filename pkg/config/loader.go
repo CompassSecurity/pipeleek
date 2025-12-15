@@ -144,4 +144,3 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.url", "https://api.github.com")
 }
 
-

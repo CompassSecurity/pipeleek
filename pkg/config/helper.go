@@ -8,6 +8,8 @@ import (
 // If the CLI flag was explicitly set, it takes precedence over the config file.
 // Otherwise, it tries to get the value from the config file.
 // If neither is set, it returns the default value (current flag value).
+// Note: Empty strings in config files are treated as unset and fall back to defaults.
+// This is intentional to prevent accidentally overriding defaults with empty values.
 func GetStringValue(cmd *cobra.Command, flagName string, configGetter func(*Config) string) string {
 	// Check if the flag was explicitly set via CLI
 	if cmd.Flags().Changed(flagName) {
@@ -16,6 +18,7 @@ func GetStringValue(cmd *cobra.Command, flagName string, configGetter func(*Conf
 	}
 
 	// Try to get value from config file if it was loaded
+	// Empty strings are treated as unset to prevent accidental override
 	if globalConfig != nil {
 		if configValue := configGetter(globalConfig); configValue != "" {
 			return configValue
@@ -51,6 +54,9 @@ func GetBoolValue(cmd *cobra.Command, flagName string, configGetter func(*Config
 }
 
 // GetIntValue retrieves an int value with priority: CLI flag > config file > default.
+// Note: Zero values in config files are treated as unset and fall back to defaults.
+// This prevents accidentally setting thread count to 0 which would be invalid.
+// To explicitly set a value, use a CLI flag.
 func GetIntValue(cmd *cobra.Command, flagName string, configGetter func(*Config) int) int {
 	// Check if the flag was explicitly set via CLI
 	if cmd.Flags().Changed(flagName) {
@@ -59,6 +65,7 @@ func GetIntValue(cmd *cobra.Command, flagName string, configGetter func(*Config)
 	}
 
 	// Try to get value from config file if it was loaded
+	// Zero values are treated as unset to prevent invalid configurations
 	if globalConfig != nil {
 		if configValue := configGetter(globalConfig); configValue != 0 {
 			return configValue
@@ -71,6 +78,9 @@ func GetIntValue(cmd *cobra.Command, flagName string, configGetter func(*Config)
 }
 
 // GetStringSliceValue retrieves a string slice value with priority: CLI flag > config file > default.
+// Note: Empty slices in config files are treated as unset and fall back to defaults.
+// This is consistent with how Viper handles empty slices. To explicitly disable a filter,
+// use a CLI flag with an empty value.
 func GetStringSliceValue(cmd *cobra.Command, flagName string, configGetter func(*Config) []string) []string {
 	// Check if the flag was explicitly set via CLI
 	if cmd.Flags().Changed(flagName) {
@@ -79,6 +89,7 @@ func GetStringSliceValue(cmd *cobra.Command, flagName string, configGetter func(
 	}
 
 	// Try to get value from config file if it was loaded
+	// Empty slices are treated as unset, consistent with Viper behavior
 	if globalConfig != nil {
 		if configValue := configGetter(globalConfig); len(configValue) > 0 {
 			return configValue
