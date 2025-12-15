@@ -23,38 +23,4 @@ func AddCommonScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions, maxA
 		"Maximum time to wait for hit detection per scan item (e.g., 30s, 2m, 1h)")
 }
 
-// ApplyConfigToCommonScanOptions applies config file values to common scan options if they weren't set via CLI flags.
-// This respects the priority: CLI flags > config file > defaults.
-func ApplyConfigToCommonScanOptions(cmd *cobra.Command, opts *config.CommonScanOptions, maxArtifactSize *string) {
-	// Apply threads from config if not set via flag
-	if !cmd.Flags().Changed("threads") {
-		opts.MaxScanGoRoutines = config.GetIntValue(cmd, "threads", func(c *config.Config) int {
-			return c.Common.Threads
-		})
-	}
 
-	// Apply truffle-hog-verification from config if not set via flag
-	if !cmd.Flags().Changed("truffle-hog-verification") {
-		opts.TruffleHogVerification = config.GetBoolValue(cmd, "truffle-hog-verification", func(c *config.Config) bool {
-			return c.Common.TruffleHogVerification
-		})
-	}
-
-	// Apply max-artifact-size from config if not set via flag
-	if !cmd.Flags().Changed("max-artifact-size") {
-		*maxArtifactSize = config.GetStringValue(cmd, "max-artifact-size", func(c *config.Config) string {
-			return c.Common.MaxArtifactSize
-		})
-	}
-
-	// Apply confidence filter from config if not set via flag
-	if !cmd.Flags().Changed("confidence") {
-		opts.ConfidenceFilter = config.GetStringSliceValue(cmd, "confidence", func(c *config.Config) []string {
-			return c.Common.ConfidenceFilter
-		})
-	}
-
-	// Note: hit-timeout uses Duration type which requires parsing from string in config
-	// This can be added if needed in the future by parsing c.Common.HitTimeout string
-	// and converting it to time.Duration
-}

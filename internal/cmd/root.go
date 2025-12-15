@@ -260,8 +260,8 @@ func setGlobalLogLevel(cmd *cobra.Command) {
 
 // loadConfigFile loads the configuration from a file if specified
 func loadConfigFile(cmd *cobra.Command) {
-	// Load config file if specified or search in standard locations
-	_, err := config.LoadConfig(ConfigFile)
+	// Initialize Viper with config file if specified or search in standard locations
+	err := config.InitializeViper(ConfigFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load configuration file")
 	}

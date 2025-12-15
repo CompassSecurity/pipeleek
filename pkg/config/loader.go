@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -61,12 +62,11 @@ type CommonConfig struct {
 	HitTimeout            string   `mapstructure:"hit_timeout"`
 }
 
-var globalConfig *Config
+var globalViper *viper.Viper
 
-// LoadConfig loads configuration from a file if specified, otherwise uses defaults.
-// The configFile parameter can be empty, in which case it will look for config files
-// in standard locations (~/.pipeleek.yaml, ~/.config/pipeleek/config.yaml, etc.)
-func LoadConfig(configFile string) (*Config, error) {
+// InitializeViper initializes the global Viper instance with config file and defaults.
+// This should be called once during application initialization.
+func InitializeViper(configFile string) error {
 	v := viper.New()
 
 	// Set defaults
@@ -99,7 +99,7 @@ func LoadConfig(configFile string) (*Config, error) {
 			log.Debug().Msg("No config file found, using defaults and command-line flags")
 		} else {
 			// Config file was found but another error was encountered
-			return nil, fmt.Errorf("error reading config file: %w", err)
+			return fmt.Errorf("error reading config file: %w", err)
 		}
 	} else {
 		log.Info().Str("file", v.ConfigFileUsed()).Msg("Loaded config file")
@@ -109,26 +109,67 @@ func LoadConfig(configFile string) (*Config, error) {
 	v.SetEnvPrefix("PIPELEEK")
 	v.AutomaticEnv()
 
-	config := &Config{}
-	if err := v.Unmarshal(config); err != nil {
-		return nil, fmt.Errorf("error unmarshaling config: %w", err)
-	}
-
-	globalConfig = config
-	return config, nil
+	globalViper = v
+	return nil
 }
 
-// GetConfig returns the global configuration instance
-func GetConfig() *Config {
-	if globalConfig == nil {
-		// If config hasn't been loaded, load with defaults
-		config, err := LoadConfig("")
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to load config")
+// GetViper returns the global Viper instance
+func GetViper() *viper.Viper {
+	if globalViper == nil {
+		// If Viper hasn't been initialized, initialize with defaults
+		if err := InitializeViper(""); err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize Viper")
 		}
-		return config
 	}
-	return globalConfig
+	return globalViper
+}
+
+// BindFlags binds command flags to Viper configuration keys.
+// This enables automatic priority handling: CLI flags > config file > defaults.
+func BindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
+	v := GetViper()
+	for flagName, viperKey := range flagMappings {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			// Try parent flags
+			flag = cmd.InheritedFlags().Lookup(flagName)
+		}
+		if flag != nil {
+			if err := v.BindPFlag(viperKey, flag); err != nil {
+				return fmt.Errorf("failed to bind flag %s to key %s: %w", flagName, viperKey, err)
+			}
+		}
+	}
+	return nil
+}
+
+// GetString retrieves a string value using Viper's native priority handling
+func GetString(key string) string {
+	return GetViper().GetString(key)
+}
+
+// GetBool retrieves a bool value using Viper's native priority handling
+func GetBool(key string) bool {
+	return GetViper().GetBool(key)
+}
+
+// GetInt retrieves an int value using Viper's native priority handling
+func GetInt(key string) int {
+	return GetViper().GetInt(key)
+}
+
+// GetStringSlice retrieves a string slice using Viper's native priority handling
+func GetStringSlice(key string) []string {
+	return GetViper().GetStringSlice(key)
+}
+
+// UnmarshalConfig unmarshals the configuration into a Config struct
+func UnmarshalConfig() (*Config, error) {
+	config := &Config{}
+	if err := GetViper().Unmarshal(config); err != nil {
+		return nil, fmt.Errorf("error unmarshaling config: %w", err)
+	}
+	return config, nil
 }
 
 // setDefaults sets default values for all configuration options

@@ -9,24 +9,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLoadConfig_NoFile(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_NoFile(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
-	config, err := LoadConfig("")
+	err := InitializeViper("")
 	require.NoError(t, err)
-	require.NotNil(t, config)
 	
 	// Check defaults are set
-	assert.Equal(t, 4, config.Common.Threads)
-	assert.Equal(t, true, config.Common.TruffleHogVerification)
-	assert.Equal(t, "500Mb", config.Common.MaxArtifactSize)
-	assert.Equal(t, "https://api.github.com", config.GitHub.URL)
+	assert.Equal(t, 4, GetInt("common.threads"))
+	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, "500Mb", GetString("common.max_artifact_size"))
+	assert.Equal(t, "https://api.github.com", GetString("github.url"))
 }
 
-func TestLoadConfig_WithYAML(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_WithYAML(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-config.yaml")
@@ -67,52 +66,50 @@ common:
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
 	require.NoError(t, err)
 	
-	config, err := LoadConfig(configFile)
+	err = InitializeViper(configFile)
 	require.NoError(t, err)
-	require.NotNil(t, config)
 	
 	// Verify GitLab config
-	assert.Equal(t, "https://gitlab.example.com", config.GitLab.URL)
-	assert.Equal(t, "glpat-test-token", config.GitLab.Token)
-	assert.Equal(t, "test-cookie", config.GitLab.Cookie)
+	assert.Equal(t, "https://gitlab.example.com", GetString("gitlab.url"))
+	assert.Equal(t, "glpat-test-token", GetString("gitlab.token"))
+	assert.Equal(t, "test-cookie", GetString("gitlab.cookie"))
 	
 	// Verify GitHub config
-	assert.Equal(t, "https://github.example.com", config.GitHub.URL)
-	assert.Equal(t, "ghp_test_token", config.GitHub.Token)
+	assert.Equal(t, "https://github.example.com", GetString("github.url"))
+	assert.Equal(t, "ghp_test_token", GetString("github.token"))
 	
 	// Verify BitBucket config
-	assert.Equal(t, "https://bitbucket.example.com", config.BitBucket.URL)
-	assert.Equal(t, "testuser", config.BitBucket.Username)
-	assert.Equal(t, "testpass", config.BitBucket.Password)
+	assert.Equal(t, "https://bitbucket.example.com", GetString("bitbucket.url"))
+	assert.Equal(t, "testuser", GetString("bitbucket.username"))
+	assert.Equal(t, "testpass", GetString("bitbucket.password"))
 	
 	// Verify Azure DevOps config
-	assert.Equal(t, "https://dev.azure.com", config.AzureDevOps.URL)
-	assert.Equal(t, "azdo-token", config.AzureDevOps.Token)
+	assert.Equal(t, "https://dev.azure.com", GetString("azure_devops.url"))
+	assert.Equal(t, "azdo-token", GetString("azure_devops.token"))
 	
 	// Verify Gitea config
-	assert.Equal(t, "https://gitea.example.com", config.Gitea.URL)
-	assert.Equal(t, "gitea-token", config.Gitea.Token)
+	assert.Equal(t, "https://gitea.example.com", GetString("gitea.url"))
+	assert.Equal(t, "gitea-token", GetString("gitea.token"))
 	
 	// Verify common config
-	assert.Equal(t, 8, config.Common.Threads)
-	assert.Equal(t, false, config.Common.TruffleHogVerification)
-	assert.Equal(t, "1GB", config.Common.MaxArtifactSize)
-	assert.Equal(t, []string{"high", "medium"}, config.Common.ConfidenceFilter)
-	assert.Equal(t, "120s", config.Common.HitTimeout)
+	assert.Equal(t, 8, GetInt("common.threads"))
+	assert.Equal(t, false, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, "1GB", GetString("common.max_artifact_size"))
+	assert.Equal(t, []string{"high", "medium"}, GetStringSlice("common.confidence_filter"))
+	assert.Equal(t, "120s", GetString("common.hit_timeout"))
 }
 
-func TestLoadConfig_InvalidFile(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_InvalidFile(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
-	config, err := LoadConfig("/nonexistent/path/to/config.yaml")
+	err := InitializeViper("/nonexistent/path/to/config.yaml")
 	assert.Error(t, err)
-	assert.Nil(t, config)
 }
 
-func TestLoadConfig_InvalidYAML(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_InvalidYAML(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "invalid.yaml")
@@ -127,26 +124,25 @@ gitlab:
 	err := os.WriteFile(configFile, []byte(invalidContent), 0644)
 	require.NoError(t, err)
 	
-	config, err := LoadConfig(configFile)
+	err = InitializeViper(configFile)
 	assert.Error(t, err)
-	assert.Nil(t, config)
 }
 
-func TestGetConfig(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestGetViper(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
-	config := GetConfig()
-	require.NotNil(t, config)
+	v := GetViper()
+	require.NotNil(t, v)
 	
 	// Check that subsequent calls return the same instance
-	config2 := GetConfig()
-	assert.Equal(t, config, config2)
+	v2 := GetViper()
+	assert.Equal(t, v, v2)
 }
 
-func TestLoadConfig_PartialConfig(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_PartialConfig(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "partial.yaml")
@@ -161,22 +157,21 @@ gitlab:
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
 	require.NoError(t, err)
 	
-	config, err := LoadConfig(configFile)
+	err = InitializeViper(configFile)
 	require.NoError(t, err)
-	require.NotNil(t, config)
 	
 	// Verify GitLab is loaded
-	assert.Equal(t, "https://gitlab.example.com", config.GitLab.URL)
-	assert.Equal(t, "glpat-test", config.GitLab.Token)
+	assert.Equal(t, "https://gitlab.example.com", GetString("gitlab.url"))
+	assert.Equal(t, "glpat-test", GetString("gitlab.token"))
 	
 	// Verify defaults are still applied
-	assert.Equal(t, 4, config.Common.Threads)
-	assert.Equal(t, "https://api.github.com", config.GitHub.URL)
+	assert.Equal(t, 4, GetInt("common.threads"))
+	assert.Equal(t, "https://api.github.com", GetString("github.url"))
 }
 
-func TestLoadConfig_EmptyValues(t *testing.T) {
-	// Reset global config
-	globalConfig = nil
+func TestInitializeViper_EmptyValues(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
 	
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "empty.yaml")
@@ -190,11 +185,10 @@ gitlab:
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
 	require.NoError(t, err)
 	
-	config, err := LoadConfig(configFile)
+	err = InitializeViper(configFile)
 	require.NoError(t, err)
-	require.NotNil(t, config)
 	
 	// Empty strings should be preserved (not replaced with defaults)
-	assert.Equal(t, "", config.GitLab.URL)
-	assert.Equal(t, "", config.GitLab.Token)
+	assert.Equal(t, "", GetString("gitlab.url"))
+	assert.Equal(t, "", GetString("gitlab.token"))
 }

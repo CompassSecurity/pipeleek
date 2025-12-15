@@ -77,12 +77,27 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Apply config file values to common scan options
-	flags.ApplyConfigToCommonScanOptions(cmd, &options.CommonScanOptions, &maxArtifactSize)
+	// Bind flags to Viper configuration keys for automatic priority handling
+	if err := config.BindFlags(cmd, map[string]string{
+		"gitlab":                  "gitlab.url",
+		"token":                   "gitlab.token",
+		"cookie":                  "gitlab.cookie",
+		"threads":                 "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":       "common.max_artifact_size",
+		"confidence":              "common.confidence_filter",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind flags")
+	}
 
-	// Get values with priority: CLI flag > config file > default
-	gitlabUrl := config.GetStringValue(cmd, "gitlab", func(c *config.Config) string { return c.GitLab.URL })
-	gitlabApiToken := config.GetStringValue(cmd, "token", func(c *config.Config) string { return c.GitLab.Token })
+	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+	options.GitlabCookie = config.GetString("gitlab.cookie")
+	options.MaxScanGoRoutines = config.GetInt("common.threads")
+	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	maxArtifactSize = config.GetString("common.max_artifact_size")
+	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")
