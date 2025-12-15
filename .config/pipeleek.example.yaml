@@ -1,0 +1,60 @@
+# Pipeleek Configuration File Example
+# 
+# This file shows all available configuration options for pipeleek.
+# Copy this file to one of these locations:
+#   - ~/.config/pipeleek/config.yaml (recommended)
+#   - ~/.pipeleek.yaml
+#   - ./pipeleek.yaml (current directory)
+#
+# Or specify a custom path with: pipeleek --config /path/to/config.yaml
+#
+# Note: Command-line flags take precedence over config file values.
+
+# GitLab Configuration
+gitlab:
+  url: https://gitlab.com
+  token: glpat-xxxxxxxxxxxxxxxxxxxx
+  # Optional: GitLab session cookie for accessing dotenv artifacts
+  # Extract from browser after logging in (cookie name: _gitlab_session)
+  cookie: ""
+
+# GitHub Configuration
+github:
+  url: https://api.github.com
+  token: ghp_xxxxxxxxxxxxxxxxxxxx
+
+# BitBucket Configuration
+bitbucket:
+  url: https://bitbucket.org
+  username: your-username
+  password: your-app-password
+
+# Azure DevOps Configuration
+azure_devops:
+  url: https://dev.azure.com/your-organization
+  token: your-pat-token
+
+# Gitea Configuration
+gitea:
+  url: https://gitea.example.com
+  token: your-gitea-token
+
+# Common Settings (applied to all platforms)
+common:
+  # Number of concurrent threads for scanning (1-100)
+  threads: 4
+  
+  # Enable TruffleHog credential verification
+  # When enabled, found credentials are actively tested for validity
+  trufflehog_verification: true
+  
+  # Maximum artifact size to scan (e.g., "500Mb", "1GB", "100KB")
+  max_artifact_size: "500Mb"
+  
+  # Filter results by confidence level
+  # Options: low, medium, high, high-verified
+  confidence_filter: []
+  
+  # Maximum time to wait for hit detection per scan item
+  # Format: "30s", "2m", "1h"
+  hit_timeout: "60s"
