@@ -118,7 +118,7 @@ func GetViper() *viper.Viper {
 	if globalViper == nil {
 		// If Viper hasn't been initialized, initialize with defaults
 		if err := InitializeViper(""); err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Viper")
+			log.Fatal().Err(err).Msg("Failed to auto-initialize Viper configuration")
 		}
 	}
 	return globalViper

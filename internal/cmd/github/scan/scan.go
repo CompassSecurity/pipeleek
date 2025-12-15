@@ -83,7 +83,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		"max-artifact-size":       "common.max_artifact_size",
 		"confidence":              "common.confidence_filter",
 	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind flags")
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
 	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
