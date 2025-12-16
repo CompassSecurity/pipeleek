@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/CompassSecurity/pipeleek/pkg/gitea/util"
+	"code.gitea.io/sdk/gitea"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/nist"
 	"github.com/rs/zerolog/log"
@@ -14,16 +14,27 @@ import (
 
 // RunCheckVulns checks the Gitea instance for vulnerabilities
 func RunCheckVulns(giteaUrl, giteaApiToken string) {
-	installedVersion := util.DetermineVersion(giteaUrl, giteaApiToken)
+	version := "none"
+	giteaClient, err := gitea.NewClient(giteaUrl, gitea.SetToken(giteaApiToken))
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to create Gitea client")
+	} else {
+		ver, _, err := giteaClient.ServerVersion()
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to fetch Gitea version")
+		} else {
+			version = ver
+		}
+	}
 
 	// Extract semver from version string (e.g. "1.25.0+dev-623-ga4ccbc9291" -> "1.25.0")
-	versionParts := strings.Split(installedVersion.Version, "+")
+	versionParts := strings.Split(version, "+")
 	extractedVersion := versionParts[0]
 
-	log.Info().Str("version", installedVersion.Version).Msg("Gitea")
+	log.Info().Str("version", version).Msg("Gitea")
 
 	log.Debug().Str("version", extractedVersion).Msg("Fetching CVEs for this version")
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	baseURL := "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
 	// Allow overriding NIST base URL via environment variable (primarily for testing)
@@ -33,7 +44,7 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 
 	cpeName := fmt.Sprintf("cpe:2.3:a:gitea:gitea:%s:*:*:*:*:*:*:*", extractedVersion)
 
-	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
+	vulnsJsonStr, err := nist.FetchVulns(httpClient, baseURL, cpeName)
 	if err != nil {
 		log.Fatal().Msg("Unable to fetch vulnerabilities from NIST")
 	}

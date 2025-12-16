@@ -25,7 +25,6 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 		baseURL = envURL
 	}
 
-	// Build CPE name for GitLab
 	edition := "community"
 	if installedVersion.Enterprise {
 		edition = "enterprise"
