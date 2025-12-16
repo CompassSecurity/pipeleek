@@ -101,12 +101,14 @@ func DetermineVersion(gitlabUrl string, apiToken string) *gitlab.Metadata {
 
 		metadata, _, err := git.Metadata.GetMetadata()
 		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via API")
 			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 		}
 		return metadata
 	} else {
 		u, err := url.Parse(gitlabUrl)
 		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
 			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 		}
 		u.Path = path.Join(u.Path, "/help")
@@ -115,12 +117,13 @@ func DetermineVersion(gitlabUrl string, apiToken string) *gitlab.Metadata {
 		response, err := client.Get(u.String())
 
 		if err != nil {
-			log.Warn().Msg(gitlabUrl)
+			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
 			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 		}
 
 		responseData, err := io.ReadAll(response.Body)
 		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
 			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 		}
 
@@ -132,6 +135,8 @@ func DetermineVersion(gitlabUrl string, apiToken string) *gitlab.Metadata {
 		if len(versionNumber) > 3 {
 			return &gitlab.Metadata{Version: string(versionNumber), Revision: "none", Enterprise: false}
 		}
+
+		log.Error().Msg("Failed determining GitLab version via Website")
 		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 	}
 }

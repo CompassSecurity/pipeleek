@@ -28,6 +28,7 @@ type nvdResponse struct {
 // CPE name should be in format: cpe:2.3:a:vendor:product:version:*:*:*:edition:*:*:*
 func FetchVulns(client *retryablehttp.Client, baseURL, cpeName string) (string, error) {
 	firstPageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=0", baseURL, cpeName, resultsPerPage)
+	log.Trace().Str("url", firstPageURL).Msg("Fetching vulnerabilities")
 	firstPageData, err := fetchPage(client, firstPageURL)
 	if err != nil {
 		return "{}", err

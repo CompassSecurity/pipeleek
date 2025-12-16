@@ -16,7 +16,7 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 	installedVersion := util.DetermineVersion(gitlabUrl, gitlabApiToken)
 	log.Info().Str("version", installedVersion.Version).Msg("GitLab")
 
-	log.Info().Str("version", installedVersion.Version).Msg("Fetching CVEs for this version")
+	log.Debug().Str("version", installedVersion.Version).Msg("Fetching CVEs for this version")
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	baseURL := "https://services.nvd.nist.gov/rest/json/cves/2.0"
 

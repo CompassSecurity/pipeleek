@@ -3,6 +3,7 @@ package vuln
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitea/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -14,9 +15,14 @@ import (
 // RunCheckVulns checks the Gitea instance for vulnerabilities
 func RunCheckVulns(giteaUrl, giteaApiToken string) {
 	installedVersion := util.DetermineVersion(giteaUrl, giteaApiToken)
+
+	// Extract semver from version string (e.g. "1.25.0+dev-623-ga4ccbc9291" -> "1.25.0")
+	versionParts := strings.Split(installedVersion.Version, "+")
+	extractedVersion := versionParts[0]
+
 	log.Info().Str("version", installedVersion.Version).Msg("Gitea")
 
-	log.Info().Str("version", installedVersion.Version).Msg("Fetching CVEs for this version")
+	log.Debug().Str("version", extractedVersion).Msg("Fetching CVEs for this version")
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	baseURL := "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
@@ -25,8 +31,7 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 		baseURL = envURL
 	}
 
-	// Build CPE name for Gitea
-	cpeName := fmt.Sprintf("cpe:2.3:a:gitea:gitea:%s:*:*:*:*:*:*:*", installedVersion.Version)
+	cpeName := fmt.Sprintf("cpe:2.3:a:gitea:gitea:%s:*:*:*:*:*:*:*", extractedVersion)
 
 	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
 	if err != nil {
@@ -37,7 +42,7 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 	result.ForEach(func(key, value gjson.Result) bool {
 		cve := value.Get("cve.id").String()
 		description := value.Get("cve.descriptions.0.value").String()
-		log.Info().Str("cve", cve).Str("description", description).Msg("Vulnerable")
+		log.Warn().Str("cve", cve).Str("description", description).Msg("Vulnerable")
 		return true
 	})
 
