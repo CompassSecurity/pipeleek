@@ -28,7 +28,7 @@ func NewVulnCmd() *cobra.Command {
 	vulnCmd.Flags().StringVarP(&giteaApiToken, "token", "t", "", "Gitea API Token")
 	err = vulnCmd.MarkFlagRequired("token")
 	if err != nil {
-		log.Fatal().Msg("Unable to require token flag")
+		log.Fatal().Stack().Err(err).Msg("Unable to require token flag")
 	}
 	vulnCmd.MarkFlagsRequiredTogether("gitea", "token")
 
