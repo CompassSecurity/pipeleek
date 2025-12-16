@@ -65,10 +65,13 @@ func TestFetchVulns_NoPagination(t *testing.T) {
 	server := mockNVDServer(t, 10, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	// Create a properly configured retryable client
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	// Parse the result
@@ -87,9 +90,12 @@ func TestFetchVulns_WithPagination(t *testing.T) {
 	server := mockNVDServer(t, 250, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	// Parse the result
@@ -119,9 +125,12 @@ func TestFetchVulns_EmptyResponse(t *testing.T) {
 	server := mockNVDServer(t, 0, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:99.99.99:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:99.99.99:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -139,10 +148,13 @@ func TestFetchVulns_HTTPError(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
 	client.RetryMax = 0 // Disable retries for faster test
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
 }
@@ -155,9 +167,12 @@ func TestFetchVulns_InvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
 }
@@ -167,9 +182,12 @@ func TestFetchVulns_LargePagination(t *testing.T) {
 	server := mockNVDServer(t, 1000, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -194,9 +212,12 @@ func TestFetchVulns_ExactPageBoundary(t *testing.T) {
 	server := mockNVDServer(t, 100, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse
@@ -212,9 +233,12 @@ func TestFetchVulns_MultiplePagesExactBoundary(t *testing.T) {
 	server := mockNVDServer(t, 200, 100)
 	defer server.Close()
 
+	// Set the environment variable for the test
+	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
+
 	client := retryablehttp.NewClient()
 	client.HTTPClient = server.Client()
-	result, err := FetchVulns(client, server.URL, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
+	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
 	var response nvdResponse

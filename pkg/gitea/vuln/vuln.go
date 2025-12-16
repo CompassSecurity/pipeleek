@@ -13,21 +13,21 @@ import (
 
 // RunCheckVulns checks the Gitea instance for vulnerabilities
 func RunCheckVulns(giteaUrl, giteaApiToken string) {
+	version := "none"
 	giteaClient, err := gitea.NewClient(giteaUrl, gitea.SetToken(giteaApiToken))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed creating Gitea client")
-	}
-
-	version, _, err := giteaClient.ServerVersion()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed determining Gitea version via API")
+		log.Warn().Err(err).Msg("Failed creating Gitea client")
+	} else {
+		ver, _, err := giteaClient.ServerVersion()
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed determining Gitea version via API")
+		} else {
+			version = ver
+		}
 	}
 
 	// Extract semver from version string (e.g. "1.25.0+dev-623-ga4ccbc9291" -> "1.25.0")
 	versionParts := strings.Split(version, "+")
-	if len(versionParts) == 0 {
-		log.Fatal().Any("versionParts", versionParts).Msg("Failed to determine Gitea version parts")
-	}
 	extractedVersion := versionParts[0]
 
 	log.Info().Str("version", version).Msg("Gitea")
