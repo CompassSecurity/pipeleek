@@ -2,7 +2,6 @@ package vuln
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -18,12 +17,6 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 
 	log.Debug().Str("version", installedVersion.Version).Msg("Fetching CVEs for this version")
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	baseURL := "https://services.nvd.nist.gov/rest/json/cves/2.0"
-
-	// Allow overriding NIST base URL via environment variable (primarily for testing)
-	if envURL := os.Getenv("PIPELEEK_NIST_BASE_URL"); envURL != "" {
-		baseURL = envURL
-	}
 
 	edition := "community"
 	if installedVersion.Enterprise {
@@ -31,7 +24,7 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 	}
 	cpeName := fmt.Sprintf("cpe:2.3:a:gitlab:gitlab:%s:*:*:*:%s:*:*:*", installedVersion.Version, edition)
 
-	vulnsJsonStr, err := nist.FetchVulns(client, baseURL, cpeName)
+	vulnsJsonStr, err := nist.FetchVulns(client, cpeName)
 	if err != nil {
 		log.Fatal().Msg("Unable to fetch vulnerabilities from NIST")
 	}

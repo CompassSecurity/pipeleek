@@ -2,7 +2,6 @@ package vuln
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"code.gitea.io/sdk/gitea"
@@ -26,22 +25,19 @@ func RunCheckVulns(giteaUrl, giteaApiToken string) {
 
 	// Extract semver from version string (e.g. "1.25.0+dev-623-ga4ccbc9291" -> "1.25.0")
 	versionParts := strings.Split(version, "+")
+	if len(versionParts) == 0 {
+		log.Fatal().Any("versionParts", versionParts).Msg("Failed to determine Gitea version parts")
+	}
 	extractedVersion := versionParts[0]
 
 	log.Info().Str("version", version).Msg("Gitea")
 
 	log.Debug().Str("version", extractedVersion).Msg("Fetching CVEs for this version")
 	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	baseURL := "https://services.nvd.nist.gov/rest/json/cves/2.0"
-
-	// Allow overriding NIST base URL via environment variable (primarily for testing)
-	if envURL := os.Getenv("PIPELEEK_NIST_BASE_URL"); envURL != "" {
-		baseURL = envURL
-	}
 
 	cpeName := fmt.Sprintf("cpe:2.3:a:gitea:gitea:%s:*:*:*:*:*:*:*", extractedVersion)
 
-	vulnsJsonStr, err := nist.FetchVulns(httpClient, baseURL, cpeName)
+	vulnsJsonStr, err := nist.FetchVulns(httpClient, cpeName)
 	if err != nil {
 		log.Fatal().Msg("Unable to fetch vulnerabilities from NIST")
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
@@ -22,11 +23,21 @@ type nvdResponse struct {
 	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
 }
 
+var PIPELEEK_NIST_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+
 // FetchVulns retrieves all CVE vulnerabilities for a specific CPE name from the NIST NVD API.
 // It automatically handles pagination if the total results exceed the page size.
 // Accepts a retryablehttp client, base URL, and full CPE name to allow dependency injection for testing.
 // CPE name should be in format: cpe:2.3:a:vendor:product:version:*:*:*:edition:*:*:*
-func FetchVulns(client *retryablehttp.Client, baseURL, cpeName string) (string, error) {
+func FetchVulns(client *retryablehttp.Client, cpeName string) (string, error) {
+
+	baseURL := PIPELEEK_NIST_BASE_URL
+	// Allow overriding NIST base URL via environment variable (primarily for testing)
+	if envURL := os.Getenv("PIPELEEK_NIST_BASE_URL"); envURL != "" {
+		log.Debug().Str("url", envURL).Msg("Overriding NIST base URL from environment variable")
+		baseURL = envURL
+	}
+
 	firstPageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=0", baseURL, cpeName, resultsPerPage)
 	log.Trace().Str("url", firstPageURL).Msg("Fetching vulnerabilities")
 	firstPageData, err := fetchPage(client, firstPageURL)
