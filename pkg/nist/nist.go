@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
+	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
@@ -23,25 +23,23 @@ type nvdResponse struct {
 	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
 }
 
-// FetchVulns retrieves all CVE vulnerabilities for a specific GitLab version and edition from the NIST NVD API.
+var PIPELEEK_NIST_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+
+// FetchVulns retrieves all CVE vulnerabilities for a specific CPE name from the NIST NVD API.
 // It automatically handles pagination if the total results exceed the page size.
-// Accepts a retryablehttp client and base URL to allow dependency injection for testing.
-func FetchVulns(client *retryablehttp.Client, baseURL, version string, enterprise bool) (string, error) {
-	edition := "community"
-	if enterprise {
-		edition = "enterprise"
+// Accepts a retryablehttp client, base URL, and full CPE name to allow dependency injection for testing.
+// CPE name should be in format: cpe:2.3:a:vendor:product:version:*:*:*:edition:*:*:*
+func FetchVulns(client *retryablehttp.Client, cpeName string) (string, error) {
+
+	baseURL := PIPELEEK_NIST_BASE_URL
+	// Allow overriding NIST base URL via environment variable (primarily for testing)
+	if envURL := os.Getenv("PIPELEEK_NIST_BASE_URL"); envURL != "" {
+		log.Debug().Str("url", envURL).Msg("Overriding NIST base URL from environment variable")
+		baseURL = envURL
 	}
 
-	baseCPEUrl := strings.Join([]string{
-		baseURL,
-		"?cpeName=cpe:2.3:a:gitlab:gitlab:",
-		version,
-		":*:*:*:",
-		edition,
-		":*:*:*",
-	}, "")
-
-	firstPageURL := fmt.Sprintf("%s&resultsPerPage=%d&startIndex=0", baseCPEUrl, resultsPerPage)
+	firstPageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=0", baseURL, cpeName, resultsPerPage)
+	log.Trace().Str("url", firstPageURL).Msg("Fetching vulnerabilities")
 	firstPageData, err := fetchPage(client, firstPageURL)
 	if err != nil {
 		return "{}", err
@@ -61,7 +59,7 @@ func FetchVulns(client *retryablehttp.Client, baseURL, version string, enterpris
 	allVulns := firstPageData.Vulnerabilities
 
 	for startIndex := resultsPerPage; startIndex < firstPageData.TotalResults; startIndex += resultsPerPage {
-		pageURL := fmt.Sprintf("%s&resultsPerPage=%d&startIndex=%d", baseCPEUrl, resultsPerPage, startIndex)
+		pageURL := fmt.Sprintf("%s?cpeName=%s&resultsPerPage=%d&startIndex=%d", baseURL, cpeName, resultsPerPage, startIndex)
 		pageData, err := fetchPage(client, pageURL)
 		if err != nil {
 			log.Warn().Err(err).Int("startIndex", startIndex).Msg("failed to fetch page, continuing with partial results")
