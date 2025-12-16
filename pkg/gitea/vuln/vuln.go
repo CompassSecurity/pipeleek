@@ -14,22 +14,14 @@ import (
 
 // RunCheckVulns checks the Gitea instance for vulnerabilities
 func RunCheckVulns(giteaUrl, giteaApiToken string) {
-	version := "none"
-
-	// Explicitly handle "none" or empty version strings returned by DetermineVersion on API failure.
-	if installedVersion.Version == "" || installedVersion.Version == "none" {
-		log.Warn().Str("version", installedVersion.Version).Msg("Could not determine Gitea version; skipping NIST vulnerability check")
-		return
-	}
+	giteaClient, err := gitea.NewClient(giteaUrl, gitea.SetToken(giteaApiToken))
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to create Gitea client")
-	} else {
-		ver, _, err := giteaClient.ServerVersion()
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to fetch Gitea version")
-		} else {
-			version = ver
-		}
+		log.Fatal().Err(err).Msg("Failed creating Gitea client")
+	}
+
+	version, _, err := giteaClient.ServerVersion()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed determining Gitea version via API")
 	}
 
 	// Extract semver from version string (e.g. "1.25.0+dev-623-ga4ccbc9291" -> "1.25.0")

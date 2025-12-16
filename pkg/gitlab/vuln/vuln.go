@@ -40,7 +40,7 @@ func RunCheckVulns(gitlabUrl, gitlabApiToken string) {
 	result.ForEach(func(key, value gjson.Result) bool {
 		cve := value.Get("cve.id").String()
 		description := value.Get("cve.descriptions.0.value").String()
-		log.Info().Str("cve", cve).Str("description", description).Msg("Vulnerable")
+		log.Warn().Str("cve", cve).Str("description", description).Msg("Vulnerable")
 		return true
 	})
 
