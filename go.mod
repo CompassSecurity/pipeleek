@@ -24,7 +24,7 @@ require (
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.32.0
 	golift.io/xtractr v0.2.2
-	resty.dev/v3 v3.0.0-beta.4
+	resty.dev/v3 v3.0.0-beta.5
 )
 
 require (
