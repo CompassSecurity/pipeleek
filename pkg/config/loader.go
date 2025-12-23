@@ -131,7 +131,10 @@ func InitializeViper(configFile string) error {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)
 		}
-		v.AddConfigPath(".")
+		// Only add current directory if no pipeleek binary exists to avoid confusion
+		if _, err := os.Stat("./pipeleek"); os.IsNotExist(err) {
+			v.AddConfigPath(".")
+		}
 
 		log.Debug().Msg("Searching for config file in standard locations")
 	}
@@ -140,6 +143,11 @@ func InitializeViper(configFile string) error {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			log.Debug().Msg("No config file found, using defaults and command-line flags")
 		} else {
+			// Log which file caused the error
+			configFileUsed := v.ConfigFileUsed()
+			if configFileUsed != "" {
+				return fmt.Errorf("error reading config file %s: %w", configFileUsed, err)
+			}
 			return fmt.Errorf("error reading config file: %w", err)
 		}
 	} else {

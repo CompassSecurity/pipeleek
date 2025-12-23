@@ -19,37 +19,33 @@ func NewRenovateRootCmd() *cobra.Command {
 		Use:   "renovate",
 		Short: "Renovate related commands",
 		Long:  "Commands to enumerate and exploit GitLab Renovate bot configurations.",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Allow config to override if flags not explicitly set
+			if !cmd.Flags().Changed("gitlab") {
+				gitlabUrl = config.GetString("gitlab.url")
+			}
+			if !cmd.Flags().Changed("token") {
+				gitlabApiToken = config.GetString("gitlab.token")
+			}
+		},
 	}
 
-	renovateCmd.PersistentFlags().StringVar(&gitlabUrl, "gitlab", "", "GitLab instance URL")
-	renovateCmd.PersistentFlags().StringVar(&gitlabApiToken, "token", "", "GitLab API Token")
+	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	err := renovateCmd.MarkPersistentFlagRequired("gitlab")
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
+	}
+
+	renovateCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
+	err = renovateCmd.MarkPersistentFlagRequired("token")
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Unable to require token flag")
+	}
+	renovateCmd.MarkFlagsRequiredTogether("gitlab", "token")
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())
 	renovateCmd.AddCommand(autodiscovery.NewAutodiscoveryCmd())
 	renovateCmd.AddCommand(privesc.NewPrivescCmd())
-
-	renovateCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		if err := config.BindCommandFlags(cmd, "gitlab.renovate", map[string]string{
-			"gitlab": "gitlab.url",
-			"token":  "gitlab.token",
-		}); err != nil {
-			log.Fatal().Err(err).Msg("Failed to bind flags")
-		}
-
-		if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-			log.Fatal().Err(err).Msg("Missing required configuration")
-		}
-
-		gitlabUrl = config.GetString("gitlab.url")
-		gitlabApiToken = config.GetString("gitlab.token")
-
-		if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-			log.Fatal().Err(err).Msg("Invalid GitLab URL")
-		}
-		if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-			log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-		}
-	}
 
 	return renovateCmd
 }
