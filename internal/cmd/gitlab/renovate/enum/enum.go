@@ -33,13 +33,14 @@ func NewEnumCmd() *cobra.Command {
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind flags")
 			}
-			if parent != nil {
-				if err := config.BindCommandFlags(parent, "gitlab.renovate", map[string]string{
-					"gitlab": "gitlab.url",
-					"token":  "gitlab.token",
-				}); err != nil {
-					log.Fatal().Err(err).Msg("Failed to bind parent flags")
-				}
+			if parent == nil {
+				log.Fatal().Msg("Parent command is required but not found")
+			}
+			if err := config.BindCommandFlags(parent, "gitlab.renovate", map[string]string{
+				"gitlab": "gitlab.url",
+				"token":  "gitlab.token",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind parent flags")
 			}
 
 			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {

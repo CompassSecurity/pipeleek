@@ -206,17 +206,17 @@ azure_devops:
 	// Verify all platforms are loaded correctly
 	assert.Equal(t, "https://gitlab.example.com", GetString("gitlab.url"))
 	assert.Equal(t, "glpat-token", GetString("gitlab.token"))
-	
+
 	assert.Equal(t, "https://api.github.com", GetString("github.url"))
 	assert.Equal(t, "ghp-token", GetString("github.token"))
-	
+
 	assert.Equal(t, "https://bitbucket.org", GetString("bitbucket.url"))
 	assert.Equal(t, "bb-user", GetString("bitbucket.username"))
 	assert.Equal(t, "bb-pass", GetString("bitbucket.password"))
-	
+
 	assert.Equal(t, "https://gitea.example.com", GetString("gitea.url"))
 	assert.Equal(t, "gitea-token", GetString("gitea.token"))
-	
+
 	assert.Equal(t, "https://dev.azure.com/org", GetString("azure_devops.url"))
 	assert.Equal(t, "ado-token", GetString("azure_devops.token"))
 }

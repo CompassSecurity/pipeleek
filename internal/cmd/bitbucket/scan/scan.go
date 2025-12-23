@@ -64,7 +64,6 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Bind flags to Viper configuration keys for automatic priority handling
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"bitbucket":                "bitbucket.url",
 		"token":                    "bitbucket.password",
@@ -79,7 +78,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
-	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.password")
 	options.Email = config.GetString("bitbucket.username")
@@ -89,12 +87,10 @@ func Scan(cmd *cobra.Command, args []string) {
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
-	// Validate conditionally required values
 	if options.AccessToken != "" && options.Email == "" {
 		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.username in config)")
 	}
 
-	// Validate formats
 	if err := config.ValidateURL(options.BitBucketURL, "BitBucket URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid BitBucket URL")
 	}

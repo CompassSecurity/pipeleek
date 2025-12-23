@@ -9,7 +9,7 @@ keywords:
 
 # Configuration
 
-Pipeleek can be configured via config files, environment variables, or CLI flags. This eliminates repetitive flag usage and simplifies and secures credential management.
+Pipeleek can be configured via config files, environment variables, or CLI flags. This eliminates repetitive flag usage, simplifies and secures credential management.
 
 ## Quick Start
 

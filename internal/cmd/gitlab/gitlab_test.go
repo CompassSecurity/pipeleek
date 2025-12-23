@@ -151,7 +151,7 @@ func TestNewShodanCmd(t *testing.T) {
 	}
 
 	flags := cmd.Flags()
-	if flags.Lookup("shodan-json") == nil {
-		t.Error("Expected 'shodan-json' flag to exist")
+	if flags.Lookup("json") == nil {
+		t.Error("Expected 'json' flag to exist")
 	}
 }

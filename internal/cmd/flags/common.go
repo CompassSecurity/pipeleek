@@ -22,5 +22,3 @@ func AddCommonScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions, maxA
 	cmd.Flags().DurationVarP(&opts.HitTimeout, "hit-timeout", "", 60*time.Second,
 		"Maximum time to wait for hit detection per scan item (e.g., 30s, 2m, 1h)")
 }
-
-

@@ -106,7 +106,7 @@ func BindCommandFlags(cmd *cobra.Command, baseKey string, overrides map[string]s
 			}
 
 			if err := v.BindPFlag(key, flag); err != nil {
-				panic(fmt.Errorf("failed to bind flag %s to key %s: %w", flag.Name, key, err))
+				log.Fatal().Err(err).Str("flag", flag.Name).Str("key", key).Msg("Failed to bind flag")
 			}
 		})
 	}
@@ -114,24 +114,18 @@ func BindCommandFlags(cmd *cobra.Command, baseKey string, overrides map[string]s
 	return nil
 }
 
-// InitializeViper initializes the global Viper instance with config file and defaults.
-// This should be called once during application initialization.
 func InitializeViper(configFile string) error {
 	v := viper.New()
 
-	// Set defaults
 	setDefaults(v)
 
-	// If a config file is explicitly specified, use it
 	if configFile != "" {
 		v.SetConfigFile(configFile)
 		log.Debug().Str("path", configFile).Msg("Using specified config file")
 	} else {
-		// Look for config in standard locations
 		v.SetConfigName("pipeleek")
 		v.SetConfigType("yaml")
 
-		// Add config paths
 		home, err := os.UserHomeDir()
 		if err == nil {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
@@ -142,25 +136,20 @@ func InitializeViper(configFile string) error {
 		log.Debug().Msg("Searching for config file in standard locations")
 	}
 
-	// Read config file (if it exists)
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; using defaults and flags
 			log.Debug().Msg("No config file found, using defaults and command-line flags")
 		} else {
-			// Config file was found but another error was encountered
 			return fmt.Errorf("error reading config file: %w", err)
 		}
 	} else {
 		log.Info().Str("file", v.ConfigFileUsed()).Msg("Loaded config file")
-		// Trace log all keys loaded from the config file
 		loadedKeys := v.AllKeys()
 		if len(loadedKeys) > 0 {
 			log.Trace().Strs("keys", loadedKeys).Msg("Configuration keys loaded from file")
 		}
 	}
 
-	// Read from environment variables with PIPELEEK_ prefix
 	v.SetEnvPrefix("PIPELEEK")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -169,10 +158,8 @@ func InitializeViper(configFile string) error {
 	return nil
 }
 
-// GetViper returns the global Viper instance
 func GetViper() *viper.Viper {
 	if globalViper == nil {
-		// If Viper hasn't been initialized, initialize with defaults
 		if err := InitializeViper(""); err != nil {
 			log.Fatal().Err(err).Msg("Failed to auto-initialize Viper configuration")
 		}
@@ -180,34 +167,22 @@ func GetViper() *viper.Viper {
 	return globalViper
 }
 
-// BindFlags binds command flags to Viper configuration keys.
-// This enables automatic priority handling: CLI flags > config file > defaults.
-// Deprecated: Use AutoBindFlags for new code, which provides the same functionality.
-func BindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
-	return AutoBindFlags(cmd, flagMappings)
-}
-
-// GetString retrieves a string value using Viper's native priority handling
 func GetString(key string) string {
 	return GetViper().GetString(key)
 }
 
-// GetBool retrieves a bool value using Viper's native priority handling
 func GetBool(key string) bool {
 	return GetViper().GetBool(key)
 }
 
-// GetInt retrieves an int value using Viper's native priority handling
 func GetInt(key string) int {
 	return GetViper().GetInt(key)
 }
 
-// GetStringSlice retrieves a string slice using Viper's native priority handling
 func GetStringSlice(key string) []string {
 	return GetViper().GetStringSlice(key)
 }
 
-// UnmarshalConfig unmarshals the configuration into a Config struct
 func UnmarshalConfig() (*Config, error) {
 	config := &Config{}
 	if err := GetViper().Unmarshal(config); err != nil {
@@ -216,29 +191,26 @@ func UnmarshalConfig() (*Config, error) {
 	return config, nil
 }
 
-// setDefaults sets default values for all configuration options
 func setDefaults(v *viper.Viper) {
-	// Common defaults
 	v.SetDefault("common.threads", 4)
 	v.SetDefault("common.trufflehog_verification", true)
 	v.SetDefault("common.max_artifact_size", "500Mb")
 	v.SetDefault("common.confidence_filter", []string{})
 	v.SetDefault("common.hit_timeout", "60s")
 
-	// GitHub defaults
 	v.SetDefault("github.url", "https://api.github.com")
+	v.SetDefault("gitlab.url", "https://gitlab.com")
+	v.SetDefault("bitbucket.url", "https://bitbucket.org")
+	v.SetDefault("azure_devops.url", "https://dev.azure.com")
 }
 
 // AutoBindFlags automatically binds all flags from a command to Viper using the provided key mappings.
-// This centralizes flag-to-config binding to reduce boilerplate in each command.
-// Call this in PreRunE or at the start of your Run function.
 func AutoBindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
 	v := GetViper()
 
 	for flagName, viperKey := range flagMappings {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil {
-			// Try parent/persistent flags
 			flag = cmd.InheritedFlags().Lookup(flagName)
 		}
 		if flag != nil {

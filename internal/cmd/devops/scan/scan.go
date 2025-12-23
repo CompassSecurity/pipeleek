@@ -63,7 +63,6 @@ pipeleek ad scan --token xxxxxxxxxxx --username auser --artifacts --organization
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Bind flags to Viper configuration keys for automatic priority handling
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"devops":                   "azure_devops.url",
 		"token":                    "azure_devops.token",
@@ -77,12 +76,10 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
-	// Validate required configuration keys (from flags or config file)
 	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
 		log.Fatal().Err(err).Msg("Missing required configuration")
 	}
 
-	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")
@@ -91,7 +88,6 @@ func Scan(cmd *cobra.Command, args []string) {
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
-	// Validate formats
 	if err := config.ValidateURL(options.DevOpsURL, "Azure DevOps URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid Azure DevOps URL")
 	}

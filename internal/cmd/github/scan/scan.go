@@ -69,7 +69,6 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Bind flags to Viper configuration keys for automatic priority handling
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"github":                   "github.url",
 		"token":                    "github.token",
@@ -82,12 +81,10 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
-	// Validate required configuration keys (from flags or config file)
 	if err := config.RequireConfigKeys("github.token"); err != nil {
 		log.Fatal().Err(err).Msg("Missing required configuration")
 	}
 
-	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
 	options.GitHubURL = config.GetString("github.url")
 	options.AccessToken = config.GetString("github.token")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
@@ -95,7 +92,6 @@ func Scan(cmd *cobra.Command, args []string) {
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
-	// Validate formats
 	if err := config.ValidateURL(options.GitHubURL, "GitHub URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitHub URL")
 	}

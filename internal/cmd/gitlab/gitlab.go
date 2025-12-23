@@ -50,8 +50,6 @@ For SOCKS5 proxy:
 
 	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
 	glCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	// Do not mark flags as required here; values can come from config file via Viper.
-	// Validation happens inside subcommands after config is loaded and flags are bound.
 
 	return glCmd
 }
