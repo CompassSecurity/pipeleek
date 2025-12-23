@@ -12,7 +12,7 @@ func NewShodanCmd() *cobra.Command {
 		Use:     "shodan",
 		Short:   "Query Shodan for GitLab instance IPs",
 		Long:    "Query Shodan for IPs running GitLab instances",
-		Example: `pipeleek gl shodan --shodan-json shodan_data.json`,
+		Example: `pipeleek gl shodan --json shodan_data.json`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.BindCommandFlags(cmd, "gitlab.shodan", nil); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind flags")
@@ -27,7 +27,7 @@ func NewShodanCmd() *cobra.Command {
 			shodan.RunShodan(shodanJsonFile)
 		},
 	}
-	shodanCmd.Flags().String("shodan-json", "", "Path to Shodan JSON file")
+	shodanCmd.Flags().String("json", "", "Path to Shodan JSON file")
 
 	return shodanCmd
 }

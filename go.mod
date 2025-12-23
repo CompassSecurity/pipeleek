@@ -1,8 +1,8 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.25
+go 1.24
 
-toolchain go1.25.1
+toolchain go1.24.11
 
 require (
 	atomicgo.dev/keyboard v0.2.9
@@ -180,7 +180,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/nsqio/go-diskqueue v1.1.0
 	github.com/perimeterx/marshmallow v1.1.5
-	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/spf13/pflag v1.0.10
 	github.com/wandb/parallel v0.2.3
 	github.com/yosuke-furukawa/json5 v0.1.1
 	golang.org/x/oauth2 v0.33.0 // indirect
