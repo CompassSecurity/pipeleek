@@ -20,14 +20,15 @@ func NewYamlCmd() *cobra.Command {
 				"gitlab": "gitlab.url",
 				"token":  "gitlab.token",
 			}); err != nil {
-				return
+				log.Fatal().Err(err).Msg("Failed to bind flags to config")
 			}
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
+			projectName = config.GetString("gitlab.cicd.yaml.project")
 
-			if !cmd.Flags().Changed("project") {
-				projectName = config.GetString("gitlab.cicd.yaml.project")
+			if projectName == "" {
+				log.Fatal().Msg("Project name is required (use --project flag, config file, or PIPELEEK_GITLAB_CICD_YAML_PROJECT env var)")
 			}
 
 			pkgcicd.DumpCICDYaml(gitlabUrl, gitlabApiToken, projectName)
@@ -36,10 +37,6 @@ func NewYamlCmd() *cobra.Command {
 	}
 
 	yamlCmd.Flags().StringVarP(&projectName, "project", "p", "", "Project name")
-	err := yamlCmd.MarkFlagRequired("project")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require project flag")
-	}
 
 	return yamlCmd
 }

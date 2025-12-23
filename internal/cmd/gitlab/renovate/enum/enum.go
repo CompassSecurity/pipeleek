@@ -3,6 +3,7 @@ package enum
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/enum"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -24,17 +25,32 @@ func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:   "enum [no options!]",
 		Short: "Enumerate Renovate configurations",
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "gitlab.renovate.enum", map[string]string{
+		PreRun: func(cmd *cobra.Command, args []string) {
+			// Bind parent flags to config
+			if err := config.BindCommandFlags(cmd.Parent(), "gitlab.renovate", map[string]string{
 				"gitlab": "gitlab.url",
 				"token":  "gitlab.token",
 			}); err != nil {
-				return
+				log.Fatal().Err(err).Msg("Failed to bind parent flags")
+			}
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := config.BindCommandFlags(cmd, "gitlab.renovate.enum", nil); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind flags to config")
 			}
 
+			// Get gitlab URL and token from config (supports all three methods)
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
 
+			if gitlabUrl == "" {
+				log.Fatal().Msg("GitLab URL is required (use --gitlab flag, config file, or PIPELEEK_GITLAB_URL env var)")
+			}
+			if gitlabApiToken == "" {
+				log.Fatal().Msg("GitLab token is required (use --token flag, config file, or PIPELEEK_GITLAB_TOKEN env var)")
+			}
+
+			// All flags can come from config, CLI flags, or env vars via Viper
 			if !cmd.Flags().Changed("owned") {
 				owned = config.GetBool("gitlab.renovate.enum.owned")
 			}
