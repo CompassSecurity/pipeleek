@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -55,14 +57,62 @@ type GiteaConfig struct {
 
 // CommonConfig contains common configuration settings
 type CommonConfig struct {
-	Threads               int      `mapstructure:"threads"`
+	Threads                int      `mapstructure:"threads"`
 	TruffleHogVerification bool     `mapstructure:"trufflehog_verification"`
-	MaxArtifactSize       string   `mapstructure:"max_artifact_size"`
-	ConfidenceFilter      []string `mapstructure:"confidence_filter"`
-	HitTimeout            string   `mapstructure:"hit_timeout"`
+	MaxArtifactSize        string   `mapstructure:"max_artifact_size"`
+	ConfidenceFilter       []string `mapstructure:"confidence_filter"`
+	HitTimeout             string   `mapstructure:"hit_timeout"`
 }
 
 var globalViper *viper.Viper
+
+// normalizeFlagKey converts cobra flag names to viper key fragments.
+// Example: "max-artifact-size" -> "max_artifact_size".
+func normalizeFlagKey(name string) string {
+	return strings.ReplaceAll(name, "-", "_")
+}
+
+// BindCommandFlags binds a command's flags (including inherited ones) to Viper keys.
+// Keys are derived from the provided baseKey plus the normalized flag name, unless
+// an override is provided in the overrides map (flag name -> viper key).
+//
+// Example:
+//
+//	BindCommandFlags(cmd, "gitlab.scan", map[string]string{"gitlab": "gitlab.url"})
+//	--threads -> gitlab.scan.threads
+//	--gitlab  -> gitlab.url (override)
+func BindCommandFlags(cmd *cobra.Command, baseKey string, overrides map[string]string) error {
+	v := GetViper()
+
+	seen := make(map[string]struct{})
+	flagSets := []*pflag.FlagSet{cmd.Flags(), cmd.InheritedFlags(), cmd.PersistentFlags()}
+
+	for _, fs := range flagSets {
+		if fs == nil {
+			continue
+		}
+		fs.VisitAll(func(flag *pflag.Flag) {
+			if flag == nil {
+				return
+			}
+			if _, ok := seen[flag.Name]; ok {
+				return
+			}
+			seen[flag.Name] = struct{}{}
+
+			key := baseKey + "." + normalizeFlagKey(flag.Name)
+			if override, ok := overrides[flag.Name]; ok {
+				key = override
+			}
+
+			if err := v.BindPFlag(key, flag); err != nil {
+				panic(fmt.Errorf("failed to bind flag %s to key %s: %w", flag.Name, key, err))
+			}
+		})
+	}
+
+	return nil
+}
 
 // InitializeViper initializes the global Viper instance with config file and defaults.
 // This should be called once during application initialization.
@@ -80,7 +130,7 @@ func InitializeViper(configFile string) error {
 		// Look for config in standard locations
 		v.SetConfigName("pipeleek")
 		v.SetConfigType("yaml")
-		
+
 		// Add config paths
 		home, err := os.UserHomeDir()
 		if err == nil {
@@ -88,7 +138,7 @@ func InitializeViper(configFile string) error {
 			v.AddConfigPath(home)
 		}
 		v.AddConfigPath(".")
-		
+
 		log.Debug().Msg("Searching for config file in standard locations")
 	}
 
@@ -103,10 +153,16 @@ func InitializeViper(configFile string) error {
 		}
 	} else {
 		log.Info().Str("file", v.ConfigFileUsed()).Msg("Loaded config file")
+		// Trace log all keys loaded from the config file
+		loadedKeys := v.AllKeys()
+		if len(loadedKeys) > 0 {
+			log.Trace().Strs("keys", loadedKeys).Msg("Configuration keys loaded from file")
+		}
 	}
 
 	// Read from environment variables with PIPELEEK_ prefix
 	v.SetEnvPrefix("PIPELEEK")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
 	globalViper = v
@@ -126,21 +182,9 @@ func GetViper() *viper.Viper {
 
 // BindFlags binds command flags to Viper configuration keys.
 // This enables automatic priority handling: CLI flags > config file > defaults.
+// Deprecated: Use AutoBindFlags for new code, which provides the same functionality.
 func BindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
-	v := GetViper()
-	for flagName, viperKey := range flagMappings {
-		flag := cmd.Flags().Lookup(flagName)
-		if flag == nil {
-			// Try parent flags
-			flag = cmd.InheritedFlags().Lookup(flagName)
-		}
-		if flag != nil {
-			if err := v.BindPFlag(viperKey, flag); err != nil {
-				return fmt.Errorf("failed to bind flag %s to key %s: %w", flagName, viperKey, err)
-			}
-		}
-	}
-	return nil
+	return AutoBindFlags(cmd, flagMappings)
 }
 
 // GetString retrieves a string value using Viper's native priority handling
@@ -185,3 +229,44 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.url", "https://api.github.com")
 }
 
+// AutoBindFlags automatically binds all flags from a command to Viper using the provided key mappings.
+// This centralizes flag-to-config binding to reduce boilerplate in each command.
+// Call this in PreRunE or at the start of your Run function.
+func AutoBindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
+	v := GetViper()
+
+	for flagName, viperKey := range flagMappings {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			// Try parent/persistent flags
+			flag = cmd.InheritedFlags().Lookup(flagName)
+		}
+		if flag != nil {
+			if err := v.BindPFlag(viperKey, flag); err != nil {
+				return fmt.Errorf("failed to bind flag %s to key %s: %w", flagName, viperKey, err)
+			}
+		}
+	}
+	return nil
+}
+
+// RequireConfigKeys validates that all required configuration keys have non-empty values.
+// This allows flags to be satisfied by either CLI flags or config file values.
+// Call this after AutoBindFlags to validate required values from any source.
+func RequireConfigKeys(keys ...string) error {
+	v := GetViper()
+	var missing []string
+
+	for _, key := range keys {
+		value := v.GetString(key)
+		if value == "" {
+			missing = append(missing, key)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("required configuration missing: %v (provide via flags or config file)", missing)
+	}
+
+	return nil
+}

@@ -1,16 +1,11 @@
 package enum
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgenum "github.com/CompassSecurity/pipeleek/pkg/gitlab/enum"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
-)
-
-var (
-	gitlabApiToken string
-	gitlabUrl      string
-	minAccessLevel int
 )
 
 func NewEnumCmd() *cobra.Command {
@@ -21,24 +16,35 @@ func NewEnumCmd() *cobra.Command {
 		Example: `pipeleek gl enum --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --level 20`,
 		Run:     Enum,
 	}
-	enumCmd.Flags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := enumCmd.MarkFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
-	}
-
-	enumCmd.Flags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	err = enumCmd.MarkFlagRequired("token")
-	if err != nil {
-		log.Fatal().Msg("Unable to require token flag")
-	}
-	enumCmd.MarkFlagsRequiredTogether("gitlab", "token")
-
-	enumCmd.PersistentFlags().IntVarP(&minAccessLevel, "level", "", int(gitlab.GuestPermissions), "Minimum repo access level. See https://docs.gitlab.com/api/access_requests/#valid-access-levels for integer values")
+	enumCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
+	enumCmd.Flags().Int("level", int(gitlab.GuestPermissions), "Minimum repo access level. See https://docs.gitlab.com/api/access_requests/#valid-access-levels for integer values")
 
 	return enumCmd
 }
 
 func Enum(cmd *cobra.Command, args []string) {
+	if err := config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
+		"gitlab": "gitlab.url",
+		"token":  "gitlab.token",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind flags")
+	}
+
+	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
+	}
+
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+	minAccessLevel := config.GetInt("gitlab.enum.level")
+
+	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab URL")
+	}
+	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
+	}
+
 	pkgenum.RunEnum(gitlabUrl, gitlabApiToken, minAccessLevel)
 }

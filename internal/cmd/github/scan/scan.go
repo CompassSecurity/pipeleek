@@ -56,11 +56,6 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 
 	scanCmd.Flags().StringVarP(&options.AccessToken, "token", "t", "", "GitHub Personal Access Token - https://github.com/settings/tokens")
-	err := scanCmd.MarkFlagRequired("token")
-	if err != nil {
-		log.Fatal().Msg("Unable to require token flag")
-	}
-
 	scanCmd.Flags().IntVarP(&options.MaxWorkflows, "max-workflows", "", -1, "Max. number of workflows to scan per repository")
 	scanCmd.Flags().StringVarP(&options.Organization, "org", "", "", "GitHub organization name to scan")
 	scanCmd.Flags().StringVarP(&options.User, "user", "", "", "GitHub user name to scan")
@@ -75,15 +70,21 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 
 func Scan(cmd *cobra.Command, args []string) {
 	// Bind flags to Viper configuration keys for automatic priority handling
-	if err := config.BindFlags(cmd, map[string]string{
-		"github":                  "github.url",
-		"token":                   "github.token",
-		"threads":                 "common.threads",
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"github":                   "github.url",
+		"token":                    "github.token",
+		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":       "common.max_artifact_size",
-		"confidence":              "common.confidence_filter",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
 	}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	// Validate required configuration keys (from flags or config file)
+	if err := config.RequireConfigKeys("github.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
 	}
 
 	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
@@ -94,6 +95,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
+	// Validate formats
 	if err := config.ValidateURL(options.GitHubURL, "GitHub URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitHub URL")
 	}

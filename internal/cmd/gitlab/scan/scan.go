@@ -78,16 +78,22 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 
 func Scan(cmd *cobra.Command, args []string) {
 	// Bind flags to Viper configuration keys for automatic priority handling
-	if err := config.BindFlags(cmd, map[string]string{
-		"gitlab":                  "gitlab.url",
-		"token":                   "gitlab.token",
-		"cookie":                  "gitlab.cookie",
-		"threads":                 "common.threads",
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"gitlab":                   "gitlab.url",
+		"token":                    "gitlab.token",
+		"cookie":                   "gitlab.cookie",
+		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":       "common.max_artifact_size",
-		"confidence":              "common.confidence_filter",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
 	}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	// Validate required configuration keys (from flags or config file)
+	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
 	}
 
 	// Get values using Viper (automatic priority: CLI flags > config file > defaults)
@@ -99,6 +105,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
+	// Validate formats
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")
 	}

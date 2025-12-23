@@ -10,7 +10,6 @@ import (
 	securefiles "github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/secureFiles"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -50,17 +49,9 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(schedule.NewScheduleCmd())
 
 	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := glCmd.MarkPersistentFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
-	}
-
 	glCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	err = glCmd.MarkPersistentFlagRequired("token")
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Unable to require token flag")
-	}
-	glCmd.MarkFlagsRequiredTogether("gitlab", "token")
+	// Do not mark flags as required here; values can come from config file via Viper.
+	// Validation happens inside subcommands after config is loaded and flags are bound.
 
 	return glCmd
 }

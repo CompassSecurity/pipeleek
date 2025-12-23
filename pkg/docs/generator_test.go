@@ -118,7 +118,7 @@ func TestWriteMkdocsYaml(t *testing.T) {
 	assert.Contains(t, introMap, "Introduction")
 	introItems, ok := introMap["Introduction"].([]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, 4, len(introItems)) // Getting Started, Logging, Secrets Verification, Proxying
+	assert.Equal(t, 5, len(introItems)) // Getting Started, Configuration, Logging, Secrets Verification, Proxying
 
 	// Guides second (was Methodology)
 	guidesMap, ok := navAny[1].(map[string]interface{})

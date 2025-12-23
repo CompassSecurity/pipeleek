@@ -172,6 +172,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 			{"Logging": prefix + "/introduction/logging/"},
 			{"Secrets Verification": prefix + "/introduction/secrets_verification/"},
 			{"Proxying": prefix + "/introduction/proxying/"},
+			{"Configuration": prefix + "/introduction/configuration/"},
 		},
 	}
 	guidesEntry := map[string]interface{}{

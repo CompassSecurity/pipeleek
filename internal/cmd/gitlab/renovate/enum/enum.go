@@ -1,7 +1,9 @@
 package enum
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/enum"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -24,8 +26,47 @@ func NewEnumCmd() *cobra.Command {
 		Use:   "enum [no options!]",
 		Short: "Enumerate Renovate configurations",
 		Run: func(cmd *cobra.Command, args []string) {
-			gitlabUrl, _ := cmd.Flags().GetString("gitlab")
-			gitlabApiToken, _ := cmd.Flags().GetString("token")
+			parent := cmd.Parent()
+			if err := config.BindCommandFlags(cmd, "gitlab.renovate.enum", map[string]string{
+				"gitlab": "gitlab.url",
+				"token":  "gitlab.token",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind flags")
+			}
+			if parent != nil {
+				if err := config.BindCommandFlags(parent, "gitlab.renovate", map[string]string{
+					"gitlab": "gitlab.url",
+					"token":  "gitlab.token",
+				}); err != nil {
+					log.Fatal().Err(err).Msg("Failed to bind parent flags")
+				}
+			}
+
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
+				log.Fatal().Err(err).Msg("Missing required configuration")
+			}
+
+			gitlabUrl := config.GetString("gitlab.url")
+			gitlabApiToken := config.GetString("gitlab.token")
+
+			if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+				log.Fatal().Err(err).Msg("Invalid GitLab URL")
+			}
+			if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
+				log.Fatal().Err(err).Msg("Invalid GitLab API Token")
+			}
+
+			owned = config.GetBool("gitlab.renovate.enum.owned")
+			member = config.GetBool("gitlab.renovate.enum.member")
+			repository = config.GetString("gitlab.renovate.enum.repo")
+			namespace = config.GetString("gitlab.renovate.enum.namespace")
+			projectSearchQuery = config.GetString("gitlab.renovate.enum.search")
+			fast = config.GetBool("gitlab.renovate.enum.fast")
+			dump = config.GetBool("gitlab.renovate.enum.dump")
+			page = config.GetInt("gitlab.renovate.enum.page")
+			orderBy = config.GetString("gitlab.renovate.enum.order_by")
+			extendRenovateConfigService = config.GetString("gitlab.renovate.enum.extend_renovate_config_service")
+
 			Enumerate(gitlabUrl, gitlabApiToken)
 		},
 	}

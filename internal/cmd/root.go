@@ -40,9 +40,9 @@ var (
 		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com",
 		Version: getVersion(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			loadConfigFile(cmd)
 			initLogger(cmd)
 			setGlobalLogLevel(cmd)
+			loadConfigFile(cmd)
 			httpclient.SetIgnoreProxy(IgnoreProxy)
 			go logging.ShortcutListeners(nil)
 		},

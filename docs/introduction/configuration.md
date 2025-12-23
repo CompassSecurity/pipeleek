@@ -1,296 +1,217 @@
 ---
-title: Configuration File
-description: Learn how to use configuration files to manage credentials and settings for Pipeleek
+title: Configuration
+description: Configure Pipeleek using config files, environment variables, or CLI flags
 keywords:
   - pipeleek configuration
   - config file
   - credentials management
-  - yaml config
 ---
 
-## Configuration File
+# Configuration
 
-Pipeleek supports loading configuration from YAML, JSON, or TOML files. This is useful for:
+Pipeleek can be configured via config files, environment variables, or CLI flags. This eliminates repetitive flag usage and simplifies and secures credential management.
 
-- Managing credentials for multiple platforms
-- Avoiding long command lines
-- Storing commonly used settings
-- Securely managing secrets (when combined with file permissions)
+## Quick Start
 
-### Priority Order
-
-Configuration values are resolved with the following priority (highest to lowest):
-
-1. **Command-line flags** - Values explicitly set via CLI flags
-2. **Configuration file** - Values loaded from a config file
-3. **Default values** - Built-in defaults
-
-This means you can set defaults in a config file and override them with flags when needed.
-
-### Configuration File Locations
-
-Pipeleek searches for configuration files in the following locations (in order):
-
-1. Path specified with `--config` flag
-2. `~/.config/pipeleek/config.yaml` (recommended)
-3. `~/.pipeleek.yaml`
-4. `./pipeleek.yaml` (current directory)
-
-You can also explicitly specify a config file:
-
-```bash
-pipeleek --config /path/to/config.yaml gl scan
-```
-
-### Configuration Structure
-
-Here's a complete example configuration file with all available options:
-
-```yaml
-# GitLab Configuration
-gitlab:
-  url: https://gitlab.com
-  token: glpat-xxxxxxxxxxxxxxxxxxxx
-  # Optional: GitLab session cookie for accessing dotenv artifacts
-  cookie: ""
-
-# GitHub Configuration
-github:
-  url: https://api.github.com
-  token: ghp_xxxxxxxxxxxxxxxxxxxx
-
-# BitBucket Configuration
-bitbucket:
-  url: https://bitbucket.org
-  username: your-username
-  password: your-app-password
-
-# Azure DevOps Configuration
-azure_devops:
-  url: https://dev.azure.com/your-organization
-  token: your-pat-token
-
-# Gitea Configuration
-gitea:
-  url: https://gitea.example.com
-  token: your-gitea-token
-
-# Common Settings (applied to all platforms)
-common:
-  # Number of concurrent threads for scanning (1-100)
-  threads: 4
-  
-  # Enable TruffleHog credential verification
-  trufflehog_verification: true
-  
-  # Maximum artifact size to scan
-  max_artifact_size: "500Mb"
-  
-  # Filter results by confidence level
-  # Options: low, medium, high, high-verified
-  confidence_filter:
-    - high
-    - medium
-  
-  # Maximum time to wait for hit detection per scan item
-  hit_timeout: "60s"
-```
-
-### Example: Simple GitLab Configuration
-
-Create a file at `~/.config/pipeleek/config.yaml`:
+Create `~/.config/pipeleek/config.yaml`:
 
 ```yaml
 gitlab:
   url: https://gitlab.example.com
-  token: glpat-mytoken123
+  token: glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+Run commands without flags:
+
+```bash
+pipeleek gl enum
+pipeleek gl scan
+```
+
+## Priority Order
+
+Configuration sources are resolved in this order (highest to lowest):
+
+1. **CLI flags** - `--gitlab`, `--token`, etc.
+2. **Config file** - `~/.config/pipeleek/config.yaml`
+3. **Environment variables** - `PIPELEEK_GITLAB_TOKEN`
+4. **Defaults**
+
+## Config File Locations
+
+Pipeleek searches these locations in order:
+
+1. `--config /path/to/file` (explicit path)
+2. `~/.config/pipeleek/config.yaml` (recommended)
+3. `~/.pipeleek.yaml`
+4. `./pipeleek.yaml`
+
+## Configuration Schema
+
+Config keys follow the pattern: `<platform>.<subcommand>.<flag_name>`
+
+Platform-level settings (like `url` and `token`) are inherited by all commands under that platform.
+
+### GitLab
+
+```yaml
+gitlab:
+  url: https://gitlab.example.com # Shared across all gl commands
+  token: glpat-xxxxxxxxxxxxxxxxxxxx # Shared across all gl commands
+
+  enum:
+    level: full # gl enum --level
+
+  cicd:
+    yaml:
+      project: group/project # gl cicd yaml --project
+
+  runners:
+    exploit:
+      tags: [docker, linux] # gl runners exploit --tags
+      shell: bash # gl runners exploit --shell
+
+  register:
+    username: newuser # gl register --username
+    password: secret # gl register --password
+    email: user@example.com # gl register --email
+```
+
+### GitHub
+
+```yaml
+github:
+  url: https://api.github.com
+  token: ghp_xxxxxxxxxxxxxxxxxxxx
+
+  scan:
+    owner: myorg
+    repo: myrepo
+```
+
+### BitBucket
+
+```yaml
+bitbucket:
+  url: https://bitbucket.org
+  username: myuser
+  password: app-password
+
+  scan:
+    workspace: myworkspace
+    repo_slug: myrepo
+```
+
+### Azure DevOps
+
+```yaml
+azure_devops:
+  url: https://dev.azure.com/myorg
+  token: ado-token
+
+  scan:
+    project: myproject
+```
+
+### Gitea
+
+```yaml
+gitea:
+  url: https://gitea.example.com
+  token: gitea-token
+
+  variables:
+    owner: myorg
+    repo: myrepo
+```
+
+### Common Settings
+
+Scan commands inherit from `common`:
+
+```yaml
+common:
+  threads: 2
+  trufflehog_verification: true
+  max_artifact_size: 100Mb
+  confidence_filter: medium # low, medium, high, high-verified
+  hit_timeout: 120 # Seconds
+```
+
+Override per-command:
+
+```yaml
+gitlab:
+  scan:
+    threads: 20 # Override common.threads for gl scan
+```
+
+## Environment Variables
+
+Set any config key using `PIPELEEK_` prefix. Replace dots with underscores:
+
+```bash
+export PIPELEEK_GITLAB_URL=https://gitlab.example.com
+export PIPELEEK_GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+export PIPELEEK_GITLAB_ENUM_LEVEL=full
+
+pipeleek gl enum
+```
+
+## Examples
+
+### Multi-Platform Setup
+
+```yaml
+gitlab:
+  url: https://gitlab.company.com
+  token: glpat-prod-token
+
+github:
+  url: https://api.github.com
+  token: ghp-prod-token
 
 common:
   threads: 8
   trufflehog_verification: false
 ```
 
-Now you can run commands without specifying these values:
-
 ```bash
-# Without config file (verbose)
-pipeleek gl scan --gitlab https://gitlab.example.com --token glpat-mytoken123 --threads 8
-
-# With config file (simplified)
-pipeleek gl scan
+pipeleek gl scan              # Uses GitLab config
+pipeleek gh scan --owned      # Uses GitHub config
 ```
 
-### Example: Override Config Values
-
-You can override config file values with command-line flags:
+### Override Config Values
 
 ```bash
-# Use config file token but different URL
-pipeleek gl scan --gitlab https://gitlab-dev.example.com
+# Use config token but different URL
+pipeleek gl enum --gitlab https://gitlab-dev.company.com
 
-# Use config file URL but different token
-pipeleek gl scan --token glpat-differenttoken
-
-# Override thread count from config
-pipeleek gl scan --threads 16
+# Use config URL/token but different level
+pipeleek gl enum --level minimal
 ```
 
-### Example: Multi-Platform Configuration
+### Partial Configuration
 
-Store credentials for multiple platforms in one file:
+Config file can provide some values, flags provide others:
 
 ```yaml
 gitlab:
   url: https://gitlab.example.com
-  token: glpat-mytoken123
-
-github:
-  url: https://api.github.com
-  token: ghp_mytoken456
-
-bitbucket:
-  url: https://bitbucket.org
-  username: myuser
-  password: mypassword
-
-common:
-  threads: 8
-  max_artifact_size: "1GB"
-  confidence_filter:
-    - high
-    - high-verified
 ```
-
-Then switch between platforms easily:
 
 ```bash
-pipeleek gl scan              # Uses GitLab credentials from config
-pipeleek gh scan --owned      # Uses GitHub credentials from config
-pipeleek bb scan --workspace myworkspace  # Uses BitBucket credentials from config
+# URL from config, token from flag
+pipeleek gl enum --token glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
-### Security Considerations
+## Full Example
 
-When using configuration files to store credentials:
+See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented.
 
-1. **File Permissions**: Restrict access to your config file:
-   ```bash
-   chmod 600 ~/.config/pipeleek/config.yaml
-   ```
-
-2. **Git Ignore**: Never commit config files with credentials to version control. Add to `.gitignore`:
-   ```
-   pipeleek.yaml
-   .pipeleek.yaml
-   config.yaml
-   ```
-
-3. **Environment Variables**: For CI/CD or shared environments, use environment variables with the `PIPELEEK_` prefix:
-   ```bash
-   export PIPELEEK_GITLAB_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"
-   export PIPELEEK_GITLAB_URL="https://gitlab.example.com"
-   ```
-
-4. **Secret Management**: Consider using:
-   - OS keychain integration
-   - Secret management tools (HashiCorp Vault, AWS Secrets Manager, etc.)
-   - Encrypted configuration files
-
-### Environment Variables
-
-All configuration values can be set via environment variables with the `PIPELEEK_` prefix:
+## Troubleshooting
 
 ```bash
-# GitLab configuration
-export PIPELEEK_GITLAB_URL="https://gitlab.example.com"
-export PIPELEEK_GITLAB_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"
-
-# GitHub configuration
-export PIPELEEK_GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx"
-
-# Common settings
-export PIPELEEK_COMMON_THREADS="8"
-export PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION="false"
-
-# Run without flags
-pipeleek gl scan
+# Use trace logging to see which keys are loaded
+pipeleek --log-level=trace gl enum
 ```
-
-Environment variables follow the same priority: CLI flags > environment variables > config file > defaults.
-
-### Supported Formats
-
-Pipeleek supports multiple configuration file formats:
-
-**YAML** (recommended):
-```yaml
-gitlab:
-  token: glpat-xxxxxxxxxxxxxxxxxxxx
-```
-
-**JSON**:
-```json
-{
-  "gitlab": {
-    "token": "glpat-xxxxxxxxxxxxxxxxxxxx"
-  }
-}
-```
-
-**TOML**:
-```toml
-[gitlab]
-token = "glpat-xxxxxxxxxxxxxxxxxxxx"
-```
-
-### Getting Started
-
-1. Copy the example configuration:
-   ```bash
-   mkdir -p ~/.config/pipeleek
-   curl -o ~/.config/pipeleek/config.yaml \
-     https://raw.githubusercontent.com/CompassSecurity/pipeleek/main/.config/pipeleek.example.yaml
-   ```
-
-2. Edit the file with your credentials:
-   ```bash
-   vim ~/.config/pipeleek/config.yaml
-   ```
-
-3. Secure the file:
-   ```bash
-   chmod 600 ~/.config/pipeleek/config.yaml
-   ```
-
-4. Test the configuration:
-   ```bash
-   pipeleek gl scan --help
-   ```
-
-### Troubleshooting
-
-**Config file not found:**
-```bash
-# Verify config file exists
-ls -la ~/.config/pipeleek/config.yaml
-
-# Use explicit path
-pipeleek --config ~/.config/pipeleek/config.yaml gl scan
-```
-
-**Config values not being used:**
-- Ensure YAML syntax is correct (use a YAML validator)
-- Check that you're not setting conflicting CLI flags
-- Use `--verbose` to see debug messages about config loading
-
-**Permission denied:**
-```bash
-# Fix file permissions
-chmod 600 ~/.config/pipeleek/config.yaml
-```
-
-## Related Documentation
-
-- [Getting Started](getting_started.md) - Installation and basic usage
-- [Logging](logging.md) - Configure logging options
-- [Proxying](proxying.md) - Use Pipeleek through a proxy
