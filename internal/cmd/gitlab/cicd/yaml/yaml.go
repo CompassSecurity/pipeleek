@@ -8,8 +8,6 @@ import (
 )
 
 func NewYamlCmd() *cobra.Command {
-	var projectName string
-
 	yamlCmd := &cobra.Command{
 		Use:     "yaml",
 		Short:   "Dump the CI/CD yaml configuration of a project",
@@ -43,7 +41,7 @@ func NewYamlCmd() *cobra.Command {
 		},
 	}
 
-	yamlCmd.Flags().StringVarP(&projectName, "project", "p", "", "Project name")
+	yamlCmd.Flags().StringP("project", "p", "", "Project name")
 
 	return yamlCmd
 }

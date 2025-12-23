@@ -33,8 +33,8 @@ pipeleek gl scan
 Configuration sources are resolved in this order (highest to lowest):
 
 1. **CLI flags** - `--gitlab`, `--token`, etc.
-2. **Config file** - `~/.config/pipeleek/config.yaml`
-3. **Environment variables** - `PIPELEEK_GITLAB_TOKEN`
+2. **Environment variables** - `PIPELEEK_GITLAB_TOKEN`
+3. **Config file** - `~/.config/pipeleek/config.yaml`
 4. **Defaults**
 
 ## Config File Locations
@@ -94,8 +94,8 @@ github:
 ```yaml
 bitbucket:
   url: https://bitbucket.org
-  username: myuser
-  password: app-password
+  email: user@example.com
+  token: ATATTxxxxxx
 
   scan:
     workspace: myworkspace

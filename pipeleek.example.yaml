@@ -116,8 +116,9 @@ github:
 #------------------------------------------------------------------------------
 bitbucket:
   url: https://bitbucket.org
-  username: example-user
-  password: example-app-password # BitBucket app password
+  email: user@example.com # BitBucket account email
+  token: ATATTxxxxxx # BitBucket app token (create at https://id.atlassian.com/manage-profile/security/api-tokens)
+  cookie: "" # Optional: cloud.session.token cookie value from bitbucket.org for artifact scanning
 
   # scan - Scan BitBucket Pipelines artifacts
   scan:

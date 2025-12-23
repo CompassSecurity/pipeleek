@@ -66,8 +66,8 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 func Scan(cmd *cobra.Command, args []string) {
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"bitbucket":                "bitbucket.url",
-		"token":                    "bitbucket.password",
-		"email":                    "bitbucket.username",
+		"token":                    "bitbucket.token",
+		"email":                    "bitbucket.email",
 		"cookie":                   "bitbucket.cookie",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
@@ -79,8 +79,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	options.BitBucketURL = config.GetString("bitbucket.url")
-	options.AccessToken = config.GetString("bitbucket.password")
-	options.Email = config.GetString("bitbucket.username")
+	options.AccessToken = config.GetString("bitbucket.token")
+	options.Email = config.GetString("bitbucket.email")
 	options.BitBucketCookie = config.GetString("bitbucket.cookie")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
@@ -88,7 +88,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
 	if options.AccessToken != "" && options.Email == "" {
-		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.username in config)")
+		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.email in config)")
 	}
 
 	if err := config.ValidateURL(options.BitBucketURL, "BitBucket URL"); err != nil {
