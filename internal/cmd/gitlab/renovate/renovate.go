@@ -4,7 +4,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/autodiscovery"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/privesc"
-	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -19,15 +18,6 @@ func NewRenovateRootCmd() *cobra.Command {
 		Use:   "renovate",
 		Short: "Renovate related commands",
 		Long:  "Commands to enumerate and exploit GitLab Renovate bot configurations.",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// Allow config to override if flags not explicitly set
-			if !cmd.Flags().Changed("gitlab") {
-				gitlabUrl = config.GetString("gitlab.url")
-			}
-			if !cmd.Flags().Changed("token") {
-				gitlabApiToken = config.GetString("gitlab.token")
-			}
-		},
 	}
 
 	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
