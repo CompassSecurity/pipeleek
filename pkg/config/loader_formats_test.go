@@ -96,7 +96,7 @@ gitlab:
 	require.NoError(t, err)
 
 	// Also create a config in ~ (should be ignored due to priority)
-	homeConfigPath := filepath.Join(tmpDir, ".pipeleek.yaml")
+	homeConfigPath := filepath.Join(tmpDir, "pipeleek.yaml")
 	homeConfig := `
 gitlab:
   url: https://home-config.com
