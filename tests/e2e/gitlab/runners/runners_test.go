@@ -26,6 +26,16 @@ func setupMockGitLabRunnersAPI(t *testing.T) string {
 		w.Write([]byte(`[{"id":123,"name":"test-project"}]`))
 	})
 
+	// Repository files endpoint for creating .gitlab-ci.yml
+	mux.HandleFunc("/api/v4/projects/999/repository/files/.gitlab-ci.yml", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(`{"file_path":".gitlab-ci.yml","branch":"main"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// Project runners endpoint
 	mux.HandleFunc("/api/v4/projects/123/runners", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -105,7 +115,7 @@ func TestGLRunnersExploit_DryRun(t *testing.T) {
 		"--gitlab", apiURL,
 		"--token", "mock-token",
 		"--tags", "docker,shell",
-		"--dry", "true",
+		"--dry=true",
 	}, nil, 10*time.Second)
 
 	assert.Nil(t, exitErr, "Runners exploit dry run should succeed")
@@ -113,6 +123,33 @@ func TestGLRunnersExploit_DryRun(t *testing.T) {
 	assert.Contains(t, stdout, "docker", "Should include docker tag in YAML")
 	assert.NotContains(t, stderr, "fatal")
 }
+
+func TestGLRunnersExploit_DryRun_WithoutTokenAndGitlab(t *testing.T) {
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "runners", "exploit",
+		"--dry=true",
+		"--tags", "docker,shell",
+	}, nil, 10*time.Second)
+
+	assert.Nil(t, exitErr, "Runners exploit dry run should succeed without token and gitlab flags")
+	assert.Contains(t, stdout, ".gitlab-ci.yml", "Should show CI/CD YAML output")
+	assert.Contains(t, stdout, "docker", "Should include docker tag in YAML")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+func TestGLRunnersExploit_NonDryRun_WithoutTokenAndGitlab(t *testing.T) {
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "runners", "exploit",
+		"--dry=false",
+	}, nil, 10*time.Second)
+
+	assert.NotNil(t, exitErr, "Should fail without token and gitlab flags when not in dry-run mode")
+	output := stdout + stderr
+	assert.Contains(t, output, "required configuration missing", "Should mention missing required configuration")
+	assert.Contains(t, output, "gitlab.url", "Should mention gitlab.url is missing")
+	assert.Contains(t, output, "gitlab.token", "Should mention gitlab.token is missing")
+}
+
 
 func TestGLRunnersExploit_WithRepoCreation(t *testing.T) {
 	apiURL := setupMockGitLabRunnersAPI(t)
@@ -122,8 +159,8 @@ func TestGLRunnersExploit_WithRepoCreation(t *testing.T) {
 		"--token", "mock-token",
 		"--tags", "docker",
 		"--repo-name", "test-exploit-repo",
-		"--dry", "false",
-		"--shell", "false",
+		"--dry=false",
+		"--shell=false",
 	}, nil, 15*time.Second)
 
 	assert.Nil(t, exitErr, "Runners exploit should succeed")
@@ -140,13 +177,15 @@ func TestGLRunnersExploit_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	stdout, _, _ := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
 		"--gitlab", server.URL,
 		"--token", "invalid-token",
-		"--dry", "false",
+		"--dry=false",
 	}, nil, 10*time.Second)
 
-	// Exploit command generates YAML in dry mode regardless
-	assert.Contains(t, stdout, "Done, Bye Bye", "Should complete with generated YAML")
+	// Should fail with unauthorized error when creating project
+	assert.NotNil(t, exitErr, "Should fail with unauthorized error")
+	output := stdout + stderr
+	assert.Contains(t, output, "401", "Should mention 401 error")
 }
