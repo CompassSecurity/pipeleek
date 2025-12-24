@@ -90,6 +90,70 @@ gitlab:
 	assert.Equal(t, 20, GetInt("gitlab.scan.threads"))
 }
 
+// TestCommandLevelOverrideWithFlagPriority verifies the documented example:
+// scan:
+//   threads: 10 # gl scan --threads (can override common.threads)
+// Tests that: CLI flag > gitlab.scan.threads > common.threads > default
+func TestCommandLevelOverrideWithFlagPriority(t *testing.T) {
+	// Reset global viper
+	globalViper = nil
+
+	// Create config with common and command-level thread settings
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test-config.yaml")
+
+	configContent := `
+common:
+  threads: 4
+  trufflehog_verification: true
+  
+gitlab:
+  url: https://gitlab.example.com
+  token: glpat-token
+  scan:
+    threads: 10
+    max_artifact_size: 52428800
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err)
+
+	// Initialize with config
+	err = InitializeViper(configPath)
+	require.NoError(t, err)
+
+	// Test 1: Command-level threads should override common.threads
+	assert.Equal(t, 4, GetInt("common.threads"), "Common threads should be 4")
+	assert.Equal(t, 10, GetInt("gitlab.scan.threads"), "Command-level threads should override to 10")
+
+	// Test 2: Command-level setting for unset key should take precedence
+	// (when requesting gitlab.scan.threads, should get 10, not 4 from common)
+	cmd := &cobra.Command{Use: "scan"}
+	cmd.Flags().Int("threads", 0, "Threads")
+	
+	err = BindCommandFlags(cmd, "gitlab.scan", map[string]string{})
+	require.NoError(t, err)
+
+	// Simulating that gitlab.scan.threads takes priority over common.threads
+	scanThreads := GetInt("gitlab.scan.threads")
+	assert.Equal(t, 10, scanThreads, "Config: gitlab.scan.threads should be 10")
+
+	// Test 3: CLI flag overrides command-level config
+	err = cmd.Flags().Set("threads", "15")
+	require.NoError(t, err)
+
+	err = BindCommandFlags(cmd, "gitlab.scan", map[string]string{})
+	require.NoError(t, err)
+
+	// After binding the flag with value 15, it should take precedence
+	cliThreads := GetInt("gitlab.scan.threads")
+	assert.Equal(t, 15, cliThreads, "CLI flag should override config value")
+
+	// Test 4: Other command-level settings should coexist
+	assert.Equal(t, int64(52428800), GetViper().GetInt64("gitlab.scan.max_artifact_size"))
+	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+}
+
 func TestEnvironmentVariableOverridesConfig(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
