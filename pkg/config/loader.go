@@ -143,15 +143,8 @@ func InitializeViper(configFile string) error {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)
 		}
-		// Only add current directory if no pipeleek binary exists to avoid confusion
-		// Check for both Unix and Windows binary names
-		unixBinary := filepath.Join(".", "pipeleek")
-		windowsBinary := filepath.Join(".", "pipeleek.exe")
-		_, unixErr := os.Stat(unixBinary)
-		_, winErr := os.Stat(windowsBinary)
-		if os.IsNotExist(unixErr) && os.IsNotExist(winErr) {
-			v.AddConfigPath(".")
-		}
+		// Always add current directory to search path
+		v.AddConfigPath(".")
 
 		log.Debug().Msg("Searching for config file in standard locations")
 	}
