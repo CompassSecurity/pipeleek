@@ -58,6 +58,7 @@ Platform-level settings (like `url` and `token`) are inherited by all commands u
 gitlab:
   url: https://gitlab.example.com # Shared across all gl commands
   token: glpat-xxxxxxxxxxxxxxxxxxxx # Shared across all gl commands
+  cookie: "" # Optional: _gitlab_session cookie for dotenv artifacts
 
   enum:
     level: full # gl enum --level
@@ -66,15 +67,48 @@ gitlab:
     yaml:
       project: group/project # gl cicd yaml --project
 
+  schedule: {} # gl schedule (inherits url/token)
+
+  secureFiles: {} # gl secureFiles (inherits url/token)
+
+  variables: {} # gl variables (inherits url/token)
+
+  vuln: {} # gl vuln (inherits url/token)
+
   runners:
+    list: {} # gl runners list (inherits url/token)
+    
     exploit:
       tags: [docker, linux] # gl runners exploit --tags
       shell: bash # gl runners exploit --shell
+      dry: false # gl runners exploit --dry
+      age_public_key: "" # gl runners exploit --age-public-key
+      repo_name: "" # gl runners exploit --repo-name
+
+  renovate:
+    enum:
+      owned: true # gl renovate enum --owned
+      member: true # gl renovate enum --member
+      repo: false # gl renovate enum --repo
+      namespace: false # gl renovate enum --namespace
+      search: "" # gl renovate enum --search
+      fast: false # gl renovate enum --fast
+      dump: false # gl renovate enum --dump
+    
+    autodiscovery: {} # gl renovate autodiscovery (inherits url/token)
+    
+    privesc: {} # gl renovate privesc (inherits url/token)
 
   register:
     username: newuser # gl register --username
     password: secret # gl register --password
     email: user@example.com # gl register --email
+
+  shodan:
+    json: shodan_data.json # gl shodan --json
+
+  scan:
+    threads: 10 # gl scan --threads (can override common.threads)
 ```
 
 ### GitHub
@@ -120,9 +154,20 @@ gitea:
   url: https://gitea.example.com
   token: gitea-token
 
+  enum:
+    owner: myorg # gitea enum --owner
+
+  secrets:
+    owner: myorg # gitea secrets --owner
+    repo: myrepo # gitea secrets --repo
+
   variables:
-    owner: myorg
-    repo: myrepo
+    owner: myorg # gitea variables --owner
+    repo: myrepo # gitea variables --repo
+
+  scan:
+    owner: myorg # gitea scan --owner
+    repo: myrepo # gitea scan --repo (optional, scans all if not specified)
 ```
 
 ### Common Settings
