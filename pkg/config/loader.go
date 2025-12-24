@@ -126,8 +126,17 @@ func InitializeViper(configFile string) error {
 		v.SetConfigName("pipeleek")
 		v.SetConfigType("yaml")
 
-		home, err := os.UserHomeDir()
-		if err == nil {
+		// Try HOME env var first (for testing and POSIX compatibility), then use os.UserHomeDir()
+		home := os.Getenv("HOME")
+		if home == "" {
+			var err error
+			home, err = os.UserHomeDir()
+			if err != nil {
+				home = ""
+			}
+		}
+		
+		if home != "" {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)
 		}
