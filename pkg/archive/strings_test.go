@@ -145,8 +145,8 @@ func TestExtractPrintableStrings(t *testing.T) {
 				'/', 'u', 's', 'r', '/', 'b', 'i', 'n', '/', 'p', 'y', 't', 'h', 'o', 'n', // String in binary
 				0x00, 0x00,
 			},
-			minLength: 4,
-			expected:  []string{"/usr/bin/python"},
+			minLength:   4,
+			expected:    []string{"/usr/bin/python"},
 			description: "Should extract paths from ELF-like binary",
 		},
 	}
@@ -154,7 +154,7 @@ func TestExtractPrintableStrings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractPrintableStrings(tt.input, tt.minLength)
-			
+
 			// Split result by newlines and filter empty strings
 			resultStrings := []string{}
 			for _, s := range strings.Split(string(result), "\n") {
@@ -171,16 +171,16 @@ func TestExtractPrintableStrings(t *testing.T) {
 func TestExtractPrintableStrings_LargeBinary(t *testing.T) {
 	// Create a large binary file with embedded secrets
 	var largeBinary bytes.Buffer
-	
+
 	// Write some binary data
 	for i := 0; i < 1000; i++ {
 		largeBinary.WriteByte(byte(i % 256))
 	}
-	
+
 	// Embed a secret
 	secret := "GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx"
 	largeBinary.WriteString(secret)
-	
+
 	// More binary data
 	for i := 0; i < 1000; i++ {
 		largeBinary.WriteByte(byte(i % 256))
@@ -188,7 +188,7 @@ func TestExtractPrintableStrings_LargeBinary(t *testing.T) {
 
 	result := ExtractPrintableStrings(largeBinary.Bytes(), 4)
 	resultStr := string(result)
-	
+
 	assert.Contains(t, resultStr, secret, "Should extract secret from large binary file")
 }
 
@@ -196,7 +196,7 @@ func TestExtractPrintableStrings_ASCII(t *testing.T) {
 	// Test with ASCII-only strings (UTF-8 bytes are treated as non-printable)
 	input := []byte{0x00, 'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', 0x00}
 	result := ExtractPrintableStrings(input, 4)
-	
+
 	resultStr := string(bytes.TrimSpace(result))
 	assert.Contains(t, resultStr, "Hello World", "Should extract ASCII strings")
 }
@@ -218,7 +218,7 @@ func TestExtractPrintableStrings_RealWorldBinary(t *testing.T) {
 
 	result := ExtractPrintableStrings(binary, 4)
 	resultStr := string(result)
-	
+
 	assert.Contains(t, resultStr, "https://api.gitlab.com", "Should extract API URL")
 	assert.Contains(t, resultStr, "glpat-", "Should extract GitLab token prefix")
 }
@@ -290,7 +290,7 @@ func BenchmarkExtractPrintableStrings(b *testing.B) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	
+
 	// Embed some strings
 	copy(data[1000:], []byte("API_KEY=secret123456"))
 	copy(data[50000:], []byte("https://api.example.com"))
@@ -348,9 +348,9 @@ func TestExtractPrintableStrings_SecretPatterns(t *testing.T) {
 func TestExtractPrintableStrings_Reproducibility(t *testing.T) {
 	// Ensure the function produces consistent results
 	input := []byte{0x00, 0x01, 'T', 'e', 's', 't', 0xFF, 'D', 'a', 't', 'a', 0x00}
-	
+
 	result1 := ExtractPrintableStrings(input, 4)
 	result2 := ExtractPrintableStrings(input, 4)
-	
+
 	require.Equal(t, result1, result2, "Function should produce consistent results")
 }
