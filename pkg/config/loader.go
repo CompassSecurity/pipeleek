@@ -132,7 +132,12 @@ func InitializeViper(configFile string) error {
 			v.AddConfigPath(home)
 		}
 		// Only add current directory if no pipeleek binary exists to avoid confusion
-		if _, err := os.Stat("./pipeleek"); os.IsNotExist(err) {
+		// Check for both Unix and Windows binary names
+		unixBinary := filepath.Join(".", "pipeleek")
+		windowsBinary := filepath.Join(".", "pipeleek.exe")
+		_, unixErr := os.Stat(unixBinary)
+		_, winErr := os.Stat(windowsBinary)
+		if os.IsNotExist(unixErr) && os.IsNotExist(winErr) {
 			v.AddConfigPath(".")
 		}
 
