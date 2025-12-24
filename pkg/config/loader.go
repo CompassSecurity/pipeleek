@@ -192,6 +192,11 @@ func GetViper() *viper.Viper {
 	return globalViper
 }
 
+// ResetViper resets the global Viper instance for testing
+func ResetViper() {
+	globalViper = nil
+}
+
 func GetString(key string) string {
 	return GetViper().GetString(key)
 }

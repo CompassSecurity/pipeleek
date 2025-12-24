@@ -129,6 +129,11 @@ func TestConfigFileCurrentDirectory(t *testing.T) {
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
+	// Unset HOME to avoid finding user's config files
+	originalHome := os.Getenv("HOME")
+	os.Unsetenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+
 	// Create config in current directory
 	configPath := filepath.Join(tmpDir, "pipeleek.yaml")
 	configContent := `
