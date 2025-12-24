@@ -103,23 +103,25 @@ func TestGLVuln(t *testing.T) {
 }
 
 func TestGLVuln_MissingToken(t *testing.T) {
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
 		"--gitlab", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	output := stdout + stderr
+	assert.Contains(t, output, "required configuration missing", "Should mention missing required configuration")
 }
 
-func TestGLVuln_MissingGitlab(t *testing.T) {
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+func TestGLVuln_MissingGitLabURL(t *testing.T) {
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
-		"--token", "mock-token",
+		"--token", "test-token",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without gitlab URL")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	output := stdout + stderr
+	assert.Contains(t, output, "required configuration missing", "Should mention missing required configuration")
 }
 
 func TestGLVuln_Unauthorized(t *testing.T) {

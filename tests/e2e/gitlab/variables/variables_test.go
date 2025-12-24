@@ -68,13 +68,14 @@ func TestGLVariables(t *testing.T) {
 }
 
 func TestGLVariables_MissingToken(t *testing.T) {
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
 		"--gitlab", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	output := stdout + stderr
+	assert.Contains(t, output, "required configuration missing", "Should mention missing required configuration")
 }
 
 func TestGLVariables_Unauthorized(t *testing.T) {

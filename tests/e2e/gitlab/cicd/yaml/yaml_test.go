@@ -54,14 +54,15 @@ func TestGLCicdYaml(t *testing.T) {
 
 func TestGLCicdYaml_MissingProject(t *testing.T) {
 	apiURL := setupMockGitLabCicdAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
 		"--gitlab", apiURL,
 		"--token", "mock-token",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without project flag")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	output := stdout + stderr
+	assert.Contains(t, output, "Project name is required", "Should mention missing required project")
 }
 
 func TestGLCicdYaml_InvalidProject(t *testing.T) {

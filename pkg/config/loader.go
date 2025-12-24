@@ -207,7 +207,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("common.hit_timeout", "60s")
 
 	v.SetDefault("github.url", "https://api.github.com")
-	v.SetDefault("gitlab.url", "https://gitlab.com")
 	v.SetDefault("bitbucket.url", "https://bitbucket.org")
 	v.SetDefault("azure_devops.url", "https://dev.azure.com")
 }
