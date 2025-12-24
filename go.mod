@@ -1,8 +1,8 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.24.0
+go 1.25
 
-toolchain go1.24.11
+toolchain go1.25.1
 
 require (
 	atomicgo.dev/keyboard v0.2.9
