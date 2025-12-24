@@ -81,7 +81,11 @@ func HandleArchiveArtifactWithDepth(archivefileName string, content []byte, jobW
 
 	_, files, _, err := xtractr.ExtractFile(x)
 	if err != nil || files == nil {
-		log.Debug().Str("err", err.Error()).Msg("Unable to handle archive in artifacts, extracting strings from unknown archive type")
+		if err != nil {
+			log.Debug().Err(err).Msg("Unable to handle archive in artifacts, extracting strings from unknown archive type")
+		} else {
+			log.Debug().Msg("No files extracted from archive in artifacts, extracting strings from unknown archive type")
+		}
 
 		// When archive extraction fails, extract printable strings and scan them
 		// This is useful for unknown archive formats or binary files
