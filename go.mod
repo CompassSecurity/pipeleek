@@ -19,7 +19,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/trufflesecurity/trufflehog/v3 v3.92.3
-	gitlab.com/gitlab-org/api/client-go v1.9.0
+	gitlab.com/gitlab-org/api/client-go v1.9.1
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.4
 	golang.org/x/net v0.48.0
 	golang.org/x/term v0.38.0
