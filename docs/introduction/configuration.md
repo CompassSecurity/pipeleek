@@ -43,7 +43,7 @@ Pipeleek searches these locations in order:
 
 1. `--config /path/to/file` (explicit path)
 2. `~/.config/pipeleek/pipeleek.yaml` (recommended)
-3. `~/.pipeleek.yaml`
+3. `~/pipeleek.yaml`
 4. `./pipeleek.yaml`
 
 ## Configuration Schema

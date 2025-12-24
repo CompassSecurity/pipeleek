@@ -14,7 +14,7 @@
 #
 # Copy this file to one of these locations:
 #   - ~/.config/pipeleek/pipeleek.yaml (recommended)
-#   - ~/.pipeleek.yaml
+#   - ~/pipeleek.yaml
 #   - ./pipeleek.yaml (current directory)
 # Or specify explicitly: pipeleek --config /path/to/config.yaml
 

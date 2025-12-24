@@ -73,7 +73,7 @@ func init() {
 	rootCmd.AddCommand(devops.NewAzureDevOpsRootCmd())
 	rootCmd.AddCommand(gitea.NewGiteaRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
-	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/config.yaml")
+	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/pipeleek.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
 	rootCmd.PersistentFlags().StringVarP(&LogFile, "logfile", "l", "", "Log output to a file")
 	rootCmd.PersistentFlags().BoolVarP(&LogDebug, "verbose", "v", false, "Enable debug logging (shortcut for --log-level=debug)")
