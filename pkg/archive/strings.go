@@ -10,10 +10,11 @@ const (
 	MinStringLength = 4
 )
 
-// ExtractPrintableStrings extracts printable ASCII and UTF-8 strings from binary data.
+// ExtractPrintableStrings extracts printable ASCII strings from binary data.
 // It works similarly to the Unix 'strings' command, extracting sequences of printable
-// characters that are at least minLength characters long.
-// If minLength is 0, MinStringLength (4) is used as default.
+// ASCII characters (and tabs, newlines, carriage returns) that are at least minLength
+// characters long. If minLength is 0, MinStringLength (4) is used as default.
+// Each extracted string is output on its own line, separated by newlines.
 func ExtractPrintableStrings(data []byte, minLength int) []byte {
 	if minLength <= 0 {
 		minLength = MinStringLength

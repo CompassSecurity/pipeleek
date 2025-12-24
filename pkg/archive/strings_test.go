@@ -78,7 +78,7 @@ func TestExtractPrintableStrings(t *testing.T) {
 			input:       []byte{'H', 'e', 'l', 'l', 'o', '\t', 'W', 'o', 'r', 'l', 'd', '\n', 't', 'e', 's', 't'},
 			minLength:   4,
 			expected:    []string{"Hello\tWorld", "test"},
-			description: "Should preserve tabs in strings, but newlines separate strings",
+			description: "Tabs and newlines are part of extracted strings, but output is split by newlines for separate processing",
 		},
 		{
 			name:        "custom min length",
