@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/archive"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -268,9 +270,17 @@ func TestHandleArchiveArtifact_UnknownArchive(t *testing.T) {
 	}
 
 	t.Run("unknown archive with embedded secret", func(t *testing.T) {
-		// This should extract strings from the binary and scan them
+		// Verify the binary data contains the expected secret
+		secretText := "GITLAB_TOKEN=glpat-12345"
+		assert.Contains(t, string(binaryData), secretText, "Binary data should contain the secret")
+		
+		// Test that string extraction would work on this data
+		extractedStrings := archive.ExtractPrintableStrings(binaryData, archive.MinStringLength)
+		assert.NotEmpty(t, extractedStrings, "Should extract strings from binary data")
+		assert.Contains(t, string(extractedStrings), secretText, "Extracted strings should contain the secret")
+		
+		// Test the handler processes it without panicking
 		HandleArchiveArtifact("unknown.bin", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
-		// If a secret is found, it will be logged. The test just ensures no panic/error occurs.
 	})
 }
 
@@ -289,16 +299,35 @@ func TestHandleArchiveArtifact_BinaryWithMultipleSecrets(t *testing.T) {
 	}
 
 	t.Run("binary with multiple secrets", func(t *testing.T) {
+		// Verify both secrets are in the binary data
+		assert.Contains(t, string(binaryData), "API_KEY=secret123", "Binary data should contain first secret")
+		assert.Contains(t, string(binaryData), "DATABASE_PASSWORD=pass123", "Binary data should contain second secret")
+		
+		// Test that string extraction captures both secrets
+		extractedStrings := archive.ExtractPrintableStrings(binaryData, archive.MinStringLength)
+		assert.NotEmpty(t, extractedStrings, "Should extract strings from binary data")
+		assert.Contains(t, string(extractedStrings), "API_KEY", "Extracted strings should contain first secret")
+		assert.Contains(t, string(extractedStrings), "DATABASE_PASSWORD", "Extracted strings should contain second secret")
+		
+		// Test the handler processes it without panicking
 		HandleArchiveArtifact("secrets.dat", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
-		// Both secrets should be extracted and scanned
 	})
 }
 
 // TestHandleArchiveArtifact_EmptyBinary tests handling of empty binary files.
 func TestHandleArchiveArtifact_EmptyBinary(t *testing.T) {
 	t.Run("empty binary file", func(t *testing.T) {
-		HandleArchiveArtifact("empty.bin", []byte{}, "http://example.com/job/1", "test-job", false, testTimeout)
-		// Should handle gracefully without errors
+		emptyData := []byte{}
+		
+		// Verify input is empty
+		assert.Empty(t, emptyData, "Test input should be empty")
+		
+		// Test that string extraction returns empty for empty input
+		extractedStrings := archive.ExtractPrintableStrings(emptyData, archive.MinStringLength)
+		assert.Empty(t, extractedStrings, "Should extract no strings from empty data")
+		
+		// Test the handler processes empty data without panicking
+		HandleArchiveArtifact("empty.bin", emptyData, "http://example.com/job/1", "test-job", false, testTimeout)
 	})
 }
 
@@ -311,7 +340,15 @@ func TestHandleArchiveArtifact_PureBinary(t *testing.T) {
 	}
 
 	t.Run("pure binary without printable strings", func(t *testing.T) {
+		// Verify we have binary data
+		assert.Len(t, pureBinary, 1000, "Should have 1000 bytes of binary data")
+		
+		// Test that string extraction handles pure binary data
+		extractedStrings := archive.ExtractPrintableStrings(pureBinary, archive.MinStringLength)
+		// Pure binary may have some accidental printable sequences, so we just verify it doesn't panic
+		assert.NotNil(t, extractedStrings, "Should return valid result even for pure binary")
+		
+		// Test the handler processes pure binary without panicking
 		HandleArchiveArtifact("random.bin", pureBinary, "http://example.com/job/1", "test-job", false, testTimeout)
-		// Should extract no strings and handle gracefully
 	})
 }

@@ -26,14 +26,10 @@ func ExtractPrintableStrings(data []byte, minLength int) []byte {
 	for i := 0; i < len(data); i++ {
 		b := data[i]
 
-		// Check if the byte represents a printable ASCII character
-		// We're strict here: only ASCII printable chars, tabs, newlines, and carriage returns
 		if isPrintableByte(b) {
 			currentString.WriteByte(b)
 		} else {
-			// Non-printable character encountered
 			if currentString.Len() >= minLength {
-				// Write the accumulated string followed by a newline
 				result.Write(currentString.Bytes())
 				result.WriteByte('\n')
 			}
@@ -41,7 +37,6 @@ func ExtractPrintableStrings(data []byte, minLength int) []byte {
 		}
 	}
 
-	// Handle any remaining string at the end
 	if currentString.Len() >= minLength {
 		result.Write(currentString.Bytes())
 		result.WriteByte('\n')
