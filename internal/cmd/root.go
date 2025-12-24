@@ -13,6 +13,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab"
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
@@ -41,6 +42,7 @@ var (
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			initLogger(cmd)
 			setGlobalLogLevel(cmd)
+			loadConfigFile(cmd)
 			httpclient.SetIgnoreProxy(IgnoreProxy)
 			go logging.ShortcutListeners(nil)
 		},
@@ -51,6 +53,7 @@ var (
 	LogDebug      bool
 	LogLevel      string
 	IgnoreProxy   bool
+	ConfigFile    string
 )
 
 func Execute() error {
@@ -70,6 +73,7 @@ func init() {
 	rootCmd.AddCommand(devops.NewAzureDevOpsRootCmd())
 	rootCmd.AddCommand(gitea.NewGiteaRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
+	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/pipeleek.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
 	rootCmd.PersistentFlags().StringVarP(&LogFile, "logfile", "l", "", "Log output to a file")
 	rootCmd.PersistentFlags().BoolVarP(&LogDebug, "verbose", "v", false, "Enable debug logging (shortcut for --log-level=debug)")
@@ -252,4 +256,11 @@ func setGlobalLogLevel(cmd *cobra.Command) {
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Info().Msg("Log level set to info (default)")
+}
+
+func loadConfigFile(cmd *cobra.Command) {
+	err := config.InitializeViper(ConfigFile)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration file")
+	}
 }

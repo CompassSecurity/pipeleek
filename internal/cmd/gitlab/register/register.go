@@ -1,16 +1,10 @@
 package register
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-)
-
-var (
-	gitlabUrl string
-	username  string
-	password  string
-	email     string
 )
 
 func NewRegisterCmd() *cobra.Command {
@@ -20,32 +14,32 @@ func NewRegisterCmd() *cobra.Command {
 		Long:    "Register a new user to a Gitlab instance that allows self-registration. This command is best effort and might not work.",
 		Example: `pipeleek gl register --gitlab https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if err := config.BindCommandFlags(cmd, "gitlab.register", map[string]string{
+				"gitlab": "gitlab.url",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind flags")
+			}
+
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email"); err != nil {
+				log.Fatal().Err(err).Msg("Missing required configuration")
+			}
+
+			gitlabUrl := config.GetString("gitlab.url")
+			username := config.GetString("gitlab.register.username")
+			password := config.GetString("gitlab.register.password")
+			email := config.GetString("gitlab.register.email")
+
+			if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+				log.Fatal().Err(err).Msg("Invalid GitLab URL")
+			}
+
 			util.RegisterNewAccount(gitlabUrl, username, password, email)
 		},
 	}
-	registerCmd.Flags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := registerCmd.MarkFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
-	}
-
-	registerCmd.Flags().StringVarP(&username, "username", "u", "", "Username")
-	err = registerCmd.MarkFlagRequired("username")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require username flag")
-	}
-
-	registerCmd.Flags().StringVarP(&password, "password", "p", "", "Password")
-	err = registerCmd.MarkFlagRequired("password")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require password flag")
-	}
-
-	registerCmd.Flags().StringVarP(&email, "email", "e", "", "Email Address")
-	err = registerCmd.MarkFlagRequired("email")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require email flag")
-	}
+	registerCmd.Flags().String("gitlab", "", "GitLab instance URL")
+	registerCmd.Flags().String("username", "", "Username")
+	registerCmd.Flags().String("password", "", "Password")
+	registerCmd.Flags().String("email", "", "Email Address")
 
 	return registerCmd
 }

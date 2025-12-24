@@ -1,14 +1,10 @@
 package variables
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgvariables "github.com/CompassSecurity/pipeleek/pkg/gitlab/variables"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-)
-
-var (
-	gitlabApiToken string
-	gitlabUrl      string
 )
 
 func NewVariablesCmd() *cobra.Command {
@@ -19,22 +15,33 @@ func NewVariablesCmd() *cobra.Command {
 		Example: `pipeleek gl variables --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
 		Run:     FetchVariables,
 	}
-	variablesCmd.Flags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := variablesCmd.MarkFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
-	}
-
-	variablesCmd.Flags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	err = variablesCmd.MarkFlagRequired("token")
-	if err != nil {
-		log.Fatal().Msg("Unable to require token flag")
-	}
-	variablesCmd.MarkFlagsRequiredTogether("gitlab", "token")
+	variablesCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	variablesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return variablesCmd
 }
 
 func FetchVariables(cmd *cobra.Command, args []string) {
+	if err := config.BindCommandFlags(cmd, "gitlab.variables", map[string]string{
+		"gitlab": "gitlab.url",
+		"token":  "gitlab.token",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind flags")
+	}
+
+	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
+	}
+
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+
+	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab URL")
+	}
+	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
+	}
+
 	pkgvariables.RunFetchVariables(gitlabUrl, gitlabApiToken)
 }

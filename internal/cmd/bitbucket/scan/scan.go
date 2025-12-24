@@ -64,8 +64,31 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"bitbucket":                "bitbucket.url",
+		"token":                    "bitbucket.token",
+		"email":                    "bitbucket.email",
+		"cookie":                   "bitbucket.cookie",
+		"threads":                  "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	options.BitBucketURL = config.GetString("bitbucket.url")
+	options.AccessToken = config.GetString("bitbucket.token")
+	options.Email = config.GetString("bitbucket.email")
+	options.BitBucketCookie = config.GetString("bitbucket.cookie")
+	options.MaxScanGoRoutines = config.GetInt("common.threads")
+	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	maxArtifactSize = config.GetString("common.max_artifact_size")
+	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+
 	if options.AccessToken != "" && options.Email == "" {
-		log.Fatal().Msg("When using --token you must also provide --email")
+		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.email in config)")
 	}
 
 	if err := config.ValidateURL(options.BitBucketURL, "BitBucket URL"); err != nil {

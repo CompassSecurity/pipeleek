@@ -4,6 +4,8 @@ builds:
   - id: "pipeleek"
     main: ./cmd/pipeleek
     binary: pipeleek
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:
@@ -24,6 +26,8 @@ builds:
     skip: "{{ .IsSnapshot }}"
     main: ./cmd/pipeleek-gitlab
     binary: pipeleek-gitlab
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:
@@ -43,6 +47,8 @@ builds:
     skip: "{{ .IsSnapshot }}"
     main: ./cmd/pipeleek-github
     binary: pipeleek-github
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:
@@ -62,6 +68,8 @@ builds:
     skip: "{{ .IsSnapshot }}"
     main: ./cmd/pipeleek-bitbucket
     binary: pipeleek-bitbucket
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:
@@ -81,6 +89,8 @@ builds:
     skip: "{{ .IsSnapshot }}"
     main: ./cmd/pipeleek-devops
     binary: pipeleek-devops
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:
@@ -100,6 +110,8 @@ builds:
     skip: "{{ .IsSnapshot }}"
     main: ./cmd/pipeleek-gitea
     binary: pipeleek-gitea
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     goos:

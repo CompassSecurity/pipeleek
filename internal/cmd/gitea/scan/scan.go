@@ -76,8 +76,30 @@ pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com 
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	giteaToken, _ := cmd.Flags().GetString("token")
-	giteaURL, _ := cmd.Flags().GetString("gitea")
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"gitea":                    "gitea.url",
+		"token":                    "gitea.token",
+		"cookie":                   "gitea.cookie",
+		"threads":                  "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
+	}
+
+	giteaURL := config.GetString("gitea.url")
+	giteaToken := config.GetString("gitea.token")
+	scanOptions.Cookie = config.GetString("gitea.cookie")
+	scanOptions.MaxScanGoRoutines = config.GetInt("common.threads")
+	scanOptions.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	maxArtifactSize = config.GetString("common.max_artifact_size")
+	scanOptions.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
 	if scanOptions.StartRunID > 0 && scanOptions.Repository == "" {
 		log.Fatal().Msg("--start-run-id can only be used with --repository flag")

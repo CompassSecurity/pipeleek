@@ -2,7 +2,6 @@ package cicd
 
 import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/cicd/yaml"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -18,17 +17,7 @@ func NewCiCdCmd() *cobra.Command {
 	}
 
 	ciCdCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := ciCdCmd.MarkPersistentFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
-	}
-
 	ciCdCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	err = ciCdCmd.MarkPersistentFlagRequired("token")
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Unable to require token flag")
-	}
-	ciCdCmd.MarkFlagsRequiredTogether("gitlab", "token")
 
 	ciCdCmd.AddCommand(yaml.NewYamlCmd())
 

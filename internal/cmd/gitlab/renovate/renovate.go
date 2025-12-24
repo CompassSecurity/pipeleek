@@ -4,6 +4,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/autodiscovery"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/privesc"
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -20,18 +21,31 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitLab Renovate bot configurations.",
 	}
 
-	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	err := renovateCmd.MarkPersistentFlagRequired("gitlab")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitlab flag")
+	// Define PreRun instead of PersistentPreRun to allow root's PersistentPreRun to execute
+	renovateCmd.PreRun = func(cmd *cobra.Command, args []string) {
+		// Bind flags to config keys
+		if err := config.BindCommandFlags(cmd, "gitlab.renovate", map[string]string{
+			"gitlab": "gitlab.url",
+			"token":  "gitlab.token",
+		}); err != nil {
+			log.Fatal().Err(err).Msg("Failed to bind flags to config")
+		}
+
+		// Get values from config (supports CLI flags, config file, and env vars)
+		gitlabUrl = config.GetString("gitlab.url")
+		gitlabApiToken = config.GetString("gitlab.token")
+
+		// Validate required values
+		if gitlabUrl == "" {
+			log.Fatal().Msg("GitLab URL is required (use --gitlab flag, config file, or PIPELEEK_GITLAB_URL env var)")
+		}
+		if gitlabApiToken == "" {
+			log.Fatal().Msg("GitLab token is required (use --token flag, config file, or PIPELEEK_GITLAB_TOKEN env var)")
+		}
 	}
 
+	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
 	renovateCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
-	err = renovateCmd.MarkPersistentFlagRequired("token")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require token flag")
-	}
-	renovateCmd.MarkFlagsRequiredTogether("gitlab", "token")
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())
 	renovateCmd.AddCommand(autodiscovery.NewAutodiscoveryCmd())
