@@ -13,7 +13,7 @@ Pipeleek can be configured via config files, environment variables, or CLI flags
 
 ## Quick Start
 
-Create `~/.config/pipeleek/config.yaml`:
+Create `~/.config/pipeleek/pipeleek.yaml`:
 
 ```yaml
 gitlab:
@@ -34,7 +34,7 @@ Configuration sources are resolved in this order (highest to lowest):
 
 1. **CLI flags** - `--gitlab`, `--token`, etc.
 2. **Environment variables** - `PIPELEEK_GITLAB_TOKEN`
-3. **Config file** - `~/.config/pipeleek/config.yaml`
+3. **Config file** - `~/.config/pipeleek/pipeleek.yaml`
 4. **Defaults**
 
 ## Config File Locations
@@ -42,7 +42,7 @@ Configuration sources are resolved in this order (highest to lowest):
 Pipeleek searches these locations in order:
 
 1. `--config /path/to/file` (explicit path)
-2. `~/.config/pipeleek/config.yaml` (recommended)
+2. `~/.config/pipeleek/pipeleek.yaml` (recommended)
 3. `~/.pipeleek.yaml`
 4. `./pipeleek.yaml`
 

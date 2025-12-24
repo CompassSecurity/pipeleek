@@ -153,12 +153,19 @@ func InitializeViper(configFile string) error {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			log.Debug().Msg("No config file found, using defaults and command-line flags")
 		} else {
-			// Log which file caused the error
+			// Check if Viper tried to read a file without proper extension (like the binary)
 			configFileUsed := v.ConfigFileUsed()
 			if configFileUsed != "" {
-				return fmt.Errorf("error reading config file %s: %w", configFileUsed, err)
+				ext := filepath.Ext(configFileUsed)
+				if ext != ".yaml" && ext != ".yml" {
+					log.Debug().Str("file", configFileUsed).Msg("Ignoring file without .yaml/.yml extension")
+					log.Debug().Msg("No config file found, using defaults and command-line flags")
+				} else {
+					return fmt.Errorf("error reading config file %s: %w", configFileUsed, err)
+				}
+			} else {
+				return fmt.Errorf("error reading config file: %w", err)
 			}
-			return fmt.Errorf("error reading config file: %w", err)
 		}
 	} else {
 		log.Info().Str("file", v.ConfigFileUsed()).Msg("Loaded config file")

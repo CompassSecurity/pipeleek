@@ -13,7 +13,7 @@
 #   - Command-specific settings override platform defaults
 #
 # Copy this file to one of these locations:
-#   - ~/.config/pipeleek/config.yaml (recommended)
+#   - ~/.config/pipeleek/pipeleek.yaml (recommended)
 #   - ~/.pipeleek.yaml
 #   - ./pipeleek.yaml (current directory)
 # Or specify explicitly: pipeleek --config /path/to/config.yaml
