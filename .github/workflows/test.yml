@@ -37,8 +37,10 @@ jobs:
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
         run: |
-          $packages = go list ./... | Where-Object { $_ -notmatch '/tests/e2e' }
-          go test $packages -v -race
+          $packages = @(go list ./... | Where-Object { $_ -notmatch '/tests/e2e' })
+          if ($packages.Count -gt 0) {
+            go test @packages -v -race
+          }
         shell: pwsh
 
       - name: Upload coverage artifact (Linux)
