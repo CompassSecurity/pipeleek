@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/archive"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -250,5 +252,103 @@ func TestHandleArchiveArtifactWithDepth_MixedContent(t *testing.T) {
 	t.Run("mixed content with nested archive", func(t *testing.T) {
 		// Should process both regular files and recursively handle nested archive
 		HandleArchiveArtifactWithDepth("mixed.zip", mainBuf.Bytes(), "http://example.com/job/1", "test-job", false, testTimeout, 1)
+	})
+}
+
+// TestHandleArchiveArtifact_UnknownArchive tests that unknown archive types
+// are handled by extracting strings instead of failing silently.
+func TestHandleArchiveArtifact_UnknownArchive(t *testing.T) {
+	// Create a binary file that looks like it might be an archive but isn't recognized
+	binaryData := []byte{
+		0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, // PE header simulation
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		// Embed a secret that should be extracted
+		'G', 'I', 'T', 'L', 'A', 'B', '_', 'T', 'O', 'K', 'E', 'N', '=', 'g', 'l', 'p', 'a', 't', '-', '1', '2', '3', '4', '5',
+		0x00, 0x00, 0xFF, 0xFF,
+		// More binary data
+		0xDE, 0xAD, 0xBE, 0xEF,
+	}
+
+	t.Run("unknown archive with embedded secret", func(t *testing.T) {
+		// Verify the binary data contains the expected secret
+		secretText := "GITLAB_TOKEN=glpat-12345"
+		assert.Contains(t, string(binaryData), secretText, "Binary data should contain the secret")
+		
+		// Test that string extraction would work on this data
+		extractedStrings := archive.ExtractPrintableStrings(binaryData, archive.MinStringLength)
+		assert.NotEmpty(t, extractedStrings, "Should extract strings from binary data")
+		assert.Contains(t, string(extractedStrings), secretText, "Extracted strings should contain the secret")
+		
+		// Test the handler processes it without panicking
+		HandleArchiveArtifact("unknown.bin", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
+	})
+}
+
+// TestHandleArchiveArtifact_BinaryWithMultipleSecrets tests that multiple secrets
+// can be extracted from a single binary file with unknown format.
+func TestHandleArchiveArtifact_BinaryWithMultipleSecrets(t *testing.T) {
+	// Create a binary file with multiple embedded secrets
+	binaryData := []byte{
+		0xFF, 0xFE, 0xFD, 0xFC,
+		// First secret
+		'A', 'P', 'I', '_', 'K', 'E', 'Y', '=', 's', 'e', 'c', 'r', 'e', 't', '1', '2', '3',
+		0x00, 0x00, 0x01, 0x02,
+		// Second secret
+		'D', 'A', 'T', 'A', 'B', 'A', 'S', 'E', '_', 'P', 'A', 'S', 'S', 'W', 'O', 'R', 'D', '=', 'p', 'a', 's', 's', '1', '2', '3',
+		0x00, 0xFF,
+	}
+
+	t.Run("binary with multiple secrets", func(t *testing.T) {
+		// Verify both secrets are in the binary data
+		assert.Contains(t, string(binaryData), "API_KEY=secret123", "Binary data should contain first secret")
+		assert.Contains(t, string(binaryData), "DATABASE_PASSWORD=pass123", "Binary data should contain second secret")
+		
+		// Test that string extraction captures both secrets
+		extractedStrings := archive.ExtractPrintableStrings(binaryData, archive.MinStringLength)
+		assert.NotEmpty(t, extractedStrings, "Should extract strings from binary data")
+		assert.Contains(t, string(extractedStrings), "API_KEY", "Extracted strings should contain first secret")
+		assert.Contains(t, string(extractedStrings), "DATABASE_PASSWORD", "Extracted strings should contain second secret")
+		
+		// Test the handler processes it without panicking
+		HandleArchiveArtifact("secrets.dat", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
+	})
+}
+
+// TestHandleArchiveArtifact_EmptyBinary tests handling of empty binary files.
+func TestHandleArchiveArtifact_EmptyBinary(t *testing.T) {
+	t.Run("empty binary file", func(t *testing.T) {
+		emptyData := []byte{}
+		
+		// Verify input is empty
+		assert.Empty(t, emptyData, "Test input should be empty")
+		
+		// Test that string extraction returns empty for empty input
+		extractedStrings := archive.ExtractPrintableStrings(emptyData, archive.MinStringLength)
+		assert.Empty(t, extractedStrings, "Should extract no strings from empty data")
+		
+		// Test the handler processes empty data without panicking
+		HandleArchiveArtifact("empty.bin", emptyData, "http://example.com/job/1", "test-job", false, testTimeout)
+	})
+}
+
+// TestHandleArchiveArtifact_PureBinary tests handling of pure binary data
+// without any printable strings.
+func TestHandleArchiveArtifact_PureBinary(t *testing.T) {
+	pureBinary := make([]byte, 1000)
+	for i := range pureBinary {
+		pureBinary[i] = byte(i % 256)
+	}
+
+	t.Run("pure binary without printable strings", func(t *testing.T) {
+		// Verify we have binary data
+		assert.Len(t, pureBinary, 1000, "Should have 1000 bytes of binary data")
+		
+		// Test that string extraction handles pure binary data
+		extractedStrings := archive.ExtractPrintableStrings(pureBinary, archive.MinStringLength)
+		// Pure binary may have some accidental printable sequences, so we just verify it doesn't panic
+		assert.NotNil(t, extractedStrings, "Should return valid result even for pure binary")
+		
+		// Test the handler processes pure binary without panicking
+		HandleArchiveArtifact("random.bin", pureBinary, "http://example.com/job/1", "test-job", false, testTimeout)
 	})
 }
