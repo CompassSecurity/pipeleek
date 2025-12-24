@@ -126,8 +126,11 @@ func InitializeViper(configFile string) error {
 		v.SetConfigName("pipeleek")
 		v.SetConfigType("yaml")
 
-		// Try HOME env var first (for testing and POSIX compatibility), then use os.UserHomeDir()
+		// Get home directory: try HOME/USERPROFILE env vars first (for testing), then os.UserHomeDir()
 		home := os.Getenv("HOME")
+		if home == "" {
+			home = os.Getenv("USERPROFILE") // Windows
+		}
 		if home == "" {
 			var err error
 			home, err = os.UserHomeDir()
