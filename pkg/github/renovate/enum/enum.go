@@ -228,14 +228,21 @@ func fetchWorkflowFiles(ctx context.Context, client *github.Client, repo *github
 				continue
 			}
 
-			if fileContent != nil && fileContent.GetContent() != "" {
-				decoded, err := b64.StdEncoding.DecodeString(fileContent.GetContent())
+			if fileContent != nil {
+				contentStr, err := fileContent.GetContent()
 				if err != nil {
-					log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to decode workflow file")
+					log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to get workflow file content")
 					continue
 				}
-				allWorkflows.WriteString(string(decoded))
-				allWorkflows.WriteString("\n")
+				if contentStr != "" {
+					decoded, err := b64.StdEncoding.DecodeString(contentStr)
+					if err != nil {
+						log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to decode workflow file")
+						continue
+					}
+					allWorkflows.WriteString(string(decoded))
+					allWorkflows.WriteString("\n")
+				}
 			}
 		}
 	}
@@ -253,25 +260,32 @@ func detectRenovateConfigFile(ctx context.Context, client *github.Client, repo *
 			continue
 		}
 
-		if fileContent != nil && fileContent.GetContent() != "" {
-			conf, err := b64.StdEncoding.DecodeString(fileContent.GetContent())
+		if fileContent != nil {
+			contentStr, err := fileContent.GetContent()
 			if err != nil {
-				log.Error().Stack().Err(err).Msg("Failed decoding renovate config base64 content")
-				return fileContent, ""
+				log.Debug().Err(err).Str("file", configFile).Msg("Failed to get config file content")
+				continue
 			}
-
-			if strings.HasSuffix(strings.ToLower(configFile), ".json5") {
-				var js interface{}
-				if err := json5.Unmarshal(conf, &js); err != nil {
-					log.Debug().Stack().Err(err).Msg("Failed parsing renovate config file as JSON5")
-					continue
+			if contentStr != "" {
+				conf, err := b64.StdEncoding.DecodeString(contentStr)
+				if err != nil {
+					log.Error().Stack().Err(err).Msg("Failed decoding renovate config base64 content")
+					return fileContent, ""
 				}
 
-				normalized, _ := json.Marshal(js)
-				conf = normalized
-			}
+				if strings.HasSuffix(strings.ToLower(configFile), ".json5") {
+					var js interface{}
+					if err := json5.Unmarshal(conf, &js); err != nil {
+						log.Debug().Stack().Err(err).Msg("Failed parsing renovate config file as JSON5")
+						continue
+					}
 
-			return fileContent, string(conf)
+					normalized, _ := json.Marshal(js)
+					conf = normalized
+				}
+
+				return fileContent, string(conf)
+			}
 		}
 	}
 

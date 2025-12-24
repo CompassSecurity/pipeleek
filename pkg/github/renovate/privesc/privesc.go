@@ -155,9 +155,16 @@ func fetchWorkflowFiles(ctx context.Context, client *github.Client, owner, repo 
 				continue
 			}
 
-			if fileContent != nil && fileContent.GetContent() != "" {
-				allWorkflows.WriteString(fileContent.GetContent())
-				allWorkflows.WriteString("\n")
+			if fileContent != nil {
+				contentStr, err := fileContent.GetContent()
+				if err != nil {
+					log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to get workflow file content")
+					continue
+				}
+				if contentStr != "" {
+					allWorkflows.WriteString(contentStr)
+					allWorkflows.WriteString("\n")
+				}
 			}
 		}
 	}
