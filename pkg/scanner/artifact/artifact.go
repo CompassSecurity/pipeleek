@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/archive"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/engine"
@@ -80,7 +81,15 @@ func HandleArchiveArtifactWithDepth(archivefileName string, content []byte, jobW
 
 	_, files, _, err := xtractr.ExtractFile(x)
 	if err != nil || files == nil {
-		log.Debug().Str("err", err.Error()).Msg("Unable to handle archive in artifacts")
+		log.Debug().Str("err", err.Error()).Msg("Unable to handle archive in artifacts, extracting strings instead")
+		
+		// When archive extraction fails, extract printable strings and scan them
+		// This is useful for unknown archive formats or binary files
+		extractedStrings := archive.ExtractPrintableStrings(content, archive.MinStringLength)
+		if len(extractedStrings) > 0 {
+			log.Trace().Str("file", archivefileName).Int("stringBytes", len(extractedStrings)).Msg("Extracted strings from unknown archive type")
+			DetectFileHits(extractedStrings, jobWebUrl, jobName, archivefileName, "", enableTruffleHogVerification, hitTimeout)
+		}
 		return
 	}
 

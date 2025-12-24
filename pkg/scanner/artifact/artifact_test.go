@@ -252,3 +252,66 @@ func TestHandleArchiveArtifactWithDepth_MixedContent(t *testing.T) {
 		HandleArchiveArtifactWithDepth("mixed.zip", mainBuf.Bytes(), "http://example.com/job/1", "test-job", false, testTimeout, 1)
 	})
 }
+
+// TestHandleArchiveArtifact_UnknownArchive tests that unknown archive types
+// are handled by extracting strings instead of failing silently.
+func TestHandleArchiveArtifact_UnknownArchive(t *testing.T) {
+	// Create a binary file that looks like it might be an archive but isn't recognized
+	binaryData := []byte{
+		0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, // PE header simulation
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		// Embed a secret that should be extracted
+		'G', 'I', 'T', 'L', 'A', 'B', '_', 'T', 'O', 'K', 'E', 'N', '=', 'g', 'l', 'p', 'a', 't', '-', '1', '2', '3', '4', '5',
+		0x00, 0x00, 0xFF, 0xFF,
+		// More binary data
+		0xDE, 0xAD, 0xBE, 0xEF,
+	}
+
+	t.Run("unknown archive with embedded secret", func(t *testing.T) {
+		// This should extract strings from the binary and scan them
+		HandleArchiveArtifact("unknown.bin", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
+		// If a secret is found, it will be logged. The test just ensures no panic/error occurs.
+	})
+}
+
+// TestHandleArchiveArtifact_BinaryWithMultipleSecrets tests that multiple secrets
+// can be extracted from a single binary file with unknown format.
+func TestHandleArchiveArtifact_BinaryWithMultipleSecrets(t *testing.T) {
+	// Create a binary file with multiple embedded secrets
+	binaryData := []byte{
+		0xFF, 0xFE, 0xFD, 0xFC,
+		// First secret
+		'A', 'P', 'I', '_', 'K', 'E', 'Y', '=', 's', 'e', 'c', 'r', 'e', 't', '1', '2', '3',
+		0x00, 0x00, 0x01, 0x02,
+		// Second secret
+		'D', 'A', 'T', 'A', 'B', 'A', 'S', 'E', '_', 'P', 'A', 'S', 'S', 'W', 'O', 'R', 'D', '=', 'p', 'a', 's', 's', '1', '2', '3',
+		0x00, 0xFF,
+	}
+
+	t.Run("binary with multiple secrets", func(t *testing.T) {
+		HandleArchiveArtifact("secrets.dat", binaryData, "http://example.com/job/1", "test-job", false, testTimeout)
+		// Both secrets should be extracted and scanned
+	})
+}
+
+// TestHandleArchiveArtifact_EmptyBinary tests handling of empty binary files.
+func TestHandleArchiveArtifact_EmptyBinary(t *testing.T) {
+	t.Run("empty binary file", func(t *testing.T) {
+		HandleArchiveArtifact("empty.bin", []byte{}, "http://example.com/job/1", "test-job", false, testTimeout)
+		// Should handle gracefully without errors
+	})
+}
+
+// TestHandleArchiveArtifact_PureBinary tests handling of pure binary data
+// without any printable strings.
+func TestHandleArchiveArtifact_PureBinary(t *testing.T) {
+	pureBinary := make([]byte, 1000)
+	for i := range pureBinary {
+		pureBinary[i] = byte(i % 256)
+	}
+
+	t.Run("pure binary without printable strings", func(t *testing.T) {
+		HandleArchiveArtifact("random.bin", pureBinary, "http://example.com/job/1", "test-job", false, testTimeout)
+		// Should extract no strings and handle gracefully
+	})
+}
