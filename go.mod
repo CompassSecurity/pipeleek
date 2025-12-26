@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
-	github.com/trufflesecurity/trufflehog/v3 v3.92.3
+	github.com/trufflesecurity/trufflehog/v3 v3.92.4
 	gitlab.com/gitlab-org/api/client-go v1.10.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.4
 	golang.org/x/net v0.48.0
