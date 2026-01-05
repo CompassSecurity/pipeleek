@@ -53,6 +53,12 @@ jobs:
           token: ${{ secrets.RENOVATE_LAB_TOKEN }}
         env:
           LOG_LEVEL: debug
+          RENOVATE_LOG_LEVEL: debug
+          RENOVATE_ONBOARDING_CONFIG_FILE_NAME: renovate.json
+          RENOVATE_EXTENDS: config:base
+          RENOVATE_AUTODISCOVER: 'true'
+          RENOVATE_AUTODISCOVER_FILTER: '**'
+          DEBUG: 'renovate:*'
 
       - name: Validate exploit execution
         if: always()
