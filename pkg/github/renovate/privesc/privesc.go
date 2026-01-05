@@ -276,9 +276,9 @@ func updateWorkflowYml(ctx context.Context, client *github.Client, repo *github.
 	}
 
 	opts := &github.RepositoryContentFileOptions{
-		Message: github.String("Update workflow for Pipeleek Renovate Privilege Escalation exploit"),
+		Message: github.Ptr("Update workflow for Pipeleek Renovate Privilege Escalation exploit"),
 		Content: workflowYaml,
-		Branch:  github.String(branchName),
+		Branch:  github.Ptr(branchName),
 		SHA:     fileContent.SHA,
 	}
 

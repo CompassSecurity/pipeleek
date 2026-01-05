@@ -110,7 +110,7 @@ func scanOrganization(ctx context.Context, client *github.Client, org string, op
 func fetchRepositories(ctx context.Context, client *github.Client, opts EnumOptions) {
 	log.Info().Msg("Fetching repositories")
 
-	listOpts := &github.RepositoryListOptions{
+	listOpts := &github.RepositoryListByAuthenticatedUserOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 			Page:    opts.Page,
@@ -118,14 +118,16 @@ func fetchRepositories(ctx context.Context, client *github.Client, opts EnumOpti
 		Sort: opts.OrderBy,
 	}
 
-	// Set visibility based on member flag
+	// Set visibility and affiliation based on flags
 	if opts.Member {
 		listOpts.Visibility = "all"
 		listOpts.Affiliation = "organization_member,collaborator"
+	} else if opts.Owned {
+		listOpts.Affiliation = "owner"
 	}
 
 	for {
-		repos, resp, err := client.Repositories.List(ctx, "", listOpts)
+		repos, resp, err := client.Repositories.ListByAuthenticatedUser(ctx, listOpts)
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("Failed iterating repositories")
 			return
@@ -299,8 +301,9 @@ func detectRenovateConfigFile(ctx context.Context, client *github.Client, repo *
 				if strings.HasSuffix(strings.ToLower(configFile), ".json5") {
 					var js interface{}
 					if err := json5.Unmarshal(conf, &js); err != nil {
-						log.Debug().Stack().Err(err).Msg("Failed parsing renovate config file as JSON5")
-						continue
+						log.Debug().Stack().Err(err).Str("file", configFile).Msg("Failed parsing renovate config file as JSON5, using raw content")
+						// Fallback to raw content if JSON5 parsing fails
+						return fileContent, string(conf)
 					}
 
 					normalized, _ := json.Marshal(js)
@@ -341,16 +344,6 @@ func dumpConfigFileContents(repo *github.Repository, workflowYml string, renovat
 	}
 }
 
-func validateOrderBy(orderBy string) {
-	allowedOrderBy := map[string]struct{}{
-		"created": {}, "updated": {}, "pushed": {}, "full_name": {},
-	}
-	if orderBy != "" {
-		if _, ok := allowedOrderBy[orderBy]; !ok {
-			log.Fatal().Str("orderBy", orderBy).Msg("Invalid value for --order-by. Allowed: created, updated, pushed, full_name")
-		}
-	}
-}
 
 // ParseWorkflowYAML attempts to parse a workflow YAML string and return structured data.
 func ParseWorkflowYAML(yamlContent string) (map[string]interface{}, error) {

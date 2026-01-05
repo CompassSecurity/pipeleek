@@ -133,9 +133,9 @@ func RunGenerate(client *github.Client, repoName, username string, addRenovateWo
 
 	// Create repository
 	repo := &github.Repository{
-		Name:        github.String(repoName),
-		Description: github.String("Pipeleek Renovate Autodiscovery PoC"),
-		Private:     github.Bool(false),
+		Name:        github.Ptr(repoName),
+		Description: github.Ptr("Pipeleek Renovate Autodiscovery PoC"),
+		Private:     github.Ptr(false),
 	}
 
 	createdRepo, _, err := client.Repositories.Create(ctx, "", repo)
@@ -197,9 +197,9 @@ func createFile(ctx context.Context, client *github.Client, repo *github.Reposit
 	repoName := repo.GetName()
 
 	opts := &github.RepositoryContentFileOptions{
-		Message: github.String("Pipeleek create " + filePath),
+				Message: github.Ptr("Pipeleek create " + filePath),
 		Content: []byte(content),
-		Branch:  github.String("main"),
+		Branch:  github.Ptr("main"),
 	}
 
 	_, _, err := client.Repositories.CreateFile(ctx, owner, repoName, filePath, opts)

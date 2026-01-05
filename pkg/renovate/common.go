@@ -49,7 +49,7 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 
 	for _, g := range groups {
 		for _, key := range g.keys {
-			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|\{[^\}]*\}|".*?"|'.*?'|[^\s,]+)`)
+			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|\$\{\{[^\}]*\}\}|\{[^\}]*\}|".*?"|'.*?'|[^\s,]+)`)
 			for _, src := range sources {
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
