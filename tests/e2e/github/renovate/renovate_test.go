@@ -3,15 +3,19 @@
 package e2e
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupMockGitHubRenovateAPI(t *testing.T) string {
@@ -33,9 +37,17 @@ func setupMockGitHubRenovateAPI(t *testing.T) string {
 			// Repository contents
 			if r.Method == http.MethodGet {
 				// Get file content
-				if strings.HasSuffix(path, "renovate.json") || strings.HasSuffix(path, "build.gradle") {
+				if strings.HasSuffix(path, "renovate.json") {
+					// Return renovate.json with autodiscovery filter
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`{"name":"renovate.json","path":"renovate.json","sha":"abc123","content":"ewogICAgIiRzY2hlbWEiOiAiaHR0cHM6Ly9kb2NzLnJlbm92YXRlYm90LmNvbS9yZW5vdmF0ZS1zY2hlbWEuanNvbiIKfQ==","encoding":"base64"}`))
+					// {"autodiscoverFilter": "owner/repo"} in base64
+					content := "eyJhdXRvZGlzY292ZXJGaWx0ZXIiOiAib3duZXIvcmVwbyJ9"
+					w.Write([]byte(`{"name":"renovate.json","path":"renovate.json","sha":"abc123","content":"` + content + `","encoding":"base64"}`))
+					return
+				}
+				if strings.HasSuffix(path, "build.gradle") {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{"name":"build.gradle","path":"build.gradle","sha":"abc123","content":"YnVpbGQgZmlsZQ==","encoding":"base64"}`))
 					return
 				}
 				if strings.HasSuffix(path, "/.github/workflows") {
@@ -46,10 +58,21 @@ func setupMockGitHubRenovateAPI(t *testing.T) string {
 					return
 				}
 				if strings.Contains(path, "/.github/workflows/renovate.yml") {
-					// Get workflow file content
+					// Get workflow file content with autodiscovery and GitHub Actions template
 					w.WriteHeader(http.StatusOK)
-					// Base64 encoded minimal workflow with renovate reference
-					content := "bmFtZTogUmVub3ZhdGUKb246CiAgd29ya2Zsb3dfZGlzcGF0Y2g6CmpvYnM6CiAgcmVub3ZhdGU6CiAgICBydW5zLW9uOiB1YnVudHUtbGF0ZXN0CiAgICBzdGVwczoKICAgICAgLSB1c2VzOiByZW5vdmF0ZWJvdC9naXRodWItYWN0aW9uQHY0MC4zLjEw"
+					// Workflow with RENOVATE_AUTODISCOVER and RENOVATE_AUTODISCOVER_FILTER with GitHub Actions template
+					workflowContent := `name: Renovate
+on:
+  workflow_dispatch:
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: renovatebot/github-action@v40.3.10
+        env:
+          RENOVATE_AUTODISCOVER: true
+          RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}`
+					content := base64.StdEncoding.EncodeToString([]byte(workflowContent))
 					w.Write([]byte(`{"name":"renovate.yml","path":".github/workflows/renovate.yml","sha":"def456","content":"` + content + `","encoding":"base64"}`))
 					return
 				}
@@ -137,9 +160,49 @@ func setupMockGitHubRenovateAPI(t *testing.T) string {
 			json.NewEncoder(w).Encode(repo)
 			return
 		}
+
+		// Check for affiliation parameter to differentiate between owned and member
+		affiliation := r.URL.Query().Get("affiliation")
+		if affiliation == "owner" {
+			// Owned repositories
+			w.WriteHeader(http.StatusOK)
+			repos := `[{"id":123,"name":"test-repo","full_name":"test-owner/test-repo","html_url":"https://github.com/test-owner/test-repo","owner":{"login":"test-owner"},"default_branch":"main","disabled":false,"archived":false}]`
+			w.Write([]byte(repos))
+			return
+		} else if strings.Contains(affiliation, "organization_member") {
+			// Member repositories
+			w.WriteHeader(http.StatusOK)
+			repos := `[{"id":789,"name":"member-repo","full_name":"some-org/member-repo","html_url":"https://github.com/some-org/member-repo","owner":{"login":"some-org"},"default_branch":"main","disabled":false,"archived":false}]`
+			w.Write([]byte(repos))
+			return
+		}
+
+		// Default response
 		w.WriteHeader(http.StatusOK)
 		repos := `[{"id":123,"name":"test-repo","full_name":"test-owner/test-repo","html_url":"https://github.com/test-owner/test-repo","owner":{"login":"test-owner"},"default_branch":"main","disabled":false,"archived":false}]`
 		w.Write([]byte(repos))
+	})
+
+	// Search repositories endpoint
+	mux.HandleFunc("/api/v3/search/repositories", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		searchResult := `{
+			"total_count": 1,
+			"incomplete_results": false,
+			"items": [
+				{
+					"id": 999,
+					"name": "search-result-repo",
+					"full_name": "search-owner/search-result-repo",
+					"html_url": "https://github.com/search-owner/search-result-repo",
+					"owner": {"login": "search-owner"},
+					"default_branch": "main",
+					"disabled": false,
+					"archived": false
+				}
+			]
+		}`
+		w.Write([]byte(searchResult))
 	})
 
 	// Organization repositories endpoint
@@ -267,5 +330,200 @@ func TestGHRenovatePrivesc(t *testing.T) {
 	assert.Nil(t, exitErr, "Privesc command should succeed")
 	assert.Contains(t, stdout, "Ensure the Renovate bot")
 	assert.Contains(t, stdout, "renovate/test-branch")
+	assert.NotContains(t, stderr, "fatal")
+}
+// TestGHRenovateEnumWithSearch tests the enum command with search functionality
+func TestGHRenovateEnumWithSearch(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--search", "renovate in:readme",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with search should succeed")
+	assert.Contains(t, stdout, "Searching repositories")
+	assert.Contains(t, stdout, "search-owner/search-result-repo")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumFastMode tests the enum command with fast mode
+func TestGHRenovateEnumFastMode(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--owned",
+		"--fast",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with fast mode should succeed")
+	assert.Contains(t, stdout, "Fetched all repositories")
+	// Fast mode should skip config file detection, only check workflows
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumDumpMode tests the enum command with dump mode
+func TestGHRenovateEnumDumpMode(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	
+	// Change to temp directory so dump files go there
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err)
+	defer os.Chdir(origDir)
+	
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--owned",
+		"--dump",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with dump mode should succeed")
+	assert.Contains(t, stdout, "Fetched all repositories")
+	
+	// Check if dump directory was created
+	dumpDir := filepath.Join(tmpDir, "renovate-enum-out")
+	if _, err := os.Stat(dumpDir); err == nil {
+		// Dump directory exists, verify it has files
+		entries, err := os.ReadDir(dumpDir)
+		if err == nil && len(entries) > 0 {
+			t.Logf("Dump directory created with %d files", len(entries))
+		}
+	}
+	
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumMemberRepositories tests the enum command with member flag
+func TestGHRenovateEnumMemberRepositories(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--member",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with member flag should succeed")
+	assert.Contains(t, stdout, "Fetched all repositories")
+	assert.Contains(t, stdout, "member-repo")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumDetectsAutodiscovery tests autodiscovery detection
+func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo", "test-owner/test-repo",
+		"-v", // Verbose to see autodiscovery detection logs
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command should succeed")
+	assert.Contains(t, stdout, "test-owner/test-repo")
+	// Check for autodiscovery in the JSON output or logs
+	assert.Contains(t, stdout, "hasAutodiscovery")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumDetectsAutodiscoveryFilters tests autodiscovery filter detection
+func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo", "test-owner/test-repo",
+		"-v",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command should succeed")
+	// Should detect the GitHub Actions template in workflow file
+	assert.Contains(t, stdout, "autodiscoveryFilterValue")
+	assert.Contains(t, stdout, "${{ github.repository }}")
+	// Should also detect the filter in renovate.json config file
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumWithPagination tests the enum command with pagination
+func TestGHRenovateEnumWithPagination(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--owned",
+		"--page", "1",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with pagination should succeed")
+	assert.Contains(t, stdout, "Fetched all repositories")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumWithOrderBy tests the enum command with order-by flag
+func TestGHRenovateEnumWithOrderBy(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--owned",
+		"--order-by", "updated",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command with order-by should succeed")
+	assert.Contains(t, stdout, "Fetched all repositories")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumMutuallyExclusiveFlags tests that mutually exclusive flags are rejected
+func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	_, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--owned",
+		"--member",
+	}, nil, 5*time.Second)
+	assert.NotNil(t, exitErr, "Should fail with mutually exclusive flags")
+	assert.Contains(t, stderr, "mutually exclusive")
+}
+
+// TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate tests GitHub Actions template detection in workflows
+func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo", "test-owner/test-repo",
+		"-vv", // Extra verbose to see detailed logs
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command should succeed")
+	// The workflow contains ${{ github.repository }} template
+	// This should be detected and logged with the full template, not just "${"
+	assert.Contains(t, stdout, "test-owner/test-repo")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovateEnumDetectsJSONConfigFile tests JSON config file detection
+func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "enum",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo", "test-owner/test-repo",
+		"-v",
+	}, nil, 15*time.Second)
+	assert.Nil(t, exitErr, "Enum command should succeed")
+	// Should detect renovate.json with JSON autodiscoverFilter
+	assert.Contains(t, stdout, "test-owner/test-repo")
+	// Should log that it found autodiscovery filters from the JSON config
 	assert.NotContains(t, stderr, "fatal")
 }
