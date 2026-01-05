@@ -3,6 +3,7 @@ package renovate
 import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/autodiscovery"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/enum"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/lab"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/privesc"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/rs/zerolog/log"
@@ -49,6 +50,7 @@ func NewRenovateRootCmd() *cobra.Command {
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())
 	renovateCmd.AddCommand(autodiscovery.NewAutodiscoveryCmd())
+	renovateCmd.AddCommand(lab.NewLabCmd())
 	renovateCmd.AddCommand(privesc.NewPrivescCmd())
 
 	return renovateCmd
