@@ -2,7 +2,6 @@ package renovate
 
 import (
 	"context"
-	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -50,6 +49,8 @@ func RunEnumerate(client *github.Client, opts EnumOptions) {
 		scanSingleRepository(ctx, client, opts.Repository, opts)
 	} else if opts.Organization != "" {
 		scanOrganization(ctx, client, opts.Organization, opts)
+	} else if opts.SearchQuery != "" {
+		searchRepositories(ctx, client, opts.SearchQuery, opts)
 	} else {
 		fetchRepositories(ctx, client, opts)
 	}
@@ -144,6 +145,37 @@ func fetchRepositories(ctx context.Context, client *github.Client, opts EnumOpti
 	log.Info().Msg("Fetched all repositories")
 }
 
+func searchRepositories(ctx context.Context, client *github.Client, query string, opts EnumOptions) {
+	log.Info().Str("query", query).Msg("Searching repositories")
+
+	searchOpts := &github.SearchOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+			Page:    opts.Page,
+		},
+	}
+
+	for {
+		searchResults, resp, err := client.Search.Repositories(ctx, query, searchOpts)
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed searching repositories")
+			return
+		}
+
+		for _, repo := range searchResults.Repositories {
+			log.Debug().Str("url", repo.GetHTMLURL()).Msg("Check repository")
+			identifyRenovateBotWorkflow(ctx, client, repo, opts)
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		searchOpts.Page = resp.NextPage
+	}
+
+	log.Info().Msg("Fetched all search results")
+}
+
 func identifyRenovateBotWorkflow(ctx context.Context, client *github.Client, repo *github.Repository, opts EnumOptions) {
 	// Fetch workflow files
 	workflowYml := fetchWorkflowFiles(ctx, client, repo)
@@ -235,12 +267,7 @@ func fetchWorkflowFiles(ctx context.Context, client *github.Client, repo *github
 					continue
 				}
 				if contentStr != "" {
-					decoded, err := b64.StdEncoding.DecodeString(contentStr)
-					if err != nil {
-						log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to decode workflow file")
-						continue
-					}
-					allWorkflows.WriteString(string(decoded))
+					allWorkflows.WriteString(contentStr)
 					allWorkflows.WriteString("\n")
 				}
 			}
@@ -267,11 +294,7 @@ func detectRenovateConfigFile(ctx context.Context, client *github.Client, repo *
 				continue
 			}
 			if contentStr != "" {
-				conf, err := b64.StdEncoding.DecodeString(contentStr)
-				if err != nil {
-					log.Error().Stack().Err(err).Msg("Failed decoding renovate config base64 content")
-					return fileContent, ""
-				}
+				conf := []byte(contentStr)
 
 				if strings.HasSuffix(strings.ToLower(configFile), ".json5") {
 					var js interface{}
