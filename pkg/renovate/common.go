@@ -1,6 +1,7 @@
 package renovate
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -31,6 +32,41 @@ func DetectAutodiscovery(cicdConf string, configFileContent string) bool {
 	return hasAutodiscoveryInConfigFile || hasAutodiscoveryinCiCD
 }
 
+// tryParseJSON attempts to parse JSON and extract a value for the given key.
+// Returns (value, true) if found, ("", false) otherwise.
+func tryParseJSON(jsonStr, key string) (string, bool) {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return "", false
+	}
+
+	val, ok := data[key]
+	if !ok {
+		return "", false
+	}
+
+	// Handle different value types
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case []interface{}:
+		// For arrays, marshal back to JSON string representation
+		if bytes, err := json.Marshal(v); err == nil {
+			return string(bytes), true
+		}
+	case map[string]interface{}:
+		// For objects, marshal back to JSON string representation
+		if bytes, err := json.Marshal(v); err == nil {
+			return string(bytes), true
+		}
+	default:
+		// For other types (numbers, booleans, etc.), convert to string
+		return fmt.Sprintf("%v", v), true
+	}
+
+	return "", false
+}
+
 // DetectAutodiscoveryFilters checks for autodiscovery filter configuration and returns whether filters exist, filter type, and filter value.
 func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, string, string) {
 	type groupDef struct {
@@ -48,8 +84,33 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 	sources := []string{configFileContent, cicdConf}
 
 	for _, g := range groups {
+		// First, try to parse as JSON (for renovate.json files)
+		for _, src := range sources {
+			if strings.TrimSpace(src) == "" {
+				continue
+			}
+			// Try each JSON-style key (camelCase versions)
+			for _, key := range g.keys {
+				// Skip non-camelCase keys for JSON parsing
+				if strings.HasPrefix(key, "RENOVATE_") || strings.HasPrefix(key, "--") {
+					continue
+				}
+				if val, ok := tryParseJSON(src, key); ok {
+					return true, g.name, val
+				}
+			}
+		}
+
+		// If JSON parsing didn't work, fall back to regex for YAML/env var formats
 		for _, key := range g.keys {
-			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|\$\{\{[^\}]*\}\}|\{[^\}]*\}|".*?"|'.*?'|[^\s,]+)`)
+			// Updated regex to handle various value formats:
+			// 1. Arrays: [...]
+			// 2. Strings with GitHub Actions templates: any string containing ${{ ... }}
+			// 3. Objects: {...}
+			// 4. Quoted strings: "..." or '...'
+			// 5. Unquoted values: everything until whitespace/comma
+			// Note: Order matters - check for ${{ patterns before plain text
+			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,]+)`)
 			for _, src := range sources {
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
