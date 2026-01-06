@@ -10,63 +10,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var githubWorkflowYml = `
-# GitHub Actions workflow that runs Renovate Bot for debugging
-# This verifies the exploit actually executes during Gradle wrapper update
-#
-# Setup instructions:
-# 1. Go to Repository Settings > Secrets and variables > Actions
-# 2. Create a new repository secret: RENOVATE_TOKEN = <your-PAT-with-repo-scope>
-# 3. The PAT needs 'repo' scope for private repos or 'public_repo' for public repos
-# 4. Run the workflow and check the job output for exploit execution proof
-
-name: Renovate Debugging
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  renovate-debugging:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Run Renovate
-        uses: renovatebot/github-action@v40.3.10
-        with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
-        env:
-          LOG_LEVEL: debug
-      
-      - name: Check if exploit executed
-        run: |
-          echo "=== Checking if exploit executed ==="
-          if [ -f /tmp/pipeleek-exploit-executed.txt ]; then
-            echo "SUCCESS: Exploit was executed!"
-            echo "=== Exploit proof file contents ==="
-            cat /tmp/pipeleek-exploit-executed.txt
-            cp /tmp/pipeleek-exploit-executed.txt exploit-proof.txt
-          else
-            echo "FAILED: /tmp/pipeleek-exploit-executed.txt not found"
-            echo "Checking /tmp for any proof files..."
-            ls -la /tmp/pipeleek-* 2>/dev/null || echo "No proof files found in /tmp"
-          fi
-      
-      - name: Upload proof
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: exploit-proof
-          path: exploit-proof.txt
-          retention-days: 1
-`
-
 // RunGenerate creates a GitHub repository with Renovate autodiscovery exploit PoC.
-func RunGenerate(client *github.Client, repoName, username string, addRenovateWorkflow bool) {
+func RunGenerate(client *github.Client, repoName, username string) {
 	ctx := context.Background()
 
 	if repoName == "" {
@@ -95,13 +40,6 @@ func RunGenerate(client *github.Client, repoName, username string, addRenovateWo
 	createFile(ctx, client, createdRepo, "gradlew", pkgrenovate.GradlewScript)
 	createFile(ctx, client, createdRepo, "gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties)
 	createFile(ctx, client, createdRepo, "exploit.sh", pkgrenovate.ExploitScript)
-
-	if addRenovateWorkflow {
-		createFile(ctx, client, createdRepo, ".github/workflows/renovate.yml", githubWorkflowYml)
-		log.Info().Msg("Created .github/workflows/renovate.yml for local Renovate testing")
-		log.Warn().Msg("IMPORTANT: Add a repository secret named RENOVATE_TOKEN with a PAT that has 'repo' scope")
-		log.Info().Msg("Then trigger the workflow manually or push to main, check the job output for 'SUCCESS: Exploit was executed!'")
-	}
 
 	if username == "" {
 		log.Warn().Msg("No username provided, you must invite the victim Renovate Bot user manually to the created repository")
@@ -137,7 +75,7 @@ func createFile(ctx context.Context, client *github.Client, repo *github.Reposit
 	repoName := repo.GetName()
 
 	opts := &github.RepositoryContentFileOptions{
-				Message: github.Ptr("Pipeleek create " + filePath),
+		Message: github.Ptr("Pipeleek create " + filePath),
 		Content: []byte(content),
 		Branch:  github.Ptr("main"),
 	}

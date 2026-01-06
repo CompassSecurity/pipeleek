@@ -68,7 +68,7 @@ jobs:
   renovate:
     runs-on: ubuntu-latest
     steps:
-      - uses: renovatebot/github-action@v40.3.10
+      - uses: renovatebot/github-action@v44.2.3
         env:
           RENOVATE_AUTODISCOVER: true
           RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}`
@@ -124,13 +124,13 @@ jobs:
 			// Get repository
 			w.WriteHeader(http.StatusOK)
 			repo := map[string]interface{}{
-				"id":            123,
-				"name":          "test-repo",
-				"full_name":     "test-owner/test-repo",
-				"html_url":      "https://github.com/test-owner/test-repo",
+				"id":             123,
+				"name":           "test-repo",
+				"full_name":      "test-owner/test-repo",
+				"html_url":       "https://github.com/test-owner/test-repo",
 				"default_branch": "main",
-				"disabled":      false,
-				"archived":      false,
+				"disabled":       false,
+				"archived":       false,
 				"owner": map[string]interface{}{
 					"login": "test-owner",
 				},
@@ -154,8 +154,8 @@ jobs:
 					"login": "test-owner",
 				},
 				"default_branch": "main",
-				"disabled":      false,
-				"archived":      false,
+				"disabled":       false,
+				"archived":       false,
 			}
 			json.NewEncoder(w).Encode(repo)
 			return
@@ -280,24 +280,6 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 	assert.NotContains(t, stderr, "fatal")
 }
 
-func TestGHRenovateAutodiscoveryWithWorkflow(t *testing.T) {
-	apiURL := setupMockGitHubRenovateAPI(t)
-	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gh", "renovate", "autodiscovery",
-		"--github", apiURL,
-		"--token", "mock-token",
-		"--repo-name", "test-repo-workflow",
-		"--username", "test-user",
-		"--add-renovate-workflow-for-debugging",
-	}, nil, 15*time.Second)
-	assert.Nil(t, exitErr, "Autodiscovery with workflow flag should succeed")
-	assert.Contains(t, stdout, "Created repository")
-	assert.Contains(t, stdout, "Created .github/workflows/renovate.yml")
-	assert.Contains(t, stdout, "RENOVATE_TOKEN", "Should mention token setup")
-	assert.Contains(t, stdout, "repo", "Should mention repo scope requirement")
-	assert.NotContains(t, stderr, "fatal")
-}
-
 func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
@@ -332,6 +314,7 @@ func TestGHRenovatePrivesc(t *testing.T) {
 	assert.Contains(t, stdout, "renovate/test-branch")
 	assert.NotContains(t, stderr, "fatal")
 }
+
 // TestGHRenovateEnumWithSearch tests the enum command with search functionality
 func TestGHRenovateEnumWithSearch(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
@@ -366,17 +349,17 @@ func TestGHRenovateEnumFastMode(t *testing.T) {
 // TestGHRenovateEnumDumpMode tests the enum command with dump mode
 func TestGHRenovateEnumDumpMode(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	
+
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
-	
+
 	// Change to temp directory so dump files go there
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 	defer os.Chdir(origDir)
-	
+
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
@@ -386,7 +369,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with dump mode should succeed")
 	assert.Contains(t, stdout, "Fetched all repositories")
-	
+
 	// Check if dump directory was created
 	dumpDir := filepath.Join(tmpDir, "renovate-enum-out")
 	if _, err := os.Stat(dumpDir); err == nil {
@@ -396,7 +379,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 			t.Logf("Dump directory created with %d files", len(entries))
 		}
 	}
-	
+
 	assert.NotContains(t, stderr, "fatal")
 }
 
