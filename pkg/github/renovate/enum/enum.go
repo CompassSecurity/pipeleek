@@ -344,7 +344,6 @@ func dumpConfigFileContents(repo *github.Repository, workflowYml string, renovat
 	}
 }
 
-
 // ParseWorkflowYAML attempts to parse a workflow YAML string and return structured data.
 func ParseWorkflowYAML(yamlContent string) (map[string]interface{}, error) {
 	var result map[string]interface{}

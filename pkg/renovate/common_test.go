@@ -300,10 +300,10 @@ Yet another option.
 
 func TestIsSelfHostedConfig(t *testing.T) {
 	tests := []struct {
-		name               string
-		config             string
-		selfHostedOptions  []string
-		want               bool
+		name              string
+		config            string
+		selfHostedOptions []string
+		want              bool
 	}{
 		{
 			name:   "detects self-hosted option",
@@ -360,7 +360,7 @@ func TestIsSelfHostedConfig(t *testing.T) {
 func TestRenovateConfigFiles(t *testing.T) {
 	t.Run("returns list of config file paths", func(t *testing.T) {
 		files := RenovateConfigFiles()
-		
+
 		assert.NotEmpty(t, files)
 		assert.Contains(t, files, "renovate.json")
 		assert.Contains(t, files, "renovate.json5")

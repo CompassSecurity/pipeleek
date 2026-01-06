@@ -146,8 +146,6 @@ func RunLabSetup(client *github.Client, repoName, owner string) error {
 	}
 	log.Debug().Msg("GitHub Actions workflow created")
 
-
-
 	log.Info().Msg("✓ Renovate Lab setup completed successfully!")
 	log.Info().Msg("")
 	log.Info().Str("url", createdRepo.GetHTMLURL()).Msg("Repository URL")

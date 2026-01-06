@@ -460,7 +460,7 @@ func TestContentQuality(t *testing.T) {
 			"pkgrenovate.GradlewScript":           pkgrenovate.GradlewScript,
 			"pkgrenovate.GradleWrapperProperties": pkgrenovate.GradleWrapperProperties,
 			"pkgrenovate.ExploitScript":           pkgrenovate.ExploitScript,
-			"gitlabCiYml":             gitlabCiYml,
+			"gitlabCiYml":                         gitlabCiYml,
 		}
 
 		for name, content := range contents {
