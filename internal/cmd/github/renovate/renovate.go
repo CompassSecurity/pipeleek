@@ -22,9 +22,7 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitHub Renovate bot configurations.",
 	}
 
-	// Define PreRun to bind flags and validate configuration
 	renovateCmd.PreRun = func(cmd *cobra.Command, args []string) {
-		// Bind flags to config keys
 		if err := config.BindCommandFlags(cmd, "github.renovate", map[string]string{
 			"github": "github.url",
 			"token":  "github.token",
@@ -32,11 +30,9 @@ func NewRenovateRootCmd() *cobra.Command {
 			log.Fatal().Err(err).Msg("Failed to bind flags to config")
 		}
 
-		// Get values from config (supports CLI flags, config file, and env vars)
 		githubUrl = config.GetString("github.url")
 		githubApiToken = config.GetString("github.token")
 
-		// Validate required values
 		if githubUrl == "" {
 			log.Fatal().Msg("GitHub URL is required (use --github flag, config file, or PIPELEEK_GITHUB_URL env var)")
 		}

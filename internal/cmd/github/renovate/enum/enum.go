@@ -67,7 +67,6 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --re
 				log.Fatal().Msg("GitHub token is required (use --token flag, config file, or PIPELEEK_GITHUB_TOKEN env var)")
 			}
 
-			// All flags can come from config, CLI flags, or env vars via Viper
 			if !cmd.Flags().Changed("owned") {
 				owned = config.GetBool("github.renovate.enum.owned")
 			}

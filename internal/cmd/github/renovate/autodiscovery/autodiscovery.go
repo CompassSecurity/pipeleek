@@ -1,6 +1,7 @@
 package autodiscovery
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/autodiscovery"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
 	"github.com/spf13/cobra"
@@ -21,6 +22,17 @@ func NewAutodiscoveryCmd() *cobra.Command {
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if err := config.BindCommandFlags(cmd, "github.renovate.autodiscovery", nil); err != nil {
+				panic(err)
+			}
+
+			if !cmd.Flags().Changed("repo-name") {
+				autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
+			}
+			if !cmd.Flags().Changed("username") {
+				autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
+			}
+
 			parent := cmd.Parent()
 			githubUrl, _ := parent.Flags().GetString("github")
 			githubApiToken, _ := parent.Flags().GetString("token")

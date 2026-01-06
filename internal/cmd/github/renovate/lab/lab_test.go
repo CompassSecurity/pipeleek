@@ -19,7 +19,6 @@ func TestNewLabCmd(t *testing.T) {
 func TestLabCmdFlags(t *testing.T) {
 	cmd := NewLabCmd()
 
-	// Check that required flag exists
 	flag := cmd.Flags().Lookup("repo-name")
 	assert.NotNil(t, flag)
 	assert.Equal(t, "r", flag.Shorthand)

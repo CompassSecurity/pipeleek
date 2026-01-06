@@ -18,7 +18,6 @@ func RunGenerate(client *github.Client, repoName, username string) {
 		repoName = format.RandomStringN(5) + "-pipeleek-renovate-autodiscovery-poc"
 	}
 
-	// Create repository
 	repo := &github.Repository{
 		Name:        github.Ptr(repoName),
 		Description: github.Ptr("Pipeleek Renovate Autodiscovery PoC"),
@@ -31,10 +30,8 @@ func RunGenerate(client *github.Client, repoName, username string) {
 	}
 	log.Info().Str("name", createdRepo.GetName()).Str("url", createdRepo.GetHTMLURL()).Msg("Created repository")
 
-	// Wait a bit for repository to be fully initialized
 	time.Sleep(2 * time.Second)
 
-	// Create files using shared constants
 	createFile(ctx, client, createdRepo, "renovate.json", pkgrenovate.RenovateJSON)
 	createFile(ctx, client, createdRepo, "build.gradle", pkgrenovate.BuildGradle)
 	createFile(ctx, client, createdRepo, "gradlew", pkgrenovate.GradlewScript)
@@ -48,7 +45,6 @@ func RunGenerate(client *github.Client, repoName, username string) {
 		invite(ctx, client, createdRepo, username)
 	}
 
-	// Log shared exploit explanation
 	log.Info().Msg(pkgrenovate.ExploitExplanation)
 }
 
@@ -58,7 +54,6 @@ func invite(ctx context.Context, client *github.Client, repo *github.Repository,
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
-	// Add collaborator with write permission
 	_, _, err := client.Repositories.AddCollaborator(ctx, owner, repoName, username, &github.RepositoryAddCollaboratorOptions{
 		Permission: "write",
 	})
