@@ -21,7 +21,8 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitLab Renovate bot configurations.",
 	}
 
-	// Define PreRun instead of PersistentPreRun to allow root's PersistentPreRun to execute
+	// Bind config before executing subcommands; keep root's PersistentPreRun
+	// for logger setup by using PreRun (not PersistentPreRun)
 	renovateCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		// Bind flags to config keys
 		if err := config.BindCommandFlags(cmd, "gitlab.renovate", map[string]string{

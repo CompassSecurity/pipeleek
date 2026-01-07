@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
@@ -108,22 +109,29 @@ func scanOrganization(ctx context.Context, client *github.Client, org string, op
 }
 
 func fetchRepositories(ctx context.Context, client *github.Client, opts EnumOptions) {
-	log.Info().Msg("Fetching repositories")
+	if opts.Owned {
+		// Scan owned repositories only
+		log.Info().Msg("Fetching owned repositories")
+		fetchOwnedRepositories(ctx, client, opts)
+	} else if opts.Member {
+		// Scan repositories where user is a member or collaborator
+		log.Info().Msg("Fetching member repositories")
+		fetchMemberRepositories(ctx, client, opts)
+	} else {
+		// Default: scan all public GitHub repos
+		log.Info().Msg("Fetching all public repositories")
+		fetchAllPublicRepositories(ctx, client, opts)
+	}
+}
 
+func fetchOwnedRepositories(ctx context.Context, client *github.Client, opts EnumOptions) {
 	listOpts := &github.RepositoryListByAuthenticatedUserOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 			Page:    opts.Page,
 		},
-		Sort: opts.OrderBy,
-	}
-
-	// Set visibility and affiliation based on flags
-	if opts.Member {
-		listOpts.Visibility = "all"
-		listOpts.Affiliation = "organization_member,collaborator"
-	} else if opts.Owned {
-		listOpts.Affiliation = "owner"
+		Sort:        opts.OrderBy,
+		Affiliation: "owner",
 	}
 
 	for {
@@ -144,7 +152,117 @@ func fetchRepositories(ctx context.Context, client *github.Client, opts EnumOpti
 		listOpts.Page = resp.NextPage
 	}
 
-	log.Info().Msg("Fetched all repositories")
+	log.Info().Msg("Fetched all owned repositories")
+}
+
+func fetchMemberRepositories(ctx context.Context, client *github.Client, opts EnumOptions) {
+	listOpts := &github.RepositoryListByAuthenticatedUserOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+			Page:    opts.Page,
+		},
+		Sort:        opts.OrderBy,
+		Visibility:  "all",
+		Affiliation: "organization_member,collaborator",
+	}
+
+	for {
+		repos, resp, err := client.Repositories.ListByAuthenticatedUser(ctx, listOpts)
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed iterating repositories")
+			return
+		}
+
+		for _, repo := range repos {
+			log.Debug().Str("url", repo.GetHTMLURL()).Msg("Check repository")
+			identifyRenovateBotWorkflow(ctx, client, repo, opts)
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		listOpts.Page = resp.NextPage
+	}
+
+	log.Info().Msg("Fetched all member repositories")
+}
+
+func fetchAllPublicRepositories(ctx context.Context, client *github.Client, opts EnumOptions) {
+	// Identify the latest public repository ID
+	latestProjectID := identifyNewestPublicProjectID(ctx, client)
+	if latestProjectID == 0 {
+		log.Warn().Msg("Could not identify latest public repository ID, starting from current ID")
+		latestProjectID = 1
+	}
+
+	listAllOpts := &github.RepositoryListAllOptions{
+		Since: latestProjectID,
+	}
+
+	// Keep a cache of scanned IDs to avoid duplicates due to missing IDs
+	scannedIDs := make(map[int64]struct{})
+
+	for listAllOpts.Since >= 0 {
+		repos, _, err := client.Repositories.ListAll(ctx, listAllOpts)
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("Failed iterating public repositories")
+			return
+		}
+
+		if len(repos) == 0 {
+			break
+		}
+
+		// Sort in descending order to process newest first
+		sort.SliceStable(repos, func(i, j int) bool {
+			return *repos[i].ID > *repos[j].ID
+		})
+
+		for _, repo := range repos {
+			// Skip if we've already scanned this repo
+			if _, exists := scannedIDs[*repo.ID]; exists {
+				continue
+			}
+			scannedIDs[*repo.ID] = struct{}{}
+
+			log.Debug().Str("url", repo.GetHTMLURL()).Msg("Check repository")
+			identifyRenovateBotWorkflow(ctx, client, repo, opts)
+			listAllOpts.Since = *repo.ID
+		}
+
+		// Move to the next batch (decrement since by page size)
+		listAllOpts.Since = listAllOpts.Since - 100
+		if listAllOpts.Since < 0 {
+			break
+		}
+	}
+
+	log.Info().Msg("Fetched all public repositories")
+}
+
+func identifyNewestPublicProjectID(ctx context.Context, client *github.Client) int64 {
+	// Get the latest event from GitHub activity to find the newest repo
+	listOpts := &github.ListOptions{PerPage: 100}
+	events, _, err := client.Activity.ListEvents(ctx, listOpts)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("Failed to identify newest public repository")
+		return 0
+	}
+
+	for _, event := range events {
+		if event.Type != nil && *event.Type == "CreateEvent" && event.Repo != nil && event.Repo.ID != nil {
+			// Found a create event, get the repository to confirm it exists
+			repo, _, err := client.Repositories.GetByID(ctx, *event.Repo.ID)
+			if err != nil {
+				log.Debug().Err(err).Msg("Failed to fetch repository details")
+				continue
+			}
+			log.Info().Int64("id", *repo.ID).Str("url", repo.GetHTMLURL()).Msg("Identified latest public repository")
+			return *repo.ID
+		}
+	}
+
+	return 0
 }
 
 func searchRepositories(ctx context.Context, client *github.Client, query string, opts EnumOptions) {
@@ -157,11 +275,17 @@ func searchRepositories(ctx context.Context, client *github.Client, query string
 		},
 	}
 
+	firstPage := true
 	for {
 		searchResults, resp, err := client.Search.Repositories(ctx, query, searchOpts)
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("Failed searching repositories")
 			return
+		}
+
+		if firstPage {
+			log.Info().Int("total_matching_repos", searchResults.GetTotal()).Msg("Found matching repositories to scan")
+			firstPage = false
 		}
 
 		for _, repo := range searchResults.Repositories {

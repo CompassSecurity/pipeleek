@@ -1,6 +1,7 @@
 package autodiscovery
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/autodiscovery"
 	"github.com/spf13/cobra"
 )
@@ -24,9 +25,8 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name my-exploit-repo --add-renovate-cicd-for-debugging
     `,
 		Run: func(cmd *cobra.Command, args []string) {
-			parent := cmd.Parent()
-			gitlabUrl, _ := parent.Flags().GetString("gitlab")
-			gitlabApiToken, _ := parent.Flags().GetString("token")
+			gitlabUrl := config.GetString("gitlab.url")
+			gitlabApiToken := config.GetString("gitlab.token")
 			pkgrenovate.RunGenerate(gitlabUrl, gitlabApiToken, autodiscoveryRepoName, autodiscoveryUsername, autodiscoveryAddCICD)
 		},
 	}

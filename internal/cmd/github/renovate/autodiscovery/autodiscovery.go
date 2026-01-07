@@ -33,9 +33,9 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github
 				autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
 			}
 
-			parent := cmd.Parent()
-			githubUrl, _ := parent.Flags().GetString("github")
-			githubApiToken, _ := parent.Flags().GetString("token")
+			// Use viper-backed config so values can come from flags, config file, or env vars
+			githubUrl := config.GetString("github.url")
+			githubApiToken := config.GetString("github.token")
 
 			client := pkgscan.SetupClient(githubApiToken, githubUrl)
 			pkgrenovate.RunGenerate(client, autodiscoveryRepoName, autodiscoveryUsername)

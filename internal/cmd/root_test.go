@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,6 +234,60 @@ func TestCustomWriter_WritesCorrectly(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, string(content), "test", "Log content should be written")
 	})
+}
+
+func TestInitLogger_DefaultConsole_NotJSON(t *testing.T) {
+	// Save globals
+	origLogFile := LogFile
+	origJson := JsonLogoutput
+	origColor := LogColor
+	defer func() {
+		LogFile = origLogFile
+		JsonLogoutput = origJson
+		LogColor = origColor
+	}()
+
+	// Use a temp file as output target
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "console.log")
+	LogFile = logFile
+	JsonLogoutput = false
+	LogColor = false
+
+	initLogger(rootCmd)
+
+	log.Info().Msg("hello-console")
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+	s := string(content)
+	assert.Contains(t, s, "hello-console", "message should be present")
+	assert.NotContains(t, s, "\"level\":\"info\"", "console output should not be JSON")
+}
+
+func TestInitLogger_JSON_WhenFlagSet(t *testing.T) {
+	// Save globals
+	origLogFile := LogFile
+	origJson := JsonLogoutput
+	defer func() {
+		LogFile = origLogFile
+		JsonLogoutput = origJson
+	}()
+
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "json.log")
+	LogFile = logFile
+	JsonLogoutput = true
+
+	initLogger(rootCmd)
+
+	log.Info().Msg("hello-json")
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+	s := string(content)
+	assert.Contains(t, s, "hello-json", "message should be present")
+	assert.Contains(t, s, "\"level\":\"info\"", "JSON output should contain level field")
 }
 
 func TestVersionFlagRegistered(t *testing.T) {
