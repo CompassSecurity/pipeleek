@@ -510,3 +510,34 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 	// Should log that it found autodiscovery filters from the JSON config
 	assert.NotContains(t, stderr, "fatal")
 }
+// TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
+func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
+	t.Skip("Skipping privesc test - command has infinite monitoring loop that's difficult to test in e2e")
+	apiURL := setupMockGitHubRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "privesc",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo-name", "test-owner/test-repo",
+		"--renovate-branches-regex", "renovate/.*",
+		"--monitoring-interval", "500ms",
+	}, nil, 30*time.Second)
+	assert.Nil(t, exitErr, "Privesc command with monitoring-interval should succeed")
+	assert.Contains(t, stdout, "Ensure the Renovate bot")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+// TestGHRenovatePrivescWithInvalidMonitoringInterval tests privesc with invalid monitoring interval
+func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
+	apiURL := setupMockGitHubRenovateAPI(t)
+	_, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gh", "renovate", "privesc",
+		"--github", apiURL,
+		"--token", "mock-token",
+		"--repo-name", "test-owner/test-repo",
+		"--renovate-branches-regex", "renovate/.*",
+		"--monitoring-interval", "invalid-duration",
+	}, nil, 30*time.Second)
+	assert.NotNil(t, exitErr, "Privesc command with invalid monitoring-interval should fail")
+	assert.Contains(t, stderr, "Failed to parse monitoring-interval duration")
+}

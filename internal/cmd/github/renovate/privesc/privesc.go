@@ -11,6 +11,7 @@ import (
 var (
 	privescRenovateBranchesRegex string
 	privescRepoName              string
+	privescMonitoringInterval    string
 )
 
 func NewPrivescCmd() *cobra.Command {
@@ -30,17 +31,20 @@ func NewPrivescCmd() *cobra.Command {
 			if !cmd.Flags().Changed("repo-name") {
 				privescRepoName = config.GetString("github.renovate.privesc.repo_name")
 			}
+			if !cmd.Flags().Changed("monitoring-interval") {
+				privescMonitoringInterval = config.GetString("github.renovate.privesc.monitoring_interval")
+			}
 
-			// Use viper-backed config so values can come from flags, config file, or env vars
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")
 
 			client := pkgscan.SetupClient(githubApiToken, githubUrl)
-			pkgrenovate.RunExploit(client, privescRepoName, privescRenovateBranchesRegex)
+			pkgrenovate.RunExploit(client, privescRepoName, privescRenovateBranchesRegex, privescMonitoringInterval)
 		},
 	}
 	privescCmd.Flags().StringVarP(&privescRenovateBranchesRegex, "renovate-branches-regex", "b", "renovate/.*", "The branch name regex expression to match the Renovate Bot branch names (default: 'renovate/.*')")
 	privescCmd.Flags().StringVarP(&privescRepoName, "repo-name", "r", "", "The repository to target in format owner/repo")
+	privescCmd.Flags().StringVarP(&privescMonitoringInterval, "monitoring-interval", "", "1s", "The interval to check for new Renovate branches (default: '1s')")
 
 	err := privescCmd.MarkFlagRequired("repo-name")
 	if err != nil {

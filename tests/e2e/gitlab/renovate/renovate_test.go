@@ -189,3 +189,32 @@ func TestGLRenovatePrivesc(t *testing.T) {
 	assert.Contains(t, stdout, "renovate/test-branch")
 	assert.NotContains(t, stderr, "fatal")
 }
+func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
+	apiURL := setupMockGitLabRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "privesc",
+		"--gitlab", apiURL,
+		"--token", "mock-token",
+		"--repo-name", "test-repo",
+		"--renovate-branches-regex", "renovate/.*",
+		"--monitoring-interval", "500ms",
+	}, nil, 10*time.Second)
+	assert.Nil(t, exitErr, "Privesc command with monitoring-interval should succeed")
+	assert.Contains(t, stdout, "Ensure the Renovate bot")
+	assert.Contains(t, stdout, "renovate/test-branch")
+	assert.NotContains(t, stderr, "fatal")
+}
+
+func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
+	apiURL := setupMockGitLabRenovateAPI(t)
+	_, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "privesc",
+		"--gitlab", apiURL,
+		"--token", "mock-token",
+		"--repo-name", "test-repo",
+		"--renovate-branches-regex", "renovate/.*",
+		"--monitoring-interval", "invalid-duration",
+	}, nil, 10*time.Second)
+	assert.NotNil(t, exitErr, "Privesc command with invalid monitoring-interval should fail")
+	assert.Contains(t, stderr, "Failed to parse monitoring-interval duration")
+}

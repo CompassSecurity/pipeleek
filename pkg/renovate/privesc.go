@@ -49,7 +49,7 @@ func (bm *BranchMonitor) CheckBranch(branchName string, isFirstScan bool) bool {
 
 // GetMonitoringInterval returns the recommended polling interval for branch monitoring
 func GetMonitoringInterval() time.Duration {
-	return 10 * time.Second
+	return 1 * time.Second
 }
 
 // GetRetryInterval returns the recommended retry interval on errors
