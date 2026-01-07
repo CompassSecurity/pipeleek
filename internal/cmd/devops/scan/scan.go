@@ -76,8 +76,13 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
+	// Enforce explicit flags for determinism (avoid picking up tokens from local config)
+	if !cmd.Flags().Changed("token") || !cmd.Flags().Changed("username") {
+		log.Fatal().Msg("required configuration missing")
+	}
+
 	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
+		log.Fatal().Err(err).Msg("required configuration missing")
 	}
 
 	options.DevOpsURL = config.GetString("azure_devops.url")

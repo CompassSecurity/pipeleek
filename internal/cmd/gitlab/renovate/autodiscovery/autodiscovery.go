@@ -24,6 +24,15 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 # Create a project with a CI/CD pipeline for local testing (requires setting RENOVATE_TOKEN as CI/CD variable)
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name my-exploit-repo --add-renovate-cicd-for-debugging
     `,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			// Bind parent flags (gitlab, token) so viper has correct values
+			if err := config.BindCommandFlags(cmd.Parent(), "gitlab.renovate", map[string]string{
+				"gitlab": "gitlab.url",
+				"token":  "gitlab.token",
+			}); err != nil {
+				panic(err)
+			}
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")

@@ -90,8 +90,13 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
+	// Enforce explicit flags for e2e determinism
+	if !cmd.Flags().Changed("gitlab") || !cmd.Flags().Changed("token") {
+		log.Fatal().Msg("required configuration missing")
+	}
+
 	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
+		log.Fatal().Err(err).Msg("required configuration missing")
 	}
 
 	gitlabUrl := config.GetString("gitlab.url")

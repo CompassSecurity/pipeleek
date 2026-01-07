@@ -1,6 +1,10 @@
 package privesc
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/privesc"
 	"github.com/rs/zerolog/log"
@@ -19,6 +23,15 @@ func NewPrivescCmd() *cobra.Command {
 		Short:   "Inject a malicious CI/CD Job into the protected default branch abusing Renovate Bot's access",
 		Long:    "Inject a job into the CI/CD pipeline of the project's default branch by adding a commit (race condition) to a Renovate Bot branch, which is then auto-merged into the main branch. Assumes the Renovate Bot has owner/maintainer access whereas you only have developer access. See https://blog.compass-security.com/2025/05/renovate-keeping-your-updates-secure/",
 		Example: `pipeleek gl renovate privesc --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name mygroup/myproject --renovate-branches-regex 'renovate/.*'`,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			// Bind parent flags (gitlab, token) so viper has correct values
+			if err := config.BindCommandFlags(cmd.Parent(), "gitlab.renovate", map[string]string{
+				"gitlab": "gitlab.url",
+				"token":  "gitlab.token",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind parent flags")
+			}
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.BindCommandFlags(cmd, "gitlab.renovate.privesc", nil); err != nil {
 				panic(err)
@@ -32,6 +45,13 @@ func NewPrivescCmd() *cobra.Command {
 			}
 			if !cmd.Flags().Changed("monitoring-interval") {
 				privescMonitoringInterval = config.GetString("gitlab.renovate.privesc.monitoring_interval")
+			}
+
+			// Validate monitoring interval early to ensure error appears on stderr for tests
+			if _, err := time.ParseDuration(privescMonitoringInterval); err != nil {
+				fmt.Fprintln(os.Stderr, "Failed to parse monitoring-interval duration")
+				os.Exit(1)
+				return
 			}
 
 			gitlabUrl := config.GetString("gitlab.url")

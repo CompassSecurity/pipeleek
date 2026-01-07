@@ -33,6 +33,14 @@ func setupMockGitHubRenovateAPI(t *testing.T) string {
 			w.Write([]byte(`{}`))
 			return
 		}
+		if strings.Contains(path, "/branches/main/protection") {
+			// Branch protection
+			if r.Method == http.MethodGet {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"url":"","required_status_checks":null,"enforce_admins":null,"required_pull_request_reviews":{"url":"","dismiss_stale_reviews":false,"require_code_owner_reviews":false,"required_approving_review_count":1,"require_last_push_approval":false},"restrictions":null,"required_linear_history":{"enabled":true},"allow_force_pushes":null,"allow_deletions":null,"required_conversation_resolution":null,"lock_branch":null}`))
+				return
+			}
+		}
 		if strings.Contains(path, "/contents/") {
 			// Repository contents
 			if r.Method == http.MethodGet {
@@ -109,14 +117,6 @@ jobs:
 			if r.Method == http.MethodGet {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`[{"number":1,"title":"Update dependencies","html_url":"https://github.com/test-owner/test-repo/pull/1"}]`))
-				return
-			}
-		}
-		if strings.Contains(path, "/branches/main/protection") {
-			// Branch protection
-			if r.Method == http.MethodGet {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"url":"","required_status_checks":null,"enforce_admins":null,"required_pull_request_reviews":{"url":"","dismiss_stale_reviews":false,"require_code_owner_reviews":false,"required_approving_review_count":1,"require_last_push_approval":false},"restrictions":null,"required_linear_history":{"enabled":true},"allow_force_pushes":null,"allow_deletions":null,"required_conversation_resolution":null,"lock_branch":null}`))
 				return
 			}
 		}
@@ -262,7 +262,6 @@ func TestGHRenovateEnumOrganization(t *testing.T) {
 }
 
 func TestGHRenovateAutodiscovery(t *testing.T) {
-	t.Skip("Autodiscovery tests require investigation - output not being captured correctly")
 	apiURL := setupMockGitHubRenovateAPI(t)
 	_, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
@@ -282,7 +281,6 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 }
 
 func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
-	t.Skip("Autodiscovery tests require investigation - output not being captured correctly")
 	apiURL := setupMockGitHubRenovateAPI(t)
 	_, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
@@ -302,7 +300,6 @@ func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 // that is difficult to test without significant refactoring. The command works in practice
 // but requires a real or much more complex mock GitHub API to properly test.
 func TestGHRenovatePrivesc(t *testing.T) {
-	t.Skip("Skipping privesc test - command has infinite monitoring loop that's difficult to test in e2e")
 	apiURL := setupMockGitHubRenovateAPI(t)
 	_, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
@@ -514,7 +511,6 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 }
 // TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
 func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
-	t.Skip("Skipping privesc test - command has infinite monitoring loop that's difficult to test in e2e")
 	apiURL := setupMockGitHubRenovateAPI(t)
 	_, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
