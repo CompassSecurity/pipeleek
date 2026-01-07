@@ -14,8 +14,7 @@ func TestPlatformLevelInheritance(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config with platform-level settings
 	tmpDir := t.TempDir()
@@ -66,8 +65,7 @@ func TestCommandLevelOverridesPlatformLevel(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config with both platform and command-level settings
 	tmpDir := t.TempDir()
@@ -106,8 +104,7 @@ func TestCommandLevelOverrideWithFlagPriority(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config with common and command-level thread settings
 	tmpDir := t.TempDir()
@@ -169,8 +166,7 @@ func TestEnvironmentVariableOverridesConfig(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config file
 	tmpDir := t.TempDir()
@@ -202,8 +198,7 @@ func TestNestedConfigKeys(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config with nested structure
 	tmpDir := t.TempDir()
@@ -250,8 +245,7 @@ func TestMultiplePlatformConfigs(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
-	os.Unsetenv("PIPELEEK_NO_CONFIG")
-	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create config with multiple platforms
 	tmpDir := t.TempDir()
