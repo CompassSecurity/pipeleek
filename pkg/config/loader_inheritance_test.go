@@ -92,7 +92,9 @@ gitlab:
 
 // TestCommandLevelOverrideWithFlagPriority verifies the documented example:
 // scan:
-//   threads: 10 # gl scan --threads (can override common.threads)
+//
+//	threads: 10 # gl scan --threads (can override common.threads)
+//
 // Tests that: CLI flag > gitlab.scan.threads > common.threads > default
 func TestCommandLevelOverrideWithFlagPriority(t *testing.T) {
 	// Reset global viper
@@ -130,7 +132,7 @@ gitlab:
 	// (when requesting gitlab.scan.threads, should get 10, not 4 from common)
 	cmd := &cobra.Command{Use: "scan"}
 	cmd.Flags().Int("threads", 0, "Threads")
-	
+
 	err = BindCommandFlags(cmd, "gitlab.scan", map[string]string{})
 	require.NoError(t, err)
 

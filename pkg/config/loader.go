@@ -149,7 +149,7 @@ func InitializeViper(configFile string) error {
 				home = ""
 			}
 		}
-		
+
 		if home != "" {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)

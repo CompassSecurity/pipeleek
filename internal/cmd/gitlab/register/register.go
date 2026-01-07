@@ -20,8 +20,8 @@ func NewRegisterCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Failed to bind flags")
 			}
 
-				if err := config.RequireConfigKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email"); err != nil {
-					log.Fatal().Err(err).Msg("required configuration missing")
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 
 			gitlabUrl := config.GetString("gitlab.url")

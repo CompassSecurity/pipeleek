@@ -18,8 +18,8 @@ func NewShodanCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Failed to bind flags")
 			}
 
-				if err := config.RequireConfigKeys("gitlab.shodan.json"); err != nil {
-					log.Fatal().Err(err).Msg("required configuration missing")
+			if err := config.RequireConfigKeys("gitlab.shodan.json"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 
 			shodanJsonFile := config.GetString("gitlab.shodan.json")
