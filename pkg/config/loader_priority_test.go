@@ -13,6 +13,9 @@ import (
 
 // TestPriorityOrder_FlagsOverEnvVars tests that CLI flags have highest priority over environment variables
 func TestPriorityOrder_FlagsOverEnvVars(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create empty config to initialize Viper
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -46,6 +49,9 @@ func TestPriorityOrder_FlagsOverEnvVars(t *testing.T) {
 
 // TestPriorityOrder_EnvVarsOverConfigFile tests that environment variables override config file
 func TestPriorityOrder_EnvVarsOverConfigFile(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create config file with a value
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -71,6 +77,9 @@ gitlab:
 
 // TestPriorityOrder_ConfigFileOverDefaults tests that config file values override defaults
 func TestPriorityOrder_ConfigFileOverDefaults(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create config file with a value
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -93,6 +102,9 @@ common:
 // TestPriorityOrder_FullChain tests the complete priority chain:
 // CLI flags > Environment variables > Config file > Defaults
 func TestPriorityOrder_FullChain(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Setup: Create config with threads=10
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")

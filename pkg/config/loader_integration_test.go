@@ -13,6 +13,9 @@ import (
 )
 
 func TestConfigSatisfiesRequiredFlags(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -53,6 +56,9 @@ gitlab:
 }
 
 func TestEnvironmentVariablesSatisfyRequiredFlags(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create temp config (even empty) to initialize Viper properly
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -94,6 +100,9 @@ func TestEnvironmentVariablesSatisfyRequiredFlags(t *testing.T) {
 }
 
 func TestFlagPriorityOverConfig(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -136,6 +145,9 @@ gitlab:
 }
 
 func TestMissingRequiredKeysProducesError(t *testing.T) {
+	// Ensure config file loading is enabled for this test
+	os.Unsetenv("PIPELEEK_NO_CONFIG")
+	defer os.Setenv("PIPELEEK_NO_CONFIG", os.Getenv("PIPELEEK_NO_CONFIG"))
 	// Create empty config to initialize Viper
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
