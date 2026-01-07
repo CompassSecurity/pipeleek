@@ -22,7 +22,7 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitHub Renovate bot configurations.",
 	}
 
-	renovateCmd.PreRun = func(cmd *cobra.Command, args []string) {
+	renovateCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if err := config.BindCommandFlags(cmd, "github.renovate", map[string]string{
 			"github": "github.url",
 			"token":  "github.token",
