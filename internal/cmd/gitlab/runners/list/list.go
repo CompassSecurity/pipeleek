@@ -21,11 +21,6 @@ func NewRunnersListCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Failed to bind flags")
 			}
 
-			// Require explicit flags for determinism in tests
-			if !cmd.Flags().Changed("gitlab") || !cmd.Flags().Changed("token") {
-				log.Fatal().Msg("required configuration missing")
-			}
-
 			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
 				log.Fatal().Err(err).Msg("required configuration missing")
 			}

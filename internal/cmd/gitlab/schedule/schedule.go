@@ -29,12 +29,6 @@ func FetchSchedules(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind flags")
 	}
 
-	// Enforce explicit flags for e2e determinism
-// require explicit CLI flags for determinism in tests/environments
-    if !cmd.Flags().Changed("gitlab") || !cmd.Flags().Changed("token") {
-        log.Fatal().Msg("required configuration missing")
-    }
-
 	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
 		log.Fatal().Err(err).Msg("required configuration missing")
 	}
