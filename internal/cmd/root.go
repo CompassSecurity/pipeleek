@@ -54,6 +54,8 @@ var (
 	LogLevel      string
 	IgnoreProxy   bool
 	ConfigFile    string
+	// runLogFileHandle holds the file handle when logging to a file is enabled
+	runLogFileHandle *os.File
 )
 
 func Execute() error {
@@ -149,13 +151,17 @@ func initLogger(cmd *cobra.Command) {
 		if err != nil {
 			panic(err)
 		}
-		defaultOut = &CustomWriter{Writer: runLogFile}
+		// store handle so tests and callers can close it on Windows
+		runLogFileHandle = runLogFile
+		defaultOut = &CustomWriter{Writer: runLogFileHandle}
 
 		rootFlags := cmd.Root().PersistentFlags()
 		if !rootFlags.Changed("color") {
 			colorEnabled = false
 		}
 	}
+
+	// note: CloseLogger is defined at package scope
 
 	fatalHook := FatalHook{}
 
@@ -178,6 +184,15 @@ func initLogger(cmd *cobra.Command) {
 		hitWriter.SetOutput(&output)
 		logging.SetGlobalHitWriter(hitWriter)
 		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger().Hook(fatalHook)
+	}
+}
+
+// CloseLogger closes any open log file handle created by initLogger.
+// Safe to call multiple times.
+func CloseLogger() {
+	if runLogFileHandle != nil {
+		_ = runLogFileHandle.Close()
+		runLogFileHandle = nil
 	}
 }
 

@@ -255,6 +255,7 @@ func TestInitLogger_DefaultConsole_NotJSON(t *testing.T) {
 	LogColor = false
 
 	initLogger(rootCmd)
+	t.Cleanup(func() { CloseLogger() })
 
 	log.Info().Msg("hello-console")
 
@@ -280,6 +281,7 @@ func TestInitLogger_JSON_WhenFlagSet(t *testing.T) {
 	JsonLogoutput = true
 
 	initLogger(rootCmd)
+	t.Cleanup(func() { CloseLogger() })
 
 	log.Info().Msg("hello-json")
 
