@@ -24,15 +24,16 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	if err := config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
+	if err := config.AutoBindFlags(cmd, map[string]string{
 		"gitlab": "gitlab.url",
 		"token":  "gitlab.token",
+		"level":  "gitlab.enum.level",
 	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind flags")
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
 	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
+		log.Fatal().Err(err).Msg("required configuration missing")
 	}
 
 	gitlabUrl := config.GetString("gitlab.url")

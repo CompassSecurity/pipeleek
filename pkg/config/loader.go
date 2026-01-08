@@ -119,6 +119,17 @@ func InitializeViper(configFile string) error {
 
 	setDefaults(v)
 
+	// Allow tests or users to disable config file loading entirely
+	noCfg := os.Getenv("PIPELEEK_NO_CONFIG")
+	if strings.EqualFold(noCfg, "1") || strings.EqualFold(noCfg, "true") || strings.EqualFold(noCfg, "yes") {
+		log.Debug().Msg("Skipping config file loading due to PIPELEEK_NO_CONFIG")
+		v.SetEnvPrefix("PIPELEEK")
+		v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+		v.AutomaticEnv()
+		globalViper = v
+		return nil
+	}
+
 	if configFile != "" {
 		v.SetConfigFile(configFile)
 		log.Debug().Str("path", configFile).Msg("Using specified config file")
@@ -138,7 +149,7 @@ func InitializeViper(configFile string) error {
 				home = ""
 			}
 		}
-		
+
 		if home != "" {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)

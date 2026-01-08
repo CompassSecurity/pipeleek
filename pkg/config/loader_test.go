@@ -26,6 +26,8 @@ func TestInitializeViper_NoFile(t *testing.T) {
 func TestInitializeViper_WithYAML(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-config.yaml")
@@ -102,6 +104,8 @@ common:
 func TestInitializeViper_InvalidFile(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	err := InitializeViper("/nonexistent/path/to/config.yaml")
 	assert.Error(t, err)
@@ -110,6 +114,8 @@ func TestInitializeViper_InvalidFile(t *testing.T) {
 func TestInitializeViper_InvalidYAML(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "invalid.yaml")
@@ -143,6 +149,8 @@ func TestGetViper(t *testing.T) {
 func TestInitializeViper_PartialConfig(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "partial.yaml")

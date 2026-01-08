@@ -93,23 +93,26 @@ func RunCLI(t *testing.T, args []string, env []string, timeout time.Duration) (s
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Apply env overrides
-	if len(env) > 0 {
-		oldEnv := os.Environ()
-		defer func() {
-			os.Clearenv()
-			for _, e := range oldEnv {
-				parts := strings.SplitN(e, "=", 2)
-				if len(parts) == 2 {
-					_ = os.Setenv(parts[0], parts[1])
-				}
-			}
-		}()
-		for _, e := range env {
+	// Apply env overrides and ensure config file loading is disabled for e2e runs
+	oldEnv := os.Environ()
+	defer func() {
+		os.Clearenv()
+		for _, e := range oldEnv {
 			parts := strings.SplitN(e, "=", 2)
 			if len(parts) == 2 {
 				_ = os.Setenv(parts[0], parts[1])
 			}
+		}
+	}()
+
+	// Always disable config file loading for deterministic e2e tests
+	_ = os.Setenv("PIPELEEK_NO_CONFIG", "1")
+
+	// Apply provided env overrides
+	for _, e := range env {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			_ = os.Setenv(parts[0], parts[1])
 		}
 	}
 

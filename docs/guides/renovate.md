@@ -22,6 +22,8 @@ There are two key points to understand:
 
 > GitLab project invites are auto-accepted. You can invite any bot directly to your repository. If it is then renovated by the invited bot, you can compromise the bot user.
 
+Note: The commands are available for GitHub as well, however exploitation might differ as GitHub employs more security barriers e.g. invites are not auto-accepted.
+
 ## 1. Enumerate Renovate Bot Usage
 
 Use the `enum` command to scan your GitLab instance for Renovate bot jobs and configuration files. This is useful for:

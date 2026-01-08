@@ -508,7 +508,7 @@ func TestGiteaSecrets_MissingToken(t *testing.T) {
 	output := stdout + stderr
 	t.Logf("Output:\n%s", output)
 
-	assert.Contains(t, output, "required flag", "Should indicate missing required flag")
+	assert.Contains(t, output, "required configuration missing", "Should indicate missing required configuration")
 }
 
 func TestGiteaSecrets_InvalidURL(t *testing.T) {

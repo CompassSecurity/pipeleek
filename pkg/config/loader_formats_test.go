@@ -12,6 +12,8 @@ import (
 func TestInitializeViper_JSONFormat(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.json")
@@ -43,6 +45,8 @@ func TestInitializeViper_JSONFormat(t *testing.T) {
 func TestInitializeViper_TOMLFormat(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.toml")
@@ -72,14 +76,14 @@ trufflehog_verification = true
 func TestConfigFileSearchOrder(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create temp directory structure mimicking home directory
 	tmpDir := t.TempDir()
 
 	// Set HOME to temp directory for this test
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
+	t.Setenv("HOME", tmpDir)
 
 	// Create config in ~/.config/pipeleek/config.yaml (should be found first)
 	configDir := filepath.Join(tmpDir, ".config", "pipeleek")
@@ -117,6 +121,8 @@ gitlab:
 func TestConfigFileCurrentDirectory(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	// Ensure config file loading is enabled for this test
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	// Create temp directory and change to it
 	tmpDir := t.TempDir()
@@ -130,9 +136,7 @@ func TestConfigFileCurrentDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Unset HOME to avoid finding user's config files
-	originalHome := os.Getenv("HOME")
-	os.Unsetenv("HOME")
-	defer os.Setenv("HOME", originalHome)
+	t.Setenv("HOME", "")
 
 	// Create config in current directory
 	configPath := filepath.Join(tmpDir, "pipeleek.yaml")

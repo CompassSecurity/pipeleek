@@ -91,7 +91,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
+		log.Fatal().Err(err).Msg("required configuration missing")
 	}
 
 	gitlabUrl := config.GetString("gitlab.url")

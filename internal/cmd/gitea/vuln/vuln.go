@@ -1,14 +1,10 @@
 package vuln
 
 import (
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgvuln "github.com/CompassSecurity/pipeleek/pkg/gitea/vuln"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-)
-
-var (
-	giteaApiToken string
-	giteaUrl      string
 )
 
 func NewVulnCmd() *cobra.Command {
@@ -19,22 +15,24 @@ func NewVulnCmd() *cobra.Command {
 		Example: `pipeleek gitea vuln --token xxxxx --gitea https://gitea.mydomain.com`,
 		Run:     CheckVulns,
 	}
-	vulnCmd.Flags().StringVarP(&giteaUrl, "gitea", "g", "", "Gitea instance URL")
-	err := vulnCmd.MarkFlagRequired("gitea")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require gitea flag")
-	}
-
-	vulnCmd.Flags().StringVarP(&giteaApiToken, "token", "t", "", "Gitea API Token")
-	err = vulnCmd.MarkFlagRequired("token")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Unable to require token flag")
-	}
-	vulnCmd.MarkFlagsRequiredTogether("gitea", "token")
 
 	return vulnCmd
 }
 
 func CheckVulns(cmd *cobra.Command, args []string) {
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"gitea": "gitea.url",
+		"token": "gitea.token",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
+		log.Fatal().Err(err).Msg("required configuration missing")
+	}
+
+	giteaUrl := config.GetString("gitea.url")
+	giteaApiToken := config.GetString("gitea.token")
+
 	pkgvuln.RunCheckVulns(giteaUrl, giteaApiToken)
 }

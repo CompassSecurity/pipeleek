@@ -189,6 +189,43 @@ make serve-docs  # Installs dependencies if needed, generates and serves docs
 - Use consistent flag naming across commands
 - **When adding or modifying command flags**: Update both `docs/introduction/configuration.md` and `pipeleek.example.yaml` to reflect the changes
 
+### Configuration Loading Pattern (MANDATORY)
+
+**ALWAYS use `config.AutoBindFlags` for configuration loading in ALL commands:**
+
+```go
+func CommandRun(cmd *cobra.Command, args []string) {
+    // 1. Bind flags to config keys
+    if err := config.AutoBindFlags(cmd, map[string]string{
+        "platform-flag": "platform.url",
+        "token":         "platform.token",
+        "threads":       "common.threads",
+    }); err != nil {
+        log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+    }
+
+    // 2. Validate required keys
+    if err := config.RequireConfigKeys("platform.url", "platform.token"); err != nil {
+        log.Fatal().Err(err).Msg("required configuration missing")
+    }
+
+    // 3. Get values from unified config (supports flags/env/file)
+    url := config.GetString("platform.url")
+    token := config.GetString("platform.token")
+    threads := config.GetInt("common.threads")
+}
+```
+
+**Key naming convention:**
+- Platform settings: `<platform>.<key>` (e.g., `github.url`, `gitlab.token`)
+- Subcommand settings: `<platform>.<subcommand>.<key>` (e.g., `github.renovate.enum.owned`)
+- Common settings: `common.<key>` (e.g., `common.threads`)
+
+**DO NOT:**
+- Read flags directly with `cmd.Flags().GetString()` - always use config system
+- Use `config.BindCommandFlags` - it's deprecated in favor of `AutoBindFlags`
+- Skip `RequireConfigKeys` validation for required flags
+
 ### Package Organization
 
 - Keep business logic in `pkg/` packages

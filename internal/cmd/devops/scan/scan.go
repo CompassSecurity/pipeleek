@@ -77,7 +77,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
+		log.Fatal().Err(err).Msg("required configuration missing")
 	}
 
 	options.DevOpsURL = config.GetString("azure_devops.url")

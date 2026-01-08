@@ -9,92 +9,93 @@ import (
 	"strings"
 	"testing"
 
+	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRenovateJsonConfig(t *testing.T) {
 	t.Run("contains valid JSON schema", func(t *testing.T) {
-		assert.Contains(t, renovateJson, `"$schema"`)
-		assert.Contains(t, renovateJson, "https://docs.renovatebot.com/renovate-schema.json")
+		assert.Contains(t, pkgrenovate.RenovateJSON, `"$schema"`)
+		assert.Contains(t, pkgrenovate.RenovateJSON, "https://docs.renovatebot.com/renovate-schema.json")
 	})
 
 	t.Run("extends config:recommended", func(t *testing.T) {
-		assert.Contains(t, renovateJson, `"extends"`)
-		assert.Contains(t, renovateJson, "config:recommended")
+		assert.Contains(t, pkgrenovate.RenovateJSON, `"extends"`)
+		assert.Contains(t, pkgrenovate.RenovateJSON, "config:recommended")
 	})
 
 	t.Run("is valid JSON structure", func(t *testing.T) {
-		assert.True(t, strings.HasPrefix(strings.TrimSpace(renovateJson), "{"))
-		assert.True(t, strings.HasSuffix(strings.TrimSpace(renovateJson), "}"))
+		assert.True(t, strings.HasPrefix(strings.TrimSpace(pkgrenovate.RenovateJSON), "{"))
+		assert.True(t, strings.HasSuffix(strings.TrimSpace(pkgrenovate.RenovateJSON), "}"))
 	})
 }
 
 func TestBuildGradle(t *testing.T) {
 	t.Run("contains Java plugin", func(t *testing.T) {
-		assert.Contains(t, buildGradle, "plugins")
-		assert.Contains(t, buildGradle, "id 'java'")
+		assert.Contains(t, pkgrenovate.BuildGradle, "plugins")
+		assert.Contains(t, pkgrenovate.BuildGradle, "id 'java'")
 	})
 
 	t.Run("uses mavenCentral repository", func(t *testing.T) {
-		assert.Contains(t, buildGradle, "repositories")
-		assert.Contains(t, buildGradle, "mavenCentral()")
+		assert.Contains(t, pkgrenovate.BuildGradle, "repositories")
+		assert.Contains(t, pkgrenovate.BuildGradle, "mavenCentral()")
 	})
 
 	t.Run("includes guava dependency with old version", func(t *testing.T) {
-		assert.Contains(t, buildGradle, "dependencies")
-		assert.Contains(t, buildGradle, "com.google.guava:guava")
-		assert.Contains(t, buildGradle, "31.0-jre", "Should use old version to trigger update")
+		assert.Contains(t, pkgrenovate.BuildGradle, "dependencies")
+		assert.Contains(t, pkgrenovate.BuildGradle, "com.google.guava:guava")
+		assert.Contains(t, pkgrenovate.BuildGradle, "31.0-jre", "Should use old version to trigger update")
 	})
 
 	t.Run("is valid Gradle syntax", func(t *testing.T) {
-		assert.NotContains(t, buildGradle, "{{{", "Should not contain template placeholders")
-		assert.NotContains(t, buildGradle, "}}}", "Should not contain template placeholders")
+		assert.NotContains(t, pkgrenovate.BuildGradle, "{{{", "Should not contain template placeholders")
+		assert.NotContains(t, pkgrenovate.BuildGradle, "}}}", "Should not contain template placeholders")
 	})
 }
 
 func TestGradlewScript(t *testing.T) {
 	t.Run("is a shell script", func(t *testing.T) {
-		assert.True(t, strings.HasPrefix(gradlewScript, "#!/bin/sh"))
+		assert.True(t, strings.HasPrefix(pkgrenovate.GradlewScript, "#!/bin/sh"))
 	})
 
 	t.Run("executes exploit.sh", func(t *testing.T) {
-		assert.Contains(t, gradlewScript, "sh exploit.sh")
+		assert.Contains(t, pkgrenovate.GradlewScript, "sh exploit.sh")
 	})
 
 	t.Run("exits successfully to avoid detection", func(t *testing.T) {
-		assert.Contains(t, gradlewScript, "exit 0")
+		assert.Contains(t, pkgrenovate.GradlewScript, "exit 0")
 	})
 
 	t.Run("contains explanatory comments", func(t *testing.T) {
-		assert.Contains(t, gradlewScript, "Malicious Gradle wrapper")
-		assert.Contains(t, gradlewScript, "Renovate")
+		assert.Contains(t, pkgrenovate.GradlewScript, "Malicious Gradle wrapper")
+		assert.Contains(t, pkgrenovate.GradlewScript, "Renovate")
 	})
 
 	t.Run("outputs benign message", func(t *testing.T) {
-		assert.Contains(t, gradlewScript, "echo \"Gradle wrapper executed\"")
+		assert.Contains(t, pkgrenovate.GradlewScript, "echo \"Gradle wrapper executed\"")
 	})
 }
 
 func TestGradleWrapperProperties(t *testing.T) {
 	t.Run("contains required Gradle wrapper properties", func(t *testing.T) {
-		assert.Contains(t, gradleWrapperProperties, "distributionBase=GRADLE_USER_HOME")
-		assert.Contains(t, gradleWrapperProperties, "distributionPath=wrapper/dists")
-		assert.Contains(t, gradleWrapperProperties, "zipStoreBase=GRADLE_USER_HOME")
-		assert.Contains(t, gradleWrapperProperties, "zipStorePath=wrapper/dists")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "distributionBase=GRADLE_USER_HOME")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "distributionPath=wrapper/dists")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "zipStoreBase=GRADLE_USER_HOME")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "zipStorePath=wrapper/dists")
 	})
 
 	t.Run("uses old Gradle version to trigger update", func(t *testing.T) {
-		assert.Contains(t, gradleWrapperProperties, "gradle-7.0-bin.zip")
-		assert.Contains(t, gradleWrapperProperties, "https\\://services.gradle.org/distributions/")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0-bin.zip")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "https\\://services.gradle.org/distributions/")
 	})
 
 	t.Run("has properly escaped URL", func(t *testing.T) {
 		// The : should be escaped as \: in properties files
-		assert.Contains(t, gradleWrapperProperties, "https\\://")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "https\\://")
 	})
 
 	t.Run("format is valid properties file", func(t *testing.T) {
-		lines := strings.Split(gradleWrapperProperties, "\n")
+		lines := strings.Split(pkgrenovate.GradleWrapperProperties, "\n")
 		for _, line := range lines {
 			if line == "" {
 				continue
@@ -106,34 +107,34 @@ func TestGradleWrapperProperties(t *testing.T) {
 
 func TestExploitScript(t *testing.T) {
 	t.Run("is a shell script", func(t *testing.T) {
-		assert.True(t, strings.HasPrefix(exploitScript, "#!/bin/sh"))
+		assert.True(t, strings.HasPrefix(pkgrenovate.ExploitScript, "#!/bin/sh"))
 	})
 
 	t.Run("creates proof file in /tmp", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "/tmp/pipeleek-exploit-executed.txt")
+		assert.Contains(t, pkgrenovate.ExploitScript, "/tmp/pipeleek-exploit-executed.txt")
 	})
 
 	t.Run("records execution timestamp", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "$(date)")
+		assert.Contains(t, pkgrenovate.ExploitScript, "$(date)")
 	})
 
 	t.Run("records working directory", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "$(pwd)")
+		assert.Contains(t, pkgrenovate.ExploitScript, "$(pwd)")
 	})
 
 	t.Run("records user information", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "$(whoami)")
+		assert.Contains(t, pkgrenovate.ExploitScript, "$(whoami)")
 	})
 
 	t.Run("contains helpful examples for actual exploitation", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "Replace this with your actual exploit code")
-		assert.Contains(t, exploitScript, "Examples:")
-		assert.Contains(t, exploitScript, "Exfiltrate environment variables")
+		assert.Contains(t, pkgrenovate.ExploitScript, "Replace this with your actual exploit code")
+		assert.Contains(t, pkgrenovate.ExploitScript, "Examples:")
+		assert.Contains(t, pkgrenovate.ExploitScript, "Exfiltrate environment variables")
 	})
 
 	t.Run("includes commented curl exfiltration example", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "# curl -X POST")
-		assert.Contains(t, exploitScript, "$(env)")
+		assert.Contains(t, pkgrenovate.ExploitScript, "# curl -X POST")
+		assert.Contains(t, pkgrenovate.ExploitScript, "$(env)")
 	})
 }
 
@@ -329,20 +330,20 @@ func TestRunGenerate_WithCICD(t *testing.T) {
 
 func TestFileContents_Security(t *testing.T) {
 	t.Run("exploit script does not contain actual credentials", func(t *testing.T) {
-		assert.NotContains(t, exploitScript, "password")
-		assert.NotContains(t, exploitScript, "secret_key")
-		assert.NotContains(t, exploitScript, "api_token")
+		assert.NotContains(t, pkgrenovate.ExploitScript, "password")
+		assert.NotContains(t, pkgrenovate.ExploitScript, "secret_key")
+		assert.NotContains(t, pkgrenovate.ExploitScript, "api_token")
 	})
 
 	t.Run("gradlew script does not leak information", func(t *testing.T) {
-		assert.NotContains(t, gradlewScript, "password")
-		assert.NotContains(t, gradlewScript, "http://", "Should not contain hardcoded URLs")
-		assert.NotContains(t, gradlewScript, "https://", "Should not contain hardcoded URLs")
+		assert.NotContains(t, pkgrenovate.GradlewScript, "password")
+		assert.NotContains(t, pkgrenovate.GradlewScript, "http://", "Should not contain hardcoded URLs")
+		assert.NotContains(t, pkgrenovate.GradlewScript, "https://", "Should not contain hardcoded URLs")
 	})
 
 	t.Run("no hardcoded attacker infrastructure in defaults", func(t *testing.T) {
 		// The exploit script should have examples commented out
-		lines := strings.Split(exploitScript, "\n")
+		lines := strings.Split(pkgrenovate.ExploitScript, "\n")
 		for _, line := range lines {
 			if strings.Contains(line, "http") && !strings.HasPrefix(strings.TrimSpace(line), "#") {
 				t.Errorf("Found uncommented URL in exploit script: %s", line)
@@ -353,30 +354,30 @@ func TestFileContents_Security(t *testing.T) {
 
 func TestExploitMechanism(t *testing.T) {
 	t.Run("requires outdated gradle version", func(t *testing.T) {
-		assert.Contains(t, gradleWrapperProperties, "gradle-7.0")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0")
 	})
 
 	t.Run("malicious gradlew is marked executable", func(t *testing.T) {
 		// This would be tested in the actual RunGenerate function
 		// where createFile is called with executable=true for gradlew
-		assert.Contains(t, gradlewScript, "#!/bin/sh", "Script must have shebang to be executable")
+		assert.Contains(t, pkgrenovate.GradlewScript, "#!/bin/sh", "Script must have shebang to be executable")
 	})
 
 	t.Run("exploit.sh is marked executable", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "#!/bin/sh", "Script must have shebang to be executable")
+		assert.Contains(t, pkgrenovate.ExploitScript, "#!/bin/sh", "Script must have shebang to be executable")
 	})
 
 	t.Run("exploitation chain is complete", func(t *testing.T) {
 		// Verify the exploitation chain:
 		// 1. gradle-wrapper.properties triggers Renovate to update wrapper
-		assert.Contains(t, gradleWrapperProperties, "gradle-7.0")
+		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0")
 
 		// 2. Renovate executes ./gradlew wrapper
 		// 3. Our malicious gradlew executes exploit.sh
-		assert.Contains(t, gradlewScript, "sh exploit.sh")
+		assert.Contains(t, pkgrenovate.GradlewScript, "sh exploit.sh")
 
 		// 4. exploit.sh creates proof file
-		assert.Contains(t, exploitScript, "/tmp/pipeleek-exploit-executed.txt")
+		assert.Contains(t, pkgrenovate.ExploitScript, "/tmp/pipeleek-exploit-executed.txt")
 
 		// 5. CI verification finds the proof file
 		assert.Contains(t, gitlabCiYml, "/tmp/pipeleek-exploit-executed.txt")
@@ -389,11 +390,11 @@ func TestFileNaming(t *testing.T) {
 		filename string
 		content  string
 	}{
-		{"renovate config", "renovate.json", renovateJson},
-		{"gradle build file", "build.gradle", buildGradle},
-		{"gradle wrapper script", "gradlew", gradlewScript},
-		{"gradle wrapper properties", "gradle/wrapper/gradle-wrapper.properties", gradleWrapperProperties},
-		{"exploit script", "exploit.sh", exploitScript},
+		{"renovate config", "renovate.json", pkgrenovate.RenovateJSON},
+		{"gradle build file", "build.gradle", pkgrenovate.BuildGradle},
+		{"gradle wrapper script", "gradlew", pkgrenovate.GradlewScript},
+		{"gradle wrapper properties", "gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties},
+		{"exploit script", "exploit.sh", pkgrenovate.ExploitScript},
 		{"ci configuration", ".gitlab-ci.yml", gitlabCiYml},
 	}
 
@@ -425,14 +426,14 @@ func TestExploitDocumentation(t *testing.T) {
 	})
 
 	t.Run("exploit script explains what to replace", func(t *testing.T) {
-		assert.Contains(t, exploitScript, "Replace this with your actual exploit code")
-		assert.Contains(t, exploitScript, "Examples:")
+		assert.Contains(t, pkgrenovate.ExploitScript, "Replace this with your actual exploit code")
+		assert.Contains(t, pkgrenovate.ExploitScript, "Examples:")
 	})
 
 	t.Run("comments explain the attack mechanism", func(t *testing.T) {
-		assert.Contains(t, gradlewScript, "Malicious Gradle wrapper")
-		assert.Contains(t, gradlewScript, "Renovate")
-		assert.Contains(t, gradlewScript, "artifact update phase")
+		assert.Contains(t, pkgrenovate.GradlewScript, "Malicious Gradle wrapper")
+		assert.Contains(t, pkgrenovate.GradlewScript, "Renovate")
+		assert.Contains(t, pkgrenovate.GradlewScript, "artifact update phase")
 	})
 }
 
@@ -443,7 +444,7 @@ func TestLogMessages(t *testing.T) {
 	t.Run("mentions gradle wrapper mechanism", func(t *testing.T) {
 		// This would be checked in the RunGenerate function logs
 		// For now, verify our template variables contain the right info
-		assert.Contains(t, gradlewScript, "Gradle wrapper")
+		assert.Contains(t, pkgrenovate.GradlewScript, "Gradle wrapper")
 	})
 
 	t.Run("warns about retest procedures", func(t *testing.T) {
@@ -454,12 +455,12 @@ func TestLogMessages(t *testing.T) {
 func TestContentQuality(t *testing.T) {
 	t.Run("all content is non-empty", func(t *testing.T) {
 		contents := map[string]string{
-			"renovateJson":            renovateJson,
-			"buildGradle":             buildGradle,
-			"gradlewScript":           gradlewScript,
-			"gradleWrapperProperties": gradleWrapperProperties,
-			"exploitScript":           exploitScript,
-			"gitlabCiYml":             gitlabCiYml,
+			"pkgrenovate.RenovateJSON":            pkgrenovate.RenovateJSON,
+			"pkgrenovate.BuildGradle":             pkgrenovate.BuildGradle,
+			"pkgrenovate.GradlewScript":           pkgrenovate.GradlewScript,
+			"pkgrenovate.GradleWrapperProperties": pkgrenovate.GradleWrapperProperties,
+			"pkgrenovate.ExploitScript":           pkgrenovate.ExploitScript,
+			"gitlabCiYml":                         gitlabCiYml,
 		}
 
 		for name, content := range contents {
@@ -470,7 +471,7 @@ func TestContentQuality(t *testing.T) {
 	})
 
 	t.Run("scripts have proper line endings", func(t *testing.T) {
-		scripts := []string{gradlewScript, exploitScript}
+		scripts := []string{pkgrenovate.GradlewScript, pkgrenovate.ExploitScript}
 		for _, script := range scripts {
 			// Should use Unix line endings
 			assert.NotContains(t, script, "\r\n", "Scripts should use Unix line endings")

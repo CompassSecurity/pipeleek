@@ -14,6 +14,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 
@@ -353,36 +354,7 @@ func isSelfHostedConfig(config string, opts EnumOptions) bool {
 }
 
 func extendRenovateConfig(renovateConfig string, project *gitlab.Project, opts EnumOptions) string {
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-
-	u, err := url.Parse(opts.ExtendRenovateConfigService)
-	if err != nil {
-		log.Error().Stack().Err(err).Str("project", project.WebURL).Msg("Failed to parse renovate config service URL")
-		return renovateConfig
-	}
-	u = u.JoinPath("resolve")
-
-	resp, err := client.Post(u.String(), "application/json", strings.NewReader(renovateConfig))
-
-	if err != nil {
-		log.Error().Stack().Err(err).Str("project", project.WebURL).Msg("Failed to extend renovate config")
-		return renovateConfig
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Stack().Err(err).Str("project", project.WebURL).Msg("Failed to read response body of renovate config expansion")
-		return renovateConfig
-	}
-
-	if resp.StatusCode != 200 {
-		log.Debug().Int("status", resp.StatusCode).Str("msg", string(bodyBytes)).Str("project", project.WebURL).Msg("Failed to extend renovate config")
-		return renovateConfig
-	}
-
-	return string(bodyBytes)
+	return renovateutil.ExtendRenovateConfig(renovateConfig, opts.ExtendRenovateConfigService, project.WebURL)
 }
 
 func validateRenovateConfigService(serviceUrl string) error {
