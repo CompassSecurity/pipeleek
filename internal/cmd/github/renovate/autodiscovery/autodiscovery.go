@@ -1,6 +1,8 @@
 package autodiscovery
 
 import (
+	"github.com/rs/zerolog/log"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/autodiscovery"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
@@ -23,7 +25,7 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.BindCommandFlags(cmd, "github.renovate.autodiscovery", nil); err != nil {
-				panic(err)
+				log.Fatal().Err(err).Msg("Failed to bind command flags")
 			}
 
 			if !cmd.Flags().Changed("repo-name") {

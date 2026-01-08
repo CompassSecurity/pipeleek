@@ -34,7 +34,7 @@ func NewPrivescCmd() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.BindCommandFlags(cmd, "gitlab.renovate.privesc", nil); err != nil {
-				panic(err)
+				log.Fatal().Err(err).Msg("Failed to bind flags to config")
 			}
 
 			if !cmd.Flags().Changed("renovate-branches-regex") {
@@ -59,6 +59,7 @@ func NewPrivescCmd() *cobra.Command {
 			pkgrenovate.RunExploit(gitlabUrl, gitlabApiToken, privescRepoName, privescRenovateBranchesRegex, privescMonitoringInterval)
 		},
 	}
+	
 	privescCmd.Flags().StringVarP(&privescRenovateBranchesRegex, "renovate-branches-regex", "b", "renovate/.*", "The branch name regex expression to match the Renovate Bot branch names (default: 'renovate/.*')")
 	privescCmd.Flags().StringVarP(&privescRepoName, "repo-name", "r", "", "The repository to target")
 	privescCmd.Flags().StringVarP(&privescMonitoringInterval, "monitoring-interval", "", "1s", "The interval to check for new Renovate branches (default: '1s')")

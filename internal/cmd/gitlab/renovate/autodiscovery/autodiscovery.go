@@ -1,6 +1,8 @@
 package autodiscovery
 
 import (
+	"github.com/rs/zerolog/log"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/autodiscovery"
 	"github.com/spf13/cobra"
@@ -30,7 +32,7 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 				"gitlab": "gitlab.url",
 				"token":  "gitlab.token",
 			}); err != nil {
-				panic(err)
+				log.Fatal().Err(err).Msg("Failed to bind parent flags")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {

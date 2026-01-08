@@ -43,7 +43,6 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --or
 pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
 		PreRun: func(cmd *cobra.Command, args []string) {
-			// Bind parent flags to config
 			if err := config.BindCommandFlags(cmd.Parent(), "github.renovate", map[string]string{
 				"github": "github.url",
 				"token":  "github.token",
@@ -56,7 +55,6 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --re
 				log.Fatal().Err(err).Msg("Failed to bind flags to config")
 			}
 
-			// Get github URL and token from config (supports all three methods)
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")
 
