@@ -17,6 +17,7 @@ import (
 func DetectCiCdConfig(cicdConf string) bool {
 	return format.ContainsI(cicdConf, "renovate/renovate") ||
 		format.ContainsI(cicdConf, "renovatebot/renovate") ||
+		format.ContainsI(cicdConf, "renovatebot/github-action") ||
 		format.ContainsI(cicdConf, "renovate-bot/renovate-runner") ||
 		format.ContainsI(cicdConf, "RENOVATE_") ||
 		format.ContainsI(cicdConf, "npx renovate")

@@ -52,6 +52,22 @@ func TestDetectCiCdConfig(t *testing.T) {
 			cicdConf: "",
 			want:     false,
 		},
+		{
+			name: "detects renovatebot/github-action",
+			cicdConf: `jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.1
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@v44.2.2
+        with:
+          docker-cmd-file: .github/renovate-entrypoint.sh
+          docker-user: root
+          token: ${{ secrets.RENOVATE_TOKEN }}`,
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {

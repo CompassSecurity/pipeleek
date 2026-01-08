@@ -19,13 +19,10 @@ func NewLabCmd() *cobra.Command {
 	labCmd := &cobra.Command{
 		Use:   "lab",
 		Short: "Set up a Renovate Bot testing lab on GitHub",
-		Long:  "Creates a GitHub repository with Renovate Bot autodiscovery configuration enabled. Use the 'gh renovate autodiscovery --generate' command to populate the repository with exploit files.",
+		Long:  "Creates a GitHub repository with Renovate Bot autodiscovery configuration enabled.",
 		Example: `
 # Create a Renovate testing lab repository
 pipeleek gh renovate lab --token ghp_xxxxx --github https://api.github.com --repo-name renovate-lab
-
-# Then populate it with exploit files using autodiscovery
-pipeleek gh renovate autodiscovery --token ghp_xxxxx --org myorg --repo-name renovate-lab --generate
 `,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			// Bind parent flags to config

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rhysd/actionlint"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
@@ -180,6 +181,34 @@ func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef
 	workflowYaml, err := yaml.Marshal(workflowConfig)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed to marshal workflow configuration")
+	}
+
+	// Validate the workflow file using actionlint
+	linter, err := actionlint.NewLinter(nil, nil)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Failed to create actionlint linter")
+	}
+	
+	errs, err := linter.Lint(workflowPath, workflowYaml, nil)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Failed to lint workflow YAML")
+	}
+	
+	if len(errs) > 0 {
+		log.Warn().Int("errorCount", len(errs)).Msg("Workflow YAML has linting issues")
+		for _, e := range errs {
+			log.Warn().Str("issue", e.Error()).Msg("Actionlint validation issue")
+		}
+		// Don't fail on warnings, just log them
+	}
+
+	// Ensure jobs section exists and is valid
+	var validationCheck map[string]interface{}
+	if err := yaml.Unmarshal(workflowYaml, &validationCheck); err != nil {
+		log.Fatal().Stack().Err(err).Msg("Generated workflow YAML is invalid")
+	}
+	if jobs, ok := validationCheck["jobs"].(map[string]interface{}); !ok || jobs == nil {
+		log.Fatal().Msg("Generated workflow YAML is missing or has invalid 'jobs' section")
 	}
 
 	fileContent, _, _, err := client.Repositories.GetContents(ctx, ref.owner, ref.repo, workflowPath, &github.RepositoryContentGetOptions{

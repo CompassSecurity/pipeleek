@@ -1,8 +1,6 @@
 package privesc
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
@@ -49,9 +47,7 @@ func NewPrivescCmd() *cobra.Command {
 
 			// Validate monitoring interval early to ensure error appears on stderr for tests
 			if _, err := time.ParseDuration(privescMonitoringInterval); err != nil {
-				fmt.Fprintln(os.Stderr, "Failed to parse monitoring-interval duration")
-				os.Exit(1)
-				return
+				log.Fatal().Err(err).Msg("Failed to parse monitoring-interval duration")
 			}
 
 			gitlabUrl := config.GetString("gitlab.url")

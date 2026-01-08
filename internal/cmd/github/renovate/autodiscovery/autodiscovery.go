@@ -18,7 +18,7 @@ func NewAutodiscoveryCmd() *cobra.Command {
 	autodiscoveryCmd := &cobra.Command{
 		Use:   "autodiscovery",
 		Short: "Create a PoC for Renovate Autodiscovery misconfigurations exploitation",
-		Long:  "Create a repository with a Renovate Bot configuration that will be picked up by an existing Renovate Bot user. The Renovate Bot will execute the malicious Gradle wrapper script during dependency updates, which you can customize in exploit.sh.",
+		Long:  "Create a repository with a Renovate Bot configuration that will be picked up by an existing Renovate Bot user. The Renovate Bot will execute the malicious Gradle wrapper script during dependency updates, which you can customize in exploit.sh. Note: On GitHub, the bot/user account must proactively accept the invite.",
 		Example: `
 # Create a repository and invite the victim Renovate Bot user to it. Uses Gradle wrapper to execute arbitrary code during dependency updates.
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
@@ -35,7 +35,6 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github
 				autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
 			}
 
-			// Use viper-backed config so values can come from flags, config file, or env vars
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")
 

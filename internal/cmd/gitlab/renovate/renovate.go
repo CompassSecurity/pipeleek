@@ -38,10 +38,10 @@ func NewRenovateRootCmd() *cobra.Command {
 
 		// Validate required values
 		if gitlabUrl == "" {
-			log.Fatal().Msg("required configuration missing")
+			log.Fatal().Msg("GitLab URL is required (use --gitlab flag, config file, or PIPELEEK_GITLAB_URL env var)")
 		}
 		if gitlabApiToken == "" {
-			log.Fatal().Msg("required configuration missing")
+			log.Fatal().Msg("GitLab token is required (use --token flag, config file, or PIPELEEK_GITLAB_TOKEN env var)")
 		}
 	}
 
