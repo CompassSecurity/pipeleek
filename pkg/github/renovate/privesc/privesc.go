@@ -228,15 +228,15 @@ func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef
 	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Updated remote workflow file")
 }
 
-// validateWorkflowYAML validates a workflow YAML file using actionlint.
-// The label parameter is used for logging context (e.g., "original" or "modified").
+// validateWorkflowYAML validates a GitHub Actions workflow YAML file using actionlint.
+// Logs warnings for issues found but doesn't fail on them, except for initialization/execution errors.
+// The label parameter ("original" or "modified") indicates the context for logging.
 func validateWorkflowYAML(workflowPath string, workflowYaml []byte, label string) {
 	linter, project, lErr := safeNewActionLinter()
 	if lErr != nil {
 		log.Fatal().Err(lErr).Str("workflow", label).Msg("Failed to initialize actionlint for workflow validation")
 	}
 	defer func() {
-		// Clean up the temporary directory created for actionlint
 		if project != nil {
 			os.RemoveAll(project.RootDir())
 		}
@@ -254,15 +254,14 @@ func validateWorkflowYAML(workflowPath string, workflowYaml []byte, label string
 		for _, e := range errs {
 			log.Warn().Str("issue", e.Error()).Str("workflow", label).Msg("Actionlint validation issue")
 		}
-		// Don't fail on linting warnings, just log them
 	} else {
 		log.Debug().Str("workflow", label).Msg("Workflow YAML passed actionlint validation")
 	}
 }
 
-// safeNewActionLinter creates an actionlint linter instance and recovers from any panic
-// that may be thrown by the underlying library. This ensures the exploit flow remains
-// robust in environments where actionlint's defaults may not be properly configured.
+// safeNewActionLinter creates a properly initialized actionlint Linter with a temporary project context.
+// Returns a temporary project directory that MUST be cleaned up by the caller.
+// Recovers from panics in actionlint initialization to provide robust error handling.
 func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -272,28 +271,25 @@ func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err 
 		}
 	}()
 	
-	// Create a temporary directory to act as a project root for actionlint
-	// This prevents panics when actionlint tries to find project structure
+	// Create temporary directory with proper project structure for actionlint initialization
+	// This prevents nil pointer dereferences when actionlint auto-detects project settings
 	tmpDir, err := os.MkdirTemp("", "actionlint-*")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	
-	// Create .github/workflows directory structure
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create workflows directory: %w", err)
 	}
 	
-	// Create actionlint project for the temp directory
 	project, err := actionlint.NewProject(tmpDir)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create actionlint project: %w", err)
 	}
 	
-	// Create linter with explicit options
 	opts := &actionlint.LinterOptions{
 		LogWriter: io.Discard,
 	}

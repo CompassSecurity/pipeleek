@@ -47,22 +47,18 @@ func tryParseJSON(jsonStr, key string) (string, bool) {
 		return "", false
 	}
 
-	// Handle different value types
 	switch v := val.(type) {
 	case string:
 		return v, true
 	case []interface{}:
-		// For arrays, marshal back to JSON string representation
 		if bytes, err := json.Marshal(v); err == nil {
 			return string(bytes), true
 		}
 	case map[string]interface{}:
-		// For objects, marshal back to JSON string representation
 		if bytes, err := json.Marshal(v); err == nil {
 			return string(bytes), true
 		}
 	default:
-		// For other types (numbers, booleans, etc.), convert to string
 		return fmt.Sprintf("%v", v), true
 	}
 
@@ -105,13 +101,6 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 
 		// If JSON parsing didn't work, fall back to regex for YAML/env var formats
 		for _, key := range g.keys {
-			// Updated regex to handle various value formats:
-			// 1. Arrays: [...]
-			// 2. Strings with GitHub Actions templates: any string containing ${{ ... }}
-			// 3. Objects: {...}
-			// 4. Quoted strings: "..." or '...'
-			// 5. Unquoted values: everything until whitespace/comma
-			// Note: Order matters - check for ${{ patterns before plain text
 			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,]+)`)
 			for _, src := range sources {
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
@@ -179,7 +168,8 @@ func IsSelfHostedConfig(config string, selfHostedOptions []string) bool {
 	return false
 }
 
-// ExtendRenovateConfig extends a Renovate configuration using a resolver service.
+// ExtendRenovateConfig extends a Renovate configuration by sending it to a resolver service.
+// The config is normalized to valid JSON before sending (removes JSON5 comments/trailing commas).
 func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL string) string {
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 
@@ -217,7 +207,9 @@ func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL s
 	return string(bodyBytes)
 }
 
-// normalizeRenovateConfig converts a renovate config (potentially JSON5) to valid JSON
+// normalizeRenovateConfig converts a Renovate config (potentially JSON5 with comments/trailing commas)
+// to valid JSON by parsing and re-marshaling. This is required before sending to external resolver services
+// which only accept valid JSON syntax. Returns the original config if parsing fails.
 func normalizeRenovateConfig(config string) string {
 	// Try to parse as JSON5 first (handles comments, trailing commas, etc.)
 	var data interface{}
