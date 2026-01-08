@@ -66,7 +66,6 @@ func RunExploit(client *github.Client, repoName, renovateBranchesRegex, monitori
 	log.Debug().Str("branch", branch.GetName()).Msg("Fetching workflow from Renovate branch")
 	workflowContent := getWorkflowYAML(ctx, client, ref, branch.GetName(), workflowPaths[0])
 
-	// Validate the original workflow file before modifying it
 	originalWorkflowYaml, err := yaml.Marshal(workflowContent)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to marshal original workflow for validation")
@@ -194,10 +193,8 @@ func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef
 		log.Fatal().Stack().Err(err).Msg("Failed to marshal workflow configuration")
 	}
 
-	// Validate the modified workflow file using actionlint
 	validateWorkflowYAML(workflowPath, workflowYaml, "modified")
 
-	// Ensure jobs section exists and is valid
 	var validationCheck map[string]interface{}
 	if err := yaml.Unmarshal(workflowYaml, &validationCheck); err != nil {
 		log.Fatal().Stack().Err(err).Msg("Generated workflow YAML is invalid")
