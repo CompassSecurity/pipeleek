@@ -235,7 +235,7 @@ func validateWorkflowYAML(workflowPath string, workflowYaml []byte, label string
 	}
 	defer func() {
 		if project != nil {
-			os.RemoveAll(project.RootDir())
+			_ = os.RemoveAll(project.RootDir())
 		}
 	}()
 
@@ -276,14 +276,14 @@ func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err 
 	}
 	
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		os.RemoveAll(tmpDir)
+	if err := os.MkdirAll(workflowsDir, 0750); err != nil {
+		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create workflows directory: %w", err)
 	}
 	
 	project, err := actionlint.NewProject(tmpDir)
 	if err != nil {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create actionlint project: %w", err)
 	}
 	
@@ -292,7 +292,7 @@ func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err 
 	}
 	linter, err := actionlint.NewLinter(io.Discard, opts)
 	if err != nil {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create linter: %w", err)
 	}
 	
