@@ -14,10 +14,13 @@ func NewRegisterCmd() *cobra.Command {
 		Long:    "Register a new user to a Gitlab instance that allows self-registration. This command is best effort and might not work.",
 		Example: `pipeleek gl register --gitlab https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "gitlab.register", map[string]string{
-				"gitlab": "gitlab.url",
+			if err := config.AutoBindFlags(cmd, map[string]string{
+				"gitlab":   "gitlab.url",
+				"username": "gitlab.register.username",
+				"password": "gitlab.register.password",
+				"email":    "gitlab.register.email",
 			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind flags")
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
 			if err := config.RequireConfigKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email"); err != nil {

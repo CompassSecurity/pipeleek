@@ -26,18 +26,26 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 # Create a project with a CI/CD pipeline for local testing (requires setting RENOVATE_TOKEN as CI/CD variable)
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name my-exploit-repo --add-renovate-cicd-for-debugging
     `,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			// Bind parent flags (gitlab, token) so viper has correct values
-			if err := config.BindCommandFlags(cmd.Parent(), "gitlab.renovate", map[string]string{
-				"gitlab": "gitlab.url",
-				"token":  "gitlab.token",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind parent flags")
-			}
-		},
 		Run: func(cmd *cobra.Command, args []string) {
+			if err := config.AutoBindFlags(cmd, map[string]string{
+				"gitlab":   "gitlab.url",
+				"token":    "gitlab.token",
+				"repo-name": "gitlab.renovate.autodiscovery.repo_name",
+				"username":  "gitlab.renovate.autodiscovery.username",
+				"add-renovate-cicd-for-debugging": "gitlab.renovate.autodiscovery.add_renovate_cicd_for_debugging",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+			}
+
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.renovate.autodiscovery.repo_name"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
+			}
+
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
+			autodiscoveryRepoName = config.GetString("gitlab.renovate.autodiscovery.repo_name")
+			autodiscoveryUsername = config.GetString("gitlab.renovate.autodiscovery.username")
+			autodiscoveryAddCICD = config.GetBool("gitlab.renovate.autodiscovery.add_renovate_cicd_for_debugging")
 			pkgrenovate.RunGenerate(gitlabUrl, gitlabApiToken, autodiscoveryRepoName, autodiscoveryUsername, autodiscoveryAddCICD)
 		},
 	}

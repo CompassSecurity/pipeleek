@@ -5,8 +5,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/lab"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github/renovate/privesc"
-	"github.com/CompassSecurity/pipeleek/pkg/config"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -20,25 +18,6 @@ func NewRenovateRootCmd() *cobra.Command {
 		Use:   "renovate",
 		Short: "Renovate related commands",
 		Long:  "Commands to enumerate and exploit GitHub Renovate bot configurations.",
-	}
-
-	renovateCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		if err := config.BindCommandFlags(cmd, "github.renovate", map[string]string{
-			"github": "github.url",
-			"token":  "github.token",
-		}); err != nil {
-			log.Fatal().Err(err).Msg("Failed to bind flags to config")
-		}
-
-		githubUrl = config.GetString("github.url")
-		githubApiToken = config.GetString("github.token")
-
-		if githubUrl == "" {
-			log.Fatal().Msg("GitHub URL is required (use --github flag, config file, or PIPELEEK_GITHUB_URL env var)")
-		}
-		if githubApiToken == "" {
-			log.Fatal().Msg("GitHub token is required (use --token flag, config file, or PIPELEEK_GITHUB_TOKEN env var)")
-		}
 	}
 
 	renovateCmd.PersistentFlags().StringVarP(&githubUrl, "github", "g", "https://api.github.com", "GitHub API base URL")

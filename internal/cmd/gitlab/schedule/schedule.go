@@ -22,11 +22,11 @@ func NewScheduleCmd() *cobra.Command {
 }
 
 func FetchSchedules(cmd *cobra.Command, args []string) {
-	if err := config.BindCommandFlags(cmd, "gitlab.schedule", map[string]string{
+	if err := config.AutoBindFlags(cmd, map[string]string{
 		"gitlab": "gitlab.url",
 		"token":  "gitlab.token",
 	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind flags")
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
 	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {

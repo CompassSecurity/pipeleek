@@ -14,11 +14,11 @@ func NewRunnersListCmd() *cobra.Command {
 		Long:    "List all available runners for projects and groups your token has access to.",
 		Example: `pipeleek gl runners list --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "gitlab.runners.list", map[string]string{
+			if err := config.AutoBindFlags(cmd, map[string]string{
 				"gitlab": "gitlab.url",
 				"token":  "gitlab.token",
 			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind flags")
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
 			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {

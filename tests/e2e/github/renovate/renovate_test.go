@@ -222,48 +222,50 @@ jobs:
 
 func TestGHRenovateEnum(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--owned",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
-	// Output goes to stderr, not stdout
-	assert.Contains(t, stderr, "Fetched all owned repositories")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all owned repositories")
 }
 
 func TestGHRenovateEnumSpecificRepo(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
-	assert.Contains(t, stderr, "Scanning specific repository")
-	assert.Contains(t, stderr, "test-owner/test-repo")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Scanning specific repository")
+	assert.Contains(t, combined, "test-owner/test-repo")
+	assert.NotContains(t, combined, "fatal")
 }
 
 func TestGHRenovateEnumOrganization(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--org", "test-org",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
-	assert.Contains(t, stderr, "Scanning organization")
-	assert.Contains(t, stderr, "test-org")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Scanning organization")
+	assert.Contains(t, combined, "test-org")
+	assert.NotContains(t, combined, "fatal")
 }
 
 func TestGHRenovateAutodiscovery(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -272,27 +274,29 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 		"-v",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Autodiscovery command should succeed")
-	assert.Contains(t, stderr, "Created repository")
-	assert.Contains(t, stderr, "Created file", "Should log file creation in verbose mode")
-	assert.Contains(t, stderr, "Inviting user")
-	assert.Contains(t, stderr, "Gradle wrapper", "Should mention Gradle wrapper mechanism")
-	assert.Contains(t, stderr, "gradlew", "Should mention gradlew script")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Created repository")
+	assert.Contains(t, combined, "Created file", "Should log file creation in verbose mode")
+	assert.Contains(t, combined, "Inviting user")
+	assert.Contains(t, combined, "Gradle wrapper", "Should mention Gradle wrapper mechanism")
+	assert.Contains(t, combined, "gradlew", "Should mention gradlew script")
+	assert.NotContains(t, combined, "fatal")
 }
 
 func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-repo-no-user",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Autodiscovery without username should succeed")
-	assert.Contains(t, stderr, "Created repository")
-	assert.Contains(t, stderr, "No username provided")
-	assert.Contains(t, stderr, "invite the victim Renovate Bot user manually")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Created repository")
+	assert.Contains(t, combined, "No username provided")
+	assert.Contains(t, combined, "invite the victim Renovate Bot user manually")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovatePrivesc tests the privesc command
@@ -326,22 +330,23 @@ func TestGHRenovatePrivesc(t *testing.T) {
 // TestGHRenovateEnumWithSearch tests the enum command with search functionality
 func TestGHRenovateEnumWithSearch(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--search", "renovate in:readme",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with search should succeed")
-	assert.Contains(t, stderr, "Searching repositories")
-	assert.Contains(t, stderr, "search-owner/search-result-repo")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Searching repositories")
+	assert.Contains(t, combined, "search-owner/search-result-repo")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumFastMode tests the enum command with fast mode
 func TestGHRenovateEnumFastMode(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -349,9 +354,10 @@ func TestGHRenovateEnumFastMode(t *testing.T) {
 		"--fast",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with fast mode should succeed")
-	assert.Contains(t, stderr, "Fetched all owned repositories")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all owned repositories")
 	// Fast mode should skip config file detection, only check workflows
-	assert.NotContains(t, stderr, "fatal")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumDumpMode tests the enum command with dump mode
@@ -368,7 +374,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Chdir(origDir)
 
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -376,7 +382,8 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 		"--dump",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with dump mode should succeed")
-	assert.Contains(t, stderr, "Fetched all owned repositories")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all owned repositories")
 
 	// Check if dump directory was created
 	dumpDir := filepath.Join(tmpDir, "renovate-enum-out")
@@ -388,28 +395,29 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 		}
 	}
 
-	assert.NotContains(t, stderr, "fatal")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumMemberRepositories tests the enum command with member flag
 func TestGHRenovateEnumMemberRepositories(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--member",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with member flag should succeed")
-	assert.Contains(t, stderr, "Fetched all member repositories")
-	assert.Contains(t, stderr, "member-repo")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all member repositories")
+	assert.Contains(t, combined, "member-repo")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumDetectsAutodiscovery tests autodiscovery detection
 func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -417,16 +425,17 @@ func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
 		"-v", // Verbose to see autodiscovery detection logs
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
-	assert.Contains(t, stderr, "test-owner/test-repo")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "test-owner/test-repo")
 	// Check for autodiscovery in the JSON output or logs
-	assert.Contains(t, stderr, "hasAutodiscovery")
-	assert.NotContains(t, stderr, "fatal")
+	assert.Contains(t, combined, "hasAutodiscovery")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumDetectsAutodiscoveryFilters tests autodiscovery filter detection
 func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -435,16 +444,17 @@ func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// Should detect the GitHub Actions template in workflow file
-	assert.Contains(t, stderr, "autodiscoveryFilterValue")
-	assert.Contains(t, stderr, "${{ github.repository }}")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "autodiscoveryFilterValue")
+	assert.Contains(t, combined, "${{ github.repository }}")
 	// Should also detect the filter in renovate.json config file
-	assert.NotContains(t, stderr, "fatal")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumWithPagination tests the enum command with pagination
 func TestGHRenovateEnumWithPagination(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -452,14 +462,15 @@ func TestGHRenovateEnumWithPagination(t *testing.T) {
 		"--page", "1",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with pagination should succeed")
-	assert.Contains(t, stderr, "Fetched all owned repositories")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all owned repositories")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumWithOrderBy tests the enum command with order-by flag
 func TestGHRenovateEnumWithOrderBy(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -467,14 +478,15 @@ func TestGHRenovateEnumWithOrderBy(t *testing.T) {
 		"--order-by", "updated",
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command with order-by should succeed")
-	assert.Contains(t, stderr, "Fetched all owned repositories")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Fetched all owned repositories")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumMutuallyExclusiveFlags tests that mutually exclusive flags are rejected
 func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -482,13 +494,14 @@ func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
 		"--member",
 	}, nil, 5*time.Second)
 	assert.NotNil(t, exitErr, "Should fail with mutually exclusive flags")
-	assert.Contains(t, stderr, "if any flags in the group")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "if any flags in the group")
 }
 
 // TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate tests GitHub Actions template detection in workflows
 func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -498,14 +511,15 @@ func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// The workflow contains ${{ github.repository }} template
 	// This should be detected and logged with the full template, not just "${"
-	assert.Contains(t, stderr, "test-owner/test-repo")
-	assert.NotContains(t, stderr, "fatal")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "test-owner/test-repo")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovateEnumDetectsJSONConfigFile tests JSON config file detection
 func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -514,9 +528,10 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 	}, nil, 15*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// Should detect renovate.json with JSON autodiscoverFilter
-	assert.Contains(t, stderr, "test-owner/test-repo")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "test-owner/test-repo")
 	// Should log that it found autodiscovery filters from the JSON config
-	assert.NotContains(t, stderr, "fatal")
+	assert.NotContains(t, combined, "fatal")
 }
 
 // TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
@@ -544,7 +559,7 @@ func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 // TestGHRenovatePrivescWithInvalidMonitoringInterval tests privesc with invalid monitoring interval
 func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -553,5 +568,6 @@ func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 		"--monitoring-interval", "invalid-duration",
 	}, nil, 30*time.Second)
 	assert.NotNil(t, exitErr, "Privesc command with invalid monitoring-interval should fail")
-	assert.Contains(t, stderr, "Failed to parse monitoring-interval duration")
+	combined := stdout + stderr
+	assert.Contains(t, combined, "Failed to parse monitoring-interval duration")
 }

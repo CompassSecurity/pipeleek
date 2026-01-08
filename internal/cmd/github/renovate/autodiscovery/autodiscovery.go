@@ -24,16 +24,21 @@ func NewAutodiscoveryCmd() *cobra.Command {
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "github.renovate.autodiscovery", nil); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags")
+			if err := config.AutoBindFlags(cmd, map[string]string{
+				"github":   "github.url",
+				"token":    "github.token",
+				"repo-name": "github.renovate.autodiscovery.repo_name",
+				"username":  "github.renovate.autodiscovery.username",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
-			if !cmd.Flags().Changed("repo-name") {
-				autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
+			if err := config.RequireConfigKeys("github.token", "github.renovate.autodiscovery.repo_name"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
 			}
-			if !cmd.Flags().Changed("username") {
-				autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
-			}
+
+			autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
+			autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
 
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")

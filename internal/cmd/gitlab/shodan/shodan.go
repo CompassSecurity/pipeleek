@@ -14,8 +14,10 @@ func NewShodanCmd() *cobra.Command {
 		Long:    "Query Shodan for IPs running GitLab instances",
 		Example: `pipeleek gl shodan --json shodan_data.json`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "gitlab.shodan", nil); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind flags")
+			if err := config.AutoBindFlags(cmd, map[string]string{
+				"json": "gitlab.shodan.json",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
 			if err := config.RequireConfigKeys("gitlab.shodan.json"); err != nil {

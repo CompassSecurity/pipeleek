@@ -45,59 +45,40 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --or
 # Enumerate specific repository
 pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd.Parent(), "github.renovate", map[string]string{
-				"github": "github.url",
-				"token":  "github.token",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind parent flags")
-			}
-		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.BindCommandFlags(cmd, "github.renovate.enum", nil); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind flags to config")
+			if err := config.AutoBindFlags(cmd, map[string]string{
+				"github":  "github.url",
+				"token":   "github.token",
+				"owned":   "github.renovate.enum.owned",
+				"member":  "github.renovate.enum.member",
+				"repo":    "github.renovate.enum.repo",
+				"org":     "github.renovate.enum.org",
+				"search":  "github.renovate.enum.search",
+				"fast":    "github.renovate.enum.fast",
+				"dump":    "github.renovate.enum.dump",
+				"page":    "github.renovate.enum.page",
+				"order-by":"github.renovate.enum.order_by",
+				"extend-renovate-config-service": "github.renovate.enum.extend_renovate_config_service",
+			}); err != nil {
+				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+			}
+
+			if err := config.RequireConfigKeys("github.token"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")
-
-			if githubUrl == "" {
-				log.Fatal().Msg("GitHub URL is required (use --github flag, config file, or PIPELEEK_GITHUB_URL env var)")
-			}
-			if githubApiToken == "" {
-				log.Fatal().Msg("GitHub token is required (use --token flag, config file, or PIPELEEK_GITHUB_TOKEN env var)")
-			}
-
-			if !cmd.Flags().Changed("owned") {
-				owned = config.GetBool("github.renovate.enum.owned")
-			}
-			if !cmd.Flags().Changed("member") {
-				member = config.GetBool("github.renovate.enum.member")
-			}
-			if !cmd.Flags().Changed("repo") {
-				repository = config.GetString("github.renovate.enum.repo")
-			}
-			if !cmd.Flags().Changed("org") {
-				organization = config.GetString("github.renovate.enum.org")
-			}
-			if !cmd.Flags().Changed("search") {
-				searchQuery = config.GetString("github.renovate.enum.search")
-			}
-			if !cmd.Flags().Changed("fast") {
-				fast = config.GetBool("github.renovate.enum.fast")
-			}
-			if !cmd.Flags().Changed("dump") {
-				dump = config.GetBool("github.renovate.enum.dump")
-			}
-			if !cmd.Flags().Changed("page") {
-				page = config.GetInt("github.renovate.enum.page")
-			}
-			if !cmd.Flags().Changed("order-by") {
-				orderBy = config.GetString("github.renovate.enum.order_by")
-			}
-			if !cmd.Flags().Changed("extend-renovate-config-service") {
-				extendRenovateConfigService = config.GetString("github.renovate.enum.extend_renovate_config_service")
-			}
+			owned = config.GetBool("github.renovate.enum.owned")
+			member = config.GetBool("github.renovate.enum.member")
+			repository = config.GetString("github.renovate.enum.repo")
+			organization = config.GetString("github.renovate.enum.org")
+			searchQuery = config.GetString("github.renovate.enum.search")
+			fast = config.GetBool("github.renovate.enum.fast")
+			dump = config.GetBool("github.renovate.enum.dump")
+			page = config.GetInt("github.renovate.enum.page")
+			orderBy = config.GetString("github.renovate.enum.order_by")
+			extendRenovateConfigService = config.GetString("github.renovate.enum.extend_renovate_config_service")
 
 			Enumerate(githubUrl, githubApiToken)
 		},
