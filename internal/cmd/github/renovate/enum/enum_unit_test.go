@@ -40,12 +40,12 @@ func TestEnumCmdFlags(t *testing.T) {
 	}
 }
 
-func TestEnumCmdHasPreRun(t *testing.T) {
-	cmd := NewEnumCmd()
-	assert.NotNil(t, cmd.PreRun, "Enum command should have PreRun hook")
-}
-
 func TestEnumCmdHasRun(t *testing.T) {
 	cmd := NewEnumCmd()
 	assert.NotNil(t, cmd.Run, "Enum command should have Run function")
+}
+
+func TestEnumCmdDoesNotUsePreRunHook(t *testing.T) {
+	cmd := NewEnumCmd()
+	assert.Nil(t, cmd.PreRun, "Enum command should perform binding in Run and leave PreRun unset")
 }
