@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rhysd/actionlint"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/google/go-github/v69/github"
+	"github.com/rhysd/actionlint"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )

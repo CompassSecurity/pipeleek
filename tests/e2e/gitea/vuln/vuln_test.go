@@ -98,23 +98,26 @@ func TestGiteaVuln(t *testing.T) {
 }
 
 func TestGiteaVuln_MissingToken(t *testing.T) {
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
 		"--gitea", "https://gitea.com",
+		// Token is now validated via RequireConfigKeys, not MarkFlagRequired
 	}, nil, 5*time.Second)
 
+	// With AutoBindFlags + RequireConfigKeys, missing token results in fatal log
 	assert.NotNil(t, exitErr, "Should fail without token")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	assert.Contains(t, stdout, "required configuration missing", "Should mention missing required configuration")
 }
 
 func TestGiteaVuln_MissingGitea(t *testing.T) {
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
 		"--token", "mock-token",
+		"--gitea", "", // Explicitly set to empty to trigger validation
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without gitea URL")
-	assert.Contains(t, stderr, "required flag(s)", "Should mention missing required flag")
+	assert.Contains(t, stdout, "required configuration missing", "Should mention missing required configuration")
 }
 
 func TestGiteaVuln_Unauthorized(t *testing.T) {

@@ -518,6 +518,7 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 	// Should log that it found autodiscovery filters from the JSON config
 	assert.NotContains(t, stderr, "fatal")
 }
+
 // TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
 func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)

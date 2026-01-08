@@ -6,7 +6,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/secrets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea/vuln"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +28,8 @@ func NewGiteaRootCmd() *cobra.Command {
 	giteaCmd.AddCommand(variables.NewVariablesCommand())
 	giteaCmd.AddCommand(vuln.NewVulnCmd())
 
-	giteaCmd.PersistentFlags().StringVarP(&giteaUrl, "gitea", "g", "https://gitea.com", "Gitea instance URL")
+	giteaCmd.PersistentFlags().StringVarP(&giteaUrl, "gitea", "g", "", "Gitea instance URL")
 	giteaCmd.PersistentFlags().StringVarP(&giteaApiToken, "token", "t", "", "Gitea API Token")
-	err := giteaCmd.MarkPersistentFlagRequired("token")
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Unable to require token flag")
-	}
 
 	return giteaCmd
 }
