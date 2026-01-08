@@ -11,6 +11,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/rs/zerolog/log"
+	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
 
 // DetectCiCdConfig checks if the CI/CD configuration contains Renovate bot references.
@@ -189,7 +190,11 @@ func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL s
 	}
 	u = u.JoinPath("resolve")
 
-	resp, err := client.Post(u.String(), "application/json", strings.NewReader(renovateConfig))
+	// Normalize the renovate config to valid JSON before sending
+	// This handles JSON5 configs with comments and trailing commas
+	normalizedConfig := normalizeRenovateConfig(renovateConfig)
+
+	resp, err := client.Post(u.String(), "application/json", strings.NewReader(normalizedConfig))
 
 	if err != nil {
 		log.Error().Stack().Err(err).Str("project", projectURL).Msg("Failed to extend renovate config")
@@ -210,6 +215,31 @@ func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL s
 	}
 
 	return string(bodyBytes)
+}
+
+// normalizeRenovateConfig converts a renovate config (potentially JSON5) to valid JSON
+func normalizeRenovateConfig(config string) string {
+	// Try to parse as JSON5 first (handles comments, trailing commas, etc.)
+	var data interface{}
+	err := json5.Unmarshal([]byte(config), &data)
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to parse renovate config as JSON5, trying standard JSON")
+		// If JSON5 fails, try standard JSON
+		err = json.Unmarshal([]byte(config), &data)
+		if err != nil {
+			log.Debug().Err(err).Msg("Failed to parse renovate config as JSON, returning original config")
+			return config
+		}
+	}
+
+	// Marshal back to valid JSON (removes comments, normalizes formatting)
+	normalized, err := json.Marshal(data)
+	if err != nil {
+		log.Debug().Err(err).Msg("Failed to marshal normalized renovate config, returning original config")
+		return config
+	}
+
+	return string(normalized)
 }
 
 // ValidateRenovateConfigService checks if the Renovate config resolver service is available.
