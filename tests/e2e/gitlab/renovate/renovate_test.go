@@ -5,6 +5,7 @@ package e2e
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,7 +208,7 @@ func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
 
 func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
 		"--gitlab", apiURL,
 		"--token", "mock-token",
@@ -216,5 +217,8 @@ func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 		"--monitoring-interval", "invalid-duration",
 	}, nil, 10*time.Second)
 	assert.NotNil(t, exitErr, "Privesc command with invalid monitoring-interval should fail")
-	assert.Contains(t, stderr, "Failed to parse monitoring-interval duration")
+	// Logs are written to stdout by the application logger
+	if !strings.Contains(stderr, "Failed to parse monitoring-interval duration") {
+		assert.Contains(t, stdout, "Failed to parse monitoring-interval duration")
+	}
 }

@@ -301,16 +301,25 @@ func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 // but requires a real or much more complex mock GitHub API to properly test.
 func TestGHRenovatePrivesc(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 	}, nil, 30*time.Second)
+	if exitErr != nil {
+		t.Logf("STDOUT:\n%s", stdout)
+		t.Logf("STDERR:\n%s", stderr)
+	}
 	assert.Nil(t, exitErr, "Privesc command should succeed")
-	assert.Contains(t, stderr, "Ensure the Renovate bot")
-	assert.Contains(t, stderr, "renovate/test-branch")
+	// Logs are written to stdout by the application logger
+	if !strings.Contains(stderr, "Ensure the Renovate bot") {
+		assert.Contains(t, stdout, "Ensure the Renovate bot")
+	}
+	if !strings.Contains(stderr, "renovate/test-branch") {
+		assert.Contains(t, stdout, "renovate/test-branch")
+	}
 	assert.NotContains(t, stderr, "fatal")
 }
 
@@ -512,7 +521,7 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 // TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
 func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
-	_, stderr, exitErr := testutil.RunCLI(t, []string{
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
 		"--github", apiURL,
 		"--token", "mock-token",
@@ -520,8 +529,14 @@ func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "500ms",
 	}, nil, 30*time.Second)
+	if exitErr != nil {
+		t.Logf("STDOUT:\n%s", stdout)
+		t.Logf("STDERR:\n%s", stderr)
+	}
 	assert.Nil(t, exitErr, "Privesc command with monitoring-interval should succeed")
-	assert.Contains(t, stderr, "Ensure the Renovate bot")
+	if !strings.Contains(stderr, "Ensure the Renovate bot") {
+		assert.Contains(t, stdout, "Ensure the Renovate bot")
+	}
 	assert.NotContains(t, stderr, "fatal")
 }
 

@@ -183,23 +183,19 @@ func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef
 		log.Fatal().Stack().Err(err).Msg("Failed to marshal workflow configuration")
 	}
 
-	// Validate the workflow file using actionlint
-	linter, err := actionlint.NewLinter(nil, nil)
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed to create actionlint linter")
-	}
-	
-	errs, err := linter.Lint(workflowPath, workflowYaml, nil)
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed to lint workflow YAML")
-	}
-	
-	if len(errs) > 0 {
-		log.Warn().Int("errorCount", len(errs)).Msg("Workflow YAML has linting issues")
-		for _, e := range errs {
-			log.Warn().Str("issue", e.Error()).Msg("Actionlint validation issue")
+	// Validate the workflow file using actionlint. Guard against panics from the library.
+	if linter, lErr := safeNewActionLinter(); lErr != nil {
+		log.Warn().Err(lErr).Msg("Skipping actionlint validation due to initialization error")
+	} else if linter != nil {
+		if errs, err := linter.Lint(workflowPath, workflowYaml, nil); err != nil {
+			log.Warn().Err(err).Msg("Skipping actionlint validation due to lint error")
+		} else if len(errs) > 0 {
+			log.Warn().Int("errorCount", len(errs)).Msg("Workflow YAML has linting issues")
+			for _, e := range errs {
+				log.Warn().Str("issue", e.Error()).Msg("Actionlint validation issue")
+			}
+			// Don't fail on warnings, just log them
 		}
-		// Don't fail on warnings, just log them
 	}
 
 	// Ensure jobs section exists and is valid
@@ -231,6 +227,19 @@ func updateWorkflowYAML(ctx context.Context, client *github.Client, ref *repoRef
 	}
 
 	log.Info().Str("branch", branchName).Str("file", workflowPath).Msg("Updated remote workflow file")
+}
+
+// safeNewActionLinter creates an actionlint linter instance and recovers from any panic
+// that may be thrown by the underlying library. This ensures the exploit flow remains
+// robust in environments where actionlint's defaults may not be properly configured.
+func safeNewActionLinter() (l *actionlint.Linter, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("actionlint.NewLinter panicked: %v", r)
+			l = nil
+		}
+	}()
+	return actionlint.NewLinter(nil, nil)
 }
 
 func listBranchPRs(ctx context.Context, client *github.Client, ref *repoRef, branch *github.Branch, defaultBranch string) {
