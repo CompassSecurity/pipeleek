@@ -31,7 +31,7 @@ func NewEnumCmd() *cobra.Command {
 pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --owned
 
 # Enumerate all public repositories
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --public
+pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx
 
 # Enumerate specific organization
 pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --org mycompany
