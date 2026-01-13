@@ -595,8 +595,8 @@ github.com/yusufpapurcu/wmi v1.2.3 h1:E1ctvB7uKFMOJw3fdOW32DwGE9I7t++CRUEMKvFoFi
 github.com/yusufpapurcu/wmi v1.2.3/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 gitlab.com/gitlab-org/api/client-go v1.11.0 h1:L+qzw4kiCf3jKdKHQAwiqYKITvzBrW/tl8ampxNLlv0=
 gitlab.com/gitlab-org/api/client-go v1.11.0/go.mod h1:adtVJ4zSTEJ2fP5Pb1zF4Ox1OKFg0MH43yxpb0T0248=
-gitlab.com/mitchenielsen/gitlab-ci-go v0.0.4 h1:0p3nMhTIkW03JJCBL8GhFTh40iDwON+uWM9eRcD4rvY=
-gitlab.com/mitchenielsen/gitlab-ci-go v0.0.4/go.mod h1:BOWEtlvgM79t1zjcAOER6o/KaftD4avnnShoqtTfGfw=
+gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5 h1:oRITWuBO05h2OYQ2JftXSoVmOBTa+vedPWfpN+StrxA=
+gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5/go.mod h1:BOWEtlvgM79t1zjcAOER6o/KaftD4avnnShoqtTfGfw=
 go.mongodb.org/mongo-driver v1.17.4 h1:jUorfmVzljjr0FLzYQsGP8cgN/qzzxlY9Vh0C9KFXVw=
 go.mongodb.org/mongo-driver v1.17.4/go.mod h1:Hy04i7O2kC4RS06ZrhPRqj/u4DTYkFDAAccj+rVKqgQ=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
