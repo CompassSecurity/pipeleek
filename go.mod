@@ -12,6 +12,7 @@ require (
 	github.com/gofri/go-github-ratelimit/v2 v2.0.2
 	github.com/google/go-github/v69 v69.2.0
 	github.com/headzoo/surf v1.0.1
+	github.com/rhysd/actionlint v1.7.10
 	github.com/rs/zerolog v1.34.0
 	github.com/rxwycdh/rxhash v0.0.0-20230131062142-10b7a38b400d
 	github.com/spf13/cobra v1.10.2
@@ -19,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/trufflesecurity/trufflehog/v3 v3.92.4
-	gitlab.com/gitlab-org/api/client-go v1.10.0
+	gitlab.com/gitlab-org/api/client-go v1.11.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.4
 	golang.org/x/net v0.48.0
 	golang.org/x/term v0.38.0
@@ -135,7 +136,6 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
-	github.com/rhysd/actionlint v1.7.10 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -178,7 +178,7 @@ require (
 
 require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/h2non/filetype v1.1.3
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8
