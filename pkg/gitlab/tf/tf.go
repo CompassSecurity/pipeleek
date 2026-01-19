@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
 	"github.com/rs/zerolog/log"
@@ -75,7 +75,7 @@ func fetchTerraformStates(git *gitlab.Client, gitlabUrl string, token string) []
 	var mu sync.Mutex
 
 	projectOpts := &gitlab.ListProjectsOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100, Page: 1},
+		ListOptions:    gitlab.ListOptions{PerPage: 100, Page: 1},
 		MinAccessLevel: gitlab.Ptr(gitlab.MaintainerPermissions),
 		OrderBy:        gitlab.Ptr("last_activity_at"),
 	}
