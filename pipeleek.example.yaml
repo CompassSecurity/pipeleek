@@ -98,6 +98,11 @@ gitlab:
     threads: 15 # Override common.threads for GitLab scans
     max_artifact_size: 52428800 # 50MB for GitLab artifacts
 
+  # tf - Discover and scan Terraform/OpenTofu state files
+  tf:
+    output_dir: ./terraform-states # Directory to save downloaded state files
+    threads: 4 # Override common.threads for Terraform state scans
+
 #------------------------------------------------------------------------------
 # GitHub Platform Configuration
 #------------------------------------------------------------------------------

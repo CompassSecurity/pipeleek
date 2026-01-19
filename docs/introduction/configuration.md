@@ -109,6 +109,10 @@ gitlab:
 
   scan:
     threads: 10 # gl scan --threads (can override common.threads)
+  
+  tf:
+    output_dir: ./terraform-states # gl tf --output-dir
+    threads: 4 # gl tf --threads (can override common.threads)
 ```
 
 ### GitHub
