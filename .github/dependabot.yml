@@ -12,7 +12,7 @@ updates:
       interval: "daily"
     cooldown:
       default-days: 7
-  
+
   # GitHub Actions workflow dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -20,7 +20,7 @@ updates:
       interval: "daily"
     cooldown:
       default-days: 7
-  
+
   # Devcontainer dependencies (images and features)
   - package-ecosystem: "devcontainers"
     directory: "/"
