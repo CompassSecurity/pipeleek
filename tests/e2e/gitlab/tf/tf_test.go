@@ -3,31 +3,31 @@
 package tf
 
 import (
-"net/http"
-"net/http/httptest"
-"os"
-"path/filepath"
-"strings"
-"testing"
-"time"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
 
-"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
-"github.com/stretchr/testify/assert"
-"github.com/stretchr/testify/require"
+	"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestTFBasic tests the basic tf command functionality with a mock GitLab server
 func TestTFBasic(t *testing.T) {
-if testing.Short() {
-t.Skip("Skipping e2e test in short mode")
-}
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
 
-tmpDir := t.TempDir()
+	tmpDir := t.TempDir()
 
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-!strings.Contains(r.URL.Path, "/terraform/state") {
-projectsJSON := `[
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
+			!strings.Contains(r.URL.Path, "/terraform/state") {
+			projectsJSON := `[
 {
 "id": 1,
 "path_with_namespace": "test-user/test-project",
@@ -39,166 +39,166 @@ projectsJSON := `[
 "web_url": "http://localhost/test-user/no-tf-state"
 }
 ]`
-w.Header().Set("X-Page", "1")
-w.Header().Set("X-Per-Page", "100")
-w.Header().Set("X-Total", "2")
-w.Header().Set("X-Total-Pages", "1")
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(projectsJSON))
-return
-}
+			w.Header().Set("X-Page", "1")
+			w.Header().Set("X-Per-Page", "100")
+			w.Header().Set("X-Total", "2")
+			w.Header().Set("X-Total-Pages", "1")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(projectsJSON))
+			return
+		}
 
-if strings.Contains(r.URL.Path, "/terraform/state/default") && r.Method == "GET" {
-if strings.Contains(r.URL.Path, "/projects/1/") {
-w.WriteHeader(http.StatusOK)
-tfState := `{"version": 4, "terraform_version": "1.0.0", "serial": 0}`
-w.Write([]byte(tfState))
-return
-}
-w.WriteHeader(http.StatusNotFound)
-w.Write([]byte(`{"message": "404 Not Found"}`))
-return
-}
+		if strings.Contains(r.URL.Path, "/terraform/state/default") && r.Method == "GET" {
+			if strings.Contains(r.URL.Path, "/projects/1/") {
+				w.WriteHeader(http.StatusOK)
+				tfState := `{"version": 4, "terraform_version": "1.0.0", "serial": 0}`
+				w.Write([]byte(tfState))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"message": "404 Not Found"}`))
+			return
+		}
 
-w.WriteHeader(http.StatusNotFound)
-w.Write([]byte(`{"message": "404 Not Found"}`))
-}))
-defer server.Close()
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "404 Not Found"}`))
+	}))
+	defer server.Close()
 
-stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-"gl", "tf",
-"--gitlab", server.URL,
-"--token", "test-token",
-"--output-dir", tmpDir,
-"--threads", "2",
-}, nil, 10*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "tf",
+		"--gitlab", server.URL,
+		"--token", "test-token",
+		"--output-dir", tmpDir,
+		"--threads", "2",
+	}, nil, 10*time.Second)
 
-t.Logf("STDOUT:\n%s", stdout)
-t.Logf("STDERR:\n%s", stderr)
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
 
-assert.Nil(t, exitErr)
-assert.Contains(t, stdout+stderr, "Found Terraform states")
-assert.Contains(t, stdout+stderr, "Downloaded Terraform state")
-assert.Contains(t, stdout+stderr, "Terraform state scan complete")
+	assert.Nil(t, exitErr)
+	assert.Contains(t, stdout+stderr, "Found Terraform states")
+	assert.Contains(t, stdout+stderr, "Downloaded Terraform state")
+	assert.Contains(t, stdout+stderr, "Terraform state scan complete")
 }
 
 // TestTFNoState tests the tf command when no Terraform state is found
 func TestTFNoState(t *testing.T) {
-if testing.Short() {
-t.Skip("Skipping e2e test in short mode")
-}
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
 
-tmpDir := t.TempDir()
+	tmpDir := t.TempDir()
 
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-!strings.Contains(r.URL.Path, "/terraform/state") {
-w.Header().Set("X-Page", "1")
-w.Header().Set("X-Per-Page", "100")
-w.Header().Set("X-Total", "0")
-w.Header().Set("X-Total-Pages", "1")
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(`[]`))
-return
-}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
+			!strings.Contains(r.URL.Path, "/terraform/state") {
+			w.Header().Set("X-Page", "1")
+			w.Header().Set("X-Per-Page", "100")
+			w.Header().Set("X-Total", "0")
+			w.Header().Set("X-Total-Pages", "1")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`[]`))
+			return
+		}
 
-w.WriteHeader(http.StatusNotFound)
-w.Write([]byte(`{"message": "404 Not Found"}`))
-}))
-defer server.Close()
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "404 Not Found"}`))
+	}))
+	defer server.Close()
 
-stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-"gl", "tf",
-"--gitlab", server.URL,
-"--token", "test-token",
-"--output-dir", tmpDir,
-}, nil, 10*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "tf",
+		"--gitlab", server.URL,
+		"--token", "test-token",
+		"--output-dir", tmpDir,
+	}, nil, 10*time.Second)
 
-t.Logf("STDOUT:\n%s", stdout)
-t.Logf("STDERR:\n%s", stderr)
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
 
-assert.Nil(t, exitErr)
-assert.Contains(t, stdout+stderr, "No Terraform states found")
+	assert.Nil(t, exitErr)
+	assert.Contains(t, stdout+stderr, "No Terraform states found")
 }
 
 // TestTFInvalidURL tests the tf command with invalid GitLab URL
 func TestTFInvalidURL(t *testing.T) {
-if testing.Short() {
-t.Skip("Skipping e2e test in short mode")
-}
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
 
-tmpDir := t.TempDir()
+	tmpDir := t.TempDir()
 
-stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-"gl", "tf",
-"--gitlab", "not-a-valid-url",
-"--token", "test-token",
-"--output-dir", tmpDir,
-}, nil, 10*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "tf",
+		"--gitlab", "not-a-valid-url",
+		"--token", "test-token",
+		"--output-dir", tmpDir,
+	}, nil, 10*time.Second)
 
-t.Logf("STDOUT:\n%s", stdout)
-t.Logf("STDERR:\n%s", stderr)
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
 
-assert.NotNil(t, exitErr)
-assert.Contains(t, stdout+stderr, "Invalid GitLab URL")
+	assert.NotNil(t, exitErr)
+	assert.Contains(t, stdout+stderr, "Invalid GitLab URL")
 }
 
 // TestTFMissingToken tests the tf command without required token
 func TestTFMissingToken(t *testing.T) {
-if testing.Short() {
-t.Skip("Skipping e2e test in short mode")
-}
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
 
-tmpDir := t.TempDir()
+	tmpDir := t.TempDir()
 
-stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-"gl", "tf",
-"--gitlab", "https://gitlab.example.com",
-"--output-dir", tmpDir,
-}, nil, 10*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "tf",
+		"--gitlab", "https://gitlab.example.com",
+		"--output-dir", tmpDir,
+	}, nil, 10*time.Second)
 
-t.Logf("STDOUT:\n%s", stdout)
-t.Logf("STDERR:\n%s", stderr)
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
 
-assert.NotNil(t, exitErr)
-assert.Contains(t, stdout+stderr, "required configuration missing")
+	assert.NotNil(t, exitErr)
+	assert.Contains(t, stdout+stderr, "required configuration missing")
 }
 
 // TestTFOutputDir tests that the tf command creates output directory if it doesn't exist
 func TestTFOutputDir(t *testing.T) {
-if testing.Short() {
-t.Skip("Skipping e2e test in short mode")
-}
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
 
-tmpBase := t.TempDir()
-outputDir := filepath.Join(tmpBase, "nested", "output", "dir")
+	tmpBase := t.TempDir()
+	outputDir := filepath.Join(tmpBase, "nested", "output", "dir")
 
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-!strings.Contains(r.URL.Path, "/terraform/state") {
-w.Header().Set("X-Page", "1")
-w.Header().Set("X-Per-Page", "100")
-w.Header().Set("X-Total", "0")
-w.Header().Set("X-Total-Pages", "1")
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(`[]`))
-return
-}
-w.WriteHeader(http.StatusNotFound)
-}))
-defer server.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
+			!strings.Contains(r.URL.Path, "/terraform/state") {
+			w.Header().Set("X-Page", "1")
+			w.Header().Set("X-Per-Page", "100")
+			w.Header().Set("X-Total", "0")
+			w.Header().Set("X-Total-Pages", "1")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`[]`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
 
-stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-"gl", "tf",
-"--gitlab", server.URL,
-"--token", "test-token",
-"--output-dir", outputDir,
-}, nil, 10*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "tf",
+		"--gitlab", server.URL,
+		"--token", "test-token",
+		"--output-dir", outputDir,
+	}, nil, 10*time.Second)
 
-t.Logf("STDOUT:\n%s", stdout)
-t.Logf("STDERR:\n%s", stderr)
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
 
-assert.Nil(t, exitErr)
-_, err := os.Stat(outputDir)
-require.NoError(t, err, "Output directory should be created")
+	assert.Nil(t, exitErr)
+	_, err := os.Stat(outputDir)
+	require.NoError(t, err, "Output directory should be created")
 }
