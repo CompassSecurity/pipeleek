@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,24 +38,20 @@ type terraformState struct {
 func ScanTerraformStates(options TFOptions) {
 	log.Info().Msg("Starting Terraform state scan")
 
-	// Initialize scanner
 	scanner.InitRules(options.ConfidenceFilter)
 	if !options.TruffleHogVerification {
 		log.Info().Msg("TruffleHog verification is disabled")
 	}
 
-	// Create output directory
 	if err := os.MkdirAll(options.OutputDir, 0o755); err != nil {
 		log.Fatal().Err(err).Str("dir", options.OutputDir).Msg("Failed to create output directory")
 	}
 
-	// Initialize GitLab client
 	git, err := util.GetGitlabClient(options.GitlabApiToken, options.GitlabUrl)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed creating gitlab client")
 	}
 
-	// Fetch all projects with maintainer access
 	states := fetchTerraformStates(git, options.GitlabUrl, options.GitlabApiToken)
 	log.Info().Int("total", len(states)).Msg("Found Terraform states")
 
@@ -63,7 +60,6 @@ func ScanTerraformStates(options TFOptions) {
 		return
 	}
 
-	// Download and scan states with concurrency
 	downloadAndScanStates(states, options)
 
 	log.Info().Msg("Terraform state scan complete")
@@ -125,7 +121,6 @@ func checkTerraformState(gitlabUrl string, token string, projectID int) bool {
 	}
 	defer resp.Body.Close()
 
-	// 200 means state exists, 404 means no state
 	return resp.StatusCode == http.StatusOK
 }
 
@@ -150,7 +145,6 @@ func downloadAndScanStates(states []terraformState, options TFOptions) {
 
 // downloadAndScan downloads a single state file and scans it
 func downloadAndScan(state terraformState, options TFOptions) {
-	// Download state file
 	url := fmt.Sprintf("%s/api/v4/projects/%d/terraform/state/%s", options.GitlabUrl, state.ProjectID, state.Name)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -173,14 +167,12 @@ func downloadAndScan(state terraformState, options TFOptions) {
 		return
 	}
 
-	// Read state data
 	stateData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error().Err(err).Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Msg("Failed to read state data")
 		return
 	}
 
-	// Save to file
 	filename := fmt.Sprintf("%d_%s.tfstate", state.ProjectID, sanitizeFilename(state.Name))
 	filePath := filepath.Join(options.OutputDir, filename)
 
@@ -191,7 +183,6 @@ func downloadAndScan(state terraformState, options TFOptions) {
 
 	log.Info().Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Str("file", filePath).Msg("Downloaded Terraform state")
 
-	// Scan the file for secrets
 	scanStateFile(stateData, filePath, state, options)
 }
 
@@ -223,27 +214,12 @@ func scanStateFile(content []byte, filePath string, state terraformState, option
 	}
 }
 
-// sanitizeFilename removes invalid characters from filenames
 func sanitizeFilename(name string) string {
-	// Replace common invalid characters
-	replacements := map[rune]rune{
-		'/':  '_',
-		'\\': '_',
-		':':  '_',
-		'*':  '_',
-		'?':  '_',
-		'"':  '_',
-		'<':  '_',
-		'>':  '_',
-		'|':  '_',
-	}
-
-	runes := []rune(name)
-	for i, r := range runes {
-		if replacement, ok := replacements[r]; ok {
-			runes[i] = replacement
+	invalidChars := `/\:*?"<>|`
+	return strings.Map(func(r rune) rune {
+		if strings.ContainsRune(invalidChars, r) {
+			return '_'
 		}
-	}
-
-	return string(runes)
+		return r
+	}, name)
 }
