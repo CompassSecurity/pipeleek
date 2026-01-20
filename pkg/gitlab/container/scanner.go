@@ -2,9 +2,10 @@ package container
 
 import (
 	"encoding/base64"
-	"regexp"
 	"strings"
+	"time"
 
+	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -20,7 +21,7 @@ func RunScan(opts ScanOptions) {
 
 	validateOrderBy(opts.OrderBy)
 
-	patterns := DefaultPatterns()
+	patterns := sharedcontainer.DefaultPatterns()
 	log.Info().Int("pattern_count", len(patterns)).Msg("Loaded container scan patterns")
 
 	if opts.Repository != "" {
@@ -34,7 +35,7 @@ func RunScan(opts ScanOptions) {
 	log.Info().Msg("Container scan complete")
 }
 
-func scanSingleProject(git *gitlab.Client, projectName string, patterns []Pattern, opts ScanOptions) {
+func scanSingleProject(git *gitlab.Client, projectName string, patterns []sharedcontainer.Pattern, opts ScanOptions) {
 	log.Info().Str("repository", projectName).Msg("Scanning specific repository for dangerous container patterns")
 	project, resp, err := git.Projects.GetProject(projectName, &gitlab.GetProjectOptions{})
 	if err != nil {
@@ -46,7 +47,7 @@ func scanSingleProject(git *gitlab.Client, projectName string, patterns []Patter
 	scanProject(git, project, patterns)
 }
 
-func scanNamespace(git *gitlab.Client, namespace string, patterns []Pattern, opts ScanOptions) {
+func scanNamespace(git *gitlab.Client, namespace string, patterns []sharedcontainer.Pattern, opts ScanOptions) {
 	log.Info().Str("namespace", namespace).Msg("Scanning specific namespace for dangerous container patterns")
 	group, _, err := git.Groups.GetGroup(namespace, &gitlab.GetGroupOptions{})
 	if err != nil {
@@ -78,7 +79,7 @@ func scanNamespace(git *gitlab.Client, namespace string, patterns []Pattern, opt
 	log.Info().Msg("Fetched all namespace projects")
 }
 
-func fetchProjects(git *gitlab.Client, patterns []Pattern, opts ScanOptions) {
+func fetchProjects(git *gitlab.Client, patterns []sharedcontainer.Pattern, opts ScanOptions) {
 	log.Info().Msg("Fetching projects")
 
 	projectOpts := &gitlab.ListProjectsOptions{
@@ -105,7 +106,7 @@ func fetchProjects(git *gitlab.Client, patterns []Pattern, opts ScanOptions) {
 	log.Info().Msg("Fetched all projects")
 }
 
-func scanProject(git *gitlab.Client, project *gitlab.Project, patterns []Pattern) {
+func scanProject(git *gitlab.Client, project *gitlab.Project, patterns []sharedcontainer.Pattern) {
 	log.Debug().Str("project", project.PathWithNamespace).Msg("Scanning project for Dockerfiles")
 
 	// Find all Dockerfiles in the project recursively
@@ -118,111 +119,92 @@ func scanProject(git *gitlab.Client, project *gitlab.Project, patterns []Pattern
 
 	log.Debug().Str("project", project.PathWithNamespace).Int("dockerfile_count", len(dockerfiles)).Msg("Found Dockerfiles")
 
-	// Check for .dockerignore once per project
-	hasDockerignore := checkDockerignoreExists(git, project)
-
 	// Scan all found Dockerfiles
 	for _, dockerfile := range dockerfiles {
 		isMultistage := checkIsMultistage(dockerfile)
-		scanDockerfile(git, project, dockerfile, dockerfile.FileName, patterns, hasDockerignore, isMultistage)
+		scanDockerfile(git, project, dockerfile, dockerfile.FileName, patterns, isMultistage)
 	}
 }
 
-// findDockerfiles recursively searches for all Dockerfile/Containerfile files in the project
+// findDockerfiles recursively searches for Dockerfile/Containerfile files up to 2 levels deep
 func findDockerfiles(git *gitlab.Client, project *gitlab.Project) []*gitlab.File {
 	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
-	
+	const maxDepth = 2        // Only search up to 2 levels deep (root and 1 subfolder level)
+
 	dockerfileNames := map[string]bool{
-		"Dockerfile":   true,
+		"Dockerfile":    true,
 		"Containerfile": true,
-		"dockerfile":   true,
+		"dockerfile":    true,
 		"containerfile": true,
 	}
-	
+
+	startTime := time.Now()
+
 	var dockerfiles []*gitlab.File
-	var queue []string
-	queue = append(queue, "") // Start with root directory
-	visited := make(map[string]bool)
-	
-	for len(queue) > 0 && len(dockerfiles) < maxDockerfiles {
-		path := queue[0]
-		queue = queue[1:]
-		
-		if visited[path] {
+
+	// Use recursive tree API to fetch entire tree at once with depth limit
+	treeOpts := &gitlab.ListTreeOptions{
+		Recursive: gitlab.Ptr(true),
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+			Page:    1,
+		},
+	}
+
+	tree, resp, err := git.Repositories.ListTree(project.ID, treeOpts)
+	if err != nil {
+		log.Trace().Str("project", project.PathWithNamespace).Err(err).Msg("Error listing recursive tree")
+		return dockerfiles
+	}
+
+	if resp == nil || len(tree) == 0 {
+		log.Trace().Str("project", project.PathWithNamespace).Msg("No files found in tree")
+		return dockerfiles
+	}
+
+	// Filter nodes by depth and match Dockerfile names
+	for _, node := range tree {
+		if len(dockerfiles) >= maxDockerfiles {
+			break
+		}
+
+		// Only process files (blobs)
+		if node.Type != "blob" {
 			continue
 		}
-		visited[path] = true
-		
-		// List contents of current directory using tree API
-		treeOpts := &gitlab.ListTreeOptions{
-			Path: gitlab.Ptr(path),
-			ListOptions: gitlab.ListOptions{
-				PerPage: 100,
-				Page:    1,
-			},
+
+		// Check depth: count slashes in path
+		// Root level = 0 slashes, first subdir = 1 slash, second subdir = 2 slashes
+		depth := strings.Count(node.Path, "/")
+		if depth > maxDepth-1 {
+			continue // Skip files deeper than maxDepth levels
 		}
-		
-		for {
-			tree, resp, err := git.Repositories.ListTree(project.ID, treeOpts)
-			if err != nil {
-				log.Trace().Str("project", project.PathWithNamespace).Str("path", path).Err(err).Msg("Error listing directory")
-				break
+
+		// Get just the filename from the path
+		parts := strings.Split(node.Path, "/")
+		fileName := parts[len(parts)-1]
+
+		if dockerfileNames[fileName] {
+			// Fetch the file content
+			file, resp, err := git.RepositoryFiles.GetFile(project.ID, node.Path, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
+			if err != nil || resp.StatusCode != 200 {
+				log.Trace().Str("project", project.PathWithNamespace).Str("file", node.Path).Err(err).Msg("Error fetching Dockerfile")
+				continue
 			}
-			
-			if resp == nil {
-				break
-			}
-			
-			for _, node := range tree {
-				if len(dockerfiles) >= maxDockerfiles {
-					return dockerfiles
-				}
-				
-				// Check if it's a file (blob) and matches a Dockerfile name
-				if node.Type == "blob" {
-					// Get just the filename from the path
-					parts := strings.Split(node.Path, "/")
-					fileName := parts[len(parts)-1]
-					
-					if dockerfileNames[fileName] {
-						// Fetch the file content
-						file, resp, err := git.RepositoryFiles.GetFile(project.ID, node.Path, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
-						if err != nil || resp.StatusCode != 200 {
-							log.Trace().Str("project", project.PathWithNamespace).Str("file", node.Path).Err(err).Msg("Error fetching Dockerfile")
-							continue
-						}
-						
-						// Store the path in FileName field
-						file.FileName = node.Path
-						dockerfiles = append(dockerfiles, file)
-					}
-				} else if node.Type == "tree" {
-					// Add directory to queue for recursive search
-					queue = append(queue, node.Path)
-				}
-			}
-			
-			// Check if there are more pages
-			if resp.NextPage == 0 {
-				break
-			}
-			treeOpts.Page = resp.NextPage
+
+			// Store the path in FileName field
+			file.FileName = node.Path
+			dockerfiles = append(dockerfiles, file)
+			log.Trace().Str("project", project.PathWithNamespace).Str("file", node.Path).Msg("Found Dockerfile")
 		}
 	}
-	
+
+	elapsed := time.Since(startTime)
+	log.Debug().Str("project", project.PathWithNamespace).Int("found", len(dockerfiles)).Dur("elapsed_ms", elapsed).Msg("Dockerfile search complete")
 	return dockerfiles
 }
 
-// checkDockerignoreExists checks if a .dockerignore file exists in the repository
-func checkDockerignoreExists(git *gitlab.Client, project *gitlab.Project) bool {
-	_, resp, err := git.RepositoryFiles.GetFile(project.ID, ".dockerignore", &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
-	if err != nil || resp.StatusCode == 404 {
-		return false
-	}
-	return resp.StatusCode == 200
-}
-
-// checkIsMultistage checks if the Dockerfile uses multistage builds by counting FROM statements
+// checkIsMultistage checks if the Dockerfile uses multistage builds
 func checkIsMultistage(file *gitlab.File) bool {
 	// Decode the file content
 	decodedContent, err := base64.StdEncoding.DecodeString(file.Content)
@@ -230,31 +212,10 @@ func checkIsMultistage(file *gitlab.File) bool {
 		return false
 	}
 
-	content := string(decodedContent)
-	lines := strings.Split(content, "\n")
-
-	fromCount := 0
-	fromPattern := regexp.MustCompile(`(?i)^\s*FROM\s+`)
-
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		// Skip empty lines and comments
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
-			continue
-		}
-
-		if fromPattern.MatchString(line) {
-			fromCount++
-			if fromCount > 1 {
-				return true
-			}
-		}
-	}
-
-	return false
+	return sharedcontainer.IsMultistage(string(decodedContent))
 }
 
-func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.File, fileName string, patterns []Pattern, hasDockerignore bool, isMultistage bool) {
+func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.File, fileName string, patterns []sharedcontainer.Pattern, isMultistage bool) {
 	log.Debug().Str("project", project.PathWithNamespace).Str("file", fileName).Msg("Scanning Dockerfile")
 
 	// The GitLab API returns file content as base64 encoded
@@ -288,7 +249,7 @@ func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.Fi
 		}
 
 		if found {
-			finding := Finding{
+			finding := sharedcontainer.Finding{
 				ProjectPath:     project.PathWithNamespace,
 				ProjectURL:      project.WebURL,
 				FilePath:        fileName,
@@ -296,7 +257,6 @@ func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.Fi
 				MatchedPattern:  pattern.Name,
 				LineContent:     matchedLine,
 				PatternSeverity: pattern.Severity,
-				HasDockerignore: hasDockerignore,
 				IsMultistage:    isMultistage,
 			}
 
@@ -308,12 +268,11 @@ func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.Fi
 	}
 }
 
-func logFinding(finding Finding) {
+func logFinding(finding sharedcontainer.Finding) {
 	logEvent := log.WithLevel(zerolog.InfoLevel).
 		Str("url", finding.ProjectURL).
 		Str("file", finding.FilePath).
 		Str("content", finding.LineContent).
-		Bool("has_dockerignore", finding.HasDockerignore).
 		Bool("is_multistage", finding.IsMultistage)
 
 	// Add registry metadata if available
@@ -327,7 +286,9 @@ func logFinding(finding Finding) {
 }
 
 // fetchRegistryMetadata retrieves metadata about the most recent container image in the project's registry
-func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *RegistryMetadata {
+func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedcontainer.RegistryMetadata {
+	startTime := time.Now()
+
 	// List container repositories for the project
 	repos, resp, err := git.ContainerRegistry.ListProjectRegistryRepositories(project.ID, &gitlab.ListProjectRegistryRepositoriesOptions{
 		ListOptions: gitlab.ListOptions{
@@ -352,7 +313,7 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *Registr
 	// Get the first repository (most recent activity)
 	repo := repos[0]
 
-	// List tags for this repository
+	// List tags for this repository (use list data directly, no per-tag detail calls)
 	tags, resp, err := git.ContainerRegistry.ListRegistryRepositoryTags(project.ID, repo.ID, &gitlab.ListRegistryRepositoryTagsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
@@ -364,19 +325,12 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *Registr
 		return nil
 	}
 
-	// Get detailed information for each tag and find the most recent one
+	// Find the most recent tag using data from the list (no per-tag detail calls)
 	var mostRecentTag *gitlab.RegistryRepositoryTag
 	for _, t := range tags {
-		// Get detailed tag information
-		tagDetails, resp, err := git.ContainerRegistry.GetRegistryRepositoryTagDetail(project.ID, repo.ID, t.Name)
-		if err != nil || resp.StatusCode != 200 {
-			log.Trace().Str("tag", t.Name).Msg("Could not get tag details")
-			continue
-		}
-
-		if tagDetails.CreatedAt != nil {
-			if mostRecentTag == nil || (mostRecentTag.CreatedAt != nil && tagDetails.CreatedAt.After(*mostRecentTag.CreatedAt)) {
-				mostRecentTag = tagDetails
+		if t.CreatedAt != nil {
+			if mostRecentTag == nil || (mostRecentTag.CreatedAt != nil && t.CreatedAt.After(*mostRecentTag.CreatedAt)) {
+				mostRecentTag = t
 			}
 		}
 	}
@@ -386,7 +340,7 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *Registr
 		return nil
 	}
 
-	metadata := &RegistryMetadata{
+	metadata := &sharedcontainer.RegistryMetadata{
 		TagName: mostRecentTag.Name,
 	}
 
@@ -395,16 +349,13 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *Registr
 		metadata.LastUpdate = mostRecentTag.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
 	}
 
-	log.Trace().
-		Str("project", project.PathWithNamespace).
-		Str("tag_name", mostRecentTag.Name).
-		Str("last_update", metadata.LastUpdate).
-		Msg("Tag details from API")
-
+	elapsed := time.Since(startTime)
 	log.Debug().
 		Str("project", project.PathWithNamespace).
 		Str("repo", repo.Path).
 		Str("tag", mostRecentTag.Name).
+		Str("last_update", metadata.LastUpdate).
+		Dur("elapsed_ms", elapsed).
 		Msg("Fetched registry metadata")
 
 	return metadata

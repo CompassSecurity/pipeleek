@@ -2,9 +2,9 @@ package container
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
+	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
 	"github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -14,7 +14,7 @@ import (
 func RunScan(opts ScanOptions, client *github.Client) {
 	ctx := context.Background()
 
-	patterns := DefaultPatterns()
+	patterns := sharedcontainer.DefaultPatterns()
 	log.Info().Int("pattern_count", len(patterns)).Msg("Loaded container scan patterns")
 
 	if opts.Repository != "" {
@@ -28,9 +28,9 @@ func RunScan(opts ScanOptions, client *github.Client) {
 	log.Info().Msg("Container scan complete")
 }
 
-func scanSingleRepo(ctx context.Context, client *github.Client, repoName string, patterns []Pattern) {
+func scanSingleRepo(ctx context.Context, client *github.Client, repoName string, patterns []sharedcontainer.Pattern) {
 	log.Info().Str("repository", repoName).Msg("Scanning specific repository for dangerous container patterns")
-	
+
 	parts := strings.Split(repoName, "/")
 	if len(parts) != 2 {
 		log.Fatal().Str("repository", repoName).Msg("Invalid repository format, expected owner/repo")
@@ -41,13 +41,13 @@ func scanSingleRepo(ctx context.Context, client *github.Client, repoName string,
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed fetching repository")
 	}
-	
+
 	scanRepository(ctx, client, repository, patterns)
 }
 
-func scanOrganization(ctx context.Context, client *github.Client, orgName string, patterns []Pattern, opts ScanOptions) {
+func scanOrganization(ctx context.Context, client *github.Client, orgName string, patterns []sharedcontainer.Pattern, opts ScanOptions) {
 	log.Info().Str("organization", orgName).Msg("Scanning organization for dangerous container patterns")
-	
+
 	listOpts := &github.RepositoryListByOrgOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -66,9 +66,9 @@ func scanOrganization(ctx context.Context, client *github.Client, orgName string
 	}
 }
 
-func fetchRepositories(ctx context.Context, client *github.Client, patterns []Pattern, opts ScanOptions) {
+func fetchRepositories(ctx context.Context, client *github.Client, patterns []sharedcontainer.Pattern, opts ScanOptions) {
 	log.Info().Msg("Fetching repositories")
-	
+
 	searchOpts := &github.SearchOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -112,29 +112,26 @@ func fetchRepositories(ctx context.Context, client *github.Client, patterns []Pa
 	}
 }
 
-func scanRepository(ctx context.Context, client *github.Client, repo *github.Repository, patterns []Pattern) {
+func scanRepository(ctx context.Context, client *github.Client, repo *github.Repository, patterns []sharedcontainer.Pattern) {
 	log.Debug().Str("repository", repo.GetFullName()).Msg("Scanning repository for Dockerfiles")
-	
+
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
-	
+
 	// Find all Dockerfiles in the repository recursively
 	dockerfiles := findDockerfiles(ctx, client, owner, repoName)
-	
+
 	if len(dockerfiles) == 0 {
 		log.Trace().Str("repository", repo.GetFullName()).Msg("No Dockerfile or Containerfile found")
 		return
 	}
-	
+
 	log.Debug().Str("repository", repo.GetFullName()).Int("dockerfile_count", len(dockerfiles)).Msg("Found Dockerfiles")
-	
-	// Check for .dockerignore once per repository
-	hasDockerignore := checkDockerignoreExists(ctx, client, owner, repoName)
-	
+
 	// Scan all found Dockerfiles
 	for _, dockerfile := range dockerfiles {
 		isMultistage := checkIsMultistage(dockerfile.Content)
-		scanDockerfile(ctx, client, repo, dockerfile.Content, dockerfile.Path, patterns, hasDockerignore, isMultistage)
+		scanDockerfile(ctx, client, repo, dockerfile.Content, dockerfile.Path, patterns, isMultistage)
 	}
 }
 
@@ -148,21 +145,21 @@ type DockerfileMatch struct {
 func findDockerfiles(ctx context.Context, client *github.Client, owner, repo string) []DockerfileMatch {
 	var dockerfiles []DockerfileMatch
 	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
-	
+
 	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
-	
+
 	// Use GitHub Search API to find files matching Dockerfile patterns
 	for _, name := range dockerfileNames {
 		if len(dockerfiles) >= maxDockerfiles {
 			break
 		}
-		
+
 		// Search for this filename in the repository
 		query := strings.Join([]string{
 			"repo:" + owner + "/" + repo,
 			"filename:" + name,
 		}, " ")
-		
+
 		results, _, err := client.Search.Code(ctx, query, &github.SearchOptions{
 			ListOptions: github.ListOptions{
 				PerPage: 50,
@@ -173,24 +170,24 @@ func findDockerfiles(ctx context.Context, client *github.Client, owner, repo str
 			log.Trace().Str("repository", owner+"/"+repo).Str("filename", name).Err(err).Msg("Error searching for Dockerfile")
 			continue
 		}
-		
+
 		if results.GetTotal() == 0 {
 			continue
 		}
-		
+
 		// Fetch each found file's content
 		for _, result := range results.CodeResults {
 			if len(dockerfiles) >= maxDockerfiles {
 				break
 			}
-			
+
 			path := result.GetPath()
 			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, nil)
 			if err != nil {
 				log.Trace().Str("repository", owner+"/"+repo).Str("file", path).Err(err).Msg("Error fetching Dockerfile content")
 				continue
 			}
-			
+
 			if fileContent != nil {
 				dockerfiles = append(dockerfiles, DockerfileMatch{
 					Path:    path,
@@ -199,62 +196,37 @@ func findDockerfiles(ctx context.Context, client *github.Client, owner, repo str
 			}
 		}
 	}
-	
+
 	return dockerfiles
 }
 
-// checkDockerignoreExists checks if a .dockerignore file exists in the repository
-func checkDockerignoreExists(ctx context.Context, client *github.Client, owner, repo string) bool {
-	_, _, _, err := client.Repositories.GetContents(ctx, owner, repo, ".dockerignore", nil)
-	return err == nil
-}
-
-// checkIsMultistage checks if the Dockerfile uses multistage builds by counting FROM statements
+// checkIsMultistage checks if the Dockerfile uses multistage builds
 func checkIsMultistage(fileContent *github.RepositoryContent) bool {
 	content, err := fileContent.GetContent()
 	if err != nil {
 		return false
 	}
-	
-	lines := strings.Split(content, "\n")
-	
-	fromCount := 0
-	fromPattern := regexp.MustCompile(`(?i)^\s*FROM\s+`)
-	
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		// Skip empty lines and comments
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
-			continue
-		}
-		
-		if fromPattern.MatchString(line) {
-			fromCount++
-			if fromCount > 1 {
-				return true
-			}
-		}
-	}
-	
-	return false
+
+	return sharedcontainer.IsMultistage(content)
+
 }
 
-func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Repository, fileContent *github.RepositoryContent, fileName string, patterns []Pattern, hasDockerignore bool, isMultistage bool) {
+func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Repository, fileContent *github.RepositoryContent, fileName string, patterns []sharedcontainer.Pattern, isMultistage bool) {
 	log.Debug().Str("repository", repo.GetFullName()).Str("file", fileName).Msg("Scanning Dockerfile")
-	
+
 	content, err := fileContent.GetContent()
 	if err != nil {
 		log.Error().Str("repository", repo.GetFullName()).Str("file", fileName).Err(err).Msg("Failed to get file content")
 		return
 	}
-	
+
 	lines := strings.Split(content, "\n")
 
 	// Check against all patterns
 	for _, pattern := range patterns {
 		found := false
 		var matchedLine string
-		
+
 		// Search through lines to find a match
 		for _, line := range lines {
 			trimmedLine := strings.TrimSpace(line)
@@ -262,16 +234,16 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 			if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
 				continue
 			}
-			
+
 			if pattern.Pattern.MatchString(line) {
 				found = true
 				matchedLine = strings.TrimSpace(line)
 				break
 			}
 		}
-		
+
 		if found {
-			finding := Finding{
+			finding := sharedcontainer.Finding{
 				ProjectPath:     repo.GetFullName(),
 				ProjectURL:      repo.GetHTMLURL(),
 				FilePath:        fileName,
@@ -279,7 +251,6 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 				MatchedPattern:  pattern.Name,
 				LineContent:     matchedLine,
 				PatternSeverity: pattern.Severity,
-				HasDockerignore: hasDockerignore,
 				IsMultistage:    isMultistage,
 			}
 
@@ -291,12 +262,11 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 	}
 }
 
-func logFinding(finding Finding) {
+func logFinding(finding sharedcontainer.Finding) {
 	logEvent := log.WithLevel(zerolog.InfoLevel).
 		Str("url", finding.ProjectURL).
 		Str("file", finding.FilePath).
 		Str("content", finding.LineContent).
-		Bool("has_dockerignore", finding.HasDockerignore).
 		Bool("is_multistage", finding.IsMultistage)
 
 	// Add registry metadata if available
@@ -310,7 +280,7 @@ func logFinding(finding Finding) {
 }
 
 // fetchRegistryMetadata retrieves metadata about the most recent container image in the repository's registry
-func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *github.Repository) *RegistryMetadata {
+func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *github.Repository) *sharedcontainer.RegistryMetadata {
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
@@ -363,7 +333,7 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 		return nil
 	}
 
-	metadata := &RegistryMetadata{
+	metadata := &sharedcontainer.RegistryMetadata{
 		TagName: extractTag(mostRecentVersion),
 	}
 

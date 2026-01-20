@@ -1,68 +1,15 @@
 package container
 
 import (
-	"regexp"
-	"strings"
+	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
 )
 
-// DefaultPatterns returns the default dangerous patterns to detect
-func DefaultPatterns() []Pattern {
-	return []Pattern{
-		{
-			Name:        "copy_all_to_root",
-			Pattern:     regexp.MustCompile(`(?i)^COPY\s+\./?(\s+/\s*)?$`),
-			Severity:    "high",
-			Description: "Copies entire working directory to root - exposes all files including secrets",
-		},
-		{
-			Name:        "copy_all_anywhere",
-			Pattern:     regexp.MustCompile(`(?i)^COPY\s+(\./?|\*|\.\/\*|\.\*)(\s+|$)`),
-			Severity:    "high",
-			Description: "Copies entire working directory into container - may expose sensitive files",
-		},
-		{
-			Name:        "add_all_to_root",
-			Pattern:     regexp.MustCompile(`(?i)^ADD\s+\./?(\s+/\s*)?$`),
-			Severity:    "high",
-			Description: "Adds entire working directory to root - exposes all files including secrets",
-		},
-		{
-			Name:        "add_all_anywhere",
-			Pattern:     regexp.MustCompile(`(?i)^ADD\s+(\./?|\*|\.\/\*|\.\*)(\s+|$)`),
-			Severity:    "high",
-			Description: "Adds entire working directory into container - may expose sensitive files",
-		},
-	}
+// DefaultPatterns returns the default dangerous patterns by delegating to the shared package
+func DefaultPatterns() []sharedcontainer.Pattern {
+	return sharedcontainer.DefaultPatterns()
 }
 
-// Pattern represents a dangerous pattern to detect
-type Pattern struct {
-	Name        string
-	Pattern     *regexp.Regexp
-	Severity    string
-	Description string
-}
-
-// ParseCustomPatterns parses a comma-separated string of patterns into a slice of Pattern objects
-// The patterns are treated as regex strings
-func ParseCustomPatterns(patternsStr string) []Pattern {
-	if strings.TrimSpace(patternsStr) == "" {
-		return []Pattern{}
-	}
-
-	patterns := []Pattern{}
-	for _, p := range strings.Split(patternsStr, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			if regex, err := regexp.Compile(p); err == nil {
-				patterns = append(patterns, Pattern{
-					Name:        p,
-					Pattern:     regex,
-					Severity:    "medium",
-					Description: "Custom dangerous pattern",
-				})
-			}
-		}
-	}
-	return patterns
+// ParseCustomPatterns parses a comma-separated string of patterns by delegating to the shared package
+func ParseCustomPatterns(patternsStr string) []sharedcontainer.Pattern {
+	return sharedcontainer.ParseCustomPatterns(patternsStr)
 }
