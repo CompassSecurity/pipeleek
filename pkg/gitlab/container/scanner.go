@@ -108,34 +108,82 @@ func fetchProjects(git *gitlab.Client, patterns []Pattern, opts ScanOptions) {
 func scanProject(git *gitlab.Client, project *gitlab.Project, patterns []Pattern) {
 	log.Debug().Str("project", project.PathWithNamespace).Msg("Scanning project for Dockerfiles")
 
-	// Try to fetch common Dockerfile/Containerfile names
-	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
+	// Find all Dockerfiles in the project recursively
+	dockerfiles := findDockerfiles(git, project)
 
-	for _, fileName := range dockerfileNames {
-		file, resp, err := git.RepositoryFiles.GetFile(project.ID, fileName, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
-		if err != nil {
-			log.Trace().Str("project", project.PathWithNamespace).Str("file", fileName).Err(err).Msg("Error fetching file")
-			continue
-		}
-		if resp.StatusCode == 404 {
-			// File doesn't exist in this project, try next name
-			log.Trace().Str("project", project.PathWithNamespace).Str("file", fileName).Msg("File not found")
-			continue
-		}
-		if resp.StatusCode != 200 {
-			log.Debug().Str("project", project.PathWithNamespace).Str("file", fileName).Int("status", resp.StatusCode).Msg("Error fetching file")
-			continue
-		}
-
-		// Found a Dockerfile/Containerfile, check for .dockerignore
-		hasDockerignore := checkDockerignoreExists(git, project)
-		isMultistage := checkIsMultistage(file)
-
-		scanDockerfile(git, project, file, fileName, patterns, hasDockerignore, isMultistage)
-		return // Found one, don't need to check others
+	if len(dockerfiles) == 0 {
+		log.Trace().Str("project", project.PathWithNamespace).Msg("No Dockerfile or Containerfile found")
+		return
 	}
 
-	log.Trace().Str("project", project.PathWithNamespace).Msg("No Dockerfile or Containerfile found")
+	log.Debug().Str("project", project.PathWithNamespace).Int("dockerfile_count", len(dockerfiles)).Msg("Found Dockerfiles")
+
+	// Check for .dockerignore once per project
+	hasDockerignore := checkDockerignoreExists(git, project)
+
+	// Scan all found Dockerfiles
+	for _, dockerfile := range dockerfiles {
+		isMultistage := checkIsMultistage(dockerfile)
+		scanDockerfile(git, project, dockerfile, dockerfile.FileName, patterns, hasDockerignore, isMultistage)
+	}
+}
+
+// findDockerfiles recursively searches for all Dockerfile/Containerfile files in the project
+func findDockerfiles(git *gitlab.Client, project *gitlab.Project) []*gitlab.File {
+	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
+	
+	var dockerfiles []*gitlab.File
+	
+	// Search for Dockerfile/Containerfile in common locations
+	// Start from root and some common subdirectories
+	searchPaths := []string{
+		"",           // root
+		"docker",
+		"docker/app",
+		"app",
+		"services",
+		"backend",
+		"frontend",
+		"api",
+		"web",
+		"server",
+		"client",
+		"service",
+	}
+	
+	for _, searchPath := range searchPaths {
+		if len(dockerfiles) >= maxDockerfiles {
+			break
+		}
+		
+		// Try each Dockerfile name in this path
+		dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
+		
+		for _, fileName := range dockerfileNames {
+			if len(dockerfiles) >= maxDockerfiles {
+				break
+			}
+			
+			filePath := fileName
+			if searchPath != "" {
+				filePath = searchPath + "/" + fileName
+			}
+			
+			file, resp, err := git.RepositoryFiles.GetFile(project.ID, filePath, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
+			if err != nil || resp.StatusCode == 404 {
+				continue
+			}
+			if resp.StatusCode != 200 {
+				continue
+			}
+			
+			// Store the path in FileName field
+			file.FileName = filePath
+			dockerfiles = append(dockerfiles, file)
+		}
+	}
+	
+	return dockerfiles
 }
 
 // checkDockerignoreExists checks if a .dockerignore file exists in the repository

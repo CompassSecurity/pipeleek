@@ -104,34 +104,94 @@ func fetchRepositories(ctx context.Context, client *github.Client, patterns []Pa
 }
 
 func scanRepository(ctx context.Context, client *github.Client, repo *github.Repository, patterns []Pattern) {
+	log.Debug().Str("repository", repo.GetFullName()).Msg("Scanning repository for Dockerfiles")
+	
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 	
-	log.Debug().Str("repository", repo.GetFullName()).Msg("Scanning repository for Dockerfiles")
+	// Find all Dockerfiles in the repository recursively
+	dockerfiles := findDockerfiles(ctx, client, owner, repoName)
 	
-	// Try to fetch common Dockerfile/Containerfile names
-	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
-
-	for _, fileName := range dockerfileNames {
-		fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repoName, fileName, nil)
-		if err != nil {
-			log.Trace().Str("repository", repo.GetFullName()).Str("file", fileName).Err(err).Msg("Error fetching file")
-			continue
-		}
-		if fileContent == nil {
-			log.Trace().Str("repository", repo.GetFullName()).Str("file", fileName).Msg("File not found")
-			continue
-		}
-
-		// Found a Dockerfile/Containerfile, check for .dockerignore and multistage
-		hasDockerignore := checkDockerignoreExists(ctx, client, owner, repoName)
-		isMultistage := checkIsMultistage(fileContent)
-		
-		scanDockerfile(ctx, client, repo, fileContent, fileName, patterns, hasDockerignore, isMultistage)
-		return // Found one, don't need to check others
+	if len(dockerfiles) == 0 {
+		log.Trace().Str("repository", repo.GetFullName()).Msg("No Dockerfile or Containerfile found")
+		return
 	}
+	
+	log.Debug().Str("repository", repo.GetFullName()).Int("dockerfile_count", len(dockerfiles)).Msg("Found Dockerfiles")
+	
+	// Check for .dockerignore once per repository
+	hasDockerignore := checkDockerignoreExists(ctx, client, owner, repoName)
+	
+	// Scan all found Dockerfiles
+	for _, dockerfile := range dockerfiles {
+		isMultistage := checkIsMultistage(dockerfile.Content)
+		scanDockerfile(ctx, client, repo, dockerfile.Content, dockerfile.Path, patterns, hasDockerignore, isMultistage)
+	}
+}
 
-	log.Trace().Str("repository", repo.GetFullName()).Msg("No Dockerfile or Containerfile found")
+// DockerfileMatch represents a found Dockerfile
+type DockerfileMatch struct {
+	Path    string
+	Content *github.RepositoryContent
+}
+
+// findDockerfiles recursively searches for all Dockerfile/Containerfile files in the repository
+func findDockerfiles(ctx context.Context, client *github.Client, owner, repo string) []DockerfileMatch {
+	var dockerfiles []DockerfileMatch
+	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
+	
+	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
+	
+	// Use GitHub Search API to find files matching Dockerfile patterns
+	for _, name := range dockerfileNames {
+		if len(dockerfiles) >= maxDockerfiles {
+			break
+		}
+		
+		// Search for this filename in the repository
+		query := strings.Join([]string{
+			"repo:" + owner + "/" + repo,
+			"filename:" + name,
+		}, " ")
+		
+		results, _, err := client.Search.Code(ctx, query, &github.SearchOptions{
+			ListOptions: github.ListOptions{
+				PerPage: 50,
+				Page:    1,
+			},
+		})
+		if err != nil {
+			log.Trace().Str("repository", owner+"/"+repo).Str("filename", name).Err(err).Msg("Error searching for Dockerfile")
+			continue
+		}
+		
+		if results.GetTotal() == 0 {
+			continue
+		}
+		
+		// Fetch each found file's content
+		for _, result := range results.CodeResults {
+			if len(dockerfiles) >= maxDockerfiles {
+				break
+			}
+			
+			path := result.GetPath()
+			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, nil)
+			if err != nil {
+				log.Trace().Str("repository", owner+"/"+repo).Str("file", path).Err(err).Msg("Error fetching Dockerfile content")
+				continue
+			}
+			
+			if fileContent != nil {
+				dockerfiles = append(dockerfiles, DockerfileMatch{
+					Path:    path,
+					Content: fileContent,
+				})
+			}
+		}
+	}
+	
+	return dockerfiles
 }
 
 // checkDockerignoreExists checks if a .dockerignore file exists in the repository
