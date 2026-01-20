@@ -11,6 +11,7 @@ import (
 var (
 	owned              bool
 	member             bool
+	public             bool
 	projectSearchQuery string
 	page               int
 	repository         string
@@ -42,6 +43,7 @@ func NewScanCmd() *cobra.Command {
 				"token":              "github.token",
 				"owned":              "github.container.scan.owned",
 				"member":             "github.container.scan.member",
+				"public":             "github.container.scan.public",
 				"repo":               "github.container.scan.repo",
 				"organization":       "github.container.scan.organization",
 				"search":             "github.container.scan.search",
@@ -61,6 +63,7 @@ func NewScanCmd() *cobra.Command {
 
 			owned = config.GetBool("github.container.scan.owned")
 			member = config.GetBool("github.container.scan.member")
+			public = config.GetBool("github.container.scan.public")
 			repository = config.GetString("github.container.scan.repo")
 			organization = config.GetString("github.container.scan.organization")
 			projectSearchQuery = config.GetString("github.container.scan.search")
@@ -73,6 +76,7 @@ func NewScanCmd() *cobra.Command {
 
 	scanCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
 	scanCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
+	scanCmd.PersistentFlags().BoolVar(&public, "public", false, "Scan public repositories only")
 	scanCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
 	scanCmd.Flags().StringVarP(&organization, "organization", "n", "", "Organization to scan")
 	scanCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching repositories")
@@ -90,6 +94,7 @@ func Scan(githubUrl, githubApiToken string) {
 		GitHubApiToken:     githubApiToken,
 		Owned:              owned,
 		Member:             member,
+		Public:             public,
 		ProjectSearchQuery: projectSearchQuery,
 		Page:               page,
 		Repository:         repository,

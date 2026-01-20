@@ -88,8 +88,17 @@ func fetchRepositories(ctx context.Context, client *github.Client, patterns []Pa
 		}
 	}
 
+	// Add public filter if requested
+	if opts.Public {
+		if query != "" {
+			query += " is:public"
+		} else {
+			query = "is:public"
+		}
+	}
+
 	if query == "" {
-		log.Fatal().Msg("No search criteria specified. Use --owned, --member, --org, --repo, or --search")
+		log.Fatal().Msg("No search criteria specified. Use --owned, --member, --public, --org, --repo, or --search")
 	}
 
 	result, _, err := client.Search.Repositories(ctx, query, searchOpts)

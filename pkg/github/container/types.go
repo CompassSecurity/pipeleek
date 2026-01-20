@@ -6,6 +6,7 @@ type ScanOptions struct {
 	GitHubApiToken     string
 	Owned              bool
 	Member             bool
+	Public             bool
 	ProjectSearchQuery string
 	Page               int
 	Repository         string
