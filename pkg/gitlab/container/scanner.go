@@ -132,54 +132,81 @@ func scanProject(git *gitlab.Client, project *gitlab.Project, patterns []Pattern
 func findDockerfiles(git *gitlab.Client, project *gitlab.Project) []*gitlab.File {
 	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
 	
-	var dockerfiles []*gitlab.File
-	
-	// Search for Dockerfile/Containerfile in common locations
-	// Start from root and some common subdirectories
-	searchPaths := []string{
-		"",           // root
-		"docker",
-		"docker/app",
-		"app",
-		"services",
-		"backend",
-		"frontend",
-		"api",
-		"web",
-		"server",
-		"client",
-		"service",
+	dockerfileNames := map[string]bool{
+		"Dockerfile":   true,
+		"Containerfile": true,
+		"dockerfile":   true,
+		"containerfile": true,
 	}
 	
-	for _, searchPath := range searchPaths {
-		if len(dockerfiles) >= maxDockerfiles {
-			break
+	var dockerfiles []*gitlab.File
+	var queue []string
+	queue = append(queue, "") // Start with root directory
+	visited := make(map[string]bool)
+	
+	for len(queue) > 0 && len(dockerfiles) < maxDockerfiles {
+		path := queue[0]
+		queue = queue[1:]
+		
+		if visited[path] {
+			continue
+		}
+		visited[path] = true
+		
+		// List contents of current directory using tree API
+		treeOpts := &gitlab.ListTreeOptions{
+			Path: gitlab.Ptr(path),
+			ListOptions: gitlab.ListOptions{
+				PerPage: 100,
+				Page:    1,
+			},
 		}
 		
-		// Try each Dockerfile name in this path
-		dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
-		
-		for _, fileName := range dockerfileNames {
-			if len(dockerfiles) >= maxDockerfiles {
+		for {
+			tree, resp, err := git.Repositories.ListTree(project.ID, treeOpts)
+			if err != nil {
+				log.Trace().Str("project", project.PathWithNamespace).Str("path", path).Err(err).Msg("Error listing directory")
 				break
 			}
 			
-			filePath := fileName
-			if searchPath != "" {
-				filePath = searchPath + "/" + fileName
+			if resp == nil {
+				break
 			}
 			
-			file, resp, err := git.RepositoryFiles.GetFile(project.ID, filePath, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
-			if err != nil || resp.StatusCode == 404 {
-				continue
-			}
-			if resp.StatusCode != 200 {
-				continue
+			for _, node := range tree {
+				if len(dockerfiles) >= maxDockerfiles {
+					return dockerfiles
+				}
+				
+				// Check if it's a file (blob) and matches a Dockerfile name
+				if node.Type == "blob" {
+					// Get just the filename from the path
+					parts := strings.Split(node.Path, "/")
+					fileName := parts[len(parts)-1]
+					
+					if dockerfileNames[fileName] {
+						// Fetch the file content
+						file, resp, err := git.RepositoryFiles.GetFile(project.ID, node.Path, &gitlab.GetFileOptions{Ref: gitlab.Ptr("HEAD")})
+						if err != nil || resp.StatusCode != 200 {
+							log.Trace().Str("project", project.PathWithNamespace).Str("file", node.Path).Err(err).Msg("Error fetching Dockerfile")
+							continue
+						}
+						
+						// Store the path in FileName field
+						file.FileName = node.Path
+						dockerfiles = append(dockerfiles, file)
+					}
+				} else if node.Type == "tree" {
+					// Add directory to queue for recursive search
+					queue = append(queue, node.Path)
+				}
 			}
 			
-			// Store the path in FileName field
-			file.FileName = filePath
-			dockerfiles = append(dockerfiles, file)
+			// Check if there are more pages
+			if resp.NextPage == 0 {
+				break
+			}
+			treeOpts.Page = resp.NextPage
 		}
 	}
 	
