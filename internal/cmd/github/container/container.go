@@ -23,33 +23,33 @@ var (
 func NewContainerScanCmd() *cobra.Command {
 	containerCmd := &cobra.Command{
 		Use:   "container",
-		Short: "Container image scanning commands",
-		Long:  "Commands to scan for dangerous container image build patterns in GitHub repositories.",
+		Short: "Artipacked auditing commands",
+		Long:  "Commands to audit for artipacked misconfiguration in container builds: when Dockerfiles copy secrets during build and leave them in published images.",
 	}
 
-	containerCmd.AddCommand(NewScanCmd())
+	containerCmd.AddCommand(NewArtipackedCmd())
 
 	return containerCmd
 }
 
-func NewScanCmd() *cobra.Command {
-	scanCmd := &cobra.Command{
-		Use:   "scan [no options!]",
-		Short: "Scan for dangerous container image build patterns",
-		Long:  "Scan GitHub repositories for dangerous container image build patterns like COPY . /path",
+func NewArtipackedCmd() *cobra.Command {
+	artipackedCmd := &cobra.Command{
+		Use:   "artipacked [no options!]",
+		Short: "Audit for artipacked misconfiguration (secrets in container images)",
+		Long:  "Scan GitHub repositories for artipacked misconfiguration: dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
 				"github":             "github.url",
 				"token":              "github.token",
-				"owned":              "github.container.scan.owned",
-				"member":             "github.container.scan.member",
-				"public":             "github.container.scan.public",
-				"repo":               "github.container.scan.repo",
-				"organization":       "github.container.scan.organization",
-				"search":             "github.container.scan.search",
-				"page":               "github.container.scan.page",
-				"order-by":           "github.container.scan.order_by",
-				"dangerous-patterns": "github.container.scan.dangerous_patterns",
+				"owned":              "github.container.artipacked.owned",
+				"member":             "github.container.artipacked.member",
+				"public":             "github.container.artipacked.public",
+				"repo":               "github.container.artipacked.repo",
+				"organization":       "github.container.artipacked.organization",
+				"search":             "github.container.artipacked.search",
+				"page":               "github.container.artipacked.page",
+				"order-by":           "github.container.artipacked.order_by",
+				"dangerous-patterns": "github.container.artipacked.dangerous_patterns",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
@@ -61,29 +61,29 @@ func NewScanCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 
-			owned = config.GetBool("github.container.scan.owned")
-			member = config.GetBool("github.container.scan.member")
-			public = config.GetBool("github.container.scan.public")
-			repository = config.GetString("github.container.scan.repo")
-			organization = config.GetString("github.container.scan.organization")
-			projectSearchQuery = config.GetString("github.container.scan.search")
-			page = config.GetInt("github.container.scan.page")
-			orderBy = config.GetString("github.container.scan.order_by")
+			owned = config.GetBool("github.container.artipacked.owned")
+			member = config.GetBool("github.container.artipacked.member")
+			public = config.GetBool("github.container.artipacked.public")
+			repository = config.GetString("github.container.artipacked.repo")
+			organization = config.GetString("github.container.artipacked.organization")
+			projectSearchQuery = config.GetString("github.container.artipacked.search")
+			page = config.GetInt("github.container.artipacked.page")
+			orderBy = config.GetString("github.container.artipacked.order_by")
 
 			Scan(githubUrl, githubApiToken)
 		},
 	}
 
-	scanCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
-	scanCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
-	scanCmd.PersistentFlags().BoolVar(&public, "public", false, "Scan public repositories only")
-	scanCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
-	scanCmd.Flags().StringVarP(&organization, "organization", "n", "", "Organization to scan")
-	scanCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching repositories")
-	scanCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching repositories from (default 1)")
-	scanCmd.Flags().StringVar(&orderBy, "order-by", "updated", "Order repositories by: stars, forks, updated")
+	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
+	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
+	artipackedCmd.PersistentFlags().BoolVar(&public, "public", false, "Scan public repositories only")
+	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
+	artipackedCmd.Flags().StringVarP(&organization, "organization", "n", "", "Organization to scan")
+	artipackedCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching repositories")
+	artipackedCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching repositories from (default 1)")
+	artipackedCmd.Flags().StringVar(&orderBy, "order-by", "updated", "Order repositories by: stars, forks, updated")
 
-	return scanCmd
+	return artipackedCmd
 }
 
 func Scan(githubUrl, githubApiToken string) {

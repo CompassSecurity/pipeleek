@@ -90,7 +90,7 @@ func TestContainerScanBasic(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
@@ -148,7 +148,7 @@ func TestContainerScanOwned(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 		"--owned",
@@ -210,7 +210,7 @@ func TestContainerScanNamespace(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 		"--namespace", "my-group",
@@ -259,7 +259,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 		"--repo", "test-user/test-repo",
@@ -312,7 +312,7 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
@@ -334,7 +334,7 @@ func TestContainerScanInvalidURL(t *testing.T) {
 	}
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", "https://gitlab.example.com",
 		"--token", "test-token",
 	}, nil, 10*time.Second)
@@ -353,7 +353,7 @@ func TestContainerScanMissingToken(t *testing.T) {
 	}
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", "https://gitlab.example.com",
 	}, nil, 10*time.Second)
 
@@ -408,7 +408,7 @@ func TestContainerScanWithSearch(t *testing.T) {
 	defer server.Close()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "container", "scan",
+		"gl", "container", "artipacked",
 		"--gitlab", server.URL,
 		"--token", "test-token",
 		"--search", "app",

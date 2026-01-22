@@ -22,32 +22,32 @@ var (
 func NewContainerScanCmd() *cobra.Command {
 	containerCmd := &cobra.Command{
 		Use:   "container",
-		Short: "Container image scanning commands",
-		Long:  "Commands to scan for dangerous container image build patterns in GitLab projects.",
+		Short: "Artipacked auditing commands",
+		Long:  "Commands to audit for artipacked misconfiguration in container builds: when Dockerfiles copy secrets during build and leave them in published images.",
 	}
 
-	containerCmd.AddCommand(NewScanCmd())
+	containerCmd.AddCommand(NewArtipackedCmd())
 
 	return containerCmd
 }
 
-func NewScanCmd() *cobra.Command {
-	scanCmd := &cobra.Command{
-		Use:   "scan [no options!]",
-		Short: "Scan for dangerous container image build patterns",
-		Long:  "Scan GitLab projects for dangerous container image build patterns like COPY . /path",
+func NewArtipackedCmd() *cobra.Command {
+	artipackedCmd := &cobra.Command{
+		Use:   "artipacked [no options!]",
+		Short: "Audit for artipacked misconfiguration (secrets in container images)",
+		Long:  "Scan GitLab projects for artipacked misconfiguration: dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
 				"gitlab":             "gitlab.url",
 				"token":              "gitlab.token",
-				"owned":              "gitlab.container.scan.owned",
-				"member":             "gitlab.container.scan.member",
-				"repo":               "gitlab.container.scan.repo",
-				"namespace":          "gitlab.container.scan.namespace",
-				"search":             "gitlab.container.scan.search",
-				"page":               "gitlab.container.scan.page",
-				"order-by":           "gitlab.container.scan.order_by",
-				"dangerous-patterns": "gitlab.container.scan.dangerous_patterns",
+				"owned":              "gitlab.container.artipacked.owned",
+				"member":             "gitlab.container.artipacked.member",
+				"repo":               "gitlab.container.artipacked.repo",
+				"namespace":          "gitlab.container.artipacked.namespace",
+				"search":             "gitlab.container.artipacked.search",
+				"page":               "gitlab.container.artipacked.page",
+				"order-by":           "gitlab.container.artipacked.order_by",
+				"dangerous-patterns": "gitlab.container.artipacked.dangerous_patterns",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
@@ -59,27 +59,27 @@ func NewScanCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 
-			owned = config.GetBool("gitlab.container.scan.owned")
-			member = config.GetBool("gitlab.container.scan.member")
-			repository = config.GetString("gitlab.container.scan.repo")
-			namespace = config.GetString("gitlab.container.scan.namespace")
-			projectSearchQuery = config.GetString("gitlab.container.scan.search")
-			page = config.GetInt("gitlab.container.scan.page")
-			orderBy = config.GetString("gitlab.container.scan.order_by")
+			owned = config.GetBool("gitlab.container.artipacked.owned")
+			member = config.GetBool("gitlab.container.artipacked.member")
+			repository = config.GetString("gitlab.container.artipacked.repo")
+			namespace = config.GetString("gitlab.container.artipacked.namespace")
+			projectSearchQuery = config.GetString("gitlab.container.artipacked.search")
+			page = config.GetInt("gitlab.container.artipacked.page")
+			orderBy = config.GetString("gitlab.container.artipacked.order_by")
 
 			Scan(gitlabUrl, gitlabApiToken)
 		},
 	}
 
-	scanCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
-	scanCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all projects will be scanned)")
-	scanCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to scan")
-	scanCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching projects")
-	scanCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
-	scanCmd.Flags().StringVar(&orderBy, "order-by", "last_activity_at", "Order projects by: id, name, path, created_at, updated_at, star_count, last_activity_at, or similarity")
+	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
+	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
+	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all projects will be scanned)")
+	artipackedCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to scan")
+	artipackedCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching projects")
+	artipackedCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
+	artipackedCmd.Flags().StringVar(&orderBy, "order-by", "last_activity_at", "Order projects by: id, name, path, created_at, updated_at, star_count, last_activity_at, or similarity")
 
-	return scanCmd
+	return artipackedCmd
 }
 
 func Scan(gitlabUrl, gitlabApiToken string) {
