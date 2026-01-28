@@ -265,7 +265,7 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 
 	// List container packages for the repository
 	packages, _, err := client.Organizations.ListPackages(ctx, owner, &github.PackageListOptions{
-		PackageType: github.String("container"),
+		PackageType: github.Ptr("container"),
 	})
 	if err != nil {
 		log.Trace().Str("repository", repo.GetFullName()).Err(err).Msg("Error accessing container registry")
@@ -293,7 +293,7 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 
 	// Get package versions (tags)
 	versions, _, err := client.Organizations.PackageGetAllVersions(ctx, owner, "container", targetPackage.GetName(), &github.PackageListOptions{
-		State: github.String("active"),
+		State: github.Ptr("active"),
 	})
 	if err != nil || len(versions) == 0 {
 		log.Trace().Str("repository", repo.GetFullName()).Msg("No package versions found")
