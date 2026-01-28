@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/trufflesecurity/trufflehog/v3 v3.92.5
-	gitlab.com/gitlab-org/api/client-go v1.15.0
+	gitlab.com/gitlab-org/api/client-go v1.16.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
 	golang.org/x/net v0.49.0
 	golang.org/x/term v0.39.0
@@ -190,7 +190,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/wandb/parallel v0.2.3
 	github.com/yosuke-furukawa/json5 v0.1.1
-	golang.org/x/oauth2 v0.33.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
