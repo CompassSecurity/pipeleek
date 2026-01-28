@@ -46,35 +46,6 @@ func TestContainerScanBasic(t *testing.T) {
 
 		// Dockerfile fetch endpoint
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
-		// Repository tree endpoint - for finding Dockerfiles
-		if strings.Contains(r.URL.Path, "/repository/tree") {
-			if strings.Contains(r.URL.Path, "/1/") {
-				// dangerous-app has Dockerfile
-				w.Header().Set("X-Page", "1")
-				w.Header().Set("X-Per-Page", "100")
-				w.Header().Set("X-Total", "1")
-				w.Header().Set("X-Total-Pages", "1")
-				w.WriteHeader(http.StatusOK)
-				treeJSON := `[
-{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile"}
-]`
-				w.Write([]byte(treeJSON))
-				return
-			}
-			if strings.Contains(r.URL.Path, "/2/") {
-				// safe-app no Dockerfile
-				w.Header().Set("X-Page", "1")
-				w.Header().Set("X-Per-Page", "100")
-				w.Header().Set("X-Total", "0")
-				w.Header().Set("X-Total-Pages", "1")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`[]`))
-				return
-			}
-		}
-
-		// Dockerfile fetch endpoint
-		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			if strings.Contains(r.URL.Path, "/1/") {
 				// dangerous-app has dangerous Dockerfile
 				w.WriteHeader(http.StatusOK)
@@ -83,7 +54,14 @@ func TestContainerScanBasic(t *testing.T) {
 				w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","size":150,"content":"RlJPTSB1YnVudHU6MjIuMDQKUlVOIGFwdC1nZXQgdXBkYXRlICYmIGFwdC1nZXQgaW5zdGFsbCAteSBjdXJsCkNPUFkgLiAvYXBwCldPUktESVIgL2FwcApSVU4gLi9pbnN0YWxsLnNoCkVOVFJZUE9JTlQgWyIuL3N0YXJ0LnNoIl0="}`))
 				return
 			}
+			if strings.Contains(r.URL.Path, "/2/") {
+				// safe-app has safe Dockerfile
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","size":100,"content":"RlJPTSB1YnVudHU6MjIuMDQKUlVOIGFwdC1nZXQgdXBkYXRlICYmIGFwdC1nZXQgaW5zdGFsbCAteSBjdXJsCkNPUFkgcmVxdWlyZW1lbnRzLnR4dCAvYXBwLwpXT1JLRElSIC9hcHAKUlVOIHBpcCBpbnN0YWxsIC1yIHJlcXVpcmVtZW50cy50eHQKQ01EIFsicHl0aG9uIiwgImFwcC5weSJd"}`))
+				return
+			}
 		}
+
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"message": "404 Not Found"}`))
 	}))
@@ -100,7 +78,7 @@ func TestContainerScanBasic(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "Identified")
+	assert.Contains(t, output, "found dangerous container pattern")
 	assert.Contains(t, output, "test-user/dangerous-app")
 }
 
