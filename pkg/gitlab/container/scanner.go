@@ -226,45 +226,25 @@ func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.Fi
 	}
 
 	content := string(decodedContent)
-	lines := strings.Split(content, "\n")
 
-	// Check against all patterns
-	for _, pattern := range patterns {
-		found := false
-		var matchedLine string
+	// Use shared scanner to find pattern matches
+	matches := sharedcontainer.ScanDockerfileForPatterns(content, patterns)
 
-		// Search through lines to find a match
-		for _, line := range lines {
-			trimmedLine := strings.TrimSpace(line)
-			// Skip empty lines and comments
-			if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
-				continue
-			}
-
-			if pattern.Pattern.MatchString(line) {
-				found = true
-				matchedLine = strings.TrimSpace(line)
-				break
-			}
+	for _, match := range matches {
+		finding := sharedcontainer.Finding{
+			ProjectPath:    project.PathWithNamespace,
+			ProjectURL:     project.WebURL,
+			FilePath:       fileName,
+			FileName:       fileName,
+			MatchedPattern: match.PatternName,
+			LineContent:    match.MatchedLine,
+			IsMultistage:   isMultistage,
 		}
 
-		if found {
-			finding := sharedcontainer.Finding{
-				ProjectPath:     project.PathWithNamespace,
-				ProjectURL:      project.WebURL,
-				FilePath:        fileName,
-				FileName:        fileName,
-				MatchedPattern:  pattern.Name,
-				LineContent:     matchedLine,
-				PatternSeverity: pattern.Severity,
-				IsMultistage:    isMultistage,
-			}
+		// Fetch registry metadata for the most recent container
+		finding.RegistryMetadata = fetchRegistryMetadata(git, project)
 
-			// Fetch registry metadata for the most recent container
-			finding.RegistryMetadata = fetchRegistryMetadata(git, project)
-
-			logFinding(finding)
-		}
+		logFinding(finding)
 	}
 }
 

@@ -220,45 +220,24 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 		return
 	}
 
-	lines := strings.Split(content, "\n")
+	// Use shared scanner to find pattern matches
+	matches := sharedcontainer.ScanDockerfileForPatterns(content, patterns)
 
-	// Check against all patterns
-	for _, pattern := range patterns {
-		found := false
-		var matchedLine string
-
-		// Search through lines to find a match
-		for _, line := range lines {
-			trimmedLine := strings.TrimSpace(line)
-			// Skip empty lines and comments
-			if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
-				continue
-			}
-
-			if pattern.Pattern.MatchString(line) {
-				found = true
-				matchedLine = strings.TrimSpace(line)
-				break
-			}
+	for _, match := range matches {
+		finding := sharedcontainer.Finding{
+			ProjectPath:    repo.GetFullName(),
+			ProjectURL:     repo.GetHTMLURL(),
+			FilePath:       fileName,
+			FileName:       fileName,
+			MatchedPattern: match.PatternName,
+			LineContent:    match.MatchedLine,
+			IsMultistage:   isMultistage,
 		}
 
-		if found {
-			finding := sharedcontainer.Finding{
-				ProjectPath:     repo.GetFullName(),
-				ProjectURL:      repo.GetHTMLURL(),
-				FilePath:        fileName,
-				FileName:        fileName,
-				MatchedPattern:  pattern.Name,
-				LineContent:     matchedLine,
-				PatternSeverity: pattern.Severity,
-				IsMultistage:    isMultistage,
-			}
+		// Fetch registry metadata for the most recent container
+		finding.RegistryMetadata = fetchRegistryMetadata(ctx, client, repo)
 
-			// Fetch registry metadata for the most recent container
-			finding.RegistryMetadata = fetchRegistryMetadata(ctx, client, repo)
-
-			logFinding(finding)
-		}
+		logFinding(finding)
 	}
 }
 

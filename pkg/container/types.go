@@ -10,7 +10,6 @@ type Finding struct {
 	FileName         string
 	MatchedPattern   string
 	LineContent      string
-	PatternSeverity  string
 	IsMultistage     bool
 	RegistryMetadata *RegistryMetadata
 }
@@ -25,6 +24,5 @@ type RegistryMetadata struct {
 type Pattern struct {
 	Name        string
 	Pattern     *regexp.Regexp
-	Severity    string
 	Description string
 }

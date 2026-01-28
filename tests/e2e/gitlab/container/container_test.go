@@ -22,7 +22,8 @@ func TestContainerScanBasic(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Project listing endpoint
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-			!strings.Contains(r.URL.Path, "/repository/files") {
+			!strings.Contains(r.URL.Path, "/repository/files") &&
+			!strings.Contains(r.URL.Path, "/repository/tree") {
 			projectsJSON := `[
 {
 "id": 1,
@@ -42,6 +43,30 @@ func TestContainerScanBasic(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(projectsJSON))
 			return
+		}
+
+		// Repository tree endpoint - returns list of files in repo
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			if strings.Contains(r.URL.Path, "/1/") {
+				// dangerous-app has Dockerfile at root
+				treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(treeJSON))
+				return
+			}
+			if strings.Contains(r.URL.Path, "/2/") {
+				// safe-app has Dockerfile at root
+				treeJSON := `[
+{"id":"def456","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(treeJSON))
+				return
+			}
 		}
 
 		// Dockerfile fetch endpoint
@@ -78,7 +103,7 @@ func TestContainerScanBasic(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "found dangerous container pattern")
+	assert.Contains(t, output, "Identified")
 	assert.Contains(t, output, "test-user/dangerous-app")
 }
 
@@ -90,7 +115,8 @@ func TestContainerScanOwned(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-			!strings.Contains(r.URL.Path, "/repository/files") {
+			!strings.Contains(r.URL.Path, "/repository/files") &&
+			!strings.Contains(r.URL.Path, "/repository/tree") {
 			// Check if owned=true is in query params
 			if !strings.Contains(r.URL.RawQuery, "owned=true") {
 				w.WriteHeader(http.StatusBadRequest)
@@ -111,6 +137,17 @@ func TestContainerScanOwned(t *testing.T) {
 			w.Header().Set("X-Total-Pages", "1")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(projectsJSON))
+			return
+		}
+
+		// Repository tree endpoint
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
 			return
 		}
 
@@ -137,7 +174,7 @@ func TestContainerScanOwned(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "found dangerous container pattern")
+	assert.Contains(t, output, "Identified")
 }
 
 // TestContainerScanNamespace tests scanning a specific namespace
@@ -175,6 +212,17 @@ func TestContainerScanNamespace(t *testing.T) {
 			return
 		}
 
+		// Repository tree endpoint
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
+			return
+		}
+
 		// Dockerfile endpoint
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			w.WriteHeader(http.StatusOK)
@@ -200,7 +248,7 @@ func TestContainerScanNamespace(t *testing.T) {
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
 	assert.Contains(t, output, "Scanning specific namespace")
-	assert.Contains(t, output, "found dangerous container pattern")
+	assert.Contains(t, output, "Identified")
 }
 
 // TestContainerScanSingleRepo tests scanning a single repository
@@ -212,7 +260,8 @@ func TestContainerScanSingleRepo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Single project endpoint - GitLab API uses /projects/:id where :id can be URL-encoded path
 		if strings.Contains(r.URL.Path, "/api/v4/projects/") &&
-			!strings.Contains(r.URL.Path, "/repository/files") {
+			!strings.Contains(r.URL.Path, "/repository/files") &&
+			!strings.Contains(r.URL.Path, "/repository/tree") {
 			// Return the project when the ID is requested
 			projectJSON := `{
 "id": 1,
@@ -221,6 +270,17 @@ func TestContainerScanSingleRepo(t *testing.T) {
 }`
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(projectJSON))
+			return
+		}
+
+		// Repository tree endpoint
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
 			return
 		}
 
@@ -249,7 +309,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
 	assert.Contains(t, output, "Scanning specific repository")
-	assert.Contains(t, output, "found dangerous container pattern")
+	assert.Contains(t, output, "Identified")
 }
 
 // TestContainerScanNoDockerfile tests handling of projects without Dockerfile
@@ -302,7 +362,7 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 	output := stdout + stderr
 	assert.Contains(t, output, "Container scan complete")
 	// Should not find any dangerous patterns
-	assert.NotContains(t, output, "found dangerous container pattern")
+	assert.NotContains(t, output, "Identified")
 }
 
 // TestContainerScanInvalidURL tests with invalid GitLab URL
@@ -351,7 +411,8 @@ func TestContainerScanWithSearch(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
-			!strings.Contains(r.URL.Path, "/repository/files") {
+			!strings.Contains(r.URL.Path, "/repository/files") &&
+			!strings.Contains(r.URL.Path, "/repository/tree") {
 			// Check for search parameter
 			if !strings.Contains(r.URL.RawQuery, "search=app") {
 				w.WriteHeader(http.StatusBadRequest)
@@ -371,6 +432,17 @@ func TestContainerScanWithSearch(t *testing.T) {
 			w.Header().Set("X-Total-Pages", "1")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(projectsJSON))
+			return
+		}
+
+		// Repository tree endpoint
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
 			return
 		}
 
@@ -397,5 +469,5 @@ func TestContainerScanWithSearch(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "found dangerous container pattern")
+	assert.Contains(t, output, "Identified")
 }

@@ -30,7 +30,42 @@ func IsMultistage(content string) bool {
 	return false
 }
 
+// PatternMatch represents a matched pattern with details
+type PatternMatch struct {
+	PatternName string
+	MatchedLine string
+}
+
+// ScanDockerfileForPatterns scans Dockerfile content and returns all pattern matches
+func ScanDockerfileForPatterns(content string, patterns []Pattern) []PatternMatch {
+	var matches []PatternMatch
+	lines := strings.Split(content, "\n")
+
+	// Check against all patterns
+	for _, pattern := range patterns {
+		// Search through lines to find a match
+		for _, line := range lines {
+			trimmedLine := strings.TrimSpace(line)
+			// Skip empty lines and comments
+			if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+				continue
+			}
+
+			if pattern.Pattern.MatchString(line) {
+				matches = append(matches, PatternMatch{
+					PatternName: pattern.Name,
+					MatchedLine: strings.TrimSpace(line),
+				})
+				break // Only match once per pattern
+			}
+		}
+	}
+
+	return matches
+}
+
 // ScanDockerfileContent checks a Dockerfile's content against patterns and returns matched lines
+// Deprecated: Use ScanDockerfileForPatterns instead
 func ScanDockerfileContent(content string, patterns []Pattern) []string {
 	var matches []string
 	lines := strings.Split(content, "\n")

@@ -1,5 +1,0 @@
-2026-01-20T09:35:57Z info Log level set to info (default)
-2026-01-20T09:35:57Z info Loaded config file file=/home/vscode/.config/pipeleek/pipeleek.yaml
-2026-01-20T09:35:57Z info Loaded container scan patterns pattern_count=4
-2026-01-20T09:35:57Z info Fetching repositories
-2026-01-20T09:35:57Z fatal No search criteria specified. Use --owned, --member, --org, --repo, or --search
