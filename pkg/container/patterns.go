@@ -2,7 +2,6 @@ package container
 
 import (
 	"regexp"
-	"strings"
 )
 
 // DefaultPatterns returns the default dangerous patterns to detect in Dockerfiles
@@ -33,28 +32,4 @@ func DefaultPatterns() []Pattern {
 			Description: "Adds entire working directory into container - may expose sensitive files",
 		},
 	}
-}
-
-// ParseCustomPatterns parses a comma-separated string of patterns into a slice of Pattern objects
-// The patterns are treated as regex strings
-func ParseCustomPatterns(patternsStr string) []Pattern {
-	if strings.TrimSpace(patternsStr) == "" {
-		return []Pattern{}
-	}
-
-	patterns := []Pattern{}
-	for _, p := range strings.Split(patternsStr, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			if regex, err := regexp.Compile(p); err == nil {
-				patterns = append(patterns, Pattern{
-					Name:        p,
-					Pattern:     regex,
-					Severity:    "medium",
-					Description: "Custom dangerous pattern",
-				})
-			}
-		}
-	}
-	return patterns
 }

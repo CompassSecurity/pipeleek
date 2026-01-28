@@ -77,6 +77,8 @@ func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
 	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
 	artipackedCmd.PersistentFlags().BoolVar(&public, "public", false, "Scan public repositories only")
+	artipackedCmd.Flags().StringP("github", "g", "", "GitHub instance URL")
+	artipackedCmd.Flags().StringP("token", "t", "", "GitHub API token")
 	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
 	artipackedCmd.Flags().StringVarP(&organization, "organization", "n", "", "Organization to scan")
 	artipackedCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching repositories")
