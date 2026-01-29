@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/cicd"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/container"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/runners"
@@ -45,6 +46,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(securefiles.NewSecureFilesCmd())
 	glCmd.AddCommand(enum.NewEnumCmd())
 	glCmd.AddCommand(renovate.NewRenovateRootCmd())
+	glCmd.AddCommand(container.NewContainerScanCmd())
 	glCmd.AddCommand(cicd.NewCiCdCmd())
 	glCmd.AddCommand(schedule.NewScheduleCmd())
 
