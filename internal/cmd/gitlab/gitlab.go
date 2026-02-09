@@ -4,6 +4,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/cicd"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/container"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/enum"
+	jobtoken "github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/jobToken"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/runners"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/scan"
@@ -46,6 +47,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(securefiles.NewSecureFilesCmd())
 	glCmd.AddCommand(enum.NewEnumCmd())
 	glCmd.AddCommand(renovate.NewRenovateRootCmd())
+	glCmd.AddCommand(jobtoken.NewJobTokenRootCmd())
 	glCmd.AddCommand(container.NewContainerScanCmd())
 	glCmd.AddCommand(cicd.NewCiCdCmd())
 	glCmd.AddCommand(schedule.NewScheduleCmd())
