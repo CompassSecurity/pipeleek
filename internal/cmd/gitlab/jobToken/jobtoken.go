@@ -46,7 +46,7 @@ func NewJobTokenRootCmd() *cobra.Command {
 	}
 
 	jobTokenCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
-	jobTokenCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
+	jobTokenCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab CI Job Token")
 
 	jobTokenCmd.AddCommand(exploit.NewExploitCmd())
 
