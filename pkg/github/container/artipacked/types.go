@@ -1,6 +1,5 @@
 package artipacked
 
-// ScanOptions contains all options for the container scan command
 type ScanOptions struct {
 	GitHubUrl          string
 	GitHubApiToken     string

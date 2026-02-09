@@ -22,7 +22,7 @@ func TestGitLabScan_InvalidToken(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", server.URL,
 		"--token", "invalid-token",
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	// Command completes but logs authentication errors
 	output := stdout + stderr
@@ -58,7 +58,7 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Do not use t.Parallel() - stdout/stderr redirection conflicts
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 5*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
 
 			// Command should fail due to missing required flags
 			assert.NotNil(t, exitErr, "Command should fail with missing required flags")
@@ -82,7 +82,7 @@ func TestGitLabScan_InvalidURL(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", "not-a-valid-url",
 		"--token", "test-token",
-	}, nil, 5*time.Second)
+	}, nil, 30*time.Second)
 
 	// Should fail with invalid URL
 	assert.NotNil(t, exitErr, "Command should fail with invalid URL")

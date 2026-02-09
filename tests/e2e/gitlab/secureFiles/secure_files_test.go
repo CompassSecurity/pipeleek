@@ -42,6 +42,16 @@ func setupMockGitLabSecureFilesAPI(t *testing.T) string {
 		]`))
 	})
 
+	// Secure files download endpoints
+	mux.HandleFunc("/api/v4/projects/123/secure_files/1/download", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("cert-data"))
+	})
+	mux.HandleFunc("/api/v4/projects/123/secure_files/2/download", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("key-data"))
+	})
+
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server.URL

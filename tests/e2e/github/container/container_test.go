@@ -13,14 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestContainerScanBasic tests basic container scan functionality with a mock GitHub server
 func TestContainerScanBasic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Search repositories endpoint
 		if strings.Contains(r.URL.Path, "/search/repositories") {
 			searchResultJSON := `{
 "total_count": 1,
@@ -43,7 +41,6 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
-		// Search code endpoint (find Dockerfile)
 		if strings.Contains(r.URL.Path, "/search/code") {
 			codeResultJSON := `{
 "total_count": 1,
@@ -68,7 +65,6 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
-		// Get repository endpoint
 		if strings.Contains(r.URL.Path, "/repos/test-user/dangerous-app") &&
 			!strings.Contains(r.URL.Path, "/contents") {
 			repoJSON := `{
@@ -87,7 +83,6 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
-		// Get file contents endpoint - return base64 encoded dangerous Dockerfile
 		if strings.Contains(r.URL.Path, "/repos/test-user/dangerous-app/contents/Dockerfile") {
 			fileJSON := `{
 "name": "Dockerfile",
@@ -125,14 +120,12 @@ func TestContainerScanBasic(t *testing.T) {
 	assert.Contains(t, output, "test-user/dangerous-app")
 }
 
-// TestContainerScanOwned tests scanning only owned repositories
 func TestContainerScanOwned(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Repository search endpoint
 		if strings.Contains(r.URL.Path, "/search/repositories") {
 			searchResultJSON := `{
 "total_count": 1,
@@ -155,7 +148,6 @@ func TestContainerScanOwned(t *testing.T) {
 			return
 		}
 
-		// Code search endpoint
 		if strings.Contains(r.URL.Path, "/search/code") {
 			codeResultJSON := `{
 "total_count": 1,
@@ -173,7 +165,6 @@ func TestContainerScanOwned(t *testing.T) {
 			return
 		}
 
-		// Get repository endpoint
 		if strings.Contains(r.URL.Path, "/repos/test-user/my-repo") &&
 			!strings.Contains(r.URL.Path, "/contents") {
 			repoJSON := `{
@@ -192,7 +183,6 @@ func TestContainerScanOwned(t *testing.T) {
 			return
 		}
 
-		// File contents endpoint
 		if strings.Contains(r.URL.Path, "/repos/test-user/my-repo/contents/Dockerfile") {
 			fileJSON := `{
 "name": "Dockerfile",
@@ -226,14 +216,12 @@ func TestContainerScanOwned(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-// TestContainerScanOrganization tests scanning a specific organization
 func TestContainerScanOrganization(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Organization repositories endpoint
 		if strings.Contains(r.URL.Path, "/orgs/my-org/repos") {
 			reposJSON := `[
 {
@@ -253,7 +241,6 @@ func TestContainerScanOrganization(t *testing.T) {
 			return
 		}
 
-		// Code search endpoint
 		if strings.Contains(r.URL.Path, "/search/code") {
 			codeResultJSON := `{
 "total_count": 1,
@@ -271,7 +258,6 @@ func TestContainerScanOrganization(t *testing.T) {
 			return
 		}
 
-		// File contents endpoint
 		if strings.Contains(r.URL.Path, "/repos/my-org/test-project/contents/Dockerfile") {
 			fileJSON := `{
 "name": "Dockerfile",
@@ -306,14 +292,12 @@ func TestContainerScanOrganization(t *testing.T) {
 	assert.Contains(t, output, "my-org/test-project")
 }
 
-// TestContainerScanSingleRepo tests scanning a single repository
 func TestContainerScanSingleRepo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Single repository endpoint
 		if strings.Contains(r.URL.Path, "/repos/test-user/test-repo") &&
 			!strings.Contains(r.URL.Path, "/contents") {
 			repoJSON := `{
@@ -332,7 +316,6 @@ func TestContainerScanSingleRepo(t *testing.T) {
 			return
 		}
 
-		// Code search endpoint
 		if strings.Contains(r.URL.Path, "/search/code") {
 			codeResultJSON := `{
 "total_count": 1,
@@ -350,7 +333,6 @@ func TestContainerScanSingleRepo(t *testing.T) {
 			return
 		}
 
-		// File contents endpoint
 		if strings.Contains(r.URL.Path, "/repos/test-user/test-repo/contents/Dockerfile") {
 			fileJSON := `{
 "name": "Dockerfile",
@@ -385,14 +367,12 @@ func TestContainerScanSingleRepo(t *testing.T) {
 	assert.Contains(t, output, "test-user/test-repo")
 }
 
-// TestContainerScanNoDockerfile tests handling of repositories without Dockerfile
 func TestContainerScanNoDockerfile(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Repository search endpoint
 		if strings.Contains(r.URL.Path, "/search/repositories") {
 			searchResultJSON := `{
 "total_count": 1,
@@ -415,7 +395,6 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 			return
 		}
 
-		// Code search endpoint - no Dockerfile found
 		if strings.Contains(r.URL.Path, "/search/code") {
 			codeResultJSON := `{
 "total_count": 0,
@@ -446,11 +425,9 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
 	assert.Contains(t, output, "Container scan complete")
-	// Should not find any dangerous patterns
 	assert.NotContains(t, output, "Identified")
 }
 
-// TestContainerScanMissingToken tests when required token is missing
 func TestContainerScanMissingToken(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")

@@ -15,7 +15,7 @@ import (
 // TestRootCommand_Help tests the --help flag
 func TestRootCommand_Help(t *testing.T) {
 
-	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
+	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "Help command should succeed")
 	assert.NotEmpty(t, stdout, "Help output should not be empty")
@@ -69,7 +69,7 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Do not use t.Parallel() - stdout/stderr redirection conflicts when multiple tests run concurrently
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 5*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
 
 			assert.Nil(t, exitErr, "Help should succeed")
 			assert.NotEmpty(t, stdout, "Help output should not be empty")

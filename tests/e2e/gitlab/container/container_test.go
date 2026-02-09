@@ -13,14 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestContainerScanBasic tests basic container scan functionality with a mock GitLab server
 func TestContainerScanBasic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Project listing endpoint
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/repository/files") &&
 			!strings.Contains(r.URL.Path, "/repository/tree") {
@@ -45,10 +43,8 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
-		// Repository tree endpoint - returns list of files in repo
 		if strings.Contains(r.URL.Path, "/repository/tree") {
 			if strings.Contains(r.URL.Path, "/1/") {
-				// dangerous-app has Dockerfile at root
 				treeJSON := `[
 {"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
 ]`
@@ -58,7 +54,6 @@ func TestContainerScanBasic(t *testing.T) {
 				return
 			}
 			if strings.Contains(r.URL.Path, "/2/") {
-				// safe-app has Dockerfile at root
 				treeJSON := `[
 {"id":"def456","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
 ]`
@@ -69,18 +64,14 @@ func TestContainerScanBasic(t *testing.T) {
 			}
 		}
 
-		// Dockerfile fetch endpoint
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			if strings.Contains(r.URL.Path, "/1/") {
-				// dangerous-app has dangerous Dockerfile
 				w.WriteHeader(http.StatusOK)
 				w.Header().Set("Content-Type", "application/json")
-				// Properly encode the response (must be base64)
 				w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","size":150,"content":"RlJPTSB1YnVudHU6MjIuMDQKUlVOIGFwdC1nZXQgdXBkYXRlICYmIGFwdC1nZXQgaW5zdGFsbCAteSBjdXJsCkNPUFkgLiAvYXBwCldPUktESVIgL2FwcApSVU4gLi9pbnN0YWxsLnNoCkVOVFJZUE9JTlQgWyIuL3N0YXJ0LnNoIl0="}`))
 				return
 			}
 			if strings.Contains(r.URL.Path, "/2/") {
-				// safe-app has safe Dockerfile
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","size":100,"content":"RlJPTSB1YnVudHU6MjIuMDQKUlVOIGFwdC1nZXQgdXBkYXRlICYmIGFwdC1nZXQgaW5zdGFsbCAteSBjdXJsCkNPUFkgcmVxdWlyZW1lbnRzLnR4dCAvYXBwLwpXT1JLRElSIC9hcHAKUlVOIHBpcCBpbnN0YWxsIC1yIHJlcXVpcmVtZW50cy50eHQKQ01EIFsicHl0aG9uIiwgImFwcC5weSJd"}`))
 				return
@@ -107,7 +98,6 @@ func TestContainerScanBasic(t *testing.T) {
 	assert.Contains(t, output, "test-user/dangerous-app")
 }
 
-// TestContainerScanOwned tests scanning only owned projects
 func TestContainerScanOwned(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
@@ -117,7 +107,6 @@ func TestContainerScanOwned(t *testing.T) {
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/repository/files") &&
 			!strings.Contains(r.URL.Path, "/repository/tree") {
-			// Check if owned=true is in query params
 			if !strings.Contains(r.URL.RawQuery, "owned=true") {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(`{"message": "owned param required"}`))
@@ -140,7 +129,6 @@ func TestContainerScanOwned(t *testing.T) {
 			return
 		}
 
-		// Repository tree endpoint
 		if strings.Contains(r.URL.Path, "/repository/tree") {
 			treeJSON := `[
 {"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
@@ -177,14 +165,12 @@ func TestContainerScanOwned(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-// TestContainerScanNamespace tests scanning a specific namespace
 func TestContainerScanNamespace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Group endpoint
 		if strings.Contains(r.URL.Path, "/api/v4/groups/my-group") &&
 			!strings.Contains(r.URL.Path, "/projects") {
 			groupJSON := `{"id": 10, "name": "my-group", "path": "my-group"}`
@@ -193,7 +179,6 @@ func TestContainerScanNamespace(t *testing.T) {
 			return
 		}
 
-		// Group projects endpoint
 		if strings.Contains(r.URL.Path, "/api/v4/groups") &&
 			strings.Contains(r.URL.Path, "/projects") {
 			projectsJSON := `[
@@ -212,7 +197,6 @@ func TestContainerScanNamespace(t *testing.T) {
 			return
 		}
 
-		// Repository tree endpoint
 		if strings.Contains(r.URL.Path, "/repository/tree") {
 			treeJSON := `[
 {"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
@@ -223,7 +207,6 @@ func TestContainerScanNamespace(t *testing.T) {
 			return
 		}
 
-		// Dockerfile endpoint
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","content":"RlJPTSBhbHBpbmUKQ09QWSAuIC90ZXN0CkNNRCBbXCIvYmluL3NoXCJd"}`))
@@ -251,18 +234,16 @@ func TestContainerScanNamespace(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-// TestContainerScanSingleRepo tests scanning a single repository
 func TestContainerScanSingleRepo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Single project endpoint - GitLab API uses /projects/:id where :id can be URL-encoded path
+		// GitLab accepts URL-encoded path as the project ID.
 		if strings.Contains(r.URL.Path, "/api/v4/projects/") &&
 			!strings.Contains(r.URL.Path, "/repository/files") &&
 			!strings.Contains(r.URL.Path, "/repository/tree") {
-			// Return the project when the ID is requested
 			projectJSON := `{
 "id": 1,
 "path_with_namespace": "test-user/test-repo",
@@ -273,7 +254,6 @@ func TestContainerScanSingleRepo(t *testing.T) {
 			return
 		}
 
-		// Repository tree endpoint
 		if strings.Contains(r.URL.Path, "/repository/tree") {
 			treeJSON := `[
 {"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
@@ -284,7 +264,6 @@ func TestContainerScanSingleRepo(t *testing.T) {
 			return
 		}
 
-		// Dockerfile endpoint
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","content":"RlJPTSB1YnVudHUKQUREIC4gL2FwcApSVU4gbWFrZSBidWlsZA=="}`))
@@ -312,7 +291,6 @@ func TestContainerScanSingleRepo(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-// TestContainerScanNoDockerfile tests handling of projects without Dockerfile
 func TestContainerScanNoDockerfile(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
@@ -337,7 +315,6 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 			return
 		}
 
-		// No Dockerfile found
 		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(`{"message": "404 File Not Found"}`))
@@ -361,11 +338,9 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
 	assert.Contains(t, output, "Container scan complete")
-	// Should not find any dangerous patterns
 	assert.NotContains(t, output, "Identified")
 }
 
-// TestContainerScanInvalidURL tests with invalid GitLab URL
 func TestContainerScanInvalidURL(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
@@ -380,11 +355,9 @@ func TestContainerScanInvalidURL(t *testing.T) {
 	t.Logf("STDOUT:\n%s", stdout)
 	t.Logf("STDERR:\n%s", stderr)
 
-	// Should fail due to network error (unreachable host)
 	assert.NotNil(t, exitErr)
 }
 
-// TestContainerScanMissingToken tests when required token is missing
 func TestContainerScanMissingToken(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
@@ -403,7 +376,6 @@ func TestContainerScanMissingToken(t *testing.T) {
 	assert.Contains(t, output, "required configuration missing")
 }
 
-// TestContainerScanWithSearch tests filtering projects by search query
 func TestContainerScanWithSearch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
@@ -413,7 +385,6 @@ func TestContainerScanWithSearch(t *testing.T) {
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/repository/files") &&
 			!strings.Contains(r.URL.Path, "/repository/tree") {
-			// Check for search parameter
 			if !strings.Contains(r.URL.RawQuery, "search=app") {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -435,7 +406,6 @@ func TestContainerScanWithSearch(t *testing.T) {
 			return
 		}
 
-		// Repository tree endpoint
 		if strings.Contains(r.URL.Path, "/repository/tree") {
 			treeJSON := `[
 {"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
