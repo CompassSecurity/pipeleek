@@ -1,4 +1,4 @@
-package container
+package artipacked
 
 import (
 	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
