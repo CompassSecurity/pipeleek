@@ -6,7 +6,7 @@ toolchain go1.25.1
 
 require (
 	atomicgo.dev/keyboard v0.2.9
-	code.gitea.io/sdk/gitea v0.22.1
+	code.gitea.io/sdk/gitea v0.23.2
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/docker/go-units v0.5.0
 	github.com/gofri/go-github-ratelimit/v2 v2.0.2
