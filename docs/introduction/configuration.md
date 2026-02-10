@@ -73,11 +73,15 @@ gitlab:
 
   variables: {} # gl variables (inherits url/token)
 
+  jobToken:
+    exploit:
+      project: group/project # gl jobToken exploit --project
+
   vuln: {} # gl vuln (inherits url/token)
 
   runners:
     list: {} # gl runners list (inherits url/token)
-    
+
     exploit:
       tags: [docker, linux] # gl runners exploit --tags
       shell: bash # gl runners exploit --shell
@@ -94,9 +98,9 @@ gitlab:
       search: "" # gl renovate enum --search
       fast: false # gl renovate enum --fast
       dump: false # gl renovate enum --dump
-    
+
     autodiscovery: {} # gl renovate autodiscovery (inherits url/token)
-    
+
     privesc: {} # gl renovate privesc (inherits url/token)
 
   register:

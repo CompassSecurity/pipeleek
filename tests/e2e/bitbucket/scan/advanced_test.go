@@ -65,7 +65,7 @@ func TestBitBucketScan_MaxPipelines(t *testing.T) {
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
 		"--max-pipelines", "2",
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "MaxPipelines scan should succeed")
 

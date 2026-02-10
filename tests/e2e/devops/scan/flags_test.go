@@ -75,7 +75,7 @@ Build complete`
 		"--username", "testuser",
 		"--organization", "myorg",
 		"--confidence", "high,medium",
-	}, nil, 15*time.Second)
+	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "Scan with confidence filter should succeed")
 

@@ -267,26 +267,26 @@ func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err 
 			proj = nil
 		}
 	}()
-	
+
 	// Create temporary directory with proper project structure for actionlint initialization
 	// This prevents nil pointer dereferences when actionlint auto-detects project settings
 	tmpDir, err := os.MkdirTemp("", "actionlint-*")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	
+
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0750); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create workflows directory: %w", err)
 	}
-	
+
 	project, err := actionlint.NewProject(tmpDir)
 	if err != nil {
 		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create actionlint project: %w", err)
 	}
-	
+
 	opts := &actionlint.LinterOptions{
 		LogWriter: io.Discard,
 	}
@@ -295,7 +295,7 @@ func safeNewActionLinter() (l *actionlint.Linter, proj *actionlint.Project, err 
 		_ = os.RemoveAll(tmpDir)
 		return nil, nil, fmt.Errorf("failed to create linter: %w", err)
 	}
-	
+
 	return linter, project, nil
 }
 

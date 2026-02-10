@@ -25,8 +25,8 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":   "github.url",
-				"token":    "github.token",
+				"github":    "github.url",
+				"token":     "github.token",
 				"repo-name": "github.renovate.autodiscovery.repo_name",
 				"username":  "github.renovate.autodiscovery.username",
 			}); err != nil {

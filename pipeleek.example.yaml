@@ -53,6 +53,11 @@ gitlab:
   # variables - Print CI/CD variables
   variables: {} # Inherits gitlab.url and gitlab.token
 
+  # jobToken exploit - Validate job token and attempt repo write
+  jobToken:
+    exploit:
+      project: "group/project" # Target project path
+
   # vuln - Check GitLab version vulnerabilities
   vuln: {} # Inherits gitlab.url and gitlab.token
 

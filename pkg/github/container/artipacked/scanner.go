@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// RunScan performs the container scan with the given options
 func RunScan(opts ScanOptions, client *github.Client) {
 	ctx := context.Background()
 
@@ -80,7 +79,6 @@ func fetchRepositories(ctx context.Context, client *github.Client, patterns []sh
 	if opts.ProjectSearchQuery != "" {
 		query = opts.ProjectSearchQuery
 	} else {
-		// Default query based on options
 		if opts.Owned {
 			query = "user:@me"
 		} else if opts.Member {
@@ -88,7 +86,6 @@ func fetchRepositories(ctx context.Context, client *github.Client, patterns []sh
 		}
 	}
 
-	// Add public filter if requested
 	if opts.Public {
 		if query != "" {
 			query += " is:public"
@@ -118,7 +115,6 @@ func scanRepository(ctx context.Context, client *github.Client, repo *github.Rep
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
-	// Find all Dockerfiles in the repository recursively
 	dockerfiles := findDockerfiles(ctx, client, owner, repoName)
 
 	if len(dockerfiles) == 0 {
@@ -128,33 +124,28 @@ func scanRepository(ctx context.Context, client *github.Client, repo *github.Rep
 
 	log.Debug().Str("repository", repo.GetFullName()).Int("dockerfile_count", len(dockerfiles)).Msg("Found Dockerfiles")
 
-	// Scan all found Dockerfiles
 	for _, dockerfile := range dockerfiles {
 		isMultistage := checkIsMultistage(dockerfile.Content)
 		scanDockerfile(ctx, client, repo, dockerfile.Content, dockerfile.Path, patterns, isMultistage)
 	}
 }
 
-// DockerfileMatch represents a found Dockerfile
 type DockerfileMatch struct {
 	Path    string
 	Content *github.RepositoryContent
 }
 
-// findDockerfiles recursively searches for all Dockerfile/Containerfile files in the repository
 func findDockerfiles(ctx context.Context, client *github.Client, owner, repo string) []DockerfileMatch {
 	var dockerfiles []DockerfileMatch
 	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
 
 	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
 
-	// Use GitHub Search API to find files matching Dockerfile patterns
 	for _, name := range dockerfileNames {
 		if len(dockerfiles) >= maxDockerfiles {
 			break
 		}
 
-		// Search for this filename in the repository
 		query := strings.Join([]string{
 			"repo:" + owner + "/" + repo,
 			"filename:" + name,
@@ -175,7 +166,6 @@ func findDockerfiles(ctx context.Context, client *github.Client, owner, repo str
 			continue
 		}
 
-		// Fetch each found file's content
 		for _, result := range results.CodeResults {
 			if len(dockerfiles) >= maxDockerfiles {
 				break
@@ -200,7 +190,6 @@ func findDockerfiles(ctx context.Context, client *github.Client, owner, repo str
 	return dockerfiles
 }
 
-// checkIsMultistage checks if the Dockerfile uses multistage builds
 func checkIsMultistage(fileContent *github.RepositoryContent) bool {
 	content, err := fileContent.GetContent()
 	if err != nil {
@@ -220,7 +209,6 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 		return
 	}
 
-	// Use shared scanner to find pattern matches
 	matches := sharedcontainer.ScanDockerfileForPatterns(content, patterns)
 
 	for _, match := range matches {
@@ -234,7 +222,6 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 			IsMultistage:   isMultistage,
 		}
 
-		// Fetch registry metadata for the most recent container
 		finding.RegistryMetadata = fetchRegistryMetadata(ctx, client, repo)
 
 		logFinding(finding)
@@ -248,7 +235,6 @@ func logFinding(finding sharedcontainer.Finding) {
 		Str("content", finding.LineContent).
 		Bool("is_multistage", finding.IsMultistage)
 
-	// Add registry metadata if available
 	if finding.RegistryMetadata != nil {
 		logEvent = logEvent.
 			Str("registry_tag", finding.RegistryMetadata.TagName).
@@ -258,12 +244,10 @@ func logFinding(finding sharedcontainer.Finding) {
 	logEvent.Msg("Identified")
 }
 
-// fetchRegistryMetadata retrieves metadata about the most recent container image in the repository's registry
 func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *github.Repository) *sharedcontainer.RegistryMetadata {
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
-	// List container packages for the repository
 	packages, _, err := client.Organizations.ListPackages(ctx, owner, &github.PackageListOptions{
 		PackageType: github.Ptr("container"),
 	})
@@ -277,7 +261,6 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 		return nil
 	}
 
-	// Find package matching the repository name
 	var targetPackage *github.Package
 	for _, pkg := range packages {
 		if strings.Contains(strings.ToLower(pkg.GetName()), strings.ToLower(repoName)) {
@@ -287,11 +270,9 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 	}
 
 	if targetPackage == nil {
-		// If no exact match, use the first package
 		targetPackage = packages[0]
 	}
 
-	// Get package versions (tags)
 	versions, _, err := client.Organizations.PackageGetAllVersions(ctx, owner, "container", targetPackage.GetName(), &github.PackageListOptions{
 		State: github.Ptr("active"),
 	})
@@ -300,7 +281,6 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 		return nil
 	}
 
-	// Find the most recent version
 	var mostRecentVersion *github.PackageVersion
 	for _, ver := range versions {
 		if ver.GetCreatedAt().Time.After(mostRecentVersion.GetCreatedAt().Time) || mostRecentVersion == nil {
@@ -339,6 +319,5 @@ func extractTag(version *github.PackageVersion) string {
 	if len(version.Metadata.Container.Tags) > 0 {
 		return version.Metadata.Container.Tags[0]
 	}
-	// Fallback to version name
 	return version.GetName()
 }

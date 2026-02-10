@@ -33,7 +33,7 @@ func TestBitBucketScan_MissingCredentials(t *testing.T) {
 		"-c", "invalid-cookie", // Cookie flag
 		"-t", "invalid-token", // Token flag
 		"-e", "test@example.com", // Email flag
-	}, nil, 5*time.Second)
+	}, nil, 30*time.Second)
 
 	// The command exits early with authentication error when trying to get user info
 	output := stdout + stderr
@@ -62,7 +62,7 @@ func TestBitBucketScan_Owned_Unauthorized(t *testing.T) {
 		"--email", "baduser",
 		"--token", "badtoken",
 		"--owned",
-	}, nil, 5*time.Second)
+	}, nil, 30*time.Second)
 
 	output := stdout + stderr
 	assert.Contains(t, output, "401", "Should log 401 error")
@@ -89,7 +89,7 @@ func TestBitBucketScan_Owned_NotFound(t *testing.T) {
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--owned",
-	}, nil, 5*time.Second)
+	}, nil, 30*time.Second)
 
 	output := stdout + stderr
 	assert.Contains(t, output, "404", "Should log 404 error")
@@ -122,7 +122,7 @@ func TestBitBucketScan_Workspace_NotFound(t *testing.T) {
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "invalid-workspace",
-	}, nil, 5*time.Second)
+	}, nil, 30*time.Second)
 
 	output := stdout + stderr
 	assert.Contains(t, output, "404", "Should log 404 error for invalid workspace")

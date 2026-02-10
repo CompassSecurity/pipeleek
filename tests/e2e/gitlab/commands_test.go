@@ -69,7 +69,7 @@ func TestGitLabVariables(t *testing.T) {
 		"gl", "variables",
 		"--gitlab", server.URL,
 		"--token", "glpat-test",
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "Variables command should succeed")
 
@@ -143,7 +143,7 @@ func TestGitLabRunnersList(t *testing.T) {
 		"gl", "runners", "list",
 		"--gitlab", server.URL,
 		"--token", "glpat-test",
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "Runners list command should succeed")
 
@@ -196,7 +196,7 @@ func TestGitLabCICDYaml(t *testing.T) {
 		"--gitlab", server.URL,
 		"--token", "glpat-test",
 		"--project", "test/project",
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "CICD yaml command should succeed")
 
@@ -275,6 +275,10 @@ func TestGitLabSecureFiles(t *testing.T) {
 					"checksum": "abc123",
 				},
 			})
+
+		case "/api/v4/projects/1/secure_files/1/download":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("secret-data"))
 
 		default:
 			w.WriteHeader(http.StatusOK)

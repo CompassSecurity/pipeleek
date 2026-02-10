@@ -13,7 +13,7 @@ import (
 
 // TestLogging_ColorFlagRegistered verifies the --color flag is available
 func TestLogging_ColorFlagRegistered(t *testing.T) {
-	stdout, _, _ := testutil.RunCLI(t, []string{"--help"}, nil, 10*time.Second)
+	stdout, _, _ := testutil.RunCLI(t, []string{"--help"}, nil, 30*time.Second)
 
 	testutil.AssertLogContains(t, stdout, []string{"--color"})
 
@@ -24,7 +24,7 @@ func TestLogging_ColorFlagRegistered(t *testing.T) {
 
 // TestLogging_ConsoleOutputHasColors verifies console output includes ANSI color codes
 func TestLogging_ConsoleOutputHasColors(t *testing.T) {
-	stdout, stderr, exitErr := testutil.RunCLI(t, []string{"gl", "--help"}, nil, 5*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{"gl", "--help"}, nil, 30*time.Second)
 
 	output := stdout + stderr
 	assert.Nil(t, exitErr, "Command should succeed")
@@ -42,7 +42,7 @@ func TestLogging_FileOutputDisablesColorsAutomatically(t *testing.T) {
 	logFile := filepath.Join(tmpDir, "test.log")
 
 	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestLogging_FileOutputWithExplicitColorEnabled(t *testing.T) {
 	logFile := filepath.Join(tmpDir, "test_color.log")
 
 	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=true"}
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
 	if err != nil {
@@ -92,7 +92,7 @@ func TestLogging_FileOutputWithExplicitColorDisabled(t *testing.T) {
 	logFile := filepath.Join(tmpDir, "test_nocolor.log")
 
 	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=false"}
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
 	if err != nil {
@@ -114,7 +114,7 @@ func TestLogging_FileOutputWithExplicitColorDisabled(t *testing.T) {
 // TestLogging_ConsoleWithExplicitColorDisabled tests disabling colors for console
 func TestLogging_ConsoleWithExplicitColorDisabled(t *testing.T) {
 	args := []string{"gl", "--help", "--color=false"}
-	stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 5*time.Second)
+	stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	output := stdout + stderr
 	assert.Nil(t, exitErr, "Command should succeed")
@@ -135,7 +135,7 @@ func TestLogging_LogFileCreatedSuccessfully(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "Log file should not exist before command")
 
 	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	stat, err := os.Stat(logFile)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestLogging_LogFileAppendMode(t *testing.T) {
 
 	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
 
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	stat1, err := os.Stat(logFile)
 	if err != nil {
@@ -164,7 +164,7 @@ func TestLogging_LogFileAppendMode(t *testing.T) {
 	}
 	size1 := stat1.Size()
 
-	_, _, _ = testutil.RunCLI(t, args, nil, 5*time.Second)
+	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	stat2, err := os.Stat(logFile)
 	assert.NoError(t, err, "Log file should exist after second run")

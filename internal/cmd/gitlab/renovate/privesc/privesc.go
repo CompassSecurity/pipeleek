@@ -23,11 +23,11 @@ func NewPrivescCmd() *cobra.Command {
 		Example: `pipeleek gl renovate privesc --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name mygroup/myproject --renovate-branches-regex 'renovate/.*'`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":                "gitlab.url",
-				"token":                 "gitlab.token",
-				"renovate-branches-regex":"gitlab.renovate.privesc.renovate_branches_regex",
-				"repo-name":             "gitlab.renovate.privesc.repo_name",
-				"monitoring-interval":   "gitlab.renovate.privesc.monitoring_interval",
+				"gitlab":                  "gitlab.url",
+				"token":                   "gitlab.token",
+				"renovate-branches-regex": "gitlab.renovate.privesc.renovate_branches_regex",
+				"repo-name":               "gitlab.renovate.privesc.repo_name",
+				"monitoring-interval":     "gitlab.renovate.privesc.monitoring_interval",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
@@ -50,7 +50,7 @@ func NewPrivescCmd() *cobra.Command {
 			pkgrenovate.RunExploit(gitlabUrl, gitlabApiToken, privescRepoName, privescRenovateBranchesRegex, privescMonitoringInterval)
 		},
 	}
-	
+
 	privescCmd.Flags().StringVarP(&privescRenovateBranchesRegex, "renovate-branches-regex", "b", "renovate/.*", "The branch name regex expression to match the Renovate Bot branch names (default: 'renovate/.*')")
 	privescCmd.Flags().StringVarP(&privescRepoName, "repo-name", "r", "", "The repository to target")
 	privescCmd.Flags().StringVarP(&privescMonitoringInterval, "monitoring-interval", "", "1s", "The interval to check for new Renovate branches (default: '1s')")

