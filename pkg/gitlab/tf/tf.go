@@ -41,7 +41,7 @@ func ScanTerraformStates(options TFOptions) {
 		log.Info().Msg("TruffleHog verification is disabled")
 	}
 
-	if err := os.MkdirAll(options.OutputDir, 0o755); err != nil {
+	if err := os.MkdirAll(options.OutputDir, 0o750); err != nil {
 		log.Fatal().Err(err).Str("dir", options.OutputDir).Msg("Failed to create output directory")
 	}
 
