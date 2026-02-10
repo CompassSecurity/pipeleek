@@ -22,3 +22,14 @@ func AddCommonScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions, maxA
 	cmd.Flags().DurationVarP(&opts.HitTimeout, "hit-timeout", "", 60*time.Second,
 		"Maximum time to wait for hit detection per scan item (e.g., 30s, 2m, 1h)")
 }
+
+// AddCommonScanFlagsNoArtifacts adds standard scan flags excluding artifact and ownership filters.
+func AddCommonScanFlagsNoArtifacts(cmd *cobra.Command, opts *config.CommonScanOptions) {
+	cmd.Flags().IntVarP(&opts.MaxScanGoRoutines, "threads", "", 4, "Number of concurrent threads for scanning")
+	cmd.Flags().BoolVarP(&opts.TruffleHogVerification, "truffle-hog-verification", "", true,
+		"Enable TruffleHog credential verification to actively test found credentials and only report verified ones (enabled by default, disable with --truffle-hog-verification=false)")
+	cmd.Flags().StringSliceVarP(&opts.ConfidenceFilter, "confidence", "", []string{},
+		"Filter for confidence level, separate by comma if multiple. See readme for more info.")
+	cmd.Flags().DurationVarP(&opts.HitTimeout, "hit-timeout", "", 60*time.Second,
+		"Maximum time to wait for hit detection per scan item (e.g., 30s, 2m, 1h)")
+}
