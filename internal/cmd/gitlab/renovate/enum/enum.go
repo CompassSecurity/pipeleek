@@ -27,17 +27,17 @@ func NewEnumCmd() *cobra.Command {
 		Short: "Enumerate Renovate configurations",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":  "gitlab.url",
-				"token":   "gitlab.token",
-				"owned":   "gitlab.renovate.enum.owned",
-				"member":  "gitlab.renovate.enum.member",
-				"repo":    "gitlab.renovate.enum.repo",
-				"namespace":"gitlab.renovate.enum.namespace",
-				"search":  "gitlab.renovate.enum.search",
-				"fast":    "gitlab.renovate.enum.fast",
-				"dump":    "gitlab.renovate.enum.dump",
-				"page":    "gitlab.renovate.enum.page",
-				"order-by":"gitlab.renovate.enum.order_by",
+				"gitlab":                         "gitlab.url",
+				"token":                          "gitlab.token",
+				"owned":                          "gitlab.renovate.enum.owned",
+				"member":                         "gitlab.renovate.enum.member",
+				"repo":                           "gitlab.renovate.enum.repo",
+				"namespace":                      "gitlab.renovate.enum.namespace",
+				"search":                         "gitlab.renovate.enum.search",
+				"fast":                           "gitlab.renovate.enum.fast",
+				"dump":                           "gitlab.renovate.enum.dump",
+				"page":                           "gitlab.renovate.enum.page",
+				"order-by":                       "gitlab.renovate.enum.order_by",
 				"extend-renovate-config-service": "gitlab.renovate.enum.extend_renovate_config_service",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")

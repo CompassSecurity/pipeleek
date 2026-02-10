@@ -22,11 +22,11 @@ func NewPrivescCmd() *cobra.Command {
 		Example: `pipeleek gh renovate privesc --token ghp_xxxxx --github https://api.github.com --repo-name owner/myproject --renovate-branches-regex 'renovate/.*'`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":               "github.url",
-				"token":                "github.token",
+				"github":                  "github.url",
+				"token":                   "github.token",
 				"renovate-branches-regex": "github.renovate.privesc.renovate_branches_regex",
-				"repo-name":            "github.renovate.privesc.repo_name",
-				"monitoring-interval":  "github.renovate.privesc.monitoring_interval",
+				"repo-name":               "github.renovate.privesc.repo_name",
+				"monitoring-interval":     "github.renovate.privesc.monitoring_interval",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}

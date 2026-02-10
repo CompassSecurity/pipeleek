@@ -47,17 +47,17 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --re
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":  "github.url",
-				"token":   "github.token",
-				"owned":   "github.renovate.enum.owned",
-				"member":  "github.renovate.enum.member",
-				"repo":    "github.renovate.enum.repo",
-				"org":     "github.renovate.enum.org",
-				"search":  "github.renovate.enum.search",
-				"fast":    "github.renovate.enum.fast",
-				"dump":    "github.renovate.enum.dump",
-				"page":    "github.renovate.enum.page",
-				"order-by":"github.renovate.enum.order_by",
+				"github":                         "github.url",
+				"token":                          "github.token",
+				"owned":                          "github.renovate.enum.owned",
+				"member":                         "github.renovate.enum.member",
+				"repo":                           "github.renovate.enum.repo",
+				"org":                            "github.renovate.enum.org",
+				"search":                         "github.renovate.enum.search",
+				"fast":                           "github.renovate.enum.fast",
+				"dump":                           "github.renovate.enum.dump",
+				"page":                           "github.renovate.enum.page",
+				"order-by":                       "github.renovate.enum.order_by",
 				"extend-renovate-config-service": "github.renovate.enum.extend_renovate_config_service",
 			}); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
