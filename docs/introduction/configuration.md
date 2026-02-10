@@ -127,6 +127,10 @@ github:
   url: https://api.github.com
   token: ghp_xxxxxxxxxxxxxxxxxxxx
 
+  jobToken:
+    exploit:
+      repo: owner/repo # gh jobToken exploit --repo
+
   scan:
     owner: myorg
     repo: myrepo
