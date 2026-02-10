@@ -48,7 +48,7 @@ func TestGiteaEnum(t *testing.T) {
 		case "/api/v1/user/orgs":
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 10, "username": "my-org"},
+				{"id": 10, "name": "my-org", "username": "my-org"},
 			})
 
 		default:

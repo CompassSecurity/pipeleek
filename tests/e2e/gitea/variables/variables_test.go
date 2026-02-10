@@ -38,7 +38,7 @@ func TestGiteaVariables_Success(t *testing.T) {
 			// Return list of organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "test-org"},
+				{"id": 1, "name": "test-org", "username": "test-org"},
 			})
 
 		case "/api/v1/orgs/test-org/actions/variables":
@@ -121,7 +121,7 @@ func TestGiteaVariables_Pagination(t *testing.T) {
 			// Return list of organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "test-org"},
+				{"id": 1, "name": "test-org", "username": "test-org"},
 			})
 
 		case "/api/v1/orgs/test-org/actions/variables":
@@ -212,7 +212,7 @@ func TestGiteaVariables_EmptyResult(t *testing.T) {
 			// Return one organization
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "empty-org"},
+				{"id": 1, "name": "empty-org", "username": "empty-org"},
 			})
 
 		case "/api/v1/orgs/empty-org/actions/variables":
@@ -338,9 +338,9 @@ func TestGiteaVariables_MultipleOrganizations(t *testing.T) {
 			// Return multiple organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "org-one"},
-				{"id": 2, "username": "org-two"},
-				{"id": 3, "username": "org-three"},
+				{"id": 1, "name": "org-one", "username": "org-one"},
+				{"id": 2, "name": "org-two", "username": "org-two"},
+				{"id": 3, "name": "org-three", "username": "org-three"},
 			})
 
 		case "/api/v1/orgs/org-one/actions/variables":

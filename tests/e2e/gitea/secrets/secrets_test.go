@@ -38,7 +38,7 @@ func TestGiteaSecrets_Success(t *testing.T) {
 			// Return list of organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "test-org"},
+				{"id": 1, "name": "test-org", "username": "test-org"},
 			})
 
 		case "/api/v1/orgs/test-org/actions/secrets":
@@ -115,7 +115,7 @@ func TestGiteaSecrets_OrgPagination(t *testing.T) {
 			// Return list of organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "test-org"},
+				{"id": 1, "name": "test-org", "username": "test-org"},
 			})
 
 		case "/api/v1/orgs/test-org/actions/secrets":
@@ -390,6 +390,7 @@ func TestGiteaSecrets_MultipleOrgsPagination(t *testing.T) {
 				for i := 1; i <= 50; i++ {
 					orgs = append(orgs, map[string]interface{}{
 						"id":       i,
+						"name":     "org-" + strconv.Itoa(i),
 						"username": "org-" + strconv.Itoa(i),
 					})
 				}
@@ -397,6 +398,7 @@ func TestGiteaSecrets_MultipleOrgsPagination(t *testing.T) {
 				for i := 51; i <= 80; i++ {
 					orgs = append(orgs, map[string]interface{}{
 						"id":       i,
+						"name":     "org-" + strconv.Itoa(i),
 						"username": "org-" + strconv.Itoa(i),
 					})
 				}
@@ -466,7 +468,7 @@ func TestGiteaSecrets_EmptyResult(t *testing.T) {
 			// Return one organization
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "empty-org"},
+				{"id": 1, "name": "empty-org", "username": "empty-org"},
 			})
 
 		case "/api/v1/orgs/empty-org/actions/secrets":
@@ -589,9 +591,9 @@ func TestGiteaSecrets_MultipleOrganizations(t *testing.T) {
 			// Return multiple organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "org-one"},
-				{"id": 2, "username": "org-two"},
-				{"id": 3, "username": "org-three"},
+				{"id": 1, "name": "org-one", "username": "org-one"},
+				{"id": 2, "name": "org-two", "username": "org-two"},
+				{"id": 3, "name": "org-three", "username": "org-three"},
 			})
 
 		case "/api/v1/orgs/org-one/actions/secrets":
@@ -757,8 +759,8 @@ func TestGiteaSecrets_PartialFailure(t *testing.T) {
 			// Return two organizations
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "username": "good-org"},
-				{"id": 2, "username": "bad-org"},
+				{"id": 1, "name": "good-org", "username": "good-org"},
+				{"id": 2, "name": "bad-org", "username": "bad-org"},
 			})
 
 		case "/api/v1/orgs/good-org/actions/secrets":
