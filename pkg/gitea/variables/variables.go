@@ -45,8 +45,8 @@ func ListAllVariables(cfg Config) error {
 	log.Info().Int("count", len(orgs)).Msg("Found organizations")
 
 	for _, org := range orgs {
-		if err := fetchOrgVariables(ctx.client, org.UserName); err != nil {
-			log.Warn().Err(err).Str("org", org.UserName).Msg("Failed to fetch organization variables")
+		if err := fetchOrgVariables(ctx.client, org.Name); err != nil {
+			log.Warn().Err(err).Str("org", org.Name).Msg("Failed to fetch organization variables")
 		}
 	}
 

@@ -54,15 +54,15 @@ func RunEnum(giteaURL, apiToken string) error {
 		}
 
 		for _, org := range orgs {
-			orgPerms, _, err := client.GetOrgPermissions(org.UserName, user.UserName)
+			orgPerms, _, err := client.GetOrgPermissions(org.Name, user.UserName)
 
 			if err != nil {
-				log.Debug().Str("org", org.UserName).Err(err).Msg("Failed to get org permissions")
+				log.Debug().Str("org", org.Name).Err(err).Msg("Failed to get org permissions")
 			}
 
 			logEvent := log.Warn().
 				Int64("id", org.ID).
-				Str("name", org.UserName).
+				Str("name", org.Name).
 				Str("fullName", org.FullName).
 				Str("website", org.Website).
 				Str("description", org.Description).
@@ -84,7 +84,7 @@ func RunEnum(giteaURL, apiToken string) error {
 
 			repoPage := 1
 			for {
-				orgRepos, repoResp, err := client.ListOrgRepos(org.UserName, gitea.ListOrgReposOptions{
+				orgRepos, repoResp, err := client.ListOrgRepos(org.Name, gitea.ListOrgReposOptions{
 					ListOptions: gitea.ListOptions{
 						Page:     repoPage,
 						PageSize: 50,
@@ -92,7 +92,7 @@ func RunEnum(giteaURL, apiToken string) error {
 				})
 
 				if err != nil {
-					log.Debug().Str("org", org.UserName).Err(err).Msg("Failed to list org repositories")
+					log.Debug().Str("org", org.Name).Err(err).Msg("Failed to list org repositories")
 					break
 				}
 
