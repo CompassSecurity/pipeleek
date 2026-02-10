@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -97,7 +98,9 @@ func TestTFBasic(t *testing.T) {
 	statePath := filepath.Join(tmpDir, "1_default.tfstate")
 	info, err := os.Stat(statePath)
 	require.NoError(t, err, "state file should exist")
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
 }
 
 // TestTFNoState tests the tf command when no Terraform state is found
