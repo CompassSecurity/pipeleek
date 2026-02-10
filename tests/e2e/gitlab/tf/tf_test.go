@@ -3,6 +3,7 @@
 package tf
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,6 +26,18 @@ func TestTFBasic(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/graphql" && r.Method == "POST" {
+			body, _ := io.ReadAll(r.Body)
+			if strings.Contains(string(body), "test-user/test-project") {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":{"project":{"terraformStates":{"nodes":[{"name":"default"}]}}}}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"project":{"terraformStates":{"nodes":[]}}}}`))
+			return
+		}
+
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/terraform/state") {
 			projectsJSON := `[
@@ -80,6 +93,11 @@ func TestTFBasic(t *testing.T) {
 	assert.Contains(t, stdout+stderr, "Found Terraform states")
 	assert.Contains(t, stdout+stderr, "Downloaded Terraform state")
 	assert.Contains(t, stdout+stderr, "Terraform state scan complete")
+
+	statePath := filepath.Join(tmpDir, "1_default.tfstate")
+	info, err := os.Stat(statePath)
+	require.NoError(t, err, "state file should exist")
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 }
 
 // TestTFNoState tests the tf command when no Terraform state is found
@@ -91,6 +109,12 @@ func TestTFNoState(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/graphql" && r.Method == "POST" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"project":{"terraformStates":{"nodes":[]}}}}`))
+			return
+		}
+
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/terraform/state") {
 			w.Header().Set("X-Page", "1")
@@ -174,6 +198,12 @@ func TestTFOutputDir(t *testing.T) {
 	outputDir := filepath.Join(tmpBase, "nested", "output", "dir")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/graphql" && r.Method == "POST" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data":{"project":{"terraformStates":{"nodes":[]}}}}`))
+			return
+		}
+
 		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
 			!strings.Contains(r.URL.Path, "/terraform/state") {
 			w.Header().Set("X-Page", "1")

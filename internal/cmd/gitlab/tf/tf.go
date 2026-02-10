@@ -42,10 +42,7 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --c
 		Run: tfRun,
 	}
 
-	// Command-specific flags
 	tfCmd.Flags().StringVar(&options.OutputDir, "output-dir", "./terraform-states", "Directory to save downloaded state files")
-
-	// Common scan flags (threads, verification, confidence, hit-timeout, etc.)
 	flags.AddCommonScanFlags(tfCmd, &options.CommonScanOptions, &maxArtifactSize)
 
 	return tfCmd
@@ -74,7 +71,6 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
-	// HitTimeout comes from flags via AddCommonScanFlags; keep as-is
 
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")

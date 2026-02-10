@@ -1,16 +1,15 @@
 package tf
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
 	"github.com/rs/zerolog/log"
@@ -20,6 +19,7 @@ import (
 type TFOptions struct {
 	GitlabUrl              string
 	GitlabApiToken         string
+	GitlabClient           *gitlab.Client
 	OutputDir              string
 	Threads                int
 	ConfidenceFilter       []string
@@ -33,29 +33,25 @@ type terraformState struct {
 	Project   *gitlab.Project
 }
 
-// ScanTerraformStates scans all Terraform/OpenTofu state files for secrets
 func ScanTerraformStates(options TFOptions) {
 	log.Info().Msg("Starting Terraform state scan")
 
-	// Initialize scanner
 	scanner.InitRules(options.ConfidenceFilter)
 	if !options.TruffleHogVerification {
 		log.Info().Msg("TruffleHog verification is disabled")
 	}
 
-	// Create output directory
 	if err := os.MkdirAll(options.OutputDir, 0o755); err != nil {
 		log.Fatal().Err(err).Str("dir", options.OutputDir).Msg("Failed to create output directory")
 	}
 
-	// Initialize GitLab client
 	git, err := util.GetGitlabClient(options.GitlabApiToken, options.GitlabUrl)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed creating gitlab client")
 	}
+	options.GitlabClient = git
 
-	// Fetch all projects with maintainer access
-	states := fetchTerraformStates(git, options.GitlabUrl, options.GitlabApiToken)
+	states := fetchTerraformStates(git)
 	log.Info().Int("total", len(states)).Msg("Found Terraform states")
 
 	if len(states) == 0 {
@@ -63,16 +59,20 @@ func ScanTerraformStates(options TFOptions) {
 		return
 	}
 
-	// Download and scan states with concurrency
-	downloadAndScanStates(states, options)
+	for _, state := range states {
+		stateData, filePath, ok := downloadStateFile(state, options)
+		if !ok {
+			continue
+		}
+
+		scanStateFile(stateData, filePath, state, options)
+	}
 
 	log.Info().Msg("Terraform state scan complete")
 }
 
-// fetchTerraformStates iterates all projects and finds those with Terraform state
-func fetchTerraformStates(git *gitlab.Client, gitlabUrl string, token string) []terraformState {
+func fetchTerraformStates(git *gitlab.Client) []terraformState {
 	var states []terraformState
-	var mu sync.Mutex
 
 	projectOpts := &gitlab.ListProjectsOptions{
 		ListOptions:    gitlab.ListOptions{PerPage: 100, Page: 1},
@@ -85,19 +85,31 @@ func fetchTerraformStates(git *gitlab.Client, gitlabUrl string, token string) []
 	err := util.IterateProjects(git, projectOpts, func(project *gitlab.Project) error {
 		log.Debug().Str("project", project.PathWithNamespace).Int64("id", project.ID).Msg("Checking project for Terraform state")
 
-		// Check for Terraform state using HTTP API
-		stateExists := checkTerraformState(gitlabUrl, token, int(project.ID))
-		if stateExists {
-			mu.Lock()
+		stateList, _, err := git.TerraformStates.List(project.PathWithNamespace)
+		if err != nil {
+			if errors.Is(err, gitlab.ErrNotFound) {
+				return nil
+			}
+			log.Error().Err(err).Str("project", project.PathWithNamespace).Msg("Failed to list Terraform states")
+			return nil
+		}
+
+		if len(stateList) == 0 {
+			return nil
+		}
+
+		for _, state := range stateList {
+			if state.Name == "" {
+				continue
+			}
 			states = append(states, terraformState{
-				Name:      "default",
+				Name:      state.Name,
 				ProjectID: int(project.ID),
 				Project:   project,
 			})
-			mu.Unlock()
-
-			log.Info().Str("project", project.PathWithNamespace).Msg("Found Terraform state")
 		}
+
+		log.Info().Str("project", project.PathWithNamespace).Int("states", len(stateList)).Msg("Found Terraform states")
 		return nil
 	})
 
@@ -108,94 +120,32 @@ func fetchTerraformStates(git *gitlab.Client, gitlabUrl string, token string) []
 	return states
 }
 
-// checkTerraformState checks if a project has a Terraform state
-func checkTerraformState(gitlabUrl string, token string, projectID int) bool {
-	url := fmt.Sprintf("%s/api/v4/projects/%d/terraform/state/default", gitlabUrl, projectID)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("PRIVATE-TOKEN", token)
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	// 200 means state exists, 404 means no state
-	return resp.StatusCode == http.StatusOK
-}
-
-// downloadAndScanStates downloads state files and scans them for secrets
-func downloadAndScanStates(states []terraformState, options TFOptions) {
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, options.Threads)
-
-	for _, state := range states {
-		wg.Add(1)
-		go func(s terraformState) {
-			defer wg.Done()
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			downloadAndScan(s, options)
-		}(state)
-	}
-
-	wg.Wait()
-}
-
-// downloadAndScan downloads a single state file and scans it
-func downloadAndScan(state terraformState, options TFOptions) {
-	// Download state file
-	url := fmt.Sprintf("%s/api/v4/projects/%d/terraform/state/%s", options.GitlabUrl, state.ProjectID, state.Name)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		log.Error().Err(err).Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Msg("Failed to create request")
-		return
-	}
-	req.Header.Set("PRIVATE-TOKEN", options.GitlabApiToken)
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
-	resp, err := client.Do(req)
+func downloadStateFile(state terraformState, options TFOptions) ([]byte, string, bool) {
+	reader, _, err := options.GitlabClient.TerraformStates.DownloadLatest(state.ProjectID, state.Name)
 	if err != nil {
 		log.Error().Err(err).Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Msg("Failed to download Terraform state")
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Error().Int("status", resp.StatusCode).Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Msg("Failed to download Terraform state")
-		return
+		return nil, "", false
 	}
 
-	// Read state data
-	stateData, err := io.ReadAll(resp.Body)
+	stateData, err := io.ReadAll(reader)
 	if err != nil {
 		log.Error().Err(err).Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Msg("Failed to read state data")
-		return
+		return nil, "", false
 	}
 
-	// Save to file
-	filename := fmt.Sprintf("%d_%s.tfstate", state.ProjectID, sanitizeFilename(state.Name))
+	filename := fmt.Sprintf("%d_%s.tfstate", state.ProjectID, url.PathEscape(state.Name))
 	filePath := filepath.Join(options.OutputDir, filename)
 
-	if err := os.WriteFile(filePath, stateData, 0o644); err != nil {
+	if err := os.WriteFile(filePath, stateData, 0o600); err != nil {
 		log.Error().Err(err).Str("file", filePath).Msg("Failed to write state file")
-		return
+		return nil, "", false
 	}
 
 	log.Info().Str("project", state.Project.PathWithNamespace).Str("state", state.Name).Str("file", filePath).Msg("Downloaded Terraform state")
 
-	// Scan the file for secrets
-	scanStateFile(stateData, filePath, state, options)
+	return stateData, filePath, true
 }
 
-// scanStateFile scans a Terraform state file for secrets
 func scanStateFile(content []byte, filePath string, state terraformState, options TFOptions) {
 	log.Debug().Str("file", filePath).Msg("Scanning Terraform state for secrets")
 
@@ -221,29 +171,4 @@ func scanStateFile(content []byte, filePath string, state terraformState, option
 				Msg("SECRET")
 		}
 	}
-}
-
-// sanitizeFilename removes invalid characters from filenames
-func sanitizeFilename(name string) string {
-	// Replace common invalid characters
-	replacements := map[rune]rune{
-		'/':  '_',
-		'\\': '_',
-		':':  '_',
-		'*':  '_',
-		'?':  '_',
-		'"':  '_',
-		'<':  '_',
-		'>':  '_',
-		'|':  '_',
-	}
-
-	runes := []rune(name)
-	for i, r := range runes {
-		if replacement, ok := replacements[r]; ok {
-			runes[i] = replacement
-		}
-	}
-
-	return string(runes)
 }
