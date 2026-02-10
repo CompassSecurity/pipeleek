@@ -35,7 +35,7 @@ func IterateProjects(client *gitlab.Client, opts *gitlab.ListProjectsOptions, ca
 			}
 		}
 
-		if resp.NextPage == 0 || resp.NextPage == opts.Page {
+		if resp.NextPage == 0 {
 			break
 		}
 		opts.Page = resp.NextPage
@@ -60,7 +60,7 @@ func IterateGroupProjects(client *gitlab.Client, groupID interface{}, opts *gitl
 			}
 		}
 
-		if resp.NextPage == 0 || resp.NextPage == opts.Page {
+		if resp.NextPage == 0 {
 			break
 		}
 		opts.Page = resp.NextPage
@@ -71,10 +71,6 @@ func IterateGroupProjects(client *gitlab.Client, groupID interface{}, opts *gitl
 
 func GetGitlabClient(token string, url string) (*gitlab.Client, error) {
 	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()))
-}
-
-func GetGitlabJobClient(token string, url string) (*gitlab.Client, error) {
-	return gitlab.NewJobClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()))
 }
 
 func CookieSessionValid(gitlabUrl string, cookieVal string) {
