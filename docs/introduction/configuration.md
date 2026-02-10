@@ -113,6 +113,7 @@ gitlab:
   tf:
     output_dir: ./terraform-states # gl tf --output-dir
     threads: 4 # gl tf --threads (can override common.threads)
+    # Note: artifacts, max_artifact_size, and owned do not apply to gl tf.
 ```
 
 ### GitHub

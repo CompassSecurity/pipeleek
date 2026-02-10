@@ -14,7 +14,6 @@ type TFCommandOptions struct {
 }
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
-var maxArtifactSize string
 
 func NewTFCmd() *cobra.Command {
 	tfCmd := &cobra.Command{
@@ -23,8 +22,8 @@ func NewTFCmd() *cobra.Command {
 		Long: `Scan GitLab Terraform/OpenTofu state files for secrets
 
 This command iterates through all projects where you have maintainer access,
-checks for Terraform state files stored in GitLab, downloads them locally,
-and scans them for secrets using TruffleHog.
+lists GitLab-managed Terraform states, downloads them locally, and scans them
+for secrets using TruffleHog.
 
 GitLab stores Terraform state natively when using the Terraform HTTP backend.
 Each project can have multiple named state files.`,
@@ -34,7 +33,7 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com
 # Save state files to custom directory
 pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --output-dir ./tf-states
 
-# Use more threads for faster scanning
+# Use more threads for TruffleHog scanning
 pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --threads 10
 
 # Scan with high confidence filter only
@@ -43,7 +42,7 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --c
 	}
 
 	tfCmd.Flags().StringVar(&options.OutputDir, "output-dir", "./terraform-states", "Directory to save downloaded state files")
-	flags.AddCommonScanFlags(tfCmd, &options.CommonScanOptions, &maxArtifactSize)
+	flags.AddCommonScanFlagsNoArtifacts(tfCmd, &options.CommonScanOptions)
 
 	return tfCmd
 }

@@ -102,6 +102,7 @@ gitlab:
   tf:
     output_dir: ./terraform-states # Directory to save downloaded state files
     threads: 4 # Override common.threads for Terraform state scans
+    # Note: artifacts, max_artifact_size, and owned do not apply to gl tf.
 
 #------------------------------------------------------------------------------
 # GitHub Platform Configuration
