@@ -3,6 +3,7 @@ package confige2e
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,11 @@ func TestConfigFileLoading_Enabled(t *testing.T) {
 
 	cfgPath := filepath.Join(cfgDir, "pipeleek.yaml")
 	cfgContent := []byte("gitlab:\n  url: http://127.0.0.1:1\n  token: glpat-test\ncommon:\n  threads: 1\n")
-	if err := os.WriteFile(cfgPath, cfgContent, 0o644); err != nil {
+	perm := os.FileMode(0)
+	if runtime.GOOS != "windows" {
+		perm = 0o644
+	}
+	if err := os.WriteFile(cfgPath, cfgContent, perm); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 

@@ -116,6 +116,11 @@ github:
   url: https://api.github.com
   token: ghp_REPLACE_ME
 
+  # ghtoken exploit - Validate GitHub Actions token and attempt repo clone
+  ghtoken:
+    exploit:
+      repo: "owner/repo" # Target repository in format owner/repo
+
   # scan - Scan GitHub Actions artifacts for secrets
   scan:
     owner: "example-org" # Repository owner
