@@ -1,9 +1,9 @@
-package jobtoken
+package ghtoken
 
 import (
 	"strings"
 
-	"github.com/CompassSecurity/pipeleek/internal/cmd/github/jobToken/exploit"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/github/ghtoken/exploit"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -14,10 +14,10 @@ var (
 	githubUrl      string
 )
 
-func NewJobTokenRootCmd() *cobra.Command {
-	jobTokenCmd := &cobra.Command{
-		Use:   "jobToken",
-		Short: "Job token related commands",
+func NewGhTokenRootCmd() *cobra.Command {
+	ghTokenCmd := &cobra.Command{
+		Use:   "ghtoken",
+		Short: "GitHub token related commands",
 		Long:  "Commands to handle GitHub Actions CI/CD tokens (GITHUB_TOKEN) https://docs.github.com/en/actions/concepts/security/github_token",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			rootCmd := cmd.Root()
@@ -45,10 +45,10 @@ func NewJobTokenRootCmd() *cobra.Command {
 		},
 	}
 
-	jobTokenCmd.PersistentFlags().StringVarP(&githubUrl, "github", "g", "", "GitHub API base URL")
-	jobTokenCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub Actions CI/CD Token (GITHUB_TOKEN)")
+	ghTokenCmd.PersistentFlags().StringVarP(&githubUrl, "github", "g", "", "GitHub API base URL")
+	ghTokenCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub Actions CI/CD Token (GITHUB_TOKEN)")
 
-	jobTokenCmd.AddCommand(exploit.NewExploitCmd())
+	ghTokenCmd.AddCommand(exploit.NewExploitCmd())
 
-	return jobTokenCmd
+	return ghTokenCmd
 }

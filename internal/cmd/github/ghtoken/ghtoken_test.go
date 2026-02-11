@@ -1,15 +1,15 @@
-package jobtoken
+package ghtoken
 
 import "testing"
 
-func TestNewJobTokenRootCmd(t *testing.T) {
-	cmd := NewJobTokenRootCmd()
+func TestNewGhTokenRootCmd(t *testing.T) {
+	cmd := NewGhTokenRootCmd()
 	if cmd == nil {
 		t.Fatal("expected non-nil command")
 	}
 
-	if cmd.Use != "jobToken" {
-		t.Fatalf("expected Use to be jobToken, got %q", cmd.Use)
+	if cmd.Use != "ghtoken" {
+		t.Fatalf("expected Use to be ghtoken, got %q", cmd.Use)
 	}
 
 	if cmd.Short == "" {
