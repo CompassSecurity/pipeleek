@@ -23,9 +23,9 @@ require (
 	github.com/trufflesecurity/trufflehog/v3 v3.93.1
 	gitlab.com/gitlab-org/api/client-go v1.29.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
-	golang.org/x/net v0.49.0
+	golang.org/x/net v0.50.0
 	golang.org/x/term v0.40.0
-	golang.org/x/text v0.33.0
+	golang.org/x/text v0.34.0
 	golift.io/xtractr v0.2.2
 	resty.dev/v3 v3.0.0-beta.6
 )
@@ -182,7 +182,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.3 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	google.golang.org/api v0.247.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
