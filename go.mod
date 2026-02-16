@@ -25,7 +25,7 @@ require (
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
 	golang.org/x/net v0.49.0
 	golang.org/x/term v0.40.0
-	golang.org/x/text v0.33.0
+	golang.org/x/text v0.34.0
 	golift.io/xtractr v0.2.2
 	resty.dev/v3 v3.0.0-beta.6
 )
