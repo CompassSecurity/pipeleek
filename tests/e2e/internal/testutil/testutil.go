@@ -86,66 +86,40 @@ func AssertLogContains(t *testing.T, output string, expected []string) {
 	}
 }
 
-// RunCLI executes the Pipeleek CLI binary with args, capturing stdout/stderr, with timeout
+// RunCLI executes the Pipeleek CLI binary with args, capturing stdout/stderr, with timeout.
+// It is safe to call from parallel tests.
 func RunCLI(t *testing.T, args []string, env []string, timeout time.Duration) (stdout, stderr string, exitErr error) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Apply env overrides and ensure config file loading is disabled for e2e runs
-	oldEnv := os.Environ()
-	defer func() {
-		os.Clearenv()
-		for _, e := range oldEnv {
-			parts := strings.SplitN(e, "=", 2)
-			if len(parts) == 2 {
-				_ = os.Setenv(parts[0], parts[1])
-			}
-		}
-	}()
-
-	// Always disable config file loading for deterministic e2e tests
-	_ = os.Setenv("PIPELEEK_NO_CONFIG", "1")
-
-	// Apply provided env overrides
-	for _, e := range env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) == 2 {
-			_ = os.Setenv(parts[0], parts[1])
+	// Build a per-invocation environment: start from the current process env,
+	// disable config file loading for deterministic e2e tests, then apply overrides.
+	// We never mutate os.Environ or os.Stdout/os.Stderr so parallel calls are safe.
+	envMap := make(map[string]string, len(os.Environ())+1)
+	for _, e := range os.Environ() {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envMap[k] = v
 		}
 	}
-
-	// Capture stdout/stderr via pipes
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-	rOut, wOut, _ := os.Pipe()
-	rErr, wErr, _ := os.Pipe()
-	os.Stdout = wOut
-	os.Stderr = wErr
+	envMap["PIPELEEK_NO_CONFIG"] = "1"
+	for _, e := range env {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envMap[k] = v
+		}
+	}
+	envSlice := make([]string, 0, len(envMap))
+	for k, v := range envMap {
+		envSlice = append(envSlice, k+"="+v)
+	}
 
 	var outBuf, errBuf bytes.Buffer
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() { defer wg.Done(); _, _ = io.Copy(&outBuf, rOut) }()
-	go func() { defer wg.Done(); _, _ = io.Copy(&errBuf, rErr) }()
+	err := executeCLI(ctx, args, envSlice, &outBuf, &errBuf)
 
-	// Run command with context
-	err := executeCLIWithContext(ctx, args)
-
-	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
 		err = fmt.Errorf("command timed out after %v", timeout)
 	}
-
-	// Close pipes and restore stdout/stderr
-	_ = wOut.Close()
-	_ = wErr.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-
-	// Wait for all output to be read
-	wg.Wait()
 
 	return outBuf.String(), errBuf.String(), err
 }
@@ -153,8 +127,8 @@ func RunCLI(t *testing.T, args []string, env []string, timeout time.Duration) (s
 // --- Binary execution integration ---
 
 var (
-	cliMutex               sync.Mutex
 	pipeleekBinaryResolved string
+	pipeleekBinaryBuildErr error
 	buildOnce              sync.Once
 )
 
@@ -187,72 +161,61 @@ func findModuleRoot() (string, error) {
 	return "", fmt.Errorf("module root not found from %s", wd)
 }
 
-// executeCLIWithContext calls the actual CLI as a separate process so cobra globals don't conflict
-func executeCLIWithContext(ctx context.Context, args []string) error {
-	cliMutex.Lock()
-	defer cliMutex.Unlock()
-
-	// Use PIPELEEK_BINARY if set (resolve to absolute path if relative)
+// resolveBinary returns the path to the pipeleek binary, building it once if necessary.
+func resolveBinary() (string, error) {
 	if binPath := os.Getenv("PIPELEEK_BINARY"); binPath != "" {
 		if !filepath.IsAbs(binPath) {
-			// If relative, try to resolve from module root
 			if moduleDir, err := findModuleRoot(); err == nil {
 				absPath := filepath.Join(moduleDir, binPath)
 				if _, err := os.Stat(absPath); err == nil {
-					binPath = absPath
+					return absPath, nil
 				}
 			}
 		}
-		// #nosec G204 -- binPath is the test binary path, intentionally variable for testing
-		cmd := exec.CommandContext(ctx, binPath, args...)
-		cmd.Env = os.Environ()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
-	}
-
-	// Otherwise, build binary once
-	if pipeleekBinaryResolved != "" {
-		if _, err := os.Stat(pipeleekBinaryResolved); err != nil {
-			pipeleekBinaryResolved = ""
-		}
+		return binPath, nil
 	}
 
 	buildOnce.Do(func() {
 		tmpDir, err := os.MkdirTemp("", "pipeleek-e2e-")
 		if err != nil {
-			pipeleekBinaryResolved = ""
+			pipeleekBinaryBuildErr = err
 			return
 		}
 		tmpBin := filepath.Join(tmpDir, "pipeleek")
 		if runtime.GOOS == "windows" {
 			tmpBin += ".exe"
 		}
-
 		moduleDir, err := findModuleRoot()
 		if err != nil {
-			pipeleekBinaryResolved = ""
+			pipeleekBinaryBuildErr = err
 			return
 		}
-
 		if err := buildBinary(moduleDir, tmpBin); err != nil {
-			pipeleekBinaryResolved = ""
+			pipeleekBinaryBuildErr = err
 			return
 		}
 		pipeleekBinaryResolved = tmpBin
 	})
 
-	if pipeleekBinaryResolved == "" {
-		return fmt.Errorf("failed to build pipeleek test binary")
+	if pipeleekBinaryBuildErr != nil {
+		return "", fmt.Errorf("failed to build pipeleek test binary: %w", pipeleekBinaryBuildErr)
+	}
+	return pipeleekBinaryResolved, nil
+}
+
+// executeCLI runs the CLI as a separate process, writing output to the provided writers.
+// It uses no global state so it is safe to call concurrently.
+func executeCLI(ctx context.Context, args []string, env []string, stdout, stderr io.Writer) error {
+	binPath, err := resolveBinary()
+	if err != nil {
+		return err
 	}
 
-	// #nosec G204 -- pipeleekBinaryResolved is the test binary path, intentionally variable for testing
-	cmd := exec.CommandContext(ctx, pipeleekBinaryResolved, args...)
-	cmd.Env = os.Environ()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
+	// #nosec G204 -- binPath is the test binary path, intentionally variable for testing
+	cmd := exec.CommandContext(ctx, binPath, args...)
+	cmd.Env = env
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	return cmd.Run()
 }
 
