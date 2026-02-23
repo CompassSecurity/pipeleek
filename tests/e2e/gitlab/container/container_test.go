@@ -442,7 +442,7 @@ func TestContainerScanWithSearch(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-func TestContainerScanMetadataFieldsWithoutRegistryCreatedAt(t *testing.T) {
+func TestContainerScanMetadataFieldsCreatedAtFromTagDetail(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
