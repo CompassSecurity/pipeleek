@@ -2,6 +2,7 @@ package renovate
 
 import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/autodiscovery"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/bots"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/renovate/privesc"
 	"github.com/spf13/cobra"
@@ -23,6 +24,7 @@ func NewRenovateRootCmd() *cobra.Command {
 	renovateCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())
+	renovateCmd.AddCommand(bots.NewBotsCmd())
 	renovateCmd.AddCommand(autodiscovery.NewAutodiscoveryCmd())
 	renovateCmd.AddCommand(privesc.NewPrivescCmd())
 
