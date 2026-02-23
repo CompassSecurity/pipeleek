@@ -633,8 +633,8 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusufpapurcu/wmi v1.2.3 h1:E1ctvB7uKFMOJw3fdOW32DwGE9I7t++CRUEMKvFoFiw=
 github.com/yusufpapurcu/wmi v1.2.3/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
-gitlab.com/gitlab-org/api/client-go v1.34.0 h1:w/Zv3FmfrkZsVUJhzteAu0LsWsz2y7kv/XJ3pvRa+Eo=
-gitlab.com/gitlab-org/api/client-go v1.34.0/go.mod h1:nsUbXSLfne+sl+j62f7S3LFNwQ5Ey96oG9QToJT4aTM=
+gitlab.com/gitlab-org/api/client-go v1.35.0 h1:EZTgYVU+MCVGO3dEPR924GLUuHMtRVfXOAkHNvZe0Mg=
+gitlab.com/gitlab-org/api/client-go v1.35.0/go.mod h1:0r4QcFmvppZ6TqNP/2Af7T0ivxHC75a26TlWvyoyvzA=
 gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5 h1:oRITWuBO05h2OYQ2JftXSoVmOBTa+vedPWfpN+StrxA=
 gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5/go.mod h1:BOWEtlvgM79t1zjcAOER6o/KaftD4avnnShoqtTfGfw=
 go.mongodb.org/mongo-driver v1.17.4 h1:jUorfmVzljjr0FLzYQsGP8cgN/qzzxlY9Vh0C9KFXVw=
