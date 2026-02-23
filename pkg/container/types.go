@@ -11,6 +11,7 @@ type Finding struct {
 	MatchedPattern   string
 	LineContent      string
 	IsMultistage     bool
+	LatestCIRunAt    string
 	RegistryMetadata *RegistryMetadata
 }
 

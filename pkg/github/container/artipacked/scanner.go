@@ -3,6 +3,7 @@ package artipacked
 import (
 	"context"
 	"strings"
+	"time"
 
 	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
 	"github.com/google/go-github/v69/github"
@@ -139,52 +140,67 @@ func findDockerfiles(ctx context.Context, client *github.Client, owner, repo str
 	var dockerfiles []DockerfileMatch
 	const maxDockerfiles = 50 // Limit to prevent scanning huge repos
 
-	dockerfileNames := []string{"Dockerfile", "Containerfile", "dockerfile", "containerfile"}
+	defaultBranch := "HEAD"
+	repository, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err == nil && repository != nil && repository.GetDefaultBranch() != "" {
+		defaultBranch = repository.GetDefaultBranch()
+	}
 
-	for _, name := range dockerfileNames {
+	tree, _, err := client.Git.GetTree(ctx, owner, repo, defaultBranch, true)
+	if err != nil {
+		log.Trace().Str("repository", owner+"/"+repo).Err(err).Msg("Error listing repository tree")
+		return dockerfiles
+	}
+
+	if tree == nil || len(tree.Entries) == 0 {
+		return dockerfiles
+	}
+
+	if tree.GetTruncated() {
+		log.Trace().Str("repository", owner+"/"+repo).Msg("Repository tree response truncated")
+	}
+
+	isDockerfileName := map[string]bool{
+		"Dockerfile":    true,
+		"Containerfile": true,
+		"dockerfile":    true,
+		"containerfile": true,
+	}
+
+	for _, entry := range tree.Entries {
 		if len(dockerfiles) >= maxDockerfiles {
 			break
 		}
 
-		query := strings.Join([]string{
-			"repo:" + owner + "/" + repo,
-			"filename:" + name,
-		}, " ")
+		if entry.GetType() != "blob" {
+			continue
+		}
 
-		results, _, err := client.Search.Code(ctx, query, &github.SearchOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 50,
-				Page:    1,
-			},
+		path := entry.GetPath()
+		if path == "" {
+			continue
+		}
+
+		pathParts := strings.Split(path, "/")
+		fileName := pathParts[len(pathParts)-1]
+		if !isDockerfileName[fileName] {
+			continue
+		}
+
+		fileContent, _, _, getErr := client.Repositories.GetContents(ctx, owner, repo, path, nil)
+		if getErr != nil {
+			log.Trace().Str("repository", owner+"/"+repo).Str("file", path).Err(getErr).Msg("Error fetching Dockerfile content")
+			continue
+		}
+
+		if fileContent == nil {
+			continue
+		}
+
+		dockerfiles = append(dockerfiles, DockerfileMatch{
+			Path:    path,
+			Content: fileContent,
 		})
-		if err != nil {
-			log.Trace().Str("repository", owner+"/"+repo).Str("filename", name).Err(err).Msg("Error searching for Dockerfile")
-			continue
-		}
-
-		if results.GetTotal() == 0 {
-			continue
-		}
-
-		for _, result := range results.CodeResults {
-			if len(dockerfiles) >= maxDockerfiles {
-				break
-			}
-
-			path := result.GetPath()
-			fileContent, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, nil)
-			if err != nil {
-				log.Trace().Str("repository", owner+"/"+repo).Str("file", path).Err(err).Msg("Error fetching Dockerfile content")
-				continue
-			}
-
-			if fileContent != nil {
-				dockerfiles = append(dockerfiles, DockerfileMatch{
-					Path:    path,
-					Content: fileContent,
-				})
-			}
-		}
 	}
 
 	return dockerfiles
@@ -210,19 +226,25 @@ func scanDockerfile(ctx context.Context, client *github.Client, repo *github.Rep
 	}
 
 	matches := sharedcontainer.ScanDockerfileForPatterns(content, patterns)
+	if len(matches) == 0 {
+		return
+	}
+
+	latestCIRunAt := fetchLatestWorkflowRunAt(ctx, client, repo)
+	registryMetadata := fetchRegistryMetadata(ctx, client, repo)
 
 	for _, match := range matches {
 		finding := sharedcontainer.Finding{
-			ProjectPath:    repo.GetFullName(),
-			ProjectURL:     repo.GetHTMLURL(),
-			FilePath:       fileName,
-			FileName:       fileName,
-			MatchedPattern: match.PatternName,
-			LineContent:    match.MatchedLine,
-			IsMultistage:   isMultistage,
+			ProjectPath:      repo.GetFullName(),
+			ProjectURL:       repo.GetHTMLURL(),
+			FilePath:         fileName,
+			FileName:         fileName,
+			MatchedPattern:   match.PatternName,
+			LineContent:      match.MatchedLine,
+			IsMultistage:     isMultistage,
+			LatestCIRunAt:    latestCIRunAt,
+			RegistryMetadata: registryMetadata,
 		}
-
-		finding.RegistryMetadata = fetchRegistryMetadata(ctx, client, repo)
 
 		logFinding(finding)
 	}
@@ -235,13 +257,63 @@ func logFinding(finding sharedcontainer.Finding) {
 		Str("content", finding.LineContent).
 		Bool("is_multistage", finding.IsMultistage)
 
+	if finding.LatestCIRunAt != "" {
+		logEvent = logEvent.Str("latest_ci_run_at", finding.LatestCIRunAt)
+	}
+
 	if finding.RegistryMetadata != nil {
-		logEvent = logEvent.
-			Str("registry_tag", finding.RegistryMetadata.TagName).
-			Str("registry_last_update", finding.RegistryMetadata.LastUpdate)
+		logEvent = logEvent.Str("registry_tag", finding.RegistryMetadata.TagName)
+
+		if finding.RegistryMetadata.LastUpdate != "" {
+			logEvent = logEvent.Str("registry_last_update", finding.RegistryMetadata.LastUpdate)
+		}
 	}
 
 	logEvent.Msg("Identified")
+}
+
+func fetchLatestWorkflowRunAt(ctx context.Context, client *github.Client, repo *github.Repository) string {
+	owner := repo.GetOwner().GetLogin()
+	repoName := repo.GetName()
+
+	runs, _, err := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repoName, &github.ListWorkflowRunsOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 1,
+			Page:    1,
+		},
+	})
+	if err != nil {
+		log.Trace().Str("repository", repo.GetFullName()).Err(err).Msg("Error fetching latest workflow run")
+		return ""
+	}
+
+	if runs == nil || len(runs.WorkflowRuns) == 0 {
+		log.Trace().Str("repository", repo.GetFullName()).Msg("No workflow runs found")
+		return ""
+	}
+
+	latestRun := runs.WorkflowRuns[0]
+	runDate := latestRun.UpdatedAt
+	if runDate == nil {
+		runDate = latestRun.RunStartedAt
+	}
+	if runDate == nil {
+		runDate = latestRun.CreatedAt
+	}
+	if runDate == nil {
+		log.Trace().Str("repository", repo.GetFullName()).Int64("run_id", latestRun.GetID()).Msg("Latest workflow run has no timestamp")
+		return ""
+	}
+
+	formattedDate := formatFindingDate(runDate.Time)
+
+	log.Debug().
+		Str("repository", repo.GetFullName()).
+		Int64("run_id", latestRun.GetID()).
+		Str("latest_ci_run_at", formattedDate).
+		Msg("Fetched latest workflow metadata")
+
+	return formattedDate
 }
 
 func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *github.Repository) *sharedcontainer.RegistryMetadata {
@@ -283,7 +355,7 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 
 	var mostRecentVersion *github.PackageVersion
 	for _, ver := range versions {
-		if ver.GetCreatedAt().Time.After(mostRecentVersion.GetCreatedAt().Time) || mostRecentVersion == nil {
+		if mostRecentVersion == nil || ver.GetCreatedAt().Time.After(mostRecentVersion.GetCreatedAt().Time) {
 			mostRecentVersion = ver
 		}
 	}
@@ -297,7 +369,8 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 	}
 
 	if !mostRecentVersion.GetCreatedAt().IsZero() {
-		metadata.LastUpdate = mostRecentVersion.GetCreatedAt().Format("2006-01-02T15:04:05Z07:00")
+		formattedDate := formatFindingDate(mostRecentVersion.GetCreatedAt().Time)
+		metadata.LastUpdate = formattedDate
 	}
 
 	log.Trace().
@@ -320,4 +393,8 @@ func extractTag(version *github.PackageVersion) string {
 		return version.Metadata.Container.Tags[0]
 	}
 	return version.GetName()
+}
+
+func formatFindingDate(date time.Time) string {
+	return date.UTC().Format("02 Jan 2006 15:04")
 }

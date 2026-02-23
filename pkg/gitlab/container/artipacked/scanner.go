@@ -213,19 +213,25 @@ func scanDockerfile(git *gitlab.Client, project *gitlab.Project, file *gitlab.Fi
 	content := string(decodedContent)
 
 	matches := sharedcontainer.ScanDockerfileForPatterns(content, patterns)
+	if len(matches) == 0 {
+		return
+	}
+
+	latestCIRunAt := fetchLatestPipelineRunAt(git, project)
+	registryMetadata := fetchRegistryMetadata(git, project)
 
 	for _, match := range matches {
 		finding := sharedcontainer.Finding{
-			ProjectPath:    project.PathWithNamespace,
-			ProjectURL:     project.WebURL,
-			FilePath:       fileName,
-			FileName:       fileName,
-			MatchedPattern: match.PatternName,
-			LineContent:    match.MatchedLine,
-			IsMultistage:   isMultistage,
+			ProjectPath:      project.PathWithNamespace,
+			ProjectURL:       project.WebURL,
+			FilePath:         fileName,
+			FileName:         fileName,
+			MatchedPattern:   match.PatternName,
+			LineContent:      match.MatchedLine,
+			IsMultistage:     isMultistage,
+			LatestCIRunAt:    latestCIRunAt,
+			RegistryMetadata: registryMetadata,
 		}
-
-		finding.RegistryMetadata = fetchRegistryMetadata(git, project)
 
 		logFinding(finding)
 	}
@@ -238,13 +244,66 @@ func logFinding(finding sharedcontainer.Finding) {
 		Str("content", finding.LineContent).
 		Bool("is_multistage", finding.IsMultistage)
 
+	if finding.LatestCIRunAt != "" {
+		logEvent = logEvent.Str("latest_ci_run_at", finding.LatestCIRunAt)
+	}
+
 	if finding.RegistryMetadata != nil {
-		logEvent = logEvent.
-			Str("registry_tag", finding.RegistryMetadata.TagName).
-			Str("registry_last_update", finding.RegistryMetadata.LastUpdate)
+		logEvent = logEvent.Str("registry_tag", finding.RegistryMetadata.TagName)
+
+		if finding.RegistryMetadata.LastUpdate != "" {
+			logEvent = logEvent.Str("registry_last_update", finding.RegistryMetadata.LastUpdate)
+		}
 	}
 
 	logEvent.Msg("Identified")
+}
+
+func fetchLatestPipelineRunAt(git *gitlab.Client, project *gitlab.Project) string {
+	startTime := time.Now()
+
+	pipelines, resp, err := git.Pipelines.ListProjectPipelines(project.ID, &gitlab.ListProjectPipelinesOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 1,
+			Page:    1,
+		},
+		OrderBy: gitlab.Ptr("updated_at"),
+		Sort:    gitlab.Ptr("desc"),
+	})
+	if err != nil {
+		log.Trace().Str("project", project.PathWithNamespace).Err(err).Msg("Error fetching latest project pipeline")
+		return ""
+	}
+	if resp != nil && resp.StatusCode != 200 {
+		log.Trace().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Pipeline endpoint not accessible")
+		return ""
+	}
+	if len(pipelines) == 0 {
+		log.Trace().Str("project", project.PathWithNamespace).Msg("No pipelines found")
+		return ""
+	}
+
+	latestPipeline := pipelines[0]
+	pipelineDate := latestPipeline.UpdatedAt
+	if pipelineDate == nil {
+		pipelineDate = latestPipeline.CreatedAt
+	}
+	if pipelineDate == nil {
+		log.Trace().Str("project", project.PathWithNamespace).Int64("pipeline_id", latestPipeline.ID).Msg("Latest pipeline has no timestamp")
+		return ""
+	}
+
+	formattedDate := formatFindingDate(*pipelineDate)
+
+	elapsed := time.Since(startTime)
+	log.Debug().
+		Str("project", project.PathWithNamespace).
+		Int64("pipeline_id", latestPipeline.ID).
+		Str("latest_ci_run_at", formattedDate).
+		Dur("elapsed_ms", elapsed).
+		Msg("Fetched latest pipeline metadata")
+
+	return formattedDate
 }
 
 func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedcontainer.RegistryMetadata {
@@ -252,9 +311,10 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedc
 
 	repos, resp, err := git.ContainerRegistry.ListProjectRegistryRepositories(project.ID, &gitlab.ListProjectRegistryRepositoriesOptions{
 		ListOptions: gitlab.ListOptions{
-			PerPage: 10,
+			PerPage: 100,
 			Page:    1,
 		},
+		TagsCount: gitlab.Ptr(true),
 	})
 	if err != nil {
 		log.Trace().Str("project", project.PathWithNamespace).Err(err).Msg("Error accessing container registry")
@@ -270,51 +330,112 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedc
 		return nil
 	}
 
-	repo := repos[0]
+	var newestTag *gitlab.RegistryRepositoryTag
+	newestTagRepoPath := ""
+	fallbackTagName := ""
+	fallbackTagRepoPath := ""
 
-	tags, resp, err := git.ContainerRegistry.ListRegistryRepositoryTags(project.ID, repo.ID, &gitlab.ListRegistryRepositoryTagsOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 100,
-			Page:    1,
-		},
-	})
-	if err != nil || resp.StatusCode != 200 || len(tags) == 0 {
-		log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Msg("No tags found in registry repository")
-		return nil
-	}
+	for _, repo := range repos {
+		if repo.TagsCount == 0 {
+			continue
+		}
 
-	var mostRecentTag *gitlab.RegistryRepositoryTag
-	for _, t := range tags {
-		if t.CreatedAt != nil {
-			if mostRecentTag == nil || (mostRecentTag.CreatedAt != nil && t.CreatedAt.After(*mostRecentTag.CreatedAt)) {
-				mostRecentTag = t
+		tagOpts := &gitlab.ListRegistryRepositoryTagsOptions{
+			ListOptions: gitlab.ListOptions{
+				PerPage: 100,
+				Page:    1,
+			},
+		}
+
+		for {
+			tags, tagsResp, tagsErr := git.ContainerRegistry.ListRegistryRepositoryTags(project.ID, repo.ID, tagOpts)
+			if tagsErr != nil {
+				log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Err(tagsErr).Msg("Error listing registry tags")
+				break
 			}
+			if tagsResp != nil && tagsResp.StatusCode != 200 {
+				log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Int("status", tagsResp.StatusCode).Msg("Failed listing registry tags")
+				break
+			}
+			if len(tags) == 0 {
+				break
+			}
+
+			for _, tag := range tags {
+				if fallbackTagName == "" {
+					fallbackTagName = tag.Name
+					fallbackTagRepoPath = repo.Path
+				}
+
+				tagDetail := tag
+				if tagDetail.CreatedAt == nil {
+					detail, detailResp, detailErr := git.ContainerRegistry.GetRegistryRepositoryTagDetail(project.ID, repo.ID, tag.Name)
+					if detailErr != nil {
+						log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Str("tag", tag.Name).Err(detailErr).Msg("Error fetching registry tag detail")
+						continue
+					}
+					if detailResp != nil && detailResp.StatusCode != 200 {
+						log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Str("tag", tag.Name).Int("status", detailResp.StatusCode).Msg("Registry tag detail not accessible")
+						continue
+					}
+					tagDetail = detail
+				}
+
+				if tagDetail == nil || tagDetail.CreatedAt == nil {
+					continue
+				}
+
+				if newestTag == nil || tagDetail.CreatedAt.After(*newestTag.CreatedAt) {
+					newestTag = tagDetail
+					newestTagRepoPath = repo.Path
+				}
+			}
+
+			if tagsResp == nil || tagsResp.NextPage == 0 {
+				break
+			}
+
+			tagOpts.Page = tagsResp.NextPage
 		}
 	}
 
-	if mostRecentTag == nil {
-		log.Trace().Str("project", project.PathWithNamespace).Str("repo", repo.Path).Msg("No tags with timestamps found")
-		return nil
+	if newestTag == nil {
+		if fallbackTagName == "" {
+			log.Trace().Str("project", project.PathWithNamespace).Msg("No tags found in any registry repository")
+			return nil
+		}
+
+		elapsed := time.Since(startTime)
+		log.Debug().
+			Str("project", project.PathWithNamespace).
+			Str("repo", fallbackTagRepoPath).
+			Str("tag", fallbackTagName).
+			Dur("elapsed_ms", elapsed).
+			Msg("Fetched registry metadata without tag creation timestamp")
+
+		return &sharedcontainer.RegistryMetadata{TagName: fallbackTagName}
 	}
 
+	formattedDate := formatFindingDate(*newestTag.CreatedAt)
 	metadata := &sharedcontainer.RegistryMetadata{
-		TagName: mostRecentTag.Name,
-	}
-
-	if mostRecentTag.CreatedAt != nil {
-		metadata.LastUpdate = mostRecentTag.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+		TagName:    newestTag.Name,
+		LastUpdate: formattedDate,
 	}
 
 	elapsed := time.Since(startTime)
 	log.Debug().
 		Str("project", project.PathWithNamespace).
-		Str("repo", repo.Path).
-		Str("tag", mostRecentTag.Name).
+		Str("repo", newestTagRepoPath).
+		Str("tag", newestTag.Name).
 		Str("last_update", metadata.LastUpdate).
 		Dur("elapsed_ms", elapsed).
 		Msg("Fetched registry metadata")
 
 	return metadata
+}
+
+func formatFindingDate(date time.Time) string {
+	return date.UTC().Format("02 Jan 2006 15:04")
 }
 
 func validateOrderBy(orderBy string) {

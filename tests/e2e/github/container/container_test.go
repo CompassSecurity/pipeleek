@@ -41,37 +41,30 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "/search/code") {
-			codeResultJSON := `{
-"total_count": 1,
-"incomplete_results": false,
-"items": [
-{
-"name": "Dockerfile",
-"path": "Dockerfile",
-"sha": "abc123",
-"url": "http://localhost/test-user/dangerous-app/contents/Dockerfile",
-"repository": {
-"id": 1,
-"name": "dangerous-app",
-"full_name": "test-user/dangerous-app"
-}
-}
-]
+		if strings.Contains(r.URL.Path, "/repos/test-user/dangerous-app/git/trees/main") {
+			treeJSON := `{
+"sha": "main",
+"tree": [
+{"path":"Dockerfile","mode":"100644","type":"blob","sha":"abc123"}
+],
+"truncated": false
 }`
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(codeResultJSON))
+			w.Write([]byte(treeJSON))
 			return
 		}
 
 		if strings.Contains(r.URL.Path, "/repos/test-user/dangerous-app") &&
-			!strings.Contains(r.URL.Path, "/contents") {
+			!strings.Contains(r.URL.Path, "/contents") &&
+			!strings.Contains(r.URL.Path, "/git/trees") &&
+			!strings.Contains(r.URL.Path, "/actions/runs") {
 			repoJSON := `{
 "id": 1,
 "name": "dangerous-app",
 "full_name": "test-user/dangerous-app",
 "html_url": "http://localhost/test-user/dangerous-app",
+"default_branch": "main",
 "owner": {
 "login": "test-user",
 "type": "User"
@@ -99,6 +92,39 @@ func TestContainerScanBasic(t *testing.T) {
 			return
 		}
 
+		if strings.Contains(r.URL.Path, "/repos/test-user/dangerous-app/actions/runs") {
+			runsJSON := `{
+"total_count": 1,
+"workflow_runs": [
+{"id": 42, "updated_at": "2026-02-22T12:00:00Z"}
+]
+}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(runsJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/orgs/test-user/packages") && !strings.Contains(r.URL.Path, "/versions") {
+			packagesJSON := `[
+{"name": "dangerous-app"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(packagesJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/orgs/test-user/packages/container/dangerous-app/versions") {
+			versionsJSON := `[
+{"name":"sha256:abc","created_at":"2026-02-22T11:59:00Z","metadata":{"container":{"tags":["latest"]}}}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(versionsJSON))
+			return
+		}
+
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"message": "404 Not Found"}`))
 	}))
@@ -118,6 +144,10 @@ func TestContainerScanBasic(t *testing.T) {
 	output := stdout + stderr
 	assert.Contains(t, output, "Identified")
 	assert.Contains(t, output, "test-user/dangerous-app")
+	assert.Contains(t, output, "latest_ci_run_at")
+	assert.Contains(t, output, "registry_tag")
+	assert.Contains(t, output, "registry_last_update")
+	assert.NotContains(t, output, "registry_created_at")
 }
 
 func TestContainerScanOwned(t *testing.T) {
@@ -148,30 +178,29 @@ func TestContainerScanOwned(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "/search/code") {
-			codeResultJSON := `{
-"total_count": 1,
-"incomplete_results": false,
-"items": [
-{
-"name": "Dockerfile",
-"path": "Dockerfile"
-}
-]
+		if strings.Contains(r.URL.Path, "/repos/test-user/my-repo/git/trees/main") {
+			treeJSON := `{
+"sha": "main",
+"tree": [
+{"path":"Dockerfile","mode":"100644","type":"blob","sha":"abc123"}
+],
+"truncated": false
 }`
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(codeResultJSON))
+			w.Write([]byte(treeJSON))
 			return
 		}
 
 		if strings.Contains(r.URL.Path, "/repos/test-user/my-repo") &&
-			!strings.Contains(r.URL.Path, "/contents") {
+			!strings.Contains(r.URL.Path, "/contents") &&
+			!strings.Contains(r.URL.Path, "/git/trees") {
 			repoJSON := `{
 "id": 1,
 "name": "my-repo",
 "full_name": "test-user/my-repo",
 "html_url": "http://localhost/test-user/my-repo",
+"default_branch": "main",
 "owner": {
 "login": "test-user",
 "type": "User"
@@ -241,20 +270,37 @@ func TestContainerScanOrganization(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "/search/code") {
-			codeResultJSON := `{
-"total_count": 1,
-"incomplete_results": false,
-"items": [
-{
-"name": "Dockerfile",
-"path": "Dockerfile"
+		if strings.Contains(r.URL.Path, "/repos/my-org/test-project") &&
+			!strings.Contains(r.URL.Path, "/contents") &&
+			!strings.Contains(r.URL.Path, "/git/trees") {
+			repoJSON := `{
+"id": 1,
+"name": "test-project",
+"full_name": "my-org/test-project",
+"html_url": "http://localhost/my-org/test-project",
+"default_branch": "main",
+"owner": {
+"login": "my-org",
+"type": "Organization"
 }
-]
 }`
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(codeResultJSON))
+			w.Write([]byte(repoJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/repos/my-org/test-project/git/trees/main") {
+			treeJSON := `{
+"sha": "main",
+"tree": [
+{"path":"Dockerfile","mode":"100644","type":"blob","sha":"abc123"}
+],
+"truncated": false
+}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
 			return
 		}
 
@@ -299,12 +345,14 @@ func TestContainerScanSingleRepo(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/repos/test-user/test-repo") &&
-			!strings.Contains(r.URL.Path, "/contents") {
+			!strings.Contains(r.URL.Path, "/contents") &&
+			!strings.Contains(r.URL.Path, "/git/trees") {
 			repoJSON := `{
 "id": 1,
 "name": "test-repo",
 "full_name": "test-user/test-repo",
 "html_url": "http://localhost/test-user/test-repo",
+"default_branch": "main",
 "owner": {
 "login": "test-user",
 "type": "User"
@@ -316,20 +364,17 @@ func TestContainerScanSingleRepo(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "/search/code") {
-			codeResultJSON := `{
-"total_count": 1,
-"incomplete_results": false,
-"items": [
-{
-"name": "Dockerfile",
-"path": "Dockerfile"
-}
-]
+		if strings.Contains(r.URL.Path, "/repos/test-user/test-repo/git/trees/main") {
+			treeJSON := `{
+"sha": "main",
+"tree": [
+{"path":"Dockerfile","mode":"100644","type":"blob","sha":"abc123"}
+],
+"truncated": false
 }`
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(codeResultJSON))
+			w.Write([]byte(treeJSON))
 			return
 		}
 
@@ -395,15 +440,37 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "/search/code") {
-			codeResultJSON := `{
-"total_count": 0,
-"incomplete_results": false,
-"items": []
+		if strings.Contains(r.URL.Path, "/repos/test-user/no-docker") &&
+			!strings.Contains(r.URL.Path, "/contents") &&
+			!strings.Contains(r.URL.Path, "/git/trees") {
+			repoJSON := `{
+"id": 1,
+"name": "no-docker",
+"full_name": "test-user/no-docker",
+"html_url": "http://localhost/test-user/no-docker",
+"default_branch": "main",
+"owner": {
+"login": "test-user",
+"type": "User"
+}
 }`
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(codeResultJSON))
+			w.Write([]byte(repoJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/repos/test-user/no-docker/git/trees/main") {
+			treeJSON := `{
+"sha": "main",
+"tree": [
+{"path":"README.md","mode":"100644","type":"blob","sha":"def456"}
+],
+"truncated": false
+}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
 			return
 		}
 
