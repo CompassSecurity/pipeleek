@@ -12,10 +12,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func logOnFailure(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if t.Failed() {
+		t.Logf(format, args...)
+	}
+}
+
 // TestRootCommand_Help tests the --help flag
 func TestRootCommand_Help(t *testing.T) {
 
-	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 30*time.Second)
+	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 	assert.Nil(t, exitErr, "Help command should succeed")
 	assert.NotEmpty(t, stdout, "Help output should not be empty")
@@ -26,7 +33,7 @@ func TestRootCommand_Help(t *testing.T) {
 		"Usage:",
 	})
 
-	t.Logf("STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
 }
 
 // TestRootCommand_SubcommandHelp tests help for subcommands
@@ -67,16 +74,16 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Do not use t.Parallel() - stdout/stderr redirection conflicts when multiple tests run concurrently
+			t.Parallel()
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 5*time.Second)
 
 			assert.Nil(t, exitErr, "Help should succeed")
 			assert.NotEmpty(t, stdout, "Help output should not be empty")
 
 			// Note: exact help text depends on implementation
-			t.Logf("STDOUT:\n%s", stdout)
-			t.Logf("STDERR:\n%s", stderr)
+			logOnFailure(t, "STDOUT:\n%s", stdout)
+			logOnFailure(t, "STDERR:\n%s", stderr)
 		})
 	}
 }
@@ -101,8 +108,8 @@ func TestRootCommand_JSONLogOutput(t *testing.T) {
 	// Check if output contains JSON-like structures
 	// Note: actual format depends on zerolog configuration
 	output := stdout + stderr
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("Output:\n%s", output)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "Output:\n%s", output)
 
 	// If JSON logging is working, output might contain JSON objects
 	// This is implementation-dependent
@@ -128,17 +135,17 @@ func TestRootCommand_LogFile(t *testing.T) {
 		"--logfile", logFile,
 	}, nil, 10*time.Second)
 
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 
 	// Check if log file was created
 	if _, err := os.Stat(logFile); err == nil {
 		logContent, _ := os.ReadFile(logFile)
-		t.Logf("Log file created with %d bytes", len(logContent))
-		t.Logf("Log file content:\n%s", string(logContent))
+		logOnFailure(t, "Log file created with %d bytes", len(logContent))
+		logOnFailure(t, "Log file content:\n%s", string(logContent))
 	} else {
-		t.Logf("Log file not created: %v", err)
+		logOnFailure(t, "Log file not created: %v", err)
 	}
 }
 
@@ -169,6 +176,8 @@ func TestRootCommand_Color(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
 				"--gitlab", server.URL,
@@ -176,9 +185,9 @@ func TestRootCommand_Color(t *testing.T) {
 				tt.flag,
 			}, nil, 10*time.Second)
 
-			t.Logf("Exit error: %v", exitErr)
-			t.Logf("STDOUT:\n%s", stdout)
-			t.Logf("STDERR:\n%s", stderr)
+			logOnFailure(t, "Exit error: %v", exitErr)
+			logOnFailure(t, "STDOUT:\n%s", stdout)
+			logOnFailure(t, "STDERR:\n%s", stderr)
 		})
 	}
 }
@@ -193,7 +202,7 @@ func TestRootCommand_InvalidCommand(t *testing.T) {
 	output := stdout + stderr
 	assert.NotEmpty(t, output, "Should have error output")
 
-	t.Logf("Output:\n%s", output)
+	logOnFailure(t, "Output:\n%s", output)
 }
 
 // TestRootCommand_NoArguments tests running with no arguments
@@ -203,8 +212,8 @@ func TestRootCommand_NoArguments(t *testing.T) {
 
 	// Behavior depends on implementation - might show help or error
 	output := stdout + stderr
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("Output:\n%s", output)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "Output:\n%s", output)
 }
 
 // TestRootCommand_Version tests version output (if implemented)
@@ -219,12 +228,14 @@ func TestRootCommand_Version(t *testing.T) {
 
 	for _, args := range versionFlags {
 		t.Run("args_"+args[0], func(t *testing.T) {
+			t.Parallel()
+
 			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 5*time.Second)
 
 			output := stdout + stderr
-			t.Logf("Args: %v", args)
-			t.Logf("Exit error: %v", exitErr)
-			t.Logf("Output:\n%s", output)
+			logOnFailure(t, "Args: %v", args)
+			logOnFailure(t, "Exit error: %v", exitErr)
+			logOnFailure(t, "Output:\n%s", output)
 		})
 	}
 }
@@ -247,9 +258,9 @@ func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
 		"--token", "test",
 	}, nil, 10*time.Second)
 
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 }
 
 // TestRootCommand_PersistentFlags tests persistent flags across subcommands
@@ -293,11 +304,13 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
 
-			t.Logf("Exit error: %v", exitErr)
-			t.Logf("STDOUT:\n%s", stdout)
-			t.Logf("STDERR:\n%s", stderr)
+			logOnFailure(t, "Exit error: %v", exitErr)
+			logOnFailure(t, "STDOUT:\n%s", stdout)
+			logOnFailure(t, "STDERR:\n%s", stderr)
 		})
 	}
 }
@@ -326,9 +339,9 @@ func TestRootCommand_CommandGroups(t *testing.T) {
 		}
 	}
 
-	t.Logf("Found %d command groups in help output", groupsFound)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Found %d command groups in help output", groupsFound)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 }
 
 func assertContains(s, substr string) bool {
@@ -356,9 +369,9 @@ func TestRootCommand_EnvironmentVariables(t *testing.T) {
 	}, 10*time.Second)
 
 	// Should not affect command execution negatively
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 }
 
 // TestRootCommand_IgnoreProxy tests --ignore-proxy flag
@@ -372,6 +385,8 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	defer cleanup()
 
 	t.Run("without ignore-proxy flag proxy message appears", func(t *testing.T) {
+		t.Parallel()
+
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"gl", "scan",
 			"--gitlab", server.URL,
@@ -381,14 +396,16 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 		}, 10*time.Second)
 
 		output := stdout + stderr
-		t.Logf("Exit error: %v", exitErr)
-		t.Logf("Output:\n%s", output)
+		logOnFailure(t, "Exit error: %v", exitErr)
+		logOnFailure(t, "Output:\n%s", output)
 
 		// Should show "Using HTTP_PROXY" message when proxy is set
 		testutil.AssertLogContains(t, output, []string{"Using HTTP_PROXY"})
 	})
 
 	t.Run("with ignore-proxy flag proxy message does not appear", func(t *testing.T) {
+		t.Parallel()
+
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"--ignore-proxy",
 			"gl", "scan",
@@ -399,8 +416,8 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 		}, 10*time.Second)
 
 		output := stdout + stderr
-		t.Logf("Exit error: %v", exitErr)
-		t.Logf("Output:\n%s", output)
+		logOnFailure(t, "Exit error: %v", exitErr)
+		logOnFailure(t, "Output:\n%s", output)
 
 		// Should NOT show "Using HTTP_PROXY" message when --ignore-proxy is used
 		if strings.Contains(output, "Using HTTP_PROXY") {
@@ -409,6 +426,8 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("ignore-proxy flag appears in help", func(t *testing.T) {
+		t.Parallel()
+
 		stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 		assert.Nil(t, exitErr, "Help command should succeed")
@@ -439,10 +458,10 @@ func TestRootCommand_MultipleCommands(t *testing.T) {
 		t.Run("command_"+string(rune(i+'0')), func(t *testing.T) {
 			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 10*time.Second)
 
-			t.Logf("Command: %v", cmd)
-			t.Logf("Exit error: %v", exitErr)
-			t.Logf("STDOUT:\n%s", stdout)
-			t.Logf("STDERR:\n%s", stderr)
+			logOnFailure(t, "Command: %v", cmd)
+			logOnFailure(t, "Exit error: %v", exitErr)
+			logOnFailure(t, "STDOUT:\n%s", stdout)
+			logOnFailure(t, "STDERR:\n%s", stderr)
 		})
 	}
 }

@@ -227,7 +227,7 @@ func TestGHRenovateEnum(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--owned",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all owned repositories")
@@ -240,7 +240,7 @@ func TestGHRenovateEnumSpecificRepo(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Scanning specific repository")
@@ -255,7 +255,7 @@ func TestGHRenovateEnumOrganization(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--org", "test-org",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Scanning organization")
@@ -272,7 +272,7 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 		"--repo-name", "test-exploit-repo",
 		"--username", "test-user",
 		"-v",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Autodiscovery command should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Created repository")
@@ -290,7 +290,7 @@ func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-repo-no-user",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Autodiscovery without username should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Created repository")
@@ -311,7 +311,7 @@ func TestGHRenovatePrivesc(t *testing.T) {
 		"--token", "mock-token",
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
-	}, nil, 30*time.Second)
+	}, nil, 15*time.Second)
 	if exitErr != nil {
 		t.Logf("STDOUT:\n%s", stdout)
 		t.Logf("STDERR:\n%s", stderr)
@@ -335,7 +335,7 @@ func TestGHRenovateEnumWithSearch(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--search", "renovate in:readme",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with search should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Searching repositories")
@@ -352,7 +352,7 @@ func TestGHRenovateEnumFastMode(t *testing.T) {
 		"--token", "mock-token",
 		"--owned",
 		"--fast",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with fast mode should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all owned repositories")
@@ -380,7 +380,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 		"--token", "mock-token",
 		"--owned",
 		"--dump",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with dump mode should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all owned repositories")
@@ -406,7 +406,7 @@ func TestGHRenovateEnumMemberRepositories(t *testing.T) {
 		"--github", apiURL,
 		"--token", "mock-token",
 		"--member",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with member flag should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all member repositories")
@@ -423,7 +423,7 @@ func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v", // Verbose to see autodiscovery detection logs
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "test-owner/test-repo")
@@ -441,7 +441,7 @@ func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// Should detect the GitHub Actions template in workflow file
 	combined := stdout + stderr
@@ -460,7 +460,7 @@ func TestGHRenovateEnumWithPagination(t *testing.T) {
 		"--token", "mock-token",
 		"--owned",
 		"--page", "1",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with pagination should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all owned repositories")
@@ -476,7 +476,7 @@ func TestGHRenovateEnumWithOrderBy(t *testing.T) {
 		"--token", "mock-token",
 		"--owned",
 		"--order-by", "updated",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command with order-by should succeed")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Fetched all owned repositories")
@@ -507,7 +507,7 @@ func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-vv", // Extra verbose to see detailed logs
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// The workflow contains ${{ github.repository }} template
 	// This should be detected and logged with the full template, not just "${"
@@ -525,7 +525,7 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v",
-	}, nil, 15*time.Second)
+	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
 	// Should detect renovate.json with JSON autodiscoverFilter
 	combined := stdout + stderr
@@ -544,7 +544,7 @@ func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "500ms",
-	}, nil, 30*time.Second)
+	}, nil, 15*time.Second)
 	if exitErr != nil {
 		t.Logf("STDOUT:\n%s", stdout)
 		t.Logf("STDERR:\n%s", stderr)
@@ -566,7 +566,7 @@ func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "invalid-duration",
-	}, nil, 30*time.Second)
+	}, nil, 15*time.Second)
 	assert.NotNil(t, exitErr, "Privesc command with invalid monitoring-interval should fail")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Failed to parse monitoring-interval duration")

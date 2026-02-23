@@ -93,67 +93,49 @@ func RunCLI(t *testing.T, args []string, env []string, timeout time.Duration) (s
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Apply env overrides and ensure config file loading is disabled for e2e runs
-	oldEnv := os.Environ()
-	defer func() {
-		os.Clearenv()
-		for _, e := range oldEnv {
-			parts := strings.SplitN(e, "=", 2)
-			if len(parts) == 2 {
-				_ = os.Setenv(parts[0], parts[1])
-			}
-		}
-	}()
-
-	// Always disable config file loading for deterministic e2e tests
-	_ = os.Setenv("PIPELEEK_NO_CONFIG", "1")
-
-	// Apply provided env overrides
-	for _, e := range env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) == 2 {
-			_ = os.Setenv(parts[0], parts[1])
-		}
-	}
-
-	// Capture stdout/stderr via pipes
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-	rOut, wOut, _ := os.Pipe()
-	rErr, wErr, _ := os.Pipe()
-	os.Stdout = wOut
-	os.Stderr = wErr
-
-	var outBuf, errBuf bytes.Buffer
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() { defer wg.Done(); _, _ = io.Copy(&outBuf, rOut) }()
-	go func() { defer wg.Done(); _, _ = io.Copy(&errBuf, rErr) }()
+	cmdEnv := buildCommandEnv(env)
 
 	// Run command with context
-	err := executeCLIWithContext(ctx, args)
+	stdout, stderr, err := executeCLIWithContext(ctx, args, cmdEnv)
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
 		err = fmt.Errorf("command timed out after %v", timeout)
 	}
 
-	// Close pipes and restore stdout/stderr
-	_ = wOut.Close()
-	_ = wErr.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
+	return stdout, stderr, err
+}
 
-	// Wait for all output to be read
-	wg.Wait()
+func buildCommandEnv(overrides []string) []string {
+	envMap := make(map[string]string)
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
 
-	return outBuf.String(), errBuf.String(), err
+	// Default for deterministic e2e tests. Explicit override in test input still wins.
+	envMap["PIPELEEK_NO_CONFIG"] = "1"
+
+	for _, entry := range overrides {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+
+	resolved := make([]string, 0, len(envMap))
+	for key, value := range envMap {
+		resolved = append(resolved, key+"="+value)
+	}
+
+	return resolved
 }
 
 // --- Binary execution integration ---
 
 var (
-	cliMutex               sync.Mutex
 	pipeleekBinaryResolved string
 	buildOnce              sync.Once
 )
@@ -188,35 +170,39 @@ func findModuleRoot() (string, error) {
 }
 
 // executeCLIWithContext calls the actual CLI as a separate process so cobra globals don't conflict
-func executeCLIWithContext(ctx context.Context, args []string) error {
-	cliMutex.Lock()
-	defer cliMutex.Unlock()
-
-	// Use PIPELEEK_BINARY if set (resolve to absolute path if relative)
-	if binPath := os.Getenv("PIPELEEK_BINARY"); binPath != "" {
-		if !filepath.IsAbs(binPath) {
-			// If relative, try to resolve from module root
-			if moduleDir, err := findModuleRoot(); err == nil {
-				absPath := filepath.Join(moduleDir, binPath)
-				if _, err := os.Stat(absPath); err == nil {
-					binPath = absPath
-				}
-			}
-		}
-		// #nosec G204 -- binPath is the test binary path, intentionally variable for testing
-		cmd := exec.CommandContext(ctx, binPath, args...)
-		cmd.Env = os.Environ()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
+func executeCLIWithContext(ctx context.Context, args []string, cmdEnv []string) (string, string, error) {
+	binPath, err := resolveBinaryPath(cmdEnv)
+	if err != nil {
+		return "", "", err
 	}
 
-	// Otherwise, build binary once
-	if pipeleekBinaryResolved != "" {
-		if _, err := os.Stat(pipeleekBinaryResolved); err != nil {
-			pipeleekBinaryResolved = ""
+	// #nosec G204 -- binPath is the test binary path, intentionally variable for testing
+	cmd := exec.CommandContext(ctx, binPath, args...)
+	cmd.Env = cmdEnv
+
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	err = cmd.Run()
+	return outBuf.String(), errBuf.String(), err
+}
+
+func resolveBinaryPath(cmdEnv []string) (string, error) {
+	if binPath := envValue(cmdEnv, "PIPELEEK_BINARY"); binPath != "" {
+		if filepath.IsAbs(binPath) {
+			return binPath, nil
 		}
+
+		if moduleDir, err := findModuleRoot(); err == nil {
+			absPath := filepath.Join(moduleDir, binPath)
+			if _, err := os.Stat(absPath); err == nil {
+				return absPath, nil
+			}
+		}
+
+		return binPath, nil
 	}
 
 	buildOnce.Do(func() {
@@ -225,6 +211,7 @@ func executeCLIWithContext(ctx context.Context, args []string) error {
 			pipeleekBinaryResolved = ""
 			return
 		}
+
 		tmpBin := filepath.Join(tmpDir, "pipeleek")
 		if runtime.GOOS == "windows" {
 			tmpBin += ".exe"
@@ -240,20 +227,25 @@ func executeCLIWithContext(ctx context.Context, args []string) error {
 			pipeleekBinaryResolved = ""
 			return
 		}
+
 		pipeleekBinaryResolved = tmpBin
 	})
 
 	if pipeleekBinaryResolved == "" {
-		return fmt.Errorf("failed to build pipeleek test binary")
+		return "", fmt.Errorf("failed to build pipeleek test binary")
 	}
 
-	// #nosec G204 -- pipeleekBinaryResolved is the test binary path, intentionally variable for testing
-	cmd := exec.CommandContext(ctx, pipeleekBinaryResolved, args...)
-	cmd.Env = os.Environ()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	return pipeleekBinaryResolved, nil
+}
+
+func envValue(env []string, key string) string {
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return strings.TrimPrefix(entry, prefix)
+		}
+	}
+	return ""
 }
 
 // JSON helpers

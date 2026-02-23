@@ -71,7 +71,7 @@ func TestGitea_APIErrors(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Do not use t.Parallel() - stdout/stderr redirection conflicts
+			t.Parallel()
 
 			server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.WithError(tt.statusCode, tt.message))
 			defer cleanup()
@@ -80,7 +80,7 @@ func TestGitea_APIErrors(t *testing.T) {
 				"gitea", "scan",
 				"--gitea", server.URL,
 				"--token", "test-token",
-			}, nil, 10*time.Second)
+			}, nil, 5*time.Second)
 
 			t.Logf("Status code: %d", tt.statusCode)
 			t.Logf("Exit error: %v", exitErr)

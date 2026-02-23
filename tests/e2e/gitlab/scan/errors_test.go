@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func logOnFailure(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if t.Failed() {
+		t.Logf(format, args...)
+	}
+}
+
 func TestGitLabScan_InvalidToken(t *testing.T) {
 
 	// Mock server that returns 401 Unauthorized
@@ -22,13 +29,13 @@ func TestGitLabScan_InvalidToken(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", server.URL,
 		"--token", "invalid-token",
-	}, nil, 30*time.Second)
+	}, nil, 10*time.Second)
 
 	// Command completes but logs authentication errors
 	output := stdout + stderr
 	assert.Contains(t, output, "401", "Should show 401 authentication error")
 	assert.Contains(t, output, "invalid token", "Should mention invalid token")
-	t.Logf("Output:\n%s", output)
+	logOnFailure(t, "Output:\n%s", output)
 }
 
 // TestGitLabScan_MissingRequiredFlags tests validation of required flags
@@ -56,9 +63,9 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Do not use t.Parallel() - stdout/stderr redirection conflicts
+			t.Parallel()
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 5*time.Second)
 
 			// Command should fail due to missing required flags
 			assert.NotNil(t, exitErr, "Command should fail with missing required flags")
@@ -69,7 +76,7 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 				len(output) > 0,
 				"Should have error output about missing flags",
 			)
-			t.Logf("Output:\n%s", output)
+			logOnFailure(t, "Output:\n%s", output)
 		})
 	}
 }
@@ -82,13 +89,13 @@ func TestGitLabScan_InvalidURL(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", "not-a-valid-url",
 		"--token", "test-token",
-	}, nil, 30*time.Second)
+	}, nil, 5*time.Second)
 
 	// Should fail with invalid URL
 	assert.NotNil(t, exitErr, "Command should fail with invalid URL")
 
 	output := stdout + stderr
-	t.Logf("Output:\n%s", output)
+	logOnFailure(t, "Output:\n%s", output)
 }
 
 // TestGitLabScan_FlagVariations tests various flag combinations
@@ -129,7 +136,7 @@ func TestGitLab_APIErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Do not use t.Parallel() - stdout/stderr redirection conflicts
+			t.Parallel()
 
 			server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.WithError(tt.statusCode, tt.errorMsg))
 			defer cleanup()
@@ -138,14 +145,14 @@ func TestGitLab_APIErrorHandling(t *testing.T) {
 				"gl", "scan",
 				"--gitlab", server.URL,
 				"--token", "test-token",
-			}, nil, 10*time.Second)
+			}, nil, 5*time.Second)
 
 			// Error handling depends on implementation
 			// Log for inspection
-			t.Logf("Status code: %d", tt.statusCode)
-			t.Logf("Exit error: %v", exitErr)
-			t.Logf("STDOUT:\n%s", stdout)
-			t.Logf("STDERR:\n%s", stderr)
+			logOnFailure(t, "Status code: %d", tt.statusCode)
+			logOnFailure(t, "Exit error: %v", exitErr)
+			logOnFailure(t, "STDOUT:\n%s", stdout)
+			logOnFailure(t, "STDERR:\n%s", stderr)
 		})
 	}
 }
@@ -159,7 +166,7 @@ func TestGitLabScan_Timeout(t *testing.T) {
 
 	// Create a mock server that delays responses
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(15 * time.Second)
+		time.Sleep(4 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -169,12 +176,12 @@ func TestGitLabScan_Timeout(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", server.URL,
 		"--token", "test-token",
-	}, nil, 3*time.Second)
+	}, nil, 2*time.Second)
 
 	// Should timeout
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 
 	// Assert timeout occurred (either via our test timeout or CLI timeout)
 	assert.NotNil(t, exitErr, "Command should timeout or be interrupted")
@@ -207,11 +214,11 @@ func TestGitLab_ProxySupport(t *testing.T) {
 		"--token", "test-token",
 	}, []string{
 		fmt.Sprintf("HTTP_PROXY=%s", proxyServer.URL),
-	}, 10*time.Second)
+	}, 5*time.Second)
 
 	// Note: Actual proxy usage depends on implementation
 	// This test verifies the command doesn't crash with proxy env var set
-	t.Logf("Exit error: %v", exitErr)
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+	logOnFailure(t, "Exit error: %v", exitErr)
+	logOnFailure(t, "STDOUT:\n%s", stdout)
+	logOnFailure(t, "STDERR:\n%s", stderr)
 }

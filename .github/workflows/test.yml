@@ -26,13 +26,9 @@ jobs:
           go-version: stable
           cache: true
 
-      - name: Run unit tests (Linux)
+      - name: Run unit tests + coverage (Linux)
         if: runner.os == 'Linux'
-        run: make test-unit
-
-      - name: Generate coverage report (Linux)
-        if: runner.os == 'Linux'
-        run: go test $(go list ./... | grep -v /tests/e2e) -coverprofile=coverage.out -covermode=atomic
+        run: go test $(go list ./... | grep -v /tests/e2e) -v -race -coverprofile=coverage.out -covermode=atomic
 
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
