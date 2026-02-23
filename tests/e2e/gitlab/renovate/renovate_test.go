@@ -116,6 +116,7 @@ func setupMockGitLabRenovateAPI(t *testing.T) string {
 }
 
 func TestGLRenovateEnum(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "enum",
@@ -128,6 +129,7 @@ func TestGLRenovateEnum(t *testing.T) {
 }
 
 func TestGLRenovateAutodiscovery(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
@@ -147,6 +149,7 @@ func TestGLRenovateAutodiscovery(t *testing.T) {
 }
 
 func TestGLRenovateAutodiscoveryWithCICD(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
@@ -166,6 +169,7 @@ func TestGLRenovateAutodiscoveryWithCICD(t *testing.T) {
 }
 
 func TestGLRenovateAutodiscoveryWithoutUsername(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
@@ -181,6 +185,7 @@ func TestGLRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 }
 
 func TestGLRenovatePrivesc(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
@@ -195,6 +200,7 @@ func TestGLRenovatePrivesc(t *testing.T) {
 	assert.NotContains(t, stderr, "fatal")
 }
 func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
@@ -211,6 +217,7 @@ func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
 }
 
 func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",

@@ -14,7 +14,7 @@ import (
 )
 
 func TestAzureDevOpsScan_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -62,7 +62,7 @@ func TestAzureDevOpsScan_HappyPath(t *testing.T) {
 // TestAzureDevOpsScan_MissingToken tests missing required token
 
 func TestAzureDevOpsScan_WithLogs(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("Azure DevOps Mock: %s %s", r.Method, r.URL.Path)
@@ -137,7 +137,7 @@ func TestAzureDevOpsScan_WithLogs(t *testing.T) {
 }
 
 func TestAzureDevOpsScan_Artifacts_WithDotEnv(t *testing.T) {
-
+	t.Parallel()
 	// Create a zip with a .env file
 	var zipBuf bytes.Buffer
 	zipWriter := zip.NewWriter(&zipBuf)
@@ -237,7 +237,7 @@ GITHUB_TOKEN=ghp_examplePersonalAccessToken123456789
 // TestAzureDevOpsScan_Pagination tests pagination with continuation tokens
 
 func TestAzureDevOpsScan_Pagination(t *testing.T) {
-
+	t.Parallel()
 	projectRequestCount := 0
 
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +302,7 @@ func TestAzureDevOpsScan_Pagination(t *testing.T) {
 // TestAzureDevOpsScan_Unauthorized tests 401 authentication failure
 
 func TestAzureDevOpsScan_Project(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("Azure DevOps Mock (Project): %s %s", r.Method, r.URL.Path)

@@ -81,6 +81,7 @@ func setupMockNISTAPI(t *testing.T) string {
 }
 
 func TestGLVuln(t *testing.T) {
+	t.Parallel()
 	gitlabURL := setupMockGitLabVulnAPI(t)
 	nistURL := setupMockNISTAPI(t)
 
@@ -103,6 +104,7 @@ func TestGLVuln(t *testing.T) {
 }
 
 func TestGLVuln_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
 		"--gitlab", "https://gitlab.com",
@@ -114,6 +116,7 @@ func TestGLVuln_MissingToken(t *testing.T) {
 }
 
 func TestGLVuln_MissingGitLabURL(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
 		"--token", "test-token",
@@ -125,6 +128,7 @@ func TestGLVuln_MissingGitLabURL(t *testing.T) {
 }
 
 func TestGLVuln_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/metadata", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

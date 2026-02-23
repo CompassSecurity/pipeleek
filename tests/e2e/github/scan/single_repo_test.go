@@ -13,6 +13,7 @@ import (
 
 // TestGitHubScan_SingleRepository_Success tests scanning a single repository with --repo flag
 func TestGitHubScan_SingleRepository_Success(t *testing.T) {
+	t.Parallel()
 	repoOwner := "test-org"
 	repoName := "test-repo"
 	repoFullName := repoOwner + "/" + repoName
@@ -92,6 +93,7 @@ func TestGitHubScan_SingleRepository_Success(t *testing.T) {
 
 // TestGitHubScan_SingleRepository_NotFound tests scanning a non-existent repository
 func TestGitHubScan_SingleRepository_NotFound(t *testing.T) {
+	t.Parallel()
 	repoOwner := "nonexistent-org"
 	repoName := "nonexistent-repo"
 	repoFullName := repoOwner + "/" + repoName
@@ -138,6 +140,7 @@ func TestGitHubScan_SingleRepository_NotFound(t *testing.T) {
 
 // TestGitHubScan_SingleRepository_InvalidFormat tests scanning with invalid repo format
 func TestGitHubScan_SingleRepository_InvalidFormat(t *testing.T) {
+	t.Parallel()
 	invalidRepos := []string{
 		"invalid",
 		"owner/repo/extra",
@@ -172,6 +175,7 @@ func TestGitHubScan_SingleRepository_InvalidFormat(t *testing.T) {
 
 // TestGitHubScan_SingleRepository_WithArtifacts tests scanning a single repo with artifacts flag
 func TestGitHubScan_SingleRepository_WithArtifacts(t *testing.T) {
+	t.Parallel()
 	repoOwner := "test-org"
 	repoName := "test-repo"
 	repoFullName := repoOwner + "/" + repoName
@@ -259,6 +263,7 @@ func TestGitHubScan_SingleRepository_WithArtifacts(t *testing.T) {
 
 // TestGitHubScan_SingleRepository_MutuallyExclusive tests that --repo is mutually exclusive with other flags
 func TestGitHubScan_SingleRepository_MutuallyExclusive(t *testing.T) {
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

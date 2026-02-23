@@ -14,6 +14,7 @@ import (
 // TestConfigFileLoading_Enabled verifies that when PIPELEEK_NO_CONFIG=0 and a config file exists
 // under $HOME/.config/pipeleek/pipeleek.yaml, the CLI loads it and logs the file path.
 func TestConfigFileLoading_Enabled(t *testing.T) {
+	t.Parallel()
 	tmpHome, err := os.MkdirTemp("", "pipeleek-e2e-home-")
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)

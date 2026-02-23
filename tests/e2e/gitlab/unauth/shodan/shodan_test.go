@@ -104,6 +104,7 @@ func createShodanJSONFile(t *testing.T, hostnames []string, ipStrs []string, por
 }
 
 func TestGLunaShodan(t *testing.T) {
+	t.Parallel()
 	// The shodan command processes a JSON file and makes HTTP requests to test GitLab instances
 	// Since HTTP requests to unreachable hosts have retries and long timeouts,
 	// we verify the command accepts the JSON file and begins processing
@@ -122,6 +123,7 @@ func TestGLunaShodan(t *testing.T) {
 }
 
 func TestGLunaShodan_MissingJSON(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "shodan",
 	}, nil, 3*time.Second)
@@ -135,6 +137,7 @@ func TestGLunaShodan_MissingJSON(t *testing.T) {
 }
 
 func TestGLunaShodan_InvalidJSONFile(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "shodan",
 		"--json", "/nonexistent/file.json",
@@ -147,6 +150,7 @@ func TestGLunaShodan_InvalidJSONFile(t *testing.T) {
 }
 
 func TestGLunaShodan_HTTPModule(t *testing.T) {
+	t.Parallel()
 	// Test with HTTP module
 	jsonFile := createShodanJSONFile(t, []string{""}, []string{"192.0.2.2"}, []int{8080}, []string{"http"})
 
@@ -161,6 +165,7 @@ func TestGLunaShodan_HTTPModule(t *testing.T) {
 }
 
 func TestGLunaShodan_MultipleInstances(t *testing.T) {
+	t.Parallel()
 	// Test with multiple entries in JSON file
 	jsonFile := createShodanJSONFile(t,
 		[]string{"", ""},
@@ -179,6 +184,7 @@ func TestGLunaShodan_MultipleInstances(t *testing.T) {
 }
 
 func TestGLunaShodan_WithHostname(t *testing.T) {
+	t.Parallel()
 	// Test with hostname instead of IP
 	jsonFile := createShodanJSONFile(t, []string{"example.invalid"}, []string{"192.0.2.5"}, []int{443}, []string{"https"})
 

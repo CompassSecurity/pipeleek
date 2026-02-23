@@ -15,7 +15,7 @@ import (
 
 // TestGitLabScan_ConfidenceFilter tests the --confidence flag
 func TestGitLabScan_ConfidenceFilter(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -71,7 +71,7 @@ Job complete`
 
 // TestGitLabScan_CookieAuthentication tests the --cookie flag for dotenv artifacts
 func TestGitLabScan_CookieAuthentication(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -138,7 +138,7 @@ func TestGitLabScan_CookieAuthentication(t *testing.T) {
 
 // TestGitLabScan_MaxArtifactSize tests the --max-artifact-size flag
 func TestGitLabScan_MaxArtifactSize(t *testing.T) {
-
+	t.Parallel()
 	// Create small artifact with secrets
 	var smallArtifactBuf bytes.Buffer
 	smallZipWriter := zip.NewWriter(&smallArtifactBuf)
@@ -268,7 +268,7 @@ OAUTH_CLIENT_SECRET=oauth_secret_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456
 
 // TestGitLabScan_QueueFolder tests the --queue flag for custom queue location
 func TestGitLabScan_QueueFolder(t *testing.T) {
-
+	t.Parallel()
 	customQueueDir := t.TempDir()
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
@@ -322,7 +322,7 @@ func TestGitLabScan_QueueFolder(t *testing.T) {
 
 // TestGitLabScan_TruffleHogVerificationDisabled tests --truffleHogVerification=false
 func TestGitLabScan_TruffleHogVerificationDisabled(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

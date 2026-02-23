@@ -13,7 +13,7 @@ import (
 )
 
 func TestBitBucketScan_Artifacts_MissingCookie(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -41,7 +41,7 @@ func TestBitBucketScan_Artifacts_MissingCookie(t *testing.T) {
 
 // TestBitBucketScan_MaxArtifactSize tests the --max-artifact-size flag for BitBucket
 func TestBitBucketScan_Artifacts_MaxArtifactSize(t *testing.T) {
-
+	t.Parallel()
 	// Create small artifact with secrets
 	var smallArtifactBuf bytes.Buffer
 	smallZipWriter := zip.NewWriter(&smallArtifactBuf)
@@ -159,7 +159,7 @@ SENDGRID_API_KEY=SG.1234567890abcdefghijklmnopqrstuvwxyz
 	assert.Contains(t, output, "credentials.txt", "Should scan credentials file in small artifact")
 }
 func TestBitBucketScan_Artifacts_WithDotEnv(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)
@@ -300,7 +300,7 @@ GITHUB_TOKEN=ghp_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890
 }
 
 func TestBitBucketScan_Artifacts_NestedArchive(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)
@@ -442,7 +442,7 @@ ADMIN_PASSWORD=SuperSecretAdminPass123!
 }
 
 func TestBitBucketScan_Artifacts_MultipleFiles(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)
@@ -604,7 +604,7 @@ ENCRYPTION_KEY=abc123def456ghi789jkl012mno345pqr
 }
 
 func TestBitBucketScan_Cookie_WithoutArtifacts(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -631,7 +631,7 @@ func TestBitBucketScan_Cookie_WithoutArtifacts(t *testing.T) {
 }
 
 func TestBitBucketScan_DownloadArtifacts(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestGiteaScan_InvalidURL(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
 		"--gitea", "not-a-valid-url",
@@ -26,7 +26,7 @@ func TestGiteaScan_InvalidURL(t *testing.T) {
 // TestGiteaScan_MissingToken tests missing required token flag
 
 func TestGiteaScan_MissingToken(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
 		"--gitea", "https://gitea.example.com",
@@ -41,6 +41,7 @@ func TestGiteaScan_MissingToken(t *testing.T) {
 // TestGiteaScan_Threads tests thread count configuration
 
 func TestGitea_APIErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		statusCode int

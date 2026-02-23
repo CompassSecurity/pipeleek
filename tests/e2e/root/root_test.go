@@ -14,8 +14,8 @@ import (
 
 // TestRootCommand_Help tests the --help flag
 func TestRootCommand_Help(t *testing.T) {
-
-	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 30*time.Second)
+	t.Parallel()
+	stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 	assert.Nil(t, exitErr, "Help command should succeed")
 	assert.NotEmpty(t, stdout, "Help output should not be empty")
@@ -31,7 +31,7 @@ func TestRootCommand_Help(t *testing.T) {
 
 // TestRootCommand_SubcommandHelp tests help for subcommands
 func TestRootCommand_SubcommandHelp(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name     string
 		args     []string
@@ -83,7 +83,7 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 
 // TestRootCommand_JSONLogOutput tests --json flag for JSON logging
 func TestRootCommand_JSONLogOutput(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -110,7 +110,7 @@ func TestRootCommand_JSONLogOutput(t *testing.T) {
 
 // TestRootCommand_LogFile tests --logfile flag
 func TestRootCommand_LogFile(t *testing.T) {
-
+	t.Parallel()
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "test.log")
 
@@ -144,7 +144,7 @@ func TestRootCommand_LogFile(t *testing.T) {
 
 // TestRootCommand_Color tests --color flag
 func TestRootCommand_Color(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -185,7 +185,7 @@ func TestRootCommand_Color(t *testing.T) {
 
 // TestRootCommand_InvalidCommand tests handling of invalid commands
 func TestRootCommand_InvalidCommand(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{"invalid-command"}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Invalid command should fail")
@@ -198,7 +198,7 @@ func TestRootCommand_InvalidCommand(t *testing.T) {
 
 // TestRootCommand_NoArguments tests running with no arguments
 func TestRootCommand_NoArguments(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{}, nil, 5*time.Second)
 
 	// Behavior depends on implementation - might show help or error
@@ -209,7 +209,7 @@ func TestRootCommand_NoArguments(t *testing.T) {
 
 // TestRootCommand_Version tests version output (if implemented)
 func TestRootCommand_Version(t *testing.T) {
-
+	t.Parallel()
 	// Try common version flags
 	versionFlags := [][]string{
 		{"--version"},
@@ -231,7 +231,7 @@ func TestRootCommand_Version(t *testing.T) {
 
 // TestRootCommand_GlobalFlagInheritance tests that global flags work with subcommands
 func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -254,7 +254,7 @@ func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
 
 // TestRootCommand_PersistentFlags tests persistent flags across subcommands
 func TestRootCommand_PersistentFlags(t *testing.T) {
-
+	t.Parallel()
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "persistent-test.log")
 
@@ -304,7 +304,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 
 // TestRootCommand_CommandGroups tests that command groups are properly organized
 func TestRootCommand_CommandGroups(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 	assert.Nil(t, exitErr, "Help should succeed")
@@ -337,7 +337,7 @@ func assertContains(s, substr string) bool {
 
 // TestRootCommand_EnvironmentVariables tests environment variable handling
 func TestRootCommand_EnvironmentVariables(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -363,7 +363,7 @@ func TestRootCommand_EnvironmentVariables(t *testing.T) {
 
 // TestRootCommand_IgnoreProxy tests --ignore-proxy flag
 func TestRootCommand_IgnoreProxy(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -418,6 +418,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 
 // TestRootCommand_MultipleCommands tests that commands can be distinguished
 func TestRootCommand_MultipleCommands(t *testing.T) {
+	t.Parallel()
 	// This test verifies that different subcommands can be invoked
 	// and don't interfere with each other
 

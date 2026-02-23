@@ -13,7 +13,7 @@ import (
 )
 
 func TestGitLabScan_InvalidToken(t *testing.T) {
-
+	t.Parallel()
 	// Mock server that returns 401 Unauthorized
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.WithError(http.StatusUnauthorized, "invalid token"))
 	defer cleanup()
@@ -34,7 +34,7 @@ func TestGitLabScan_InvalidToken(t *testing.T) {
 // TestGitLabScan_MissingRequiredFlags tests validation of required flags
 
 func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name string
 		args []string
@@ -77,7 +77,7 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 // TestGitLabScan_InvalidURL tests handling of malformed URLs
 
 func TestGitLabScan_InvalidURL(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
 		"--gitlab", "not-a-valid-url",
@@ -94,6 +94,7 @@ func TestGitLabScan_InvalidURL(t *testing.T) {
 // TestGitLabScan_FlagVariations tests various flag combinations
 
 func TestGitLab_APIErrorHandling(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		statusCode int
@@ -183,7 +184,7 @@ func TestGitLabScan_Timeout(t *testing.T) {
 // TestGitLab_ProxySupport tests HTTP_PROXY environment variable
 
 func TestGitLab_ProxySupport(t *testing.T) {
-
+	t.Parallel()
 	// Create mock proxy server
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Proxy just forwards the request

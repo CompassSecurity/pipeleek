@@ -12,6 +12,7 @@ import (
 )
 
 func TestGitHubScan_Pagination_Check(t *testing.T) {
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (Pagination): %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)

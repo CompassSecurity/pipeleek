@@ -221,6 +221,7 @@ jobs:
 }
 
 func TestGHRenovateEnum(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -234,6 +235,7 @@ func TestGHRenovateEnum(t *testing.T) {
 }
 
 func TestGHRenovateEnumSpecificRepo(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -249,6 +251,7 @@ func TestGHRenovateEnumSpecificRepo(t *testing.T) {
 }
 
 func TestGHRenovateEnumOrganization(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -264,6 +267,7 @@ func TestGHRenovateEnumOrganization(t *testing.T) {
 }
 
 func TestGHRenovateAutodiscovery(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
@@ -284,6 +288,7 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 }
 
 func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
@@ -304,6 +309,7 @@ func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 // that is difficult to test without significant refactoring. The command works in practice
 // but requires a real or much more complex mock GitHub API to properly test.
 func TestGHRenovatePrivesc(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
@@ -329,6 +335,7 @@ func TestGHRenovatePrivesc(t *testing.T) {
 
 // TestGHRenovateEnumWithSearch tests the enum command with search functionality
 func TestGHRenovateEnumWithSearch(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -345,6 +352,7 @@ func TestGHRenovateEnumWithSearch(t *testing.T) {
 
 // TestGHRenovateEnumFastMode tests the enum command with fast mode
 func TestGHRenovateEnumFastMode(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -362,6 +370,7 @@ func TestGHRenovateEnumFastMode(t *testing.T) {
 
 // TestGHRenovateEnumDumpMode tests the enum command with dump mode
 func TestGHRenovateEnumDumpMode(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 
 	// Create a temporary directory for the test
@@ -400,6 +409,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 
 // TestGHRenovateEnumMemberRepositories tests the enum command with member flag
 func TestGHRenovateEnumMemberRepositories(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -416,6 +426,7 @@ func TestGHRenovateEnumMemberRepositories(t *testing.T) {
 
 // TestGHRenovateEnumDetectsAutodiscovery tests autodiscovery detection
 func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -434,6 +445,7 @@ func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
 
 // TestGHRenovateEnumDetectsAutodiscoveryFilters tests autodiscovery filter detection
 func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -453,6 +465,7 @@ func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
 
 // TestGHRenovateEnumWithPagination tests the enum command with pagination
 func TestGHRenovateEnumWithPagination(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -469,6 +482,7 @@ func TestGHRenovateEnumWithPagination(t *testing.T) {
 
 // TestGHRenovateEnumWithOrderBy tests the enum command with order-by flag
 func TestGHRenovateEnumWithOrderBy(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -485,6 +499,7 @@ func TestGHRenovateEnumWithOrderBy(t *testing.T) {
 
 // TestGHRenovateEnumMutuallyExclusiveFlags tests that mutually exclusive flags are rejected
 func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -500,6 +515,7 @@ func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
 
 // TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate tests GitHub Actions template detection in workflows
 func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -518,6 +534,7 @@ func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
 
 // TestGHRenovateEnumDetectsJSONConfigFile tests JSON config file detection
 func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
@@ -536,6 +553,7 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 
 // TestGHRenovatePrivescWithMonitoringInterval tests the privesc command with custom monitoring interval
 func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
@@ -558,6 +576,7 @@ func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 
 // TestGHRenovatePrivescWithInvalidMonitoringInterval tests privesc with invalid monitoring interval
 func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",

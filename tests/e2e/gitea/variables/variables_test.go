@@ -13,7 +13,7 @@ import (
 )
 
 func TestGiteaVariables_Success(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -103,7 +103,7 @@ func TestGiteaVariables_Success(t *testing.T) {
 }
 
 func TestGiteaVariables_Pagination(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -194,7 +194,7 @@ func TestGiteaVariables_Pagination(t *testing.T) {
 }
 
 func TestGiteaVariables_EmptyResult(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -248,7 +248,7 @@ func TestGiteaVariables_EmptyResult(t *testing.T) {
 }
 
 func TestGiteaVariables_MissingToken(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
 		"--gitea", "https://gitea.example.com",
@@ -261,7 +261,7 @@ func TestGiteaVariables_MissingToken(t *testing.T) {
 }
 
 func TestGiteaVariables_InvalidURL(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
 		"--gitea", "not-a-valid-url",
@@ -275,7 +275,7 @@ func TestGiteaVariables_InvalidURL(t *testing.T) {
 }
 
 func TestGiteaVariables_UnauthorizedAccess(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -320,7 +320,7 @@ func TestGiteaVariables_UnauthorizedAccess(t *testing.T) {
 }
 
 func TestGiteaVariables_MultipleOrganizations(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

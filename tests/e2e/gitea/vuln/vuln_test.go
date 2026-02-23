@@ -76,6 +76,7 @@ func setupMockNISTAPI(t *testing.T) string {
 }
 
 func TestGiteaVuln(t *testing.T) {
+	t.Parallel()
 	giteaURL := setupMockGiteaVulnAPI(t)
 	nistURL := setupMockNISTAPI(t)
 
@@ -98,6 +99,7 @@ func TestGiteaVuln(t *testing.T) {
 }
 
 func TestGiteaVuln_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
 		"--gitea", "https://gitea.com",
@@ -110,6 +112,7 @@ func TestGiteaVuln_MissingToken(t *testing.T) {
 }
 
 func TestGiteaVuln_MissingGitea(t *testing.T) {
+	t.Parallel()
 	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
 		"--token", "mock-token",
@@ -121,6 +124,7 @@ func TestGiteaVuln_MissingGitea(t *testing.T) {
 }
 
 func TestGiteaVuln_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

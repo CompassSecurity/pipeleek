@@ -13,7 +13,7 @@ import (
 )
 
 func TestGiteaScan_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -108,7 +108,7 @@ func TestGiteaScan_HappyPath(t *testing.T) {
 
 // TestGiteaScan_MaxArtifactSize tests the --max-artifact-size flag for Gitea
 func TestGiteaScan_Artifacts_MaxArtifactSize(t *testing.T) {
-
+	t.Parallel()
 	// Create small artifact with secrets
 	var smallArtifactBuf bytes.Buffer
 	smallZipWriter := zip.NewWriter(&smallArtifactBuf)
@@ -228,7 +228,7 @@ api:
 // TestGiteaScan_WithArtifacts tests scanning with artifacts enabled
 
 func TestGiteaScan_Owned(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -264,7 +264,7 @@ func TestGiteaScan_Owned(t *testing.T) {
 // TestGiteaScan_Organization tests scanning organization repositories
 
 func TestGiteaScan_Organization(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -310,7 +310,7 @@ func TestGiteaScan_Organization(t *testing.T) {
 // TestGiteaScan_SpecificRepository tests scanning a single repository
 
 func TestGiteaScan_SpecificRepository(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -358,7 +358,7 @@ func TestGiteaScan_SpecificRepository(t *testing.T) {
 // TestGiteaScan_WithCookie tests cookie authentication
 
 func TestGiteaScan_WithCookie(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -402,7 +402,7 @@ func TestGiteaScan_WithCookie(t *testing.T) {
 // TestGiteaScan_RunsLimit tests limiting workflow runs scanned
 
 func TestGiteaScan_RunsLimit(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -438,7 +438,7 @@ func TestGiteaScan_RunsLimit(t *testing.T) {
 // TestGiteaScan_StartRunID tests starting from specific run ID
 
 func TestGiteaScan_StartRunID(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -463,7 +463,7 @@ func TestGiteaScan_StartRunID(t *testing.T) {
 // TestGiteaScan_StartRunID_WithoutRepo tests validation error
 
 func TestGiteaScan_StartRunID_WithoutRepo(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.MockSuccessResponse())
 	defer cleanup()
 
@@ -485,7 +485,7 @@ func TestGiteaScan_StartRunID_WithoutRepo(t *testing.T) {
 // TestGiteaScan_InvalidURL tests invalid Gitea URL handling
 
 func TestGiteaScan_Threads(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -516,7 +516,7 @@ func TestGiteaScan_Threads(t *testing.T) {
 // TestGiteaScan_Verbose tests verbose logging
 
 func TestGiteaScan_Verbose(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -548,7 +548,7 @@ func TestGiteaScan_Verbose(t *testing.T) {
 // TestGiteaEnum tests Gitea enumeration command
 
 func TestGiteaScan_TruffleHogVerification(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -593,7 +593,7 @@ func TestGiteaScan_TruffleHogVerification(t *testing.T) {
 // TestGiteaScan_ConfidenceFilter tests confidence level filtering
 
 func TestGiteaScan_ConfidenceFilter(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -622,7 +622,7 @@ func TestGiteaScan_ConfidenceFilter(t *testing.T) {
 }
 
 func TestGiteaScan_WithArtifacts(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

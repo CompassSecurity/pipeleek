@@ -11,7 +11,7 @@ import (
 )
 
 func TestBitBucketScan_MaxPipelines(t *testing.T) {
-
+	t.Parallel()
 	pipelinesReturned := 0
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -77,7 +77,7 @@ func TestBitBucketScan_MaxPipelines(t *testing.T) {
 }
 
 func TestBitBucketScan_Confidence(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Confidence): %s %s", r.Method, r.URL.Path)
@@ -164,7 +164,7 @@ func TestBitBucketScan_Confidence(t *testing.T) {
 }
 
 func TestBitBucketScan_Threads(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Threads): %s %s", r.Method, r.URL.Path)
@@ -226,7 +226,7 @@ func TestBitBucketScan_Threads(t *testing.T) {
 }
 
 func TestBitBucketScan_Verbose(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -260,7 +260,7 @@ func TestBitBucketScan_Verbose(t *testing.T) {
 }
 
 func TestBitBucketScan_TruffleHogVerification(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -342,7 +342,7 @@ func TestBitBucketScan_TruffleHogVerification(t *testing.T) {
 }
 
 func TestBitBucketScan_Pagination(t *testing.T) {
-
+	t.Parallel()
 	requestCount := 0
 	var serverURL string
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
@@ -423,7 +423,7 @@ func TestBitBucketScan_Pagination(t *testing.T) {
 }
 
 func TestBitBucketScan_ConfidenceFilter_Multiple(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)
@@ -512,7 +512,7 @@ func TestBitBucketScan_ConfidenceFilter_Multiple(t *testing.T) {
 }
 
 func TestBitBucketScan_RateLimit(t *testing.T) {
-
+	t.Parallel()
 	requestCount := 0
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

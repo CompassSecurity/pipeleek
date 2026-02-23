@@ -47,6 +47,7 @@ func setupMockGitLabScheduleAPI(t *testing.T) string {
 }
 
 func TestGLSchedule(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabScheduleAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "schedule",
@@ -60,6 +61,7 @@ func TestGLSchedule(t *testing.T) {
 }
 
 func TestGLSchedule_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "schedule",
 		"--gitlab", "https://gitlab.com",
@@ -71,6 +73,7 @@ func TestGLSchedule_MissingToken(t *testing.T) {
 }
 
 func TestGLSchedule_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

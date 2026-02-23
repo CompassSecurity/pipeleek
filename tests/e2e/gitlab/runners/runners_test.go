@@ -85,6 +85,7 @@ func setupMockGitLabRunnersAPI(t *testing.T) string {
 }
 
 func TestGLRunnersList(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "list",
@@ -98,6 +99,7 @@ func TestGLRunnersList(t *testing.T) {
 }
 
 func TestGLRunnersList_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "list",
 		"--gitlab", "https://gitlab.com",
@@ -109,6 +111,7 @@ func TestGLRunnersList_MissingToken(t *testing.T) {
 }
 
 func TestGLRunnersExploit_DryRun(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
@@ -125,6 +128,7 @@ func TestGLRunnersExploit_DryRun(t *testing.T) {
 }
 
 func TestGLRunnersExploit_DryRun_WithoutTokenAndGitlab(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
 		"--dry=true",
@@ -138,6 +142,7 @@ func TestGLRunnersExploit_DryRun_WithoutTokenAndGitlab(t *testing.T) {
 }
 
 func TestGLRunnersExploit_NonDryRun_WithoutTokenAndGitlab(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
 		"--dry=false",
@@ -152,6 +157,7 @@ func TestGLRunnersExploit_NonDryRun_WithoutTokenAndGitlab(t *testing.T) {
 
 
 func TestGLRunnersExploit_WithRepoCreation(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
@@ -169,6 +175,7 @@ func TestGLRunnersExploit_WithRepoCreation(t *testing.T) {
 }
 
 func TestGLRunnersExploit_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

@@ -14,7 +14,7 @@ import (
 
 // TestAzureDevOpsScan_ConfidenceFilter tests the --confidence flag
 func TestAzureDevOpsScan_ConfidenceFilter(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("Azure DevOps Mock (Confidence): %s %s", r.Method, r.URL.Path)
@@ -86,7 +86,7 @@ Build complete`
 
 // TestAzureDevOpsScan_MaxArtifactSize tests the --max-artifact-size flag for Azure DevOps
 func TestAzureDevOpsScan_MaxArtifactSize(t *testing.T) {
-
+	t.Parallel()
 	// Create small artifact with secrets
 	var smallArtifactBuf bytes.Buffer
 	smallZipWriter := zip.NewWriter(&smallArtifactBuf)
@@ -224,7 +224,7 @@ DATABASE_URL=postgresql://admin:SuperSecretP@ss@db.local:5432/prod
 
 // TestAzureDevOpsScan_ThreadsConfiguration tests the --threads flag
 func TestAzureDevOpsScan_ThreadsConfiguration(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -300,7 +300,7 @@ func TestAzureDevOpsScan_ThreadsConfiguration(t *testing.T) {
 
 // TestAzureDevOpsScan_MaxBuilds tests the --max-builds flag
 func TestAzureDevOpsScan_MaxBuilds(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -391,7 +391,7 @@ func TestAzureDevOpsScan_MaxBuilds(t *testing.T) {
 
 // TestAzureDevOpsScan_VerboseLogging tests the --verbose flag
 func TestAzureDevOpsScan_VerboseLogging(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -456,7 +456,7 @@ func TestAzureDevOpsScan_VerboseLogging(t *testing.T) {
 
 // TestAzureDevOpsScan_TruffleHogVerificationDisabled tests --truffle-hog-verification=false
 func TestAzureDevOpsScan_TruffleHogVerificationDisabled(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

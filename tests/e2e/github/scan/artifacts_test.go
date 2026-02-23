@@ -13,7 +13,7 @@ import (
 )
 
 func TestGitHubScan_Artifacts_WithDotEnv(t *testing.T) {
-
+	t.Parallel()
 	// Create artifact zip with a .env file
 	var artifactZipBuf bytes.Buffer
 	artifactZipWriter := zip.NewWriter(&artifactZipBuf)
@@ -147,7 +147,7 @@ API_KEY=sk_test_abcdefghijklmnopqrstuvwxyz123456
 
 // TestGitHubScan_MaxArtifactSize tests the --max-artifact-size flag for GitHub
 func TestGitHubScan_Artifacts_MaxArtifactSize(t *testing.T) {
-
+	t.Parallel()
 	// Create small artifact (100KB) with secrets
 	var smallArtifactBuf bytes.Buffer
 	smallZipWriter := zip.NewWriter(&smallArtifactBuf)
@@ -302,7 +302,7 @@ AWS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 // TestGitHubScan_Artifacts_NestedArchive tests nested zip handling
 
 func TestGitHubScan_Artifacts_NestedArchive(t *testing.T) {
-
+	t.Parallel()
 	// Create inner zip with secret
 	var innerZipBuf bytes.Buffer
 	innerZipWriter := zip.NewWriter(&innerZipBuf)
