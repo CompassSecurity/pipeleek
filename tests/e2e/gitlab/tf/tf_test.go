@@ -20,6 +20,7 @@ import (
 
 // TestTFBasic tests the basic tf command functionality with a mock GitLab server
 func TestTFBasic(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -105,6 +106,7 @@ func TestTFBasic(t *testing.T) {
 
 // TestTFNoState tests the tf command when no Terraform state is found
 func TestTFNoState(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -150,6 +152,7 @@ func TestTFNoState(t *testing.T) {
 
 // TestTFInvalidURL tests the tf command with invalid GitLab URL
 func TestTFInvalidURL(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -172,6 +175,7 @@ func TestTFInvalidURL(t *testing.T) {
 
 // TestTFMissingToken tests the tf command without required token
 func TestTFMissingToken(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -193,6 +197,7 @@ func TestTFMissingToken(t *testing.T) {
 
 // TestTFOutputDir tests that the tf command creates output directory if it doesn't exist
 func TestTFOutputDir(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}

@@ -209,10 +209,10 @@ func TestListRepoActionVariables_ErrorHandling(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "500 server error",
+			name: "server error",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(`{"message": "Internal Server Error"}`))
+				w.WriteHeader(http.StatusNotImplemented)
+				_, _ = w.Write([]byte(`{"message": "Not Implemented"}`))
 			},
 			expectError: true,
 		},

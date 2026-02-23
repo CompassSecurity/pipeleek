@@ -3,6 +3,8 @@ package scan
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -67,10 +69,15 @@ func TestGetDotenvArtifact_EmptyCookie(t *testing.T) {
 }
 
 func TestGetDotenvArtifact_WithCookie(t *testing.T) {
-	// Non-empty cookie should trigger download (which will fail in test but exercises logic)
-	opts := &ScanOptions{GitlabCookie: "valid-cookie", GitlabUrl: "http://localhost:65535"}
+	// Non-empty cookie should trigger download; use a mock server returning 404
+	// to exercise the "no dotenv exists" code path without triggering HTTP retries
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	opts := &ScanOptions{GitlabCookie: "valid-cookie", GitlabUrl: server.URL}
 	result := getDotenvArtifact(nil, 1, 123, "group/project", opts)
-	// Expected to return empty on connection failure
 	if len(result) != 0 {
 		t.Logf("unexpected bytes returned: %d", len(result))
 	}

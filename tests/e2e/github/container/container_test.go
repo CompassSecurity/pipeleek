@@ -14,6 +14,7 @@ import (
 )
 
 func TestContainerScanBasic(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -151,6 +152,7 @@ func TestContainerScanBasic(t *testing.T) {
 }
 
 func TestContainerScanOwned(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -246,6 +248,7 @@ func TestContainerScanOwned(t *testing.T) {
 }
 
 func TestContainerScanOrganization(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -339,6 +342,7 @@ func TestContainerScanOrganization(t *testing.T) {
 }
 
 func TestContainerScanSingleRepo(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -413,6 +417,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 }
 
 func TestContainerScanNoDockerfile(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -496,6 +501,7 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 }
 
 func TestContainerScanMissingToken(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
