@@ -441,3 +441,107 @@ func TestContainerScanWithSearch(t *testing.T) {
 	output := stdout + stderr
 	assert.Contains(t, output, "Identified")
 }
+
+func TestContainerScanMetadataFieldsCreatedAtFromTagDetail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping e2e test in short mode")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/api/v4/projects") &&
+			!strings.Contains(r.URL.Path, "/repository/files") &&
+			!strings.Contains(r.URL.Path, "/repository/tree") &&
+			!strings.Contains(r.URL.Path, "/pipelines") &&
+			!strings.Contains(r.URL.Path, "/registry") {
+			projectsJSON := `[
+{
+"id": 1,
+"path_with_namespace": "test-user/metadata-app",
+"web_url": "http://localhost/test-user/metadata-app"
+}
+]`
+			w.Header().Set("X-Page", "1")
+			w.Header().Set("X-Per-Page", "100")
+			w.Header().Set("X-Total", "1")
+			w.Header().Set("X-Total-Pages", "1")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(projectsJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/repository/tree") {
+			treeJSON := `[
+{"id":"abc123","name":"Dockerfile","type":"blob","path":"Dockerfile","mode":"100644"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(treeJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/repository/files") && strings.Contains(r.URL.Path, "Dockerfile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"file_name":"Dockerfile","file_path":"Dockerfile","content":"RlJPTSBub2RlOjIwCkNPUFkgLiAuCg=="}`))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/pipelines") {
+			pipelinesJSON := `[
+{"id": 99, "updated_at": "2026-02-23T07:20:00Z"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(pipelinesJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/registry/repositories") && !strings.Contains(r.URL.Path, "/tags") {
+			reposJSON := `[
+{"id": 10, "path": "test-user/metadata-app", "tags_count": 1}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(reposJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/registry/repositories/10/tags/latest") {
+			tagDetailJSON := `{"name":"latest","created_at":"2026-02-23T07:19:00Z"}`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(tagDetailJSON))
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/registry/repositories/10/tags") {
+			tagsJSON := `[
+{"name":"latest"}
+]`
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(tagsJSON))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "404 Not Found"}`))
+	}))
+	defer server.Close()
+
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "container", "artipacked",
+		"--gitlab", server.URL,
+		"--token", "test-token",
+	}, nil, 10*time.Second)
+
+	t.Logf("STDOUT:\n%s", stdout)
+	t.Logf("STDERR:\n%s", stderr)
+
+	assert.Nil(t, exitErr)
+	output := stdout + stderr
+	assert.Contains(t, output, "Identified")
+	assert.Contains(t, output, "latest_ci_run_at")
+	assert.Contains(t, output, "registry_tag")
+	assert.Contains(t, output, "registry_last_update")
+	assert.NotContains(t, output, "registry_created_at")
+}
