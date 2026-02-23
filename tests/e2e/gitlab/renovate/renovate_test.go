@@ -39,7 +39,11 @@ func setupMockGitLabRenovateAPI(t *testing.T) string {
 	})
 	mux.HandleFunc("/api/v4/users", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[{"id":456,"username":"test-user"}]`))
+		w.Write([]byte(`[{"id":456,"username":"renovate-bot","name":"Renovate Bot","web_url":"https://gitlab.com/renovate-bot","bot":true,"private_profile":false}]`))
+	})
+	mux.HandleFunc("/api/v4/users/456/events", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`[{"action_name":"pushed","target_title":"renovate update","push_data":{"ref":"renovate/deps"}}]`))
 	})
 	mux.HandleFunc("/api/v4/projects/123", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -221,4 +225,20 @@ func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 	if !strings.Contains(stderr, "Failed to parse monitoring-interval duration") {
 		assert.Contains(t, stdout, "Failed to parse monitoring-interval duration")
 	}
+}
+
+func TestGLRenovateBots(t *testing.T) {
+	apiURL := setupMockGitLabRenovateAPI(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "bots",
+		"--gitlab", apiURL,
+		"--token", "mock-token",
+		"--term", "renovate",
+	}, nil, 10*time.Second)
+
+	assert.Nil(t, exitErr, "Bots command should succeed")
+	assert.Contains(t, stdout, "Evaluated GitLab user")
+	assert.Contains(t, stdout, "likelyRenovateBot")
+	assert.Contains(t, stdout, "Renovate bot user enumeration complete")
+	assert.NotContains(t, stderr, "fatal")
 }

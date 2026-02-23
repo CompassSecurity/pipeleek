@@ -87,6 +87,9 @@ gitlab:
       order_by: "last_activity_at" # Sort order
       extend_renovate_config_service: false # Extend renovate config service
 
+    bots:
+      term: "renovate" # Search term for identifying potential renovate bot users
+
   # register - Register new user account
   register:
     username: "newuser"

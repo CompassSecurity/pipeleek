@@ -99,6 +99,9 @@ gitlab:
       fast: false # gl renovate enum --fast
       dump: false # gl renovate enum --dump
 
+    bots:
+      term: renovate # gl renovate bots --term
+
     autodiscovery: {} # gl renovate autodiscovery (inherits url/token)
 
     privesc: {} # gl renovate privesc (inherits url/token)
