@@ -293,7 +293,7 @@ func fetchLatestPipelineRunAt(git *gitlab.Client, project *gitlab.Project) strin
 		return ""
 	}
 
-	formattedDate := formatFindingDate(*pipelineDate)
+	formattedDate := sharedcontainer.FormatFindingDate(*pipelineDate)
 
 	elapsed := time.Since(startTime)
 	log.Debug().
@@ -416,7 +416,7 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedc
 		return &sharedcontainer.RegistryMetadata{TagName: fallbackTagName}
 	}
 
-	formattedDate := formatFindingDate(*newestTag.CreatedAt)
+	formattedDate := sharedcontainer.FormatFindingDate(*newestTag.CreatedAt)
 	metadata := &sharedcontainer.RegistryMetadata{
 		TagName:    newestTag.Name,
 		LastUpdate: formattedDate,
@@ -433,11 +433,6 @@ func fetchRegistryMetadata(git *gitlab.Client, project *gitlab.Project) *sharedc
 
 	return metadata
 }
-
-func formatFindingDate(date time.Time) string {
-	return date.UTC().Format("02 Jan 2006 15:04")
-}
-
 func validateOrderBy(orderBy string) {
 	validValues := map[string]bool{
 		"id": true, "name": true, "path": true, "created_at": true,

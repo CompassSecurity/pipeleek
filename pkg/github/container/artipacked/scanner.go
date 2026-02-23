@@ -3,7 +3,6 @@ package artipacked
 import (
 	"context"
 	"strings"
-	"time"
 
 	sharedcontainer "github.com/CompassSecurity/pipeleek/pkg/container"
 	"github.com/google/go-github/v69/github"
@@ -305,7 +304,7 @@ func fetchLatestWorkflowRunAt(ctx context.Context, client *github.Client, repo *
 		return ""
 	}
 
-	formattedDate := formatFindingDate(runDate.Time)
+	formattedDate := sharedcontainer.FormatFindingDate(runDate.Time)
 
 	log.Debug().
 		Str("repository", repo.GetFullName()).
@@ -369,7 +368,7 @@ func fetchRegistryMetadata(ctx context.Context, client *github.Client, repo *git
 	}
 
 	if !mostRecentVersion.GetCreatedAt().IsZero() {
-		formattedDate := formatFindingDate(mostRecentVersion.GetCreatedAt().Time)
+		formattedDate := sharedcontainer.FormatFindingDate(mostRecentVersion.GetCreatedAt().Time)
 		metadata.LastUpdate = formattedDate
 	}
 
@@ -393,8 +392,4 @@ func extractTag(version *github.PackageVersion) string {
 		return version.Metadata.Container.Tags[0]
 	}
 	return version.GetName()
-}
-
-func formatFindingDate(date time.Time) string {
-	return date.UTC().Format("02 Jan 2006 15:04")
 }
