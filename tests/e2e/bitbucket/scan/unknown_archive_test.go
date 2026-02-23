@@ -16,7 +16,7 @@ import (
 // TestBitBucketScan_UnknownArchive_BinaryWithSecrets tests that when encountering
 // an unknown archive file type, the scanner extracts printable strings and scans them
 func TestBitBucketScan_UnknownArchive_BinaryWithSecrets(t *testing.T) {
-
+	t.Parallel()
 	// Create a binary file that is not a recognizable archive format
 	// but contains embedded secrets (simulating a compiled binary or proprietary format)
 	binaryData := []byte{
@@ -156,7 +156,7 @@ func TestBitBucketScan_UnknownArchive_BinaryWithSecrets(t *testing.T) {
 
 // TestBitBucketScan_UnknownArchive_ELFBinary tests string extraction from ELF binary format
 func TestBitBucketScan_UnknownArchive_ELFBinary(t *testing.T) {
-
+	t.Parallel()
 	// Create an ELF-like binary with embedded secrets
 	var elfBinary bytes.Buffer
 
@@ -279,7 +279,7 @@ func TestBitBucketScan_UnknownArchive_ELFBinary(t *testing.T) {
 
 // TestBitBucketScan_UnknownArchive_MixedBinaryFormats tests handling of multiple unknown formats
 func TestBitBucketScan_UnknownArchive_MixedBinaryFormats(t *testing.T) {
-
+	t.Parallel()
 	// Binary 1: Proprietary format with secret
 	binary1 := []byte{
 		0xCA, 0xFE, 0xBA, 0xBE, // Magic bytes (like Java class file)

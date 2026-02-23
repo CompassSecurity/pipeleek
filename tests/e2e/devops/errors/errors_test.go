@@ -11,7 +11,7 @@ import (
 )
 
 func TestAzureDevOpsScan_MissingToken(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
 		"--devops", "https://dev.azure.com",
@@ -27,7 +27,7 @@ func TestAzureDevOpsScan_MissingToken(t *testing.T) {
 // TestAzureDevOpsScan_WithLogs tests scanning pipeline logs with secrets
 
 func TestAzureDevOpsScan_Unauthorized(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("Azure DevOps Mock (Unauthorized): %s %s", r.Method, r.URL.Path)

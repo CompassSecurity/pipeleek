@@ -14,6 +14,7 @@ import (
 // (calling GetUserInfo via the /!api/2.0/user endpoint) only happens when BOTH
 // --cookie (-c) AND --artifacts (-a) flags are provided together.
 func TestBitBucketScan_CookieValidationOnlyWithArtifacts(t *testing.T) {
+	t.Parallel()
 	t.Run("WithoutCookie_WithoutArtifacts_NoValidation", func(t *testing.T) {
 		userInfoCalled := false
 

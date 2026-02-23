@@ -14,7 +14,7 @@ import (
 )
 
 func TestGitHubScan_Organization(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (Org): %s %s", r.Method, r.URL.Path)
@@ -140,7 +140,7 @@ func SkipTestGitHubScan_Pagination(t *testing.T) {
 // TestGitHubScan_RateLimit tests 429 rate limit handling
 
 func TestGitHubScan_RateLimit(t *testing.T) {
-
+	t.Parallel()
 	requestCount := 0
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
@@ -206,7 +206,7 @@ func TestGitHubScan_RateLimit(t *testing.T) {
 // TestGitHubScan_ConfidenceFilter tests multiple confidence levels
 // SKIP: Test intermittently times out - needs investigation of zip handling in mock environment
 func TestGitHubScan_ConfidenceFilter(t *testing.T) {
-
+	t.Parallel()
 	// Prepare zipped logs with secrets
 	var logsZip bytes.Buffer
 	zw := zip.NewWriter(&logsZip)
@@ -301,7 +301,7 @@ export POSSIBLE_KEY=maybe_a_secret_12345`
 // TestGitHubScan_MaxWorkflows tests maxWorkflows limit
 
 func TestGitHubScan_MaxWorkflows(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

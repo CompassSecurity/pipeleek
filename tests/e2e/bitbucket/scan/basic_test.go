@@ -13,7 +13,7 @@ import (
 )
 
 func TestBitBucketScan_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -192,7 +192,7 @@ STRIPE_SECRET_KEY=sk_live_51abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOP
 }
 
 func TestBitBucketScan_Owned_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Owned): %s %s", r.Method, r.URL.Path)
@@ -265,7 +265,7 @@ func TestBitBucketScan_Owned_HappyPath(t *testing.T) {
 }
 
 func TestBitBucketScan_Workspace_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Workspace): %s %s", r.Method, r.URL.Path)
@@ -323,7 +323,7 @@ func TestBitBucketScan_Workspace_HappyPath(t *testing.T) {
 }
 
 func TestBitBucketScan_Public_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Public): %s %s", r.Method, r.URL.Path)
@@ -378,7 +378,7 @@ func TestBitBucketScan_Public_HappyPath(t *testing.T) {
 }
 
 func TestBitBucketScan_Public_WithAfter(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock (Public After): %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)
@@ -437,7 +437,7 @@ func TestBitBucketScan_Public_WithAfter(t *testing.T) {
 }
 
 func TestBitBucketScan_NoScanMode(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

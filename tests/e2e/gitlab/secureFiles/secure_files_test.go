@@ -58,6 +58,7 @@ func setupMockGitLabSecureFilesAPI(t *testing.T) string {
 }
 
 func TestGLSecureFiles(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabSecureFilesAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
@@ -71,6 +72,7 @@ func TestGLSecureFiles(t *testing.T) {
 }
 
 func TestGLSecureFiles_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
 		"--gitlab", "https://gitlab.com",
@@ -82,6 +84,7 @@ func TestGLSecureFiles_MissingToken(t *testing.T) {
 }
 
 func TestGLSecureFiles_MissingGitLabURL(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
 		"--token", "test-token",
@@ -93,6 +96,7 @@ func TestGLSecureFiles_MissingGitLabURL(t *testing.T) {
 }
 
 func TestGLSecureFiles_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

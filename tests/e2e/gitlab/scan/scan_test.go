@@ -12,7 +12,7 @@ import (
 )
 
 func TestGitLabScan_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	// Mock GitLab API responses
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -92,7 +92,7 @@ func TestGitLabScan_HappyPath(t *testing.T) {
 // TestGitLabScan_WithArtifacts tests scanning with artifact download enabled
 
 func TestGitLabScan_WithArtifacts(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -156,6 +156,7 @@ func TestGitLabScan_WithArtifacts(t *testing.T) {
 // TestGitLabScan_InvalidToken tests authentication failure handling
 
 func TestGitLabScan_FlagVariations(t *testing.T) {
+	t.Parallel()
 	// Create mock server for all sub-tests
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

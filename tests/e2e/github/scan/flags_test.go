@@ -13,7 +13,7 @@ import (
 
 // TestGitHubScan_SearchQuery tests the --search flag for repository search
 func TestGitHubScan_SearchQuery(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (Search): %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)
@@ -84,7 +84,7 @@ func TestGitHubScan_SearchQuery(t *testing.T) {
 
 // TestGitHubScan_UserRepositories tests the --user flag for scanning a specific user's repos
 func TestGitHubScan_UserRepositories(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (User): %s %s", r.Method, r.URL.Path)
@@ -150,7 +150,7 @@ func TestGitHubScan_UserRepositories(t *testing.T) {
 // TestGitHubScan_PublicRepositories tests the --public flag for scanning public repos
 // Tests backward scanning behavior from a given repository ID
 func TestGitHubScan_PublicRepositories(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (Public): %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)
@@ -299,7 +299,7 @@ func TestGitHubScan_PublicRepositories(t *testing.T) {
 
 // TestGitHubScan_ThreadsConfiguration tests the --threads flag
 func TestGitHubScan_ThreadsConfiguration(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (Threads): %s %s", r.Method, r.URL.Path)
@@ -352,7 +352,7 @@ func TestGitHubScan_ThreadsConfiguration(t *testing.T) {
 
 // TestGitHubScan_TruffleHogVerificationDisabled tests --truffleHogVerification=false flag
 func TestGitHubScan_TruffleHogVerificationDisabled(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("GitHub Mock (TruffleHog): %s %s", r.Method, r.URL.Path)
@@ -403,7 +403,7 @@ func TestGitHubScan_TruffleHogVerificationDisabled(t *testing.T) {
 
 // TestGitHubScan_MutuallyExclusiveFlags tests that mutually exclusive flags are handled
 func TestGitHubScan_MutuallyExclusiveFlags(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

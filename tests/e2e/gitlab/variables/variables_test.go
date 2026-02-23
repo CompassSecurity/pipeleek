@@ -54,6 +54,7 @@ func setupMockGitLabVariablesAPI(t *testing.T) string {
 }
 
 func TestGLVariables(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabVariablesAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
@@ -68,6 +69,7 @@ func TestGLVariables(t *testing.T) {
 }
 
 func TestGLVariables_MissingToken(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
 		"--gitlab", "https://gitlab.com",
@@ -79,6 +81,7 @@ func TestGLVariables_MissingToken(t *testing.T) {
 }
 
 func TestGLVariables_Unauthorized(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

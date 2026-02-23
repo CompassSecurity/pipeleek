@@ -38,6 +38,7 @@ func setupMockGitLabCicdAPI(t *testing.T) string {
 }
 
 func TestGLCicdYaml(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
@@ -53,6 +54,7 @@ func TestGLCicdYaml(t *testing.T) {
 }
 
 func TestGLCicdYaml_MissingProject(t *testing.T) {
+	t.Parallel()
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
@@ -66,6 +68,7 @@ func TestGLCicdYaml_MissingProject(t *testing.T) {
 }
 
 func TestGLCicdYaml_InvalidProject(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v4/projects/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -89,6 +92,7 @@ func TestGLCicdYaml_InvalidProject(t *testing.T) {
 }
 
 func TestGLCicdYaml_NoCiCdYaml(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 
 	// Project exists

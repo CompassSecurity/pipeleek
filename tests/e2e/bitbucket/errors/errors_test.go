@@ -11,7 +11,7 @@ import (
 )
 
 func TestBitBucketScan_MissingCredentials(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		// Return 401 Unauthorized for all requests when credentials are missing/invalid
 		w.Header().Set("Content-Type", "application/json")
@@ -43,7 +43,7 @@ func TestBitBucketScan_MissingCredentials(t *testing.T) {
 }
 
 func TestBitBucketScan_Owned_Unauthorized(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -70,7 +70,7 @@ func TestBitBucketScan_Owned_Unauthorized(t *testing.T) {
 }
 
 func TestBitBucketScan_Owned_NotFound(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -97,7 +97,7 @@ func TestBitBucketScan_Owned_NotFound(t *testing.T) {
 }
 
 func TestBitBucketScan_Workspace_NotFound(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -130,7 +130,7 @@ func TestBitBucketScan_Workspace_NotFound(t *testing.T) {
 }
 
 func TestBitBucketScan_Public_ServerError(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -157,7 +157,7 @@ func TestBitBucketScan_Public_ServerError(t *testing.T) {
 }
 
 func TestBitBucketScan_InvalidCookie(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		t.Logf("BitBucket Mock: %s %s", r.Method, r.URL.Path)

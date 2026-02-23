@@ -17,7 +17,7 @@ import (
 // TestGitHubScan_UnknownArchive_BinaryWithSecrets tests that when encountering
 // an unknown archive file type, the scanner extracts printable strings and scans them
 func TestGitHubScan_UnknownArchive_BinaryWithSecrets(t *testing.T) {
-
+	t.Parallel()
 	// Create a binary file that is not a recognizable archive format
 	// but contains embedded secrets (simulating a compiled binary or proprietary format)
 	binaryData := []byte{

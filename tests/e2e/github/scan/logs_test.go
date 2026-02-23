@@ -13,7 +13,7 @@ import (
 )
 
 func TestGitHubScan_HappyPath(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -112,7 +112,7 @@ func TestGitHubScan_HappyPath(t *testing.T) {
 // TestGitHubScan_MissingToken tests missing required flags
 
 func TestGitHubScan_WithLogs(t *testing.T) {
-
+	t.Parallel()
 	// prepare zipped logs (single file inside ZIP)
 	var logsZip bytes.Buffer
 	zw := zip.NewWriter(&logsZip)

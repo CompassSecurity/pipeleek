@@ -11,7 +11,7 @@ import (
 )
 
 func TestGitLabVariables(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -118,7 +118,7 @@ func TestGitLabVariables(t *testing.T) {
 // TestGitLabRunnersList tests GitLab runners enumeration
 
 func TestGitLabRunnersList(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -157,7 +157,7 @@ func TestGitLabRunnersList(t *testing.T) {
 // TestGitLabCICDYaml tests fetching CI/CD YAML configuration
 
 func TestGitLabCICDYaml(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -210,7 +210,7 @@ func TestGitLabCICDYaml(t *testing.T) {
 // TestGitLabSchedule tests scheduled pipeline enumeration
 
 func TestGitLabSchedule(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -255,7 +255,7 @@ func TestGitLabSchedule(t *testing.T) {
 // TestGitLabSecureFiles tests secure files extraction
 
 func TestGitLabSecureFiles(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -302,7 +302,7 @@ func TestGitLabSecureFiles(t *testing.T) {
 // TestGitLabUnauthenticatedRegister tests unauthenticated runner registration
 
 func TestGitLabUnauthenticatedRegister(t *testing.T) {
-
+	t.Parallel()
 	registrationCalled := false
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -349,7 +349,7 @@ func TestGitLabUnauthenticatedRegister(t *testing.T) {
 // TestGitLabVuln tests vulnerability scanning
 
 func TestGitLabVuln(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

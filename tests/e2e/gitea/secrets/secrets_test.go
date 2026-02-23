@@ -13,7 +13,7 @@ import (
 )
 
 func TestGiteaSecrets_Success(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -97,7 +97,7 @@ func TestGiteaSecrets_Success(t *testing.T) {
 }
 
 func TestGiteaSecrets_OrgPagination(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -181,7 +181,7 @@ func TestGiteaSecrets_OrgPagination(t *testing.T) {
 }
 
 func TestGiteaSecrets_RepoPagination(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -270,7 +270,7 @@ func TestGiteaSecrets_RepoPagination(t *testing.T) {
 }
 
 func TestGiteaSecrets_MultipleReposPagination(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -361,7 +361,7 @@ func TestGiteaSecrets_MultipleReposPagination(t *testing.T) {
 }
 
 func TestGiteaSecrets_MultipleOrgsPagination(t *testing.T) {
-
+	t.Parallel()
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -450,7 +450,7 @@ func TestGiteaSecrets_MultipleOrgsPagination(t *testing.T) {
 }
 
 func TestGiteaSecrets_EmptyResult(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -499,7 +499,7 @@ func TestGiteaSecrets_EmptyResult(t *testing.T) {
 }
 
 func TestGiteaSecrets_MissingToken(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "secrets",
 		"--gitea", "https://gitea.example.com",
@@ -514,7 +514,7 @@ func TestGiteaSecrets_MissingToken(t *testing.T) {
 }
 
 func TestGiteaSecrets_InvalidURL(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "secrets",
 		"--gitea", "not-a-valid-url",
@@ -528,7 +528,7 @@ func TestGiteaSecrets_InvalidURL(t *testing.T) {
 }
 
 func TestGiteaSecrets_UnauthorizedAccess(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -573,7 +573,7 @@ func TestGiteaSecrets_UnauthorizedAccess(t *testing.T) {
 }
 
 func TestGiteaSecrets_MultipleOrganizations(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -643,7 +643,7 @@ func TestGiteaSecrets_MultipleOrganizations(t *testing.T) {
 }
 
 func TestGiteaSecrets_MultipleRepositories(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -728,7 +728,7 @@ func TestGiteaSecrets_MultipleRepositories(t *testing.T) {
 }
 
 func TestGiteaSecrets_PartialFailure(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

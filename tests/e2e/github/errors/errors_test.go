@@ -10,7 +10,7 @@ import (
 )
 
 func TestGitHubScan_MissingToken(t *testing.T) {
-
+	t.Parallel()
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
 		"--github", "https://api.github.com",
@@ -25,7 +25,7 @@ func TestGitHubScan_MissingToken(t *testing.T) {
 // TestGitHubScan_InvalidToken tests authentication error
 
 func TestGitHubScan_InvalidToken(t *testing.T) {
-
+	t.Parallel()
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.WithError(http.StatusUnauthorized, "Bad credentials"))
 	defer cleanup()
 
