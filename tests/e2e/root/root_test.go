@@ -67,7 +67,7 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Do not use t.Parallel() - stdout/stderr redirection conflicts when multiple tests run concurrently
+			t.Parallel()
 
 			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
 
