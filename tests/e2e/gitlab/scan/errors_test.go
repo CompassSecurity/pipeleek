@@ -58,7 +58,7 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
 
 			// Command should fail due to missing required flags
 			assert.NotNil(t, exitErr, "Command should fail with missing required flags")

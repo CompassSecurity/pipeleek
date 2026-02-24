@@ -505,7 +505,7 @@ func TestGiteaScan_Threads(t *testing.T) {
 		"--gitea", server.URL,
 		"--token", "gitea-token",
 		"--threads", "8",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed with --threads")
 
@@ -536,7 +536,7 @@ func TestGiteaScan_Verbose(t *testing.T) {
 		"--gitea", server.URL,
 		"--token", "gitea-token",
 		"-v",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed with -v flag")
 
@@ -580,7 +580,7 @@ func TestGiteaScan_TruffleHogVerification(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
 
 			assert.Nil(t, exitErr, "Command should succeed")
 
@@ -613,7 +613,7 @@ func TestGiteaScan_ConfidenceFilter(t *testing.T) {
 		"--gitea", server.URL,
 		"--token", "test",
 		"--confidence", "high,medium",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed with --confidence filter")
 
@@ -674,7 +674,7 @@ func TestGiteaScan_WithArtifacts(t *testing.T) {
 		"--token", "gitea-token",
 		"--artifacts",
 		"--runs-limit", "1",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed with --artifacts")
 

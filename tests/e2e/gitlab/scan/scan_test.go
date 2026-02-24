@@ -68,7 +68,7 @@ func TestGitLabScan_HappyPath(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", server.URL,
 		"--token", "glpat-test-token-123",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	// Assert command succeeded
 	assert.Nil(t, exitErr, "Command should succeed")
@@ -133,7 +133,7 @@ func TestGitLabScan_WithArtifacts(t *testing.T) {
 		"--token", "glpat-test",
 		"--artifacts",      // Enable artifact scanning
 		"--job-limit", "1", // Limit to 1 job for faster test
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed with --artifacts flag")
 
@@ -236,7 +236,7 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Note: Not using t.Parallel() here since we share the server
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
 
 			if tt.shouldError {
 				assert.NotNil(t, exitErr, "Command should fail")
