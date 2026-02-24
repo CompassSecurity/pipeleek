@@ -160,8 +160,7 @@ func TestGitLabScan_Timeout(t *testing.T) {
 
 	// Create a mock server that delays responses
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(15 * time.Second)
-		w.WriteHeader(http.StatusOK)
+		<-r.Context().Done()
 	}))
 	defer server.Close()
 

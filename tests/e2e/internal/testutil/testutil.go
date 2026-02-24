@@ -5,6 +5,7 @@ package testutil
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -132,6 +133,91 @@ var (
 	buildOnce              sync.Once
 )
 
+func cachedBinaryPath(moduleDir string) string {
+	moduleHash := sha1.Sum([]byte(moduleDir))
+	name := fmt.Sprintf("pipeleek-e2e-%x-%s-%s", moduleHash[:6], runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return filepath.Join(os.TempDir(), name)
+}
+
+func latestSourceModTime(moduleDir string) (time.Time, error) {
+	latest := time.Time{}
+
+	updateLatest := func(path string) error {
+		info, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if info.ModTime().After(latest) {
+			latest = info.ModTime()
+		}
+		return nil
+	}
+
+	for _, rootFile := range []string{"go.mod", "go.sum"} {
+		if err := updateLatest(filepath.Join(moduleDir, rootFile)); err != nil {
+			return time.Time{}, err
+		}
+	}
+
+	for _, srcDir := range []string{"cmd", "internal", "pkg"} {
+		base := filepath.Join(moduleDir, srcDir)
+		if _, err := os.Stat(base); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return time.Time{}, err
+		}
+
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if filepath.Ext(path) != ".go" {
+				return nil
+			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			if info.ModTime().After(latest) {
+				latest = info.ModTime()
+			}
+			return nil
+		})
+		if err != nil {
+			return time.Time{}, err
+		}
+	}
+
+	return latest, nil
+}
+
+func isBinaryFresh(binaryPath, moduleDir string) (bool, error) {
+	binaryInfo, err := os.Stat(binaryPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	latestSrc, err := latestSourceModTime(moduleDir)
+	if err != nil {
+		return false, err
+	}
+
+	return !binaryInfo.ModTime().Before(latestSrc), nil
+}
+
 func buildBinary(moduleDir, outputPath string) error {
 	cmd := exec.Command("go", "build", "-o", outputPath, "./cmd/pipeleek")
 	cmd.Dir = moduleDir
@@ -163,38 +249,51 @@ func findModuleRoot() (string, error) {
 
 // resolveBinary returns the path to the pipeleek binary, building it once if necessary.
 func resolveBinary() (string, error) {
+	moduleDir, err := findModuleRoot()
+	if err != nil {
+		return "", err
+	}
+
 	if binPath := os.Getenv("PIPELEEK_BINARY"); binPath != "" {
 		if !filepath.IsAbs(binPath) {
-			if moduleDir, err := findModuleRoot(); err == nil {
-				absPath := filepath.Join(moduleDir, binPath)
-				if _, err := os.Stat(absPath); err == nil {
-					return absPath, nil
-				}
+			absPath := filepath.Join(moduleDir, binPath)
+			if _, err := os.Stat(absPath); err == nil {
+				return absPath, nil
 			}
 		}
 		return binPath, nil
 	}
 
+	cachedBin := cachedBinaryPath(moduleDir)
+	if fresh, err := isBinaryFresh(cachedBin, moduleDir); err == nil && fresh {
+		pipeleekBinaryResolved = cachedBin
+		return pipeleekBinaryResolved, nil
+	}
+
 	buildOnce.Do(func() {
-		tmpDir, err := os.MkdirTemp("", "pipeleek-e2e-")
-		if err != nil {
+		if fresh, err := isBinaryFresh(cachedBin, moduleDir); err == nil && fresh {
+			pipeleekBinaryResolved = cachedBin
+			return
+		} else if err != nil {
 			pipeleekBinaryBuildErr = err
 			return
 		}
-		tmpBin := filepath.Join(tmpDir, "pipeleek")
-		if runtime.GOOS == "windows" {
-			tmpBin += ".exe"
-		}
-		moduleDir, err := findModuleRoot()
-		if err != nil {
-			pipeleekBinaryBuildErr = err
-			return
-		}
+
+		tmpBin := fmt.Sprintf("%s.tmp-%d", cachedBin, os.Getpid())
 		if err := buildBinary(moduleDir, tmpBin); err != nil {
 			pipeleekBinaryBuildErr = err
+			_ = os.Remove(tmpBin)
 			return
 		}
-		pipeleekBinaryResolved = tmpBin
+
+		_ = os.Remove(cachedBin)
+		if err := os.Rename(tmpBin, cachedBin); err != nil {
+			pipeleekBinaryBuildErr = err
+			_ = os.Remove(tmpBin)
+			return
+		}
+
+		pipeleekBinaryResolved = cachedBin
 	})
 
 	if pipeleekBinaryBuildErr != nil {
