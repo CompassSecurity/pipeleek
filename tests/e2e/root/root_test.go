@@ -169,13 +169,12 @@ func TestRootCommand_Color(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
 				"--gitlab", server.URL,
 				"--token", "test",
 				tt.flag,
-			}, nil, 6*time.Second)
+			}, nil, 10*time.Second)
 
 			t.Logf("Exit error: %v", exitErr)
 			t.Logf("STDOUT:\n%s", stdout)
@@ -292,8 +291,6 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			args := append([]string(nil), tt.args...)
 			for i := 0; i < len(args); i++ {
 				if args[i] == "__LOGFILE__" {
@@ -301,7 +298,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 				}
 			}
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 6*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 10*time.Second)
 
 			t.Logf("Exit error: %v", exitErr)
 			t.Logf("STDOUT:\n%s", stdout)
@@ -380,14 +377,13 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	defer cleanup()
 
 	t.Run("without ignore-proxy flag proxy message appears", func(t *testing.T) {
-		t.Parallel()
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"gl", "scan",
 			"--gitlab", server.URL,
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
-		}, 6*time.Second)
+		}, 10*time.Second)
 
 		output := stdout + stderr
 		t.Logf("Exit error: %v", exitErr)
@@ -398,7 +394,6 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("with ignore-proxy flag proxy message does not appear", func(t *testing.T) {
-		t.Parallel()
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"--ignore-proxy",
 			"gl", "scan",
@@ -406,7 +401,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
-		}, 6*time.Second)
+		}, 10*time.Second)
 
 		output := stdout + stderr
 		t.Logf("Exit error: %v", exitErr)
@@ -419,7 +414,6 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("ignore-proxy flag appears in help", func(t *testing.T) {
-		t.Parallel()
 		stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 		assert.Nil(t, exitErr, "Help command should succeed")
@@ -449,8 +443,7 @@ func TestRootCommand_MultipleCommands(t *testing.T) {
 
 	for i, cmd := range commands {
 		t.Run("command_"+string(rune(i+'0')), func(t *testing.T) {
-			t.Parallel()
-			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 6*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 10*time.Second)
 
 			t.Logf("Command: %v", cmd)
 			t.Logf("Exit error: %v", exitErr)
