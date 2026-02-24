@@ -69,7 +69,7 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 30*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
 
 			assert.Nil(t, exitErr, "Help should succeed")
 			assert.NotEmpty(t, stdout, "Help output should not be empty")
@@ -169,6 +169,7 @@ func TestRootCommand_Color(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
 				"--gitlab", server.URL,
@@ -219,6 +220,7 @@ func TestRootCommand_Version(t *testing.T) {
 
 	for _, args := range versionFlags {
 		t.Run("args_"+args[0], func(t *testing.T) {
+			t.Parallel()
 			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 5*time.Second)
 
 			output := stdout + stderr
@@ -438,6 +440,7 @@ func TestRootCommand_MultipleCommands(t *testing.T) {
 
 	for i, cmd := range commands {
 		t.Run("command_"+string(rune(i+'0')), func(t *testing.T) {
+			t.Parallel()
 			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 10*time.Second)
 
 			t.Logf("Command: %v", cmd)
