@@ -69,7 +69,7 @@ func TestRootCommand_SubcommandHelp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
 
 			assert.Nil(t, exitErr, "Help should succeed")
 			assert.NotEmpty(t, stdout, "Help output should not be empty")
@@ -96,7 +96,7 @@ func TestRootCommand_JSONLogOutput(t *testing.T) {
 		"--gitlab", server.URL,
 		"--token", "test",
 		"--json", // Enable JSON log output
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	// Check if output contains JSON-like structures
 	// Note: actual format depends on zerolog configuration
@@ -126,7 +126,7 @@ func TestRootCommand_LogFile(t *testing.T) {
 		"--gitlab", server.URL,
 		"--token", "test",
 		"--logfile", logFile,
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	t.Logf("Exit error: %v", exitErr)
 	t.Logf("STDOUT:\n%s", stdout)
@@ -175,7 +175,7 @@ func TestRootCommand_Color(t *testing.T) {
 				"--gitlab", server.URL,
 				"--token", "test",
 				tt.flag,
-			}, nil, 10*time.Second)
+			}, nil, 6*time.Second)
 
 			t.Logf("Exit error: %v", exitErr)
 			t.Logf("STDOUT:\n%s", stdout)
@@ -247,7 +247,7 @@ func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
 		"gl", "scan",
 		"--gitlab", server.URL,
 		"--token", "test",
-	}, nil, 10*time.Second)
+	}, nil, 6*time.Second)
 
 	t.Logf("Exit error: %v", exitErr)
 	t.Logf("STDOUT:\n%s", stdout)
@@ -295,7 +295,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
 
 			t.Logf("Exit error: %v", exitErr)
 			t.Logf("STDOUT:\n%s", stdout)
@@ -355,7 +355,7 @@ func TestRootCommand_EnvironmentVariables(t *testing.T) {
 	}, []string{
 		"PIPELEEK_DEBUG=true",
 		"CI=true",
-	}, 10*time.Second)
+	}, 6*time.Second)
 
 	// Should not affect command execution negatively
 	t.Logf("Exit error: %v", exitErr)
@@ -374,13 +374,14 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	defer cleanup()
 
 	t.Run("without ignore-proxy flag proxy message appears", func(t *testing.T) {
+		t.Parallel()
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"gl", "scan",
 			"--gitlab", server.URL,
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
-		}, 10*time.Second)
+		}, 6*time.Second)
 
 		output := stdout + stderr
 		t.Logf("Exit error: %v", exitErr)
@@ -391,6 +392,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("with ignore-proxy flag proxy message does not appear", func(t *testing.T) {
+		t.Parallel()
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"--ignore-proxy",
 			"gl", "scan",
@@ -398,7 +400,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
-		}, 10*time.Second)
+		}, 6*time.Second)
 
 		output := stdout + stderr
 		t.Logf("Exit error: %v", exitErr)
@@ -411,6 +413,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("ignore-proxy flag appears in help", func(t *testing.T) {
+		t.Parallel()
 		stdout, _, exitErr := testutil.RunCLI(t, []string{"--help"}, nil, 5*time.Second)
 
 		assert.Nil(t, exitErr, "Help command should succeed")
@@ -441,7 +444,7 @@ func TestRootCommand_MultipleCommands(t *testing.T) {
 	for i, cmd := range commands {
 		t.Run("command_"+string(rune(i+'0')), func(t *testing.T) {
 			t.Parallel()
-			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 10*time.Second)
+			stdout, stderr, exitErr := testutil.RunCLI(t, cmd, nil, 6*time.Second)
 
 			t.Logf("Command: %v", cmd)
 			t.Logf("Exit error: %v", exitErr)
