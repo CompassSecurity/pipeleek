@@ -99,46 +99,75 @@ func TestGitLab_APIErrorHandling(t *testing.T) {
 		name       string
 		statusCode int
 		errorMsg   string
+		token      string
 	}{
 		{
 			name:       "unauthorized_401",
 			statusCode: http.StatusUnauthorized,
 			errorMsg:   "Invalid credentials",
+			token:      "api-error-401",
 		},
 		{
 			name:       "forbidden_403",
 			statusCode: http.StatusForbidden,
 			errorMsg:   "Access denied",
+			token:      "api-error-403",
 		},
 		{
 			name:       "not_found_404",
 			statusCode: http.StatusNotFound,
 			errorMsg:   "Resource not found",
+			token:      "api-error-404",
 		},
 		{
 			name:       "rate_limit_429",
 			statusCode: http.StatusTooManyRequests,
 			errorMsg:   "Rate limit exceeded",
+			token:      "api-error-429",
 		},
 		{
 			name:       "server_error_500",
 			statusCode: http.StatusInternalServerError,
 			errorMsg:   "Internal server error",
+			token:      "api-error-500",
 		},
 	}
+
+	tokenStatus := make(map[string]struct {
+		code int
+		msg  string
+	}, len(tests))
+	for _, tt := range tests {
+		tokenStatus[tt.token] = struct {
+			code int
+			msg  string
+		}{
+			code: tt.statusCode,
+			msg:  tt.errorMsg,
+		}
+	}
+
+	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		cfg, ok := tokenStatus[r.Header.Get("PRIVATE-TOKEN")]
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"message": "Unknown test token"})
+			return
+		}
+		w.WriteHeader(cfg.code)
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": cfg.msg})
+	})
+	defer cleanup()
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			server, _, cleanup := testutil.StartMockServerWithRecording(t, testutil.WithError(tt.statusCode, tt.errorMsg))
-			defer cleanup()
-
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
 				"--gitlab", server.URL,
-				"--token", "test-token",
+				"--token", tt.token,
 			}, nil, 6*time.Second)
 
 			// Error handling depends on implementation
