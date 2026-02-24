@@ -257,9 +257,6 @@ func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
 // TestRootCommand_PersistentFlags tests persistent flags across subcommands
 func TestRootCommand_PersistentFlags(t *testing.T) {
 	t.Parallel()
-	tempDir := t.TempDir()
-	logFile := filepath.Join(tempDir, "persistent-test.log")
-
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -278,7 +275,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 				"gl", "scan",
 				"--gitlab", server.URL,
 				"--token", "test",
-				"--logfile", logFile,
+				"--logfile", "__LOGFILE__",
 			},
 		},
 		{
@@ -295,7 +292,16 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, exitErr := testutil.RunCLI(t, tt.args, nil, 6*time.Second)
+			t.Parallel()
+
+			args := append([]string(nil), tt.args...)
+			for i := 0; i < len(args); i++ {
+				if args[i] == "__LOGFILE__" {
+					args[i] = filepath.Join(t.TempDir(), tt.name+".log")
+				}
+			}
+
+			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 6*time.Second)
 
 			t.Logf("Exit error: %v", exitErr)
 			t.Logf("STDOUT:\n%s", stdout)
