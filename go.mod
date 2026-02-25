@@ -68,7 +68,7 @@ require (
 	github.com/cavaliergopher/cpio v1.0.1 // indirect
 	github.com/cavaliergopher/rpm v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/circl v1.6.1 // indirect
+	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/couchbase/gocb/v2 v2.11.0 // indirect
 	github.com/couchbase/gocbcore/v10 v10.8.0 // indirect
