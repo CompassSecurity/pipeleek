@@ -141,8 +141,8 @@ func TestGLRenovateAutodiscovery(t *testing.T) {
 	assert.Contains(t, stdout, "Created project")
 	assert.Contains(t, stdout, "Created file", "Should log file creation in verbose mode")
 	assert.Contains(t, stdout, "Inviting user")
-	assert.Contains(t, stdout, "Gradle wrapper", "Should mention Gradle wrapper mechanism")
-	assert.Contains(t, stdout, "gradlew", "Should mention gradlew script")
+	assert.Contains(t, stdout, "Maven wrapper", "Should mention Maven wrapper mechanism")
+	assert.Contains(t, stdout, "mvnw", "Should mention mvnw script")
 	assert.NotContains(t, stderr, "fatal")
 }
 

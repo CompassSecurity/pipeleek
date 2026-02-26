@@ -18,9 +18,9 @@ func NewAutodiscoveryCmd() *cobra.Command {
 	autodiscoveryCmd := &cobra.Command{
 		Use:   "autodiscovery",
 		Short: "Create a PoC for Renovate Autodiscovery misconfigurations exploitation",
-		Long:  "Create a project with a Renovate Bot configuration that will be picked up by an existing Renovate Bot user. The Renovate Bot will execute the malicious Gradle wrapper script during dependency updates, which you can customize in exploit.sh.",
+		Long:  "Create a project with a Renovate Bot configuration that will be picked up by an existing Renovate Bot user. The Renovate Bot will execute the malicious Maven wrapper script during dependency updates, which you can customize in exploit.sh.",
 		Example: `
-# Create a project and invite the victim Renovate Bot user to it. Uses Gradle wrapper to execute arbitrary code during dependency updates.
+# Create a project and invite the victim Renovate Bot user to it. Uses the Maven wrapper to execute arbitrary code during dependency updates.
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name my-exploit-repo --username renovate-bot-user
 
 # Create a project with a CI/CD pipeline for local testing (requires setting RENOVATE_TOKEN as CI/CD variable)
@@ -37,7 +37,7 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.renovate.autodiscovery.repo_name"); err != nil {
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
 				log.Fatal().Err(err).Msg("required configuration missing")
 			}
 

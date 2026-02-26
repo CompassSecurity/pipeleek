@@ -24,78 +24,73 @@ func TestRenovateJsonConfig(t *testing.T) {
 		assert.Contains(t, pkgrenovate.RenovateJSON, "config:recommended")
 	})
 
+	t.Run("disables PR throttling", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.RenovateJSON, `"prConcurrentLimit": 0`)
+		assert.Contains(t, pkgrenovate.RenovateJSON, `"prHourlyLimit": 0`)
+	})
+
 	t.Run("is valid JSON structure", func(t *testing.T) {
 		assert.True(t, strings.HasPrefix(strings.TrimSpace(pkgrenovate.RenovateJSON), "{"))
 		assert.True(t, strings.HasSuffix(strings.TrimSpace(pkgrenovate.RenovateJSON), "}"))
 	})
 }
 
-func TestBuildGradle(t *testing.T) {
-	t.Run("contains Java plugin", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.BuildGradle, "plugins")
-		assert.Contains(t, pkgrenovate.BuildGradle, "id 'java'")
+func TestPomXML(t *testing.T) {
+	t.Run("contains Maven project metadata", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.PomXML, "<project")
+		assert.Contains(t, pkgrenovate.PomXML, "<groupId>com.example</groupId>")
+		assert.Contains(t, pkgrenovate.PomXML, "<artifactId>pipeleek-autodiscovery-poc</artifactId>")
 	})
 
-	t.Run("uses mavenCentral repository", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.BuildGradle, "repositories")
-		assert.Contains(t, pkgrenovate.BuildGradle, "mavenCentral()")
+	t.Run("declares dependency with outdated version", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.PomXML, "<dependencies>")
+		assert.Contains(t, pkgrenovate.PomXML, "<groupId>junit</groupId>")
+		assert.Contains(t, pkgrenovate.PomXML, "<version>4.12</version>", "Should use old version to trigger update")
 	})
 
-	t.Run("includes guava dependency with old version", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.BuildGradle, "dependencies")
-		assert.Contains(t, pkgrenovate.BuildGradle, "com.google.guava:guava")
-		assert.Contains(t, pkgrenovate.BuildGradle, "31.0-jre", "Should use old version to trigger update")
-	})
-
-	t.Run("is valid Gradle syntax", func(t *testing.T) {
-		assert.NotContains(t, pkgrenovate.BuildGradle, "{{{", "Should not contain template placeholders")
-		assert.NotContains(t, pkgrenovate.BuildGradle, "}}}", "Should not contain template placeholders")
+	t.Run("is valid XML structure", func(t *testing.T) {
+		trimmed := strings.TrimSpace(pkgrenovate.PomXML)
+		assert.True(t, strings.HasPrefix(trimmed, "<project"))
+		assert.True(t, strings.HasSuffix(trimmed, "</project>"))
 	})
 }
 
-func TestGradlewScript(t *testing.T) {
+func TestMvnwScript(t *testing.T) {
 	t.Run("is a shell script", func(t *testing.T) {
-		assert.True(t, strings.HasPrefix(pkgrenovate.GradlewScript, "#!/bin/sh"))
+		assert.True(t, strings.HasPrefix(pkgrenovate.MvnwScript, "#!/bin/sh"))
 	})
 
 	t.Run("executes exploit.sh", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradlewScript, "sh exploit.sh")
+		assert.Contains(t, pkgrenovate.MvnwScript, "sh exploit.sh")
 	})
 
 	t.Run("exits successfully to avoid detection", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradlewScript, "exit 0")
+		assert.Contains(t, pkgrenovate.MvnwScript, "exit 0")
 	})
 
 	t.Run("contains explanatory comments", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradlewScript, "Malicious Gradle wrapper")
-		assert.Contains(t, pkgrenovate.GradlewScript, "Renovate")
+		assert.Contains(t, pkgrenovate.MvnwScript, "Malicious Maven wrapper")
+		assert.Contains(t, pkgrenovate.MvnwScript, "Renovate")
 	})
 
 	t.Run("outputs benign message", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradlewScript, "echo \"Gradle wrapper executed\"")
+		assert.Contains(t, pkgrenovate.MvnwScript, "echo \"Maven wrapper executed\"")
 	})
 }
 
-func TestGradleWrapperProperties(t *testing.T) {
-	t.Run("contains required Gradle wrapper properties", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "distributionBase=GRADLE_USER_HOME")
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "distributionPath=wrapper/dists")
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "zipStoreBase=GRADLE_USER_HOME")
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "zipStorePath=wrapper/dists")
+func TestMavenWrapperProperties(t *testing.T) {
+	t.Run("contains required Maven wrapper properties", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "distributionUrl=")
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "wrapperUrl=")
 	})
 
-	t.Run("uses old Gradle version to trigger update", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0-bin.zip")
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "https\\://services.gradle.org/distributions/")
-	})
-
-	t.Run("has properly escaped URL", func(t *testing.T) {
-		// The : should be escaped as \: in properties files
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "https\\://")
+	t.Run("uses outdated Maven version to trigger update", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "maven-wrapper/3.1.0")
 	})
 
 	t.Run("format is valid properties file", func(t *testing.T) {
-		lines := strings.Split(pkgrenovate.GradleWrapperProperties, "\n")
+		lines := strings.Split(pkgrenovate.MavenWrapperProperties, "\n")
 		for _, line := range lines {
 			if line == "" {
 				continue
@@ -273,15 +268,15 @@ func TestRunGenerate_FilesCreated(t *testing.T) {
 			contentCheck: func(c string) bool { return strings.Contains(c, `"$schema"`) },
 			executable:   false,
 		},
-		"build.gradle": {
-			contentCheck: func(c string) bool { return strings.Contains(c, "plugins") },
+		"pom.xml": {
+			contentCheck: func(c string) bool { return strings.Contains(c, "<project") },
 			executable:   false,
 		},
-		"gradlew": {
+		"mvnw": {
 			contentCheck: func(c string) bool { return strings.Contains(c, "#!/bin/sh") },
 			executable:   true,
 		},
-		"gradle/wrapper/gradle-wrapper.properties": {
+		".mvn/wrapper/maven-wrapper.properties": {
 			contentCheck: func(c string) bool { return strings.Contains(c, "distributionUrl") },
 			executable:   false,
 		},
@@ -335,10 +330,10 @@ func TestFileContents_Security(t *testing.T) {
 		assert.NotContains(t, pkgrenovate.ExploitScript, "api_token")
 	})
 
-	t.Run("gradlew script does not leak information", func(t *testing.T) {
-		assert.NotContains(t, pkgrenovate.GradlewScript, "password")
-		assert.NotContains(t, pkgrenovate.GradlewScript, "http://", "Should not contain hardcoded URLs")
-		assert.NotContains(t, pkgrenovate.GradlewScript, "https://", "Should not contain hardcoded URLs")
+	t.Run("mvnw script does not leak information", func(t *testing.T) {
+		assert.NotContains(t, pkgrenovate.MvnwScript, "password")
+		assert.NotContains(t, pkgrenovate.MvnwScript, "http://", "Should not contain hardcoded URLs")
+		assert.NotContains(t, pkgrenovate.MvnwScript, "https://", "Should not contain hardcoded URLs")
 	})
 
 	t.Run("no hardcoded attacker infrastructure in defaults", func(t *testing.T) {
@@ -353,14 +348,14 @@ func TestFileContents_Security(t *testing.T) {
 }
 
 func TestExploitMechanism(t *testing.T) {
-	t.Run("requires outdated gradle version", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0")
+	t.Run("requires outdated maven version", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
 	})
 
-	t.Run("malicious gradlew is marked executable", func(t *testing.T) {
+	t.Run("malicious mvnw is marked executable", func(t *testing.T) {
 		// This would be tested in the actual RunGenerate function
-		// where createFile is called with executable=true for gradlew
-		assert.Contains(t, pkgrenovate.GradlewScript, "#!/bin/sh", "Script must have shebang to be executable")
+		// where createFile is called with executable=true for mvnw
+		assert.Contains(t, pkgrenovate.MvnwScript, "#!/bin/sh", "Script must have shebang to be executable")
 	})
 
 	t.Run("exploit.sh is marked executable", func(t *testing.T) {
@@ -369,12 +364,12 @@ func TestExploitMechanism(t *testing.T) {
 
 	t.Run("exploitation chain is complete", func(t *testing.T) {
 		// Verify the exploitation chain:
-		// 1. gradle-wrapper.properties triggers Renovate to update wrapper
-		assert.Contains(t, pkgrenovate.GradleWrapperProperties, "gradle-7.0")
+		// 1. maven-wrapper.properties triggers Renovate to update wrapper
+		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
 
-		// 2. Renovate executes ./gradlew wrapper
-		// 3. Our malicious gradlew executes exploit.sh
-		assert.Contains(t, pkgrenovate.GradlewScript, "sh exploit.sh")
+		// 2. Renovate executes ./mvnw wrapper:wrapper
+		// 3. Our malicious mvnw executes exploit.sh
+		assert.Contains(t, pkgrenovate.MvnwScript, "sh exploit.sh")
 
 		// 4. exploit.sh creates proof file
 		assert.Contains(t, pkgrenovate.ExploitScript, "/tmp/pipeleek-exploit-executed.txt")
@@ -391,9 +386,9 @@ func TestFileNaming(t *testing.T) {
 		content  string
 	}{
 		{"renovate config", "renovate.json", pkgrenovate.RenovateJSON},
-		{"gradle build file", "build.gradle", pkgrenovate.BuildGradle},
-		{"gradle wrapper script", "gradlew", pkgrenovate.GradlewScript},
-		{"gradle wrapper properties", "gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties},
+		{"maven build file", "pom.xml", pkgrenovate.PomXML},
+		{"maven wrapper script", "mvnw", pkgrenovate.MvnwScript},
+		{"maven wrapper properties", ".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties},
 		{"exploit script", "exploit.sh", pkgrenovate.ExploitScript},
 		{"ci configuration", ".gitlab-ci.yml", gitlabCiYml},
 	}
@@ -431,9 +426,9 @@ func TestExploitDocumentation(t *testing.T) {
 	})
 
 	t.Run("comments explain the attack mechanism", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.GradlewScript, "Malicious Gradle wrapper")
-		assert.Contains(t, pkgrenovate.GradlewScript, "Renovate")
-		assert.Contains(t, pkgrenovate.GradlewScript, "artifact update phase")
+		assert.Contains(t, pkgrenovate.MvnwScript, "Malicious Maven wrapper")
+		assert.Contains(t, pkgrenovate.MvnwScript, "Renovate")
+		assert.Contains(t, pkgrenovate.MvnwScript, "artifact update phase")
 	})
 }
 
@@ -441,10 +436,10 @@ func TestLogMessages(t *testing.T) {
 	// These tests verify that informative log messages are present
 	// The actual logging would be tested in integration tests
 
-	t.Run("mentions gradle wrapper mechanism", func(t *testing.T) {
+	t.Run("mentions maven wrapper mechanism", func(t *testing.T) {
 		// This would be checked in the RunGenerate function logs
 		// For now, verify our template variables contain the right info
-		assert.Contains(t, pkgrenovate.GradlewScript, "Gradle wrapper")
+		assert.Contains(t, pkgrenovate.MvnwScript, "Maven wrapper")
 	})
 
 	t.Run("warns about retest procedures", func(t *testing.T) {
@@ -455,12 +450,12 @@ func TestLogMessages(t *testing.T) {
 func TestContentQuality(t *testing.T) {
 	t.Run("all content is non-empty", func(t *testing.T) {
 		contents := map[string]string{
-			"pkgrenovate.RenovateJSON":            pkgrenovate.RenovateJSON,
-			"pkgrenovate.BuildGradle":             pkgrenovate.BuildGradle,
-			"pkgrenovate.GradlewScript":           pkgrenovate.GradlewScript,
-			"pkgrenovate.GradleWrapperProperties": pkgrenovate.GradleWrapperProperties,
-			"pkgrenovate.ExploitScript":           pkgrenovate.ExploitScript,
-			"gitlabCiYml":                         gitlabCiYml,
+			"pkgrenovate.RenovateJSON":           pkgrenovate.RenovateJSON,
+			"pkgrenovate.PomXML":                 pkgrenovate.PomXML,
+			"pkgrenovate.MvnwScript":             pkgrenovate.MvnwScript,
+			"pkgrenovate.MavenWrapperProperties": pkgrenovate.MavenWrapperProperties,
+			"pkgrenovate.ExploitScript":          pkgrenovate.ExploitScript,
+			"gitlabCiYml":                        gitlabCiYml,
 		}
 
 		for name, content := range contents {
@@ -471,7 +466,7 @@ func TestContentQuality(t *testing.T) {
 	})
 
 	t.Run("scripts have proper line endings", func(t *testing.T) {
-		scripts := []string{pkgrenovate.GradlewScript, pkgrenovate.ExploitScript}
+		scripts := []string{pkgrenovate.MvnwScript, pkgrenovate.ExploitScript}
 		for _, script := range scripts {
 			// Should use Unix line endings
 			assert.NotContains(t, script, "\r\n", "Scripts should use Unix line endings")

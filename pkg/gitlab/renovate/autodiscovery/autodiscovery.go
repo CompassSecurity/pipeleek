@@ -10,7 +10,7 @@ import (
 
 var gitlabCiYml = `
 # GitLab CI/CD pipeline that runs Renovate Bot for debugging
-# This verifies the exploit actually executes during Gradle wrapper update
+# This verifies the exploit actually executes during Maven wrapper update
 #
 # Setup instructions:
 # 1. Go to Project Settings > Access Tokens
@@ -69,9 +69,9 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 
 	// Create files using shared constants
 	createFile("renovate.json", pkgrenovate.RenovateJSON, git, int(project.ID), false)
-	createFile("build.gradle", pkgrenovate.BuildGradle, git, int(project.ID), false)
-	createFile("gradlew", pkgrenovate.GradlewScript, git, int(project.ID), true)
-	createFile("gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties, git, int(project.ID), false)
+	createFile("pom.xml", pkgrenovate.PomXML, git, int(project.ID), false)
+	createFile("mvnw", pkgrenovate.MvnwScript, git, int(project.ID), true)
+	createFile(".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties, git, int(project.ID), false)
 	createFile("exploit.sh", pkgrenovate.ExploitScript, git, int(project.ID), true)
 
 	if addRenovateCICD {
@@ -88,7 +88,6 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 		invite(git, project, username)
 	}
 
-	// Log shared exploit explanation
 	log.Info().Msg(pkgrenovate.ExploitExplanation)
 }
 

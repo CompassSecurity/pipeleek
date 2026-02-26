@@ -53,9 +53,9 @@ func setupMockGitHubRenovateAPI(t *testing.T) string {
 					w.Write([]byte(`{"name":"renovate.json","path":"renovate.json","sha":"abc123","content":"` + content + `","encoding":"base64"}`))
 					return
 				}
-				if strings.HasSuffix(path, "build.gradle") {
+				if strings.HasSuffix(path, "pom.xml") {
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`{"name":"build.gradle","path":"build.gradle","sha":"abc123","content":"YnVpbGQgZmlsZQ==","encoding":"base64"}`))
+					w.Write([]byte(`{"name":"pom.xml","path":"pom.xml","sha":"abc123","content":"cG9tIGZpbGU=","encoding":"base64"}`))
 					return
 				}
 				if strings.HasSuffix(path, "/.github/workflows") {
@@ -278,8 +278,8 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 	assert.Contains(t, combined, "Created repository")
 	assert.Contains(t, combined, "Created file", "Should log file creation in verbose mode")
 	assert.Contains(t, combined, "Inviting user")
-	assert.Contains(t, combined, "Gradle wrapper", "Should mention Gradle wrapper mechanism")
-	assert.Contains(t, combined, "gradlew", "Should mention gradlew script")
+	assert.Contains(t, combined, "Maven wrapper", "Should mention Maven wrapper mechanism")
+	assert.Contains(t, combined, "mvnw", "Should mention mvnw script")
 	assert.NotContains(t, combined, "fatal")
 }
 
