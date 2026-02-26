@@ -33,9 +33,9 @@ func RunGenerate(client *github.Client, repoName, username string) {
 	time.Sleep(2 * time.Second)
 
 	createFile(ctx, client, createdRepo, "renovate.json", pkgrenovate.RenovateJSON)
-	createFile(ctx, client, createdRepo, "build.gradle", pkgrenovate.BuildGradle)
-	createFile(ctx, client, createdRepo, "gradlew", pkgrenovate.GradlewScript)
-	createFile(ctx, client, createdRepo, "gradle/wrapper/gradle-wrapper.properties", pkgrenovate.GradleWrapperProperties)
+	createFile(ctx, client, createdRepo, "pom.xml", pkgrenovate.PomXML)
+	createFile(ctx, client, createdRepo, "mvnw", pkgrenovate.MvnwScript)
+	createFile(ctx, client, createdRepo, ".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties)
 	createFile(ctx, client, createdRepo, "exploit.sh", pkgrenovate.ExploitScript)
 
 	if username == "" {
