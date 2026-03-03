@@ -1,10 +1,16 @@
 package rules
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAppendPipeleekRules(t *testing.T) {
@@ -267,4 +273,48 @@ func TestGetTruffleHogRules_AfterInit(t *testing.T) {
 	if len(rules) == 0 {
 		t.Error("Expected non-empty TruffleHog rules")
 	}
+}
+
+func TestDownloadFile_Success(t *testing.T) {
+	content := "rules file content from mock"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(content))
+	}))
+	defer srv.Close()
+
+	tmpDir := t.TempDir()
+	destFile := filepath.Join(tmpDir, "rules.yml")
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	err := downloadFile(srv.URL, destFile, client)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(destFile)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(data))
+}
+
+func TestDownloadFile_HTTPError(t *testing.T) {
+	tmpDir := t.TempDir()
+	destFile := filepath.Join(tmpDir, "rules.yml")
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	client.RetryMax = 0
+
+	err := downloadFile("http://127.0.0.1:0", destFile, client)
+	assert.Error(t, err)
+}
+
+func TestDownloadFile_BadOutputPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("data"))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	// Attempting to write to a path inside a non-existent directory should fail
+	err := downloadFile(srv.URL, "/nonexistent-dir/rules.yml", client)
+	assert.Error(t, err)
 }

@@ -349,3 +349,71 @@ func TestGetVersion(t *testing.T) {
 func TestRootCmdHasVersion(t *testing.T) {
 	assert.NotEmpty(t, rootCmd.Version, "rootCmd should have a version")
 }
+
+// TestFormatLevelWithHitColor_ColorEnabled verifies each log level gets the correct
+// color escape code when color output is enabled.
+func TestFormatLevelWithHitColor_ColorEnabled(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+
+	tests := []struct {
+		level    string
+		wantCode string
+	}{
+		{"hit", "\x1b[35m"},   // magenta
+		{"trace", "\x1b[90m"}, // dark grey
+		{"info", "\x1b[32m"},  // green
+		{"warn", "\x1b[33m"},  // yellow
+		{"error", "\x1b[31m"}, // red
+		{"fatal", "\x1b[31m"}, // red
+		{"panic", "\x1b[31m"}, // red
+		{"debug", "debug"},    // no color for debug - returned as-is
+	}
+
+	for _, tt := range tests {
+		t.Run("level_"+tt.level, func(t *testing.T) {
+			result := formatter(tt.level)
+			assert.Contains(t, result, tt.wantCode, "level=%q should contain color code %q", tt.level, tt.wantCode)
+		})
+	}
+}
+
+// TestFormatLevelWithHitColor_ColorDisabled verifies that every level is returned
+// unchanged (no escape codes) when color output is disabled.
+func TestFormatLevelWithHitColor_ColorDisabled(t *testing.T) {
+	formatter := formatLevelWithHitColor(false)
+
+	levels := []string{"hit", "trace", "debug", "info", "warn", "error", "fatal", "panic", "unknown"}
+	for _, level := range levels {
+		t.Run("level_"+level, func(t *testing.T) {
+			result := formatter(level)
+			assert.Equal(t, level, result, "color disabled: level=%q should be returned unchanged", level)
+		})
+	}
+}
+
+// TestFormatLevelWithHitColor_UnknownLevel verifies that unknown levels are passed through.
+func TestFormatLevelWithHitColor_UnknownLevel(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+	result := formatter("custom-level")
+	// Unknown levels fall through to the default case which returns the level unchanged
+	assert.Equal(t, "custom-level", result)
+}
+
+// TestFormatLevelWithHitColor_NonStringInput verifies that non-string input returns "".
+func TestFormatLevelWithHitColor_NonStringInput(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+	result := formatter(42)
+	assert.Equal(t, "", result)
+}
+
+// TestLoadConfigFile_NoConfigFile verifies that loadConfigFile does not panic or error
+// when no config file path is set (default empty string).
+func TestLoadConfigFile_NoConfigFile(t *testing.T) {
+	origConfigFile := ConfigFile
+	defer func() { ConfigFile = origConfigFile }()
+
+	ConfigFile = ""
+	assert.NotPanics(t, func() {
+		loadConfigFile(rootCmd)
+	})
+}

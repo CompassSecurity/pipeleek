@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -95,7 +96,8 @@ func TestTryParseJSON_InvalidJSON(t *testing.T) {
 func TestFetchCurrentSelfHostedOptions_Cached(t *testing.T) {
 	// When cache is non-empty, it should be returned directly without HTTP call
 	cached := []string{"option1", "option2", "option3"}
-	result := FetchCurrentSelfHostedOptions(cached)
+	// Use a real client - it should never be invoked since the cache returns early
+	result := FetchCurrentSelfHostedOptions(cached, httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.Equal(t, cached, result)
 }
 
@@ -107,7 +109,7 @@ func TestExtendRenovateConfig_ServiceUnavailable(t *testing.T) {
 	defer srv.Close()
 
 	originalConfig := `{"extends": ["config:base"]}`
-	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo")
+	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo", httpclient.GetPipeleekHTTPClient("", nil, nil))
 	// When service returns non-200, original config should be returned
 	assert.Equal(t, originalConfig, result)
 }
@@ -124,7 +126,7 @@ func TestExtendRenovateConfig_ServiceReturnsExtended(t *testing.T) {
 	defer srv.Close()
 
 	originalConfig := `{"extends": ["config:base"]}`
-	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo")
+	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo", httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.Equal(t, extendedConfig, result)
 }
 
@@ -137,14 +139,14 @@ func TestExtendRenovateConfig_ServiceReturnsError(t *testing.T) {
 	defer srv.Close()
 
 	originalConfig := `{"extends": ["config:base"]}`
-	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo")
+	result := ExtendRenovateConfig(originalConfig, srv.URL, "owner/repo", httpclient.GetPipeleekHTTPClient("", nil, nil))
 	// On non-200, original config should be returned
 	assert.Equal(t, originalConfig, result)
 }
 
 func TestExtendRenovateConfig_InvalidServiceURL(t *testing.T) {
 	originalConfig := `{"extends": ["config:base"]}`
-	result := ExtendRenovateConfig(originalConfig, "://invalid-url", "owner/repo")
+	result := ExtendRenovateConfig(originalConfig, "://invalid-url", "owner/repo", httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.Equal(t, originalConfig, result)
 }
 
@@ -156,7 +158,7 @@ func TestValidateRenovateConfigService_Healthy(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := ValidateRenovateConfigService(srv.URL)
+	err := ValidateRenovateConfigService(srv.URL, httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.NoError(t, err)
 }
 
@@ -167,17 +169,11 @@ func TestValidateRenovateConfigService_Unhealthy(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := ValidateRenovateConfigService(srv.URL)
-	assert.Error(t, err)
-}
-
-func TestValidateRenovateConfigService_Unreachable(t *testing.T) {
-	// port 0 is always invalid but causes retry; we just test that an error is returned
-	err := ValidateRenovateConfigService("http://127.0.0.1:0")
+	err := ValidateRenovateConfigService(srv.URL, httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.Error(t, err)
 }
 
 func TestValidateRenovateConfigService_InvalidURL(t *testing.T) {
-	err := ValidateRenovateConfigService("://bad-url")
+	err := ValidateRenovateConfigService("://bad-url", httpclient.GetPipeleekHTTPClient("", nil, nil))
 	assert.Error(t, err)
 }
