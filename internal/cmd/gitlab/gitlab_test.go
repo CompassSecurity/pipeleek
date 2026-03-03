@@ -8,150 +8,82 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/shodan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewGitLabRootCmd(t *testing.T) {
 	cmd := NewGitLabRootCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "gl [command]" {
-		t.Errorf("Expected Use to be 'gl [command]', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
-
-	if cmd.Long == "" {
-		t.Error("Expected non-empty Long description")
-	}
-
-	if cmd.GroupID != "GitLab" {
-		t.Errorf("Expected GroupID 'GitLab', got %q", cmd.GroupID)
-	}
+	require.NotNil(t, cmd, "NewGitLabRootCmd should return non-nil command")
+	assert.Equal(t, "gl [command]", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
+	assert.Equal(t, "GitLab", cmd.GroupID)
+	assert.GreaterOrEqual(t, len(cmd.Commands()), 8,
+		"should have at least 8 subcommands")
 
 	flags := cmd.PersistentFlags()
-	if flags.Lookup("gitlab") == nil {
-		t.Error("Expected 'gitlab' persistent flag to exist")
-	}
-	if flags.Lookup("token") == nil {
-		t.Error("Expected 'token' persistent flag to exist")
-	}
+	gitlabFlag := flags.Lookup("gitlab")
+	assert.NotNil(t, gitlabFlag, "'gitlab' persistent flag should be registered")
+	assert.Equal(t, "", gitlabFlag.DefValue,
+		"'gitlab' flag default should be empty")
 
-	if len(cmd.Commands()) < 8 {
-		t.Errorf("Expected at least 8 subcommands, got %d", len(cmd.Commands()))
-	}
+	tokenFlag := flags.Lookup("token")
+	assert.NotNil(t, tokenFlag, "'token' persistent flag should be registered")
+	assert.Equal(t, "", tokenFlag.DefValue, "'token' flag default should be empty")
 }
 
 func TestNewVulnCmd(t *testing.T) {
 	cmd := vuln.NewVulnCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "vuln" {
-		t.Errorf("Expected Use to be 'vuln', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
+	require.NotNil(t, cmd, "NewVulnCmd should return non-nil command")
+	assert.Equal(t, "vuln", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 }
 
 func TestNewVariablesCmd(t *testing.T) {
 	cmd := variables.NewVariablesCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "variables" {
-		t.Errorf("Expected Use to be 'variables', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
+	require.NotNil(t, cmd, "NewVariablesCmd should return non-nil command")
+	assert.Equal(t, "variables", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 
 	flags := cmd.Flags()
-	if flags.Lookup("gitlab") == nil {
-		t.Error("Expected 'gitlab' flag to exist")
-	}
+	assert.NotNil(t, flags.Lookup("gitlab"), "'gitlab' flag should be registered")
 }
 
 func TestNewEnumCmd(t *testing.T) {
 	cmd := enum.NewEnumCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "enum" {
-		t.Errorf("Expected Use to be 'enum', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
+	require.NotNil(t, cmd, "NewEnumCmd should return non-nil command")
+	assert.Equal(t, "enum", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 }
 
 func TestNewRegisterCmd(t *testing.T) {
 	cmd := register.NewRegisterCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "register" {
-		t.Errorf("Expected Use to be 'register', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
+	require.NotNil(t, cmd, "NewRegisterCmd should return non-nil command")
+	assert.Equal(t, "register", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 
 	flags := cmd.Flags()
-	if flags.Lookup("username") == nil {
-		t.Error("Expected 'username' flag to exist")
-	}
-	if flags.Lookup("email") == nil {
-		t.Error("Expected 'email' flag to exist")
-	}
-	if flags.Lookup("password") == nil {
-		t.Error("Expected 'password' flag to exist")
-	}
-	if flags.Lookup("gitlab") == nil {
-		t.Error("Expected 'gitlab' flag to exist")
-	}
+	assert.NotNil(t, flags.Lookup("username"), "'username' flag should be registered")
+	assert.NotNil(t, flags.Lookup("email"), "'email' flag should be registered")
+	assert.NotNil(t, flags.Lookup("password"), "'password' flag should be registered")
+	assert.NotNil(t, flags.Lookup("gitlab"), "'gitlab' flag should be registered")
 }
 
 func TestNewShodanCmd(t *testing.T) {
 	cmd := shodan.NewShodanCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "shodan" {
-		t.Errorf("Expected Use to be 'shodan', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
+	require.NotNil(t, cmd, "NewShodanCmd should return non-nil command")
+	assert.Equal(t, "shodan", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 
 	flags := cmd.Flags()
-	if flags.Lookup("json") == nil {
-		t.Error("Expected 'json' flag to exist")
-	}
+	jsonFlag := flags.Lookup("json")
+	assert.NotNil(t, jsonFlag, "'json' flag should be registered")
+	assert.Equal(t, "", jsonFlag.DefValue, "'json' flag default should be empty string (path to Shodan JSON file)")
 }

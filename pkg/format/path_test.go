@@ -7,6 +7,7 @@ import (
 )
 
 func TestIsDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	testFile := filepath.Join(tmpDir, "testfile.txt")
@@ -48,6 +49,7 @@ func TestIsDirectory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsDirectory(tt.path)
 			if result != tt.expected {
 				t.Errorf("IsDirectory(%q) = %v, want %v", tt.path, result, tt.expected)

@@ -9,6 +9,7 @@ import (
 )
 
 func TestCalculateZipFileSize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		setup    func() []byte
@@ -69,6 +70,7 @@ func TestCalculateZipFileSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data := tt.setup()
 			result := CalculateZipFileSize(data)
 			if result != tt.expected {
@@ -79,6 +81,7 @@ func TestCalculateZipFileSize(t *testing.T) {
 }
 
 func TestParseHumanSize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -119,6 +122,7 @@ func TestParseHumanSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := ParseHumanSize(tt.input)
 			if tt.expectError {
 				assert.Error(t, err)

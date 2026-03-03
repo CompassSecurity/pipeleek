@@ -10,6 +10,7 @@ import (
 )
 
 func TestExtractPrintableStrings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       []byte
@@ -153,6 +154,7 @@ func TestExtractPrintableStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ExtractPrintableStrings(tt.input, tt.minLength)
 
 			// Split result by newlines and filter empty strings
@@ -169,6 +171,7 @@ func TestExtractPrintableStrings(t *testing.T) {
 }
 
 func TestExtractPrintableStrings_LargeBinary(t *testing.T) {
+	t.Parallel()
 	// Create a large binary file with embedded secrets
 	var largeBinary bytes.Buffer
 
@@ -193,6 +196,7 @@ func TestExtractPrintableStrings_LargeBinary(t *testing.T) {
 }
 
 func TestExtractPrintableStrings_ASCII(t *testing.T) {
+	t.Parallel()
 	// Test with ASCII-only strings (UTF-8 bytes are treated as non-printable)
 	input := []byte{0x00, 'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', 0x00}
 	result := ExtractPrintableStrings(input, 4)
@@ -202,6 +206,7 @@ func TestExtractPrintableStrings_ASCII(t *testing.T) {
 }
 
 func TestExtractPrintableStrings_RealWorldBinary(t *testing.T) {
+	t.Parallel()
 	// Simulate a real-world scenario: a compiled binary with embedded config
 	binary := []byte{
 		// Some binary header
@@ -250,6 +255,7 @@ func TestExtractPrintableStrings_EdgeCases(t *testing.T) {
 }
 
 func TestIsPrintableByte(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		b        byte
@@ -280,6 +286,7 @@ func TestIsPrintableByte(t *testing.T) {
 }
 
 func TestExtractPrintableStrings_MinStringLength(t *testing.T) {
+	t.Parallel()
 	// Verify the constant value
 	assert.Equal(t, 4, MinStringLength, "MinStringLength should be 4 to match Unix strings command")
 }
@@ -303,6 +310,7 @@ func BenchmarkExtractPrintableStrings(b *testing.B) {
 }
 
 func TestExtractPrintableStrings_SecretPatterns(t *testing.T) {
+	t.Parallel()
 	// Test extraction of various secret patterns that might be found in binaries
 	tests := []struct {
 		name     string
@@ -346,6 +354,7 @@ func TestExtractPrintableStrings_SecretPatterns(t *testing.T) {
 }
 
 func TestExtractPrintableStrings_Reproducibility(t *testing.T) {
+	t.Parallel()
 	// Ensure the function produces consistent results
 	input := []byte{0x00, 0x01, 'T', 'e', 's', 't', 0xFF, 'D', 'a', 't', 'a', 0x00}
 

@@ -6,6 +6,7 @@ import (
 )
 
 func TestValidateURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		url       string
@@ -49,6 +50,7 @@ func TestValidateURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateURL(tt.url, tt.fieldName)
 			if tt.wantError {
 				if err == nil {
@@ -66,6 +68,7 @@ func TestValidateURL(t *testing.T) {
 }
 
 func TestParseMaxArtifactSize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		sizeStr   string
@@ -99,6 +102,7 @@ func TestParseMaxArtifactSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseMaxArtifactSize(tt.sizeStr)
 			if tt.wantError {
 				if err == nil {
@@ -117,6 +121,7 @@ func TestParseMaxArtifactSize(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		token     string
@@ -139,6 +144,7 @@ func TestValidateToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateToken(tt.token, tt.fieldName)
 			if tt.wantError && err == nil {
 				t.Errorf("ValidateToken() expected error but got none")
@@ -151,6 +157,7 @@ func TestValidateToken(t *testing.T) {
 }
 
 func TestValidateThreadCount(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		threads   int
@@ -190,6 +197,7 @@ func TestValidateThreadCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateThreadCount(tt.threads)
 			if tt.wantError && err == nil {
 				t.Errorf("ValidateThreadCount() expected error but got none")
