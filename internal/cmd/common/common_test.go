@@ -85,7 +85,7 @@ func TestCustomWriter_WritesCorrectly(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(testData), n, "Write should return original length")
 
-	_ = f.Close()
+	require.NoError(t, f.Sync())
 	content, err := os.ReadFile(logFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "hello", "Written content should be readable")
