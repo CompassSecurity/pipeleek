@@ -11,6 +11,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/headzoo/surf"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -105,40 +106,45 @@ func DetermineVersion(gitlabUrl string, apiToken string) *gitlab.Metadata {
 			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 		}
 		return metadata
-	} else {
-		u, err := url.Parse(gitlabUrl)
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
-			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
-		}
-		u.Path = path.Join(u.Path, "/help")
+	}
 
-		client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-		response, err := client.Get(u.String())
+	return fetchVersionFromHTML(gitlabUrl, httpclient.GetPipeleekHTTPClient("", nil, nil))
+}
 
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
-			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
-		}
-
-		responseData, err := io.ReadAll(response.Body)
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
-			return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
-		}
-
-		extractLineR := regexp.MustCompile(`instance_version":"\d*.\d*.\d*"`)
-		fullLine := extractLineR.Find(responseData)
-		versionR := regexp.MustCompile(`\d+.\d+.\d+`)
-		versionNumber := versionR.Find(fullLine)
-
-		if len(versionNumber) > 3 {
-			return &gitlab.Metadata{Version: string(versionNumber), Revision: "none", Enterprise: false}
-		}
-
-		log.Error().Msg("Failed determining GitLab version via Website")
+// fetchVersionFromHTML fetches the GitLab version by scraping the /help page HTML.
+// Accepts a retryable HTTP client to allow injection for testing.
+func fetchVersionFromHTML(gitlabUrl string, client *retryablehttp.Client) *gitlab.Metadata {
+	u, err := url.Parse(gitlabUrl)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
 		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 	}
+	u.Path = path.Join(u.Path, "/help")
+
+	response, err := client.Get(u.String())
+
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
+		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
+	}
+
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
+		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
+	}
+
+	extractLineR := regexp.MustCompile(`instance_version":"\d*.\d*.\d*"`)
+	fullLine := extractLineR.Find(responseData)
+	versionR := regexp.MustCompile(`\d+.\d+.\d+`)
+	versionNumber := versionR.Find(fullLine)
+
+	if len(versionNumber) > 3 {
+		return &gitlab.Metadata{Version: string(versionNumber), Revision: "none", Enterprise: false}
+	}
+
+	log.Error().Msg("Failed determining GitLab version via Website")
+	return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 }
 
 func RegisterNewAccount(targetUrl string, username string, password string, email string) {

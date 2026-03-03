@@ -54,7 +54,9 @@ func RunEnumerate(opts EnumOptions) {
 		log.Info().Str("service", opts.ExtendRenovateConfigService).Msg("Using renovate config extension service")
 	}
 
-	validateOrderBy(opts.OrderBy)
+	if err := validateOrderBy(opts.OrderBy); err != nil {
+		log.Fatal().Stack().Err(err).Msg("Invalid order-by value")
+	}
 
 	if opts.Repository != "" {
 		scanSingleProject(git, opts.Repository, opts)
@@ -164,7 +166,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			if configFile != nil {
 				filename = configFile.FileName
 			}
-			dumpConfigFileContents(project, ciCdYml, configFileContent, filename)
+			dumpConfigFileContents(project, ciCdYml, configFileContent, filename, "renovate-enum-out")
 		}
 
 		selfHostedConfigFile := false
@@ -382,8 +384,8 @@ func validateRenovateConfigService(serviceUrl string) error {
 	return nil
 }
 
-func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateConfigFile string, renovateConfigFileName string) {
-	projectDir := filepath.Join("renovate-enum-out", project.PathWithNamespace)
+func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateConfigFile string, renovateConfigFileName string, outDir string) {
+	projectDir := filepath.Join(outDir, project.PathWithNamespace)
 	if err := os.MkdirAll(projectDir, 0700); err != nil {
 		log.Fatal().Err(err).Str("dir", projectDir).Msg("Failed to create project directory")
 	} else {
@@ -407,11 +409,12 @@ func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateCon
 	}
 }
 
-func validateOrderBy(orderBy string) {
+func validateOrderBy(orderBy string) error {
 	allowedOrderBy := map[string]struct{}{
 		"id": {}, "name": {}, "path": {}, "created_at": {}, "updated_at": {}, "star_count": {}, "last_activity_at": {}, "similarity": {},
 	}
 	if _, ok := allowedOrderBy[orderBy]; !ok {
-		log.Fatal().Str("orderBy", orderBy).Msg("Invalid value for --order-by. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity")
+		return fmt.Errorf("invalid value for --order-by: %q. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity", orderBy)
 	}
+	return nil
 }

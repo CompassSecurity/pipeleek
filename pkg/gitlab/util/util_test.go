@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -291,5 +292,54 @@ func TestIterateGroupProjects_CallbackError(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected callback error to propagate")
+	}
+}
+
+// TestFetchVersionFromHTML verifies that fetchVersionFromHTML correctly parses the version
+// from a mock /help HTML page response.
+func TestFetchVersionFromHTML_ParsesVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<html><script>var gon={"instance_version":"17.2.1"}</script></html>`))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML(srv.URL, client)
+	if meta.Version != "17.2.1" {
+		t.Fatalf("expected version 17.2.1, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_NoVersion verifies fallback when version is not found.
+func TestFetchVersionFromHTML_NoVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<html><body>No version here</body></html>`))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML(srv.URL, client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_BadURL verifies fallback when URL cannot be parsed.
+func TestFetchVersionFromHTML_BadURL(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML("://bad-url", client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_Unreachable verifies fallback when HTTP request fails.
+func TestFetchVersionFromHTML_Unreachable(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML("http://127.0.0.1:0", client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
 	}
 }

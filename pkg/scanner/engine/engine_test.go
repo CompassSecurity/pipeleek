@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -193,5 +194,58 @@ func TestCleanHitLine(t *testing.T) {
 				t.Errorf("cleanHitLine() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+// TestDeduplicateFindingsWithState_NoDependencyOnGlobal verifies that the pure function
+// operates without relying on package-level global state.
+func TestDeduplicateFindingsWithState_NoDependencyOnGlobal(t *testing.T) {
+	finding := types.Finding{
+		Pattern: types.PatternElement{
+			Pattern: types.PatternPattern{Name: "Pattern A", Confidence: "high"},
+		},
+		Text: "unique_secret_abc123",
+	}
+
+	// First call: unique finding should be included
+	deduped, newState := deduplicateFindingsWithState([]types.Finding{finding}, nil)
+	if len(deduped) != 1 {
+		t.Fatalf("first call: expected 1 finding, got %d", len(deduped))
+	}
+	if len(newState) != 1 {
+		t.Fatalf("expected state to have 1 entry, got %d", len(newState))
+	}
+
+	// Second call with same finding using the returned state: should be deduplicated
+	deduped2, _ := deduplicateFindingsWithState([]types.Finding{finding}, newState)
+	if len(deduped2) != 0 {
+		t.Fatalf("second call: expected 0 findings (duplicate), got %d", len(deduped2))
+	}
+}
+
+// TestDeduplicateFindingsWithState_TrimsAtLimit verifies that the seen-hash list is
+// trimmed when it exceeds 500 entries (the previously untested branch).
+func TestDeduplicateFindingsWithState_TrimsAtLimit(t *testing.T) {
+	// Build a state that already has 500 entries
+	seenHashes := make([]string, 500)
+	for i := range seenHashes {
+		seenHashes[i] = fmt.Sprintf("hash-%04d", i)
+	}
+
+	// Add a new unique finding: the state must grow to 501 and then be trimmed
+	newFinding := types.Finding{
+		Pattern: types.PatternElement{
+			Pattern: types.PatternPattern{Name: "NewPattern", Confidence: "medium"},
+		},
+		Text: "brand_new_secret_xyz",
+	}
+
+	deduped, newState := deduplicateFindingsWithState([]types.Finding{newFinding}, seenHashes)
+	if len(deduped) != 1 {
+		t.Fatalf("expected 1 unique finding, got %d", len(deduped))
+	}
+	// After trim, length should be exactly 500 (grew to 501, first element removed)
+	if len(newState) != 500 {
+		t.Fatalf("expected state len 500 after trim, got %d", len(newState))
 	}
 }
