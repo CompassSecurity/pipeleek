@@ -308,3 +308,104 @@ func TestSetupPersistentPreRun(t *testing.T) {
 	SetupPersistentPreRun(cmd)
 	assert.NotNil(t, cmd.PersistentPreRun, "PersistentPreRun should be set after setup")
 }
+
+// TestInitLogger_ConsoleMode verifies InitLogger sets up a console zerolog writer.
+func TestInitLogger_ConsoleMode(t *testing.T) {
+	origLogFile := LogFile
+	origJson := JsonLogoutput
+	origColor := LogColor
+	origLogger := log.Logger
+	defer func() {
+		LogFile = origLogFile
+		JsonLogoutput = origJson
+		LogColor = origColor
+		log.Logger = origLogger
+	}()
+
+	tmpDir := t.TempDir()
+	LogFile = filepath.Join(tmpDir, "console.log")
+	JsonLogoutput = false
+	LogColor = false
+
+	cmd := &cobra.Command{Use: "test"}
+	InitLogger(cmd)
+
+	log.Info().Msg("console-mode-test-msg")
+
+	content, err := os.ReadFile(LogFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "console-mode-test-msg")
+}
+
+// TestInitLogger_JSONMode verifies InitLogger outputs JSON when JsonLogoutput=true.
+func TestInitLogger_JSONMode(t *testing.T) {
+	origLogFile := LogFile
+	origJson := JsonLogoutput
+	origLogger := log.Logger
+	defer func() {
+		LogFile = origLogFile
+		JsonLogoutput = origJson
+		log.Logger = origLogger
+	}()
+
+	tmpDir := t.TempDir()
+	LogFile = filepath.Join(tmpDir, "json.log")
+	JsonLogoutput = true
+
+	cmd := &cobra.Command{Use: "test"}
+	InitLogger(cmd)
+
+	log.Info().Msg("json-mode-test-msg")
+
+	content, err := os.ReadFile(LogFile)
+	require.NoError(t, err)
+	s := string(content)
+	assert.Contains(t, s, "json-mode-test-msg")
+	assert.Contains(t, s, `"level"`, "JSON output should contain level field")
+}
+
+// TestInitLogger_NoLogFile verifies InitLogger does not panic when LogFile is empty.
+func TestInitLogger_NoLogFile(t *testing.T) {
+	origLogFile := LogFile
+	origJson := JsonLogoutput
+	origLogger := log.Logger
+	defer func() {
+		LogFile = origLogFile
+		JsonLogoutput = origJson
+		log.Logger = origLogger
+	}()
+
+	LogFile = ""
+	JsonLogoutput = false
+
+	cmd := &cobra.Command{Use: "test"}
+	assert.NotPanics(t, func() {
+		InitLogger(cmd)
+	})
+}
+
+// TestSaveAndRestoreTerminalState verifies that SaveTerminalState and RestoreTerminalState
+// do not panic regardless of whether stdin is a terminal.
+func TestSaveAndRestoreTerminalState(t *testing.T) {
+	origState := originalTermState
+	defer func() { originalTermState = origState }()
+
+	assert.NotPanics(t, func() {
+		SaveTerminalState()
+	})
+
+	assert.NotPanics(t, func() {
+		RestoreTerminalState()
+	})
+}
+
+// TestRestoreTerminalState_NilState verifies no panic when terminal state was never saved.
+func TestRestoreTerminalState_NilState(t *testing.T) {
+	origState := originalTermState
+	defer func() { originalTermState = origState }()
+
+	originalTermState = nil
+	assert.NotPanics(t, func() {
+		RestoreTerminalState()
+	})
+}

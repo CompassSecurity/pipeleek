@@ -3,10 +3,12 @@ package logging
 import (
 	"bytes"
 	"encoding/json"
+	"sync"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHit(t *testing.T) {
@@ -360,4 +362,56 @@ func TestSetGlobalHitWriter(t *testing.T) {
 	if globalHitWriter != writer {
 		t.Error("Expected globalHitWriter to be the new writer")
 	}
+}
+
+// TestHit_NilGlobalWriter verifies that Hit() initializes globalHitWriter via
+// setupGlobalHitWriter when it is nil, and still returns a valid HitEvent.
+func TestHit_NilGlobalWriter(t *testing.T) {
+	// Save original state and ensure full restoration
+	origWriter := globalHitWriter
+	origOnce := globalHitWriterOnce
+	origLogger := log.Logger
+	defer func() {
+		globalHitWriter = origWriter
+		globalHitWriterOnce = origOnce
+		log.Logger = origLogger
+	}()
+
+	// Force the initialization path by resetting both the writer and the sync.Once
+	globalHitWriter = nil
+	globalHitWriterOnce = sync.Once{}
+
+	event := Hit()
+	assert.NotNil(t, event, "Hit() should return a non-nil event even when globalHitWriter was nil")
+	assert.NotNil(t, globalHitWriter, "globalHitWriter should be initialized after Hit() call")
+}
+
+// TestSetupGlobalHitWriter_IdempotentOnce verifies that setupGlobalHitWriter only
+// initializes globalHitWriter once even when called multiple times concurrently.
+func TestSetupGlobalHitWriter_IdempotentOnce(t *testing.T) {
+	origWriter := globalHitWriter
+	origOnce := globalHitWriterOnce
+	origLogger := log.Logger
+	defer func() {
+		globalHitWriter = origWriter
+		globalHitWriterOnce = origOnce
+		log.Logger = origLogger
+	}()
+
+	globalHitWriter = nil
+	globalHitWriterOnce = sync.Once{}
+
+	// Call setupGlobalHitWriter from multiple goroutines concurrently
+	done := make(chan struct{}, 5)
+	for i := 0; i < 5; i++ {
+		go func() {
+			setupGlobalHitWriter()
+			done <- struct{}{}
+		}()
+	}
+	for i := 0; i < 5; i++ {
+		<-done
+	}
+
+	assert.NotNil(t, globalHitWriter, "globalHitWriter should be initialized after setupGlobalHitWriter")
 }
