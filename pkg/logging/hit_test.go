@@ -283,3 +283,81 @@ func TestHitLevelWriter_ConcurrentAccess(t *testing.T) {
 
 	// No panic = mutex protected correctly
 }
+
+func TestHitEvent_Bool(t *testing.T) {
+	var buf bytes.Buffer
+	hitWriter := NewHitLevelWriter(&buf)
+	logger := zerolog.New(hitWriter).With().Logger()
+	log.Logger = logger
+	globalHitWriter = hitWriter
+
+	Hit().Bool("isSecret", true).Msg("Test bool field")
+
+	var logEntry map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &logEntry)
+	if err != nil {
+		t.Fatalf("Failed to parse log output: %v", err)
+	}
+
+	if logEntry["level"] != "hit" {
+		t.Errorf("Expected level 'hit', got '%v'", logEntry["level"])
+	}
+
+	if val, ok := logEntry["isSecret"].(bool); !ok || !val {
+		t.Errorf("Expected isSecret=true, got '%v'", logEntry["isSecret"])
+	}
+}
+
+func TestHitEvent_Err(t *testing.T) {
+	var buf bytes.Buffer
+	hitWriter := NewHitLevelWriter(&buf)
+	logger := zerolog.New(hitWriter).With().Logger()
+	log.Logger = logger
+	globalHitWriter = hitWriter
+
+	Hit().Err(nil).Msg("Test nil error")
+
+	var logEntry map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &logEntry)
+	if err != nil {
+		t.Fatalf("Failed to parse log output: %v", err)
+	}
+
+	if logEntry["level"] != "hit" {
+		t.Errorf("Expected level 'hit', got '%v'", logEntry["level"])
+	}
+}
+
+func TestHitLevelWriter_SetOutput(t *testing.T) {
+	buf1 := &bytes.Buffer{}
+	buf2 := &bytes.Buffer{}
+
+	writer := NewHitLevelWriter(buf1)
+	writer.SetOutput(buf2)
+
+	_, err := writer.Write([]byte("test output\n"))
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	if buf2.String() != "test output\n" {
+		t.Errorf("Expected output to go to buf2, got: %q", buf2.String())
+	}
+	if buf1.Len() != 0 {
+		t.Error("Expected buf1 to be empty after SetOutput")
+	}
+}
+
+func TestSetGlobalHitWriter(t *testing.T) {
+	// Save original
+	original := globalHitWriter
+	defer func() { globalHitWriter = original }()
+
+	buf := &bytes.Buffer{}
+	writer := NewHitLevelWriter(buf)
+	SetGlobalHitWriter(writer)
+
+	if globalHitWriter != writer {
+		t.Error("Expected globalHitWriter to be the new writer")
+	}
+}

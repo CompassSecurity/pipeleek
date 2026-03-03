@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
@@ -172,4 +173,112 @@ func TestWriteMkdocsYaml_GithubPagesPrefix(t *testing.T) {
 	// First item should be Getting Started with GitHub Pages prefix
 	firstItem := introItems[0].(map[string]interface{})
 	assert.Equal(t, "/pipeleek/introduction/getting_started/", firstItem["Getting Started"])
+}
+
+func TestCopyFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+
+	content := []byte("hello, test content")
+	require.NoError(t, os.WriteFile(srcPath, content, 0644))
+
+	err := copyFile(srcPath, dstPath)
+	assert.NoError(t, err)
+
+	got, err := os.ReadFile(dstPath)
+	assert.NoError(t, err)
+	assert.Equal(t, content, got)
+}
+
+func TestCopyFile_SourceNotExist(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := copyFile(filepath.Join(tmpDir, "nonexistent.txt"), filepath.Join(tmpDir, "dst.txt"))
+	assert.Error(t, err)
+}
+
+func TestCopyFile_DestinationNotWritable(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	require.NoError(t, os.WriteFile(srcPath, []byte("data"), 0644))
+
+	// Try to write to a directory path (should fail)
+	err := copyFile(srcPath, tmpDir)
+	assert.Error(t, err)
+}
+
+func TestCopyDir(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Create files in source
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("aaa"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.txt"), []byte("bbb"), 0644))
+
+	// Create a subdirectory
+	subDir := filepath.Join(srcDir, "sub")
+	require.NoError(t, os.Mkdir(subDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "c.txt"), []byte("ccc"), 0644))
+
+	err := copyDir(srcDir, dstDir)
+	assert.NoError(t, err)
+
+	// Verify files were copied
+	gotA, err := os.ReadFile(filepath.Join(dstDir, "a.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("aaa"), gotA)
+
+	gotB, err := os.ReadFile(filepath.Join(dstDir, "b.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("bbb"), gotB)
+
+	gotC, err := os.ReadFile(filepath.Join(dstDir, "sub", "c.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("ccc"), gotC)
+}
+
+func TestCopyDir_SourceNotExist(t *testing.T) {
+	dstDir := t.TempDir()
+	err := copyDir("/nonexistent/path", dstDir)
+	assert.Error(t, err)
+}
+
+func TestCopySubfolders(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Create subdirectories with files in source (only subdirs should be copied, not root files)
+	sub1 := filepath.Join(srcDir, "sub1")
+	sub2 := filepath.Join(srcDir, "sub2")
+	require.NoError(t, os.Mkdir(sub1, 0755))
+	require.NoError(t, os.Mkdir(sub2, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sub1, "file1.txt"), []byte("f1"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(sub2, "file2.txt"), []byte("f2"), 0644))
+
+	// Root-level file (should NOT be copied by copySubfolders)
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root"), 0644))
+
+	err := copySubfolders(srcDir, dstDir)
+	assert.NoError(t, err)
+
+	// Subdirectory files should be present
+	got1, err := os.ReadFile(filepath.Join(dstDir, "sub1", "file1.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("f1"), got1)
+
+	got2, err := os.ReadFile(filepath.Join(dstDir, "sub2", "file2.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("f2"), got2)
+
+	// Root-level file should NOT be copied
+	_, err = os.Stat(filepath.Join(dstDir, "root.txt"))
+	assert.True(t, os.IsNotExist(err), "root-level files should not be copied by copySubfolders")
+}
+
+func TestCopySubfolders_SourceNotExist(t *testing.T) {
+	dstDir := t.TempDir()
+	err := copySubfolders("/nonexistent/path", dstDir)
+	assert.Error(t, err)
 }

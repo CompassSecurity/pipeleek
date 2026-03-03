@@ -1,6 +1,10 @@
 package runners
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -351,4 +355,103 @@ func TestCountRunnersBySource(t *testing.T) {
 			assert.Equal(t, tt.expectedGroup, groupCount, "Group count: "+tt.description)
 		})
 	}
+}
+
+func TestListProjectRunners(t *testing.T) {
+	// Mock server for projects and runners
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case strings.Contains(r.URL.Path, "/api/v4/projects") && !strings.Contains(r.URL.Path, "/runners"):
+			// Return a single project page
+			projects := []*gitlab.Project{{ID: 1, Name: "test-project", PathWithNamespace: "org/test-project"}}
+			_ = json.NewEncoder(w).Encode(projects)
+
+		case strings.Contains(r.URL.Path, "/projects/") && strings.Contains(r.URL.Path, "/runners"):
+			// Return runners for project
+			runners := []*gitlab.Runner{{ID: 100, Name: "runner-1"}, {ID: 101, Name: "runner-2"}}
+			_ = json.NewEncoder(w).Encode(runners)
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	require.NoError(t, err)
+
+	result := listProjectRunners(client)
+	assert.Len(t, result, 2, "Should return 2 runners")
+
+	_, ok := result[100]
+	assert.True(t, ok, "Runner 100 should be in the result")
+	_, ok = result[101]
+	assert.True(t, ok, "Runner 101 should be in the result")
+}
+
+func TestListProjectRunners_Empty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/api/v4/projects") {
+			// Return empty project list
+			_ = json.NewEncoder(w).Encode([]*gitlab.Project{})
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	require.NoError(t, err)
+
+	result := listProjectRunners(client)
+	assert.Empty(t, result, "Should return empty map for no projects")
+}
+
+func TestListGroupRunners(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/api/v4/groups":
+			groups := []*gitlab.Group{{ID: 10, Name: "test-group"}}
+			_ = json.NewEncoder(w).Encode(groups)
+
+		case strings.Contains(r.URL.Path, "/api/v4/groups/") && strings.Contains(r.URL.Path, "/runners"):
+			runners := []*gitlab.Runner{{ID: 200, Name: "group-runner-1"}}
+			_ = json.NewEncoder(w).Encode(runners)
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	require.NoError(t, err)
+
+	result := listGroupRunners(client)
+	assert.Len(t, result, 1, "Should return 1 group runner")
+	_, ok := result[200]
+	assert.True(t, ok, "Runner 200 should be in the result")
+}
+
+func TestListGroupRunners_Empty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v4/groups" {
+			_ = json.NewEncoder(w).Encode([]*gitlab.Group{})
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	require.NoError(t, err)
+
+	result := listGroupRunners(client)
+	assert.Empty(t, result, "Should return empty map for no groups")
 }
