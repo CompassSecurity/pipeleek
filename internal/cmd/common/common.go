@@ -34,6 +34,8 @@ var (
 	LogDebug          bool
 	LogLevel          string
 	IgnoreProxy       bool
+	// logFileCloser holds the currently open log file so it can be closed on cleanup.
+	logFileCloser io.Closer
 )
 
 // TerminalRestorer is a function that can be called to restore terminal state
@@ -131,6 +133,7 @@ func InitLogger(cmd *cobra.Command) {
 		if err != nil {
 			panic(err)
 		}
+		logFileCloser = runLogFile
 		defaultOut = &CustomWriter{Writer: runLogFile}
 
 		rootFlags := cmd.Root().PersistentFlags()

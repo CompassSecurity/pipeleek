@@ -4,8 +4,6 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -54,7 +52,9 @@ func RunEnumerate(opts EnumOptions) {
 		log.Info().Str("service", opts.ExtendRenovateConfigService).Msg("Using renovate config extension service")
 	}
 
-	validateOrderBy(opts.OrderBy)
+	if err := validateOrderBy(opts.OrderBy); err != nil {
+		log.Fatal().Stack().Err(err).Msg("Invalid order-by value")
+	}
 
 	if opts.Repository != "" {
 		scanSingleProject(git, opts.Repository, opts)
@@ -164,7 +164,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			if configFile != nil {
 				filename = configFile.FileName
 			}
-			dumpConfigFileContents(project, ciCdYml, configFileContent, filename)
+			dumpConfigFileContents(project, ciCdYml, configFileContent, filename, "renovate-enum-out")
 		}
 
 		selfHostedConfigFile := false
@@ -303,31 +303,7 @@ func detectRenovateConfigFile(git *gitlab.Client, project *gitlab.Project) (*git
 }
 
 func fetchCurrentSelfHostedOptions(opts EnumOptions) []string {
-	if len(opts.SelfHostedOptions) > 0 {
-		return opts.SelfHostedOptions
-	}
-
-	log.Debug().Msg("Fetching current self-hosted configuration from GitHub")
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	res, err := client.Get("https://raw.githubusercontent.com/renovatebot/renovate/refs/heads/main/docs/usage/self-hosted-configuration.md")
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed fetching self-hosted configuration documentation")
-		return []string{}
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode != 200 {
-		log.Fatal().Int("status", res.StatusCode).Msg("Failed fetching self-hosted configuration documentation")
-		return []string{}
-	}
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed reading self-hosted configuration documentation")
-		return []string{}
-	}
-
-	opts.SelfHostedOptions = extractSelfHostedOptions(data)
-	return opts.SelfHostedOptions
+	return renovateutil.FetchCurrentSelfHostedOptions(opts.SelfHostedOptions, httpclient.GetPipeleekHTTPClient("", nil, nil))
 }
 
 func extractSelfHostedOptions(data []byte) []string {
@@ -354,36 +330,15 @@ func isSelfHostedConfig(config string, opts EnumOptions) bool {
 }
 
 func extendRenovateConfig(renovateConfig string, project *gitlab.Project, opts EnumOptions) string {
-	return renovateutil.ExtendRenovateConfig(renovateConfig, opts.ExtendRenovateConfigService, project.WebURL)
+	return renovateutil.ExtendRenovateConfig(renovateConfig, opts.ExtendRenovateConfigService, project.WebURL, httpclient.GetPipeleekHTTPClient("", nil, nil))
 }
 
 func validateRenovateConfigService(serviceUrl string) error {
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-
-	u, err := url.Parse(serviceUrl)
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed to parse renovate config service URL")
-		return err
-	}
-	u = u.JoinPath("health")
-
-	resp, err := client.Get(u.String())
-
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Renovate config service healthcheck failed")
-		return err
-	}
-
-	if resp.StatusCode != 200 {
-		log.Error().Int("status", resp.StatusCode).Str("endpoint", u.String()).Msg("Renovate config service healthcheck failed")
-		return fmt.Errorf("renovate config service healthcheck failed: %d", resp.StatusCode)
-	}
-
-	return nil
+	return renovateutil.ValidateRenovateConfigService(serviceUrl, httpclient.GetPipeleekHTTPClient("", nil, nil))
 }
 
-func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateConfigFile string, renovateConfigFileName string) {
-	projectDir := filepath.Join("renovate-enum-out", project.PathWithNamespace)
+func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateConfigFile string, renovateConfigFileName string, outDir string) {
+	projectDir := filepath.Join(outDir, project.PathWithNamespace)
 	if err := os.MkdirAll(projectDir, 0700); err != nil {
 		log.Fatal().Err(err).Str("dir", projectDir).Msg("Failed to create project directory")
 	} else {
@@ -407,11 +362,12 @@ func dumpConfigFileContents(project *gitlab.Project, ciCdYml string, renovateCon
 	}
 }
 
-func validateOrderBy(orderBy string) {
+func validateOrderBy(orderBy string) error {
 	allowedOrderBy := map[string]struct{}{
 		"id": {}, "name": {}, "path": {}, "created_at": {}, "updated_at": {}, "star_count": {}, "last_activity_at": {}, "similarity": {},
 	}
 	if _, ok := allowedOrderBy[orderBy]; !ok {
-		log.Fatal().Str("orderBy", orderBy).Msg("Invalid value for --order-by. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity")
+		return fmt.Errorf("invalid value for --order-by: %q. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity", orderBy)
 	}
+	return nil
 }

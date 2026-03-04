@@ -2,7 +2,11 @@ package scan
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -11,6 +15,8 @@ import (
 	"github.com/nsqio/go-diskqueue"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -104,4 +110,158 @@ func TestEnqueueItem_Marshaling(t *testing.T) {
 		t.Fatal("timeout waiting for queue item")
 	}
 	wg.Wait()
+}
+
+func TestDownloadEnvArtifact_404Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	result := DownloadEnvArtifact("session-cookie", srv.URL, "owner/repo", 42)
+	if len(result) != 0 {
+		t.Fatalf("expected empty result on 404, got %d bytes", len(result))
+	}
+}
+
+func TestDownloadEnvArtifact_PlainTextResponse(t *testing.T) {
+	envContent := []byte("MY_VAR=secret_value\nOTHER=other_value\n")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify the expected query parameter
+		if r.URL.Query().Get("file_type") != "dotenv" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(envContent)
+	}))
+	defer srv.Close()
+
+	result := DownloadEnvArtifact("session-cookie", srv.URL, "owner/repo", 42)
+	// Plain text content is detected as unknown file type by filetype.Match,
+	// which triggers the "unexpected" error branch, returning empty bytes.
+	assert.Empty(t, result, "plain text response should return empty bytes due to unknown filetype")
+}
+
+func TestDownloadEnvArtifact_GzipResponse(t *testing.T) {
+	envContent := "MY_VAR=secret_value\nOTHER=other_value\n"
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	_, err := gz.Write([]byte(envContent))
+	if err != nil {
+		t.Fatalf("failed to create gzip: %v", err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatalf("failed to close gzip: %v", err)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/gzip")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(buf.Bytes())
+	}))
+	defer srv.Close()
+
+	result := DownloadEnvArtifact("session-cookie", srv.URL, "owner/repo", 42)
+	if string(result) != envContent {
+		t.Fatalf("expected decompressed content %q, got %q", envContent, string(result))
+	}
+}
+
+func TestDownloadEnvArtifact_URLBuildFailure(t *testing.T) {
+	// A URL that will cause join to fail or produce an unreachable host
+	result := DownloadEnvArtifact("cookie", "://invalid-url", "owner/repo", 1)
+	if len(result) != 0 {
+		t.Fatalf("expected empty result for bad URL, got %d bytes", len(result))
+	}
+}
+
+func TestSetupQueue_DefaultTempDir(t *testing.T) {
+	opts := &ScanOptions{QueueFolder: ""}
+	q, queueFile := setupQueue(opts)
+	defer func() { _ = q.Close(); _ = os.Remove(queueFile) }()
+
+	assert.NotNil(t, q, "queue should not be nil")
+	assert.NotEmpty(t, queueFile, "queueFile path should not be empty")
+
+	// Queue should be writable (depth 0 initially)
+	assert.Equal(t, int64(0), q.Depth())
+}
+
+func TestSetupQueue_CustomRelativeDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	opts := &ScanOptions{QueueFolder: "custom-queue"}
+	q, queueFile := setupQueue(opts)
+	defer func() { _ = q.Close(); _ = os.Remove(queueFile) }()
+
+	assert.NotNil(t, q)
+	assert.NotEmpty(t, queueFile)
+}
+
+func TestSetupQueue_AbsoluteDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	opts := &ScanOptions{QueueFolder: tmpDir}
+	q, queueFile := setupQueue(opts)
+	defer func() { _ = q.Close(); _ = os.Remove(queueFile) }()
+
+	assert.NotNil(t, q)
+	assert.NotEmpty(t, queueFile)
+}
+
+func TestGetQueueStatus_NilGlobQueue(t *testing.T) {
+	origQueue := globQueue
+	defer func() { globQueue = origQueue }()
+
+	globQueue = nil
+	assert.Equal(t, 0, GetQueueStatus(), "nil globQueue should return 0")
+}
+
+func TestGetQueueStatus_WithQueue(t *testing.T) {
+	origQueue := globQueue
+	defer func() { globQueue = origQueue }()
+
+	tmpDir := t.TempDir()
+	opts := &ScanOptions{QueueFolder: tmpDir}
+	q, queueFile := setupQueue(opts)
+	defer func() { _ = q.Close(); _ = os.Remove(queueFile) }()
+
+	globQueue = q
+	// Queue is empty, depth is 0
+	assert.Equal(t, 0, GetQueueStatus())
+}
+
+func TestAnalyzeQueueItem_UnknownType(t *testing.T) {
+	item := QueueItem{
+		Type: QueueItemType("unknown"),
+		Meta: QueueMeta{ProjectId: 1, JobId: 2},
+	}
+	itemBytes, _ := json.Marshal(item)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Should not panic and should call wg.Done() via defer
+	analyzeQueueItem(itemBytes, nil, &ScanOptions{}, &wg)
+	// wg.Wait() will complete because analyzeQueueItem calls wg.Done() via defer
+	wg.Wait()
+}
+
+func TestAnalyzeQueueItem_InvalidJSON(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	withCapturedLogs(t, zerolog.ErrorLevel, func(buf *bytes.Buffer) {
+		analyzeQueueItem([]byte("not-valid-json"), nil, &ScanOptions{}, &wg)
+		wg.Wait()
+		assert.Contains(t, buf.String(), "Failed unmarshalling queue item")
+	})
 }

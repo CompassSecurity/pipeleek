@@ -115,23 +115,29 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 }
 
 func deduplicateFindings(totalFindings []types.Finding) []types.Finding {
+	deduplicationMutex.Lock()
+	defer deduplicationMutex.Unlock()
+	var deduped []types.Finding
+	deduped, findingsDeduplicationList = deduplicateFindingsWithState(totalFindings, findingsDeduplicationList)
+	return deduped
+}
+
+// deduplicateFindingsWithState is a pure deduplication function that accepts and returns the seen-hash state.
+// This enables testing without relying on the package-level global.
+func deduplicateFindingsWithState(totalFindings []types.Finding, seenHashes []string) ([]types.Finding, []string) {
 	dedupedFindings := []types.Finding{}
 	for _, finding := range totalFindings {
 		hash, _ := rxhash.HashStruct(finding)
-		deduplicationMutex.Lock()
-		if !slices.Contains(findingsDeduplicationList, hash) {
+		if !slices.Contains(seenHashes, hash) {
 			dedupedFindings = append(dedupedFindings, finding)
-			findingsDeduplicationList = append(findingsDeduplicationList, hash)
+			seenHashes = append(seenHashes, hash)
 		}
 
-		if len(findingsDeduplicationList) > 500 {
-			findingsDeduplicationList[0] = ""
-			findingsDeduplicationList = findingsDeduplicationList[1:]
+		if len(seenHashes) > 500 {
+			seenHashes = seenHashes[1:]
 		}
-		deduplicationMutex.Unlock()
 	}
-
-	return dedupedFindings
+	return dedupedFindings, seenHashes
 }
 
 func extractHitWithSurroundingText(text []byte, hitIndex []int, additionalBytes int) string {

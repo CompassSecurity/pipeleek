@@ -1,8 +1,11 @@
 package renovate
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -395,4 +398,132 @@ func TestRenovateConfigFiles(t *testing.T) {
 		files2 := RenovateConfigFiles()
 		assert.Equal(t, files1, files2)
 	})
+}
+
+// TestFetchCurrentSelfHostedOptions_ReturnsCache verifies that non-empty cached options
+// are returned immediately without making an HTTP request.
+func TestFetchCurrentSelfHostedOptions_ReturnsCache(t *testing.T) {
+	cached := []string{"platform", "endpoint"}
+	// Use a real client - it will never be invoked since the cache returns early
+	result := FetchCurrentSelfHostedOptions(cached, httpclient.GetPipeleekHTTPClient("", nil, nil))
+	assert.Equal(t, cached, result)
+}
+
+// TestFetchCurrentSelfHostedOptions_ParsesResponse verifies that options are extracted
+// from a mock HTTP server response.
+func TestFetchCurrentSelfHostedOptions_ParsesResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("## platform\n## endpoint\n## binarySource\n"))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	client.HTTPClient.Transport = &redirectTransport{targetURL: srv.URL}
+
+	result := FetchCurrentSelfHostedOptions([]string{}, client)
+	assert.NotEmpty(t, result)
+}
+
+// TestFetchCurrentSelfHostedOptions_Non200 verifies that an empty list is returned
+// when the server responds with a non-200 status.
+func TestFetchCurrentSelfHostedOptions_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Use 404: the retryablehttp client does not retry 4xx client errors by default
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	client.HTTPClient.Transport = &redirectTransport{targetURL: srv.URL}
+
+	result := FetchCurrentSelfHostedOptions([]string{}, client)
+	assert.Empty(t, result)
+}
+
+// TestExtendRenovateConfig_Success verifies that a successful response replaces the config.
+func TestExtendRenovateConfig_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/resolve", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"extends":["config:base","security:openssf-scorecard"]}`))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	result := ExtendRenovateConfig(`{"extends":["config:base"]}`, srv.URL, "https://gitlab.example.com/org/repo", client)
+	assert.Equal(t, `{"extends":["config:base","security:openssf-scorecard"]}`, result)
+}
+
+// TestExtendRenovateConfig_BadURL verifies that the original config is returned on URL parse error.
+func TestExtendRenovateConfig_BadURL(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	orig := `{"extends":["config:base"]}`
+	result := ExtendRenovateConfig(orig, "://bad-url", "https://project.example.com", client)
+	assert.Equal(t, orig, result)
+}
+
+// TestExtendRenovateConfig_RequestError verifies that the original config is returned on error.
+func TestExtendRenovateConfig_RequestError(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	client.RetryMax = 0
+	orig := `{"extends":["config:base"]}`
+	result := ExtendRenovateConfig(orig, "http://127.0.0.1:0", "https://project.example.com", client)
+	assert.Equal(t, orig, result)
+}
+
+// TestValidateRenovateConfigService_Success verifies that a healthy service returns nil error.
+func TestValidateRenovateConfigService_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/health", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	err := ValidateRenovateConfigService(srv.URL, client)
+	assert.NoError(t, err)
+}
+
+// TestValidateRenovateConfigService_Non200 verifies that a non-200 response returns an error.
+func TestValidateRenovateConfigService_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Use 404: the retryablehttp client does not retry 4xx client errors by default
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	err := ValidateRenovateConfigService(srv.URL, client)
+	assert.Error(t, err)
+}
+
+// TestValidateRenovateConfigService_BadURL verifies that an unparseable URL returns an error.
+func TestValidateRenovateConfigService_BadURL(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	err := ValidateRenovateConfigService("://bad-url", client)
+	assert.Error(t, err)
+}
+
+// TestValidateRenovateConfigService_Unreachable verifies that an unreachable host returns an error.
+func TestValidateRenovateConfigService_Unreachable(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	client.RetryMax = 0
+	err := ValidateRenovateConfigService("http://127.0.0.1:0", client)
+	assert.Error(t, err)
+}
+
+// redirectTransport is a test helper that redirects all requests to a fixed target URL,
+// preserving path/query from the original request.
+type redirectTransport struct {
+	targetURL string
+}
+
+func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	parsed, err := http.NewRequest(req.Method, t.targetURL+req.URL.Path, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	parsed.Header = req.Header
+	return http.DefaultTransport.RoundTrip(parsed)
 }

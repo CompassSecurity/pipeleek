@@ -6,6 +6,8 @@ import (
 )
 
 func TestContainsI(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		a        string
@@ -64,6 +66,7 @@ func TestContainsI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ContainsI(tt.a, tt.b)
 			if result != tt.expected {
 				t.Errorf("ContainsI(%q, %q) = %v, want %v", tt.a, tt.b, result, tt.expected)
@@ -73,6 +76,7 @@ func TestContainsI(t *testing.T) {
 }
 
 func TestGetPlatformAgnosticNewline(t *testing.T) {
+	t.Parallel()
 	result := GetPlatformAgnosticNewline()
 
 	if runtime.GOOS == "windows" {
@@ -87,6 +91,7 @@ func TestGetPlatformAgnosticNewline(t *testing.T) {
 }
 
 func TestRandomStringN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		length int

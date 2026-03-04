@@ -14,116 +14,128 @@ import (
 
 func TestGlobalVerboseFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("verbose")
-	if flag == nil {
-		t.Fatal("Global verbose flag not registered")
-	}
+	assert.NotNil(t, flag, "Global verbose flag should be registered")
+	assert.Equal(t, "false", flag.DefValue, "verbose flag default should be false")
 }
 
 func TestGlobalLogLevelFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("log-level")
-	if flag == nil {
-		t.Fatal("Global log-level flag not registered")
-	}
+	assert.NotNil(t, flag, "Global log-level flag should be registered")
+	assert.Equal(t, "", flag.DefValue, "log-level flag default should be empty string")
 }
 
-func TestSetGlobalLogLevel_VerboseFlag(t *testing.T) {
-	LogDebug = true
-	LogLevel = ""
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.DebugLevel {
-		t.Errorf("Expected DebugLevel with -v flag, got %v", zerolog.GlobalLevel())
+func TestSetGlobalLogLevel(t *testing.T) {
+	tests := []struct {
+		name          string
+		logDebug      bool
+		logLevel      string
+		expectedLevel zerolog.Level
+	}{
+		{
+			name:          "verbose flag sets debug level",
+			logDebug:      true,
+			logLevel:      "",
+			expectedLevel: zerolog.DebugLevel,
+		},
+		{
+			name:          "log-level debug sets debug level",
+			logDebug:      false,
+			logLevel:      "debug",
+			expectedLevel: zerolog.DebugLevel,
+		},
+		{
+			name:          "log-level info sets info level",
+			logDebug:      false,
+			logLevel:      "info",
+			expectedLevel: zerolog.InfoLevel,
+		},
+		{
+			name:          "log-level warn sets warn level",
+			logDebug:      false,
+			logLevel:      "warn",
+			expectedLevel: zerolog.WarnLevel,
+		},
+		{
+			name:          "log-level error sets error level",
+			logDebug:      false,
+			logLevel:      "error",
+			expectedLevel: zerolog.ErrorLevel,
+		},
+		{
+			name:          "default (no flags) sets info level",
+			logDebug:      false,
+			logLevel:      "",
+			expectedLevel: zerolog.InfoLevel,
+		},
+		{
+			name:          "invalid log-level defaults to info",
+			logDebug:      false,
+			logLevel:      "invalid",
+			expectedLevel: zerolog.InfoLevel,
+		},
+		{
+			name:          "log-level takes precedence over verbose flag when both set",
+			logDebug:      true,
+			logLevel:      "info",
+			expectedLevel: zerolog.InfoLevel,
+		},
 	}
-	LogDebug = false
-}
 
-func TestSetGlobalLogLevel_LogLevelDebug(t *testing.T) {
-	LogDebug = false
-	LogLevel = "debug"
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.DebugLevel {
-		t.Errorf("Expected DebugLevel, got %v", zerolog.GlobalLevel())
-	}
-	LogLevel = ""
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore all global state via defer to prevent test contamination
+			origLevel := zerolog.GlobalLevel()
+			origDebug := LogDebug
+			origLogLevel := LogLevel
+			defer func() {
+				zerolog.SetGlobalLevel(origLevel)
+				LogDebug = origDebug
+				LogLevel = origLogLevel
+			}()
 
-func TestSetGlobalLogLevel_Info(t *testing.T) {
-	LogDebug = false
-	LogLevel = "info"
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.InfoLevel {
-		t.Errorf("Expected InfoLevel, got %v", zerolog.GlobalLevel())
-	}
-	LogLevel = ""
-}
+			LogDebug = tt.logDebug
+			LogLevel = tt.logLevel
+			setGlobalLogLevel(nil)
 
-func TestSetGlobalLogLevel_Warn(t *testing.T) {
-	LogDebug = false
-	LogLevel = "warn"
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.WarnLevel {
-		t.Errorf("Expected WarnLevel, got %v", zerolog.GlobalLevel())
-	}
-	LogLevel = ""
-}
-
-func TestSetGlobalLogLevel_Error(t *testing.T) {
-	LogDebug = false
-	LogLevel = "error"
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.ErrorLevel {
-		t.Errorf("Expected ErrorLevel, got %v", zerolog.GlobalLevel())
-	}
-	LogLevel = ""
-}
-
-func TestSetGlobalLogLevel_Default(t *testing.T) {
-	LogDebug = false
-	LogLevel = ""
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.InfoLevel {
-		t.Errorf("Expected InfoLevel for default, got %v", zerolog.GlobalLevel())
-	}
-}
-
-func TestSetGlobalLogLevel_Invalid(t *testing.T) {
-	LogDebug = false
-	LogLevel = "invalid"
-	setGlobalLogLevel(nil)
-	if zerolog.GlobalLevel() != zerolog.InfoLevel {
-		t.Errorf("Expected InfoLevel for invalid, got %v", zerolog.GlobalLevel())
+			assert.Equal(t, tt.expectedLevel, zerolog.GlobalLevel(),
+				"log level should be %v for logDebug=%v, logLevel=%q",
+				tt.expectedLevel, tt.logDebug, tt.logLevel)
+		})
 	}
 }
 
 func TestGlobalColorFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("color")
-	if flag == nil {
-		t.Fatal("Global color flag not registered")
-		return
-	}
-
-	if flag.DefValue != "true" {
-		t.Errorf("Expected default value 'true' for color flag, got %s", flag.DefValue)
-	}
+	assert.NotNil(t, flag, "Global color flag should be registered")
+	assert.Equal(t, "true", flag.DefValue, "color flag default should be true")
 }
 
 func TestGlobalConfigFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("config")
-	if flag == nil {
-		t.Fatal("Global config flag not registered")
-	}
+	assert.NotNil(t, flag, "Global config flag should be registered")
+	assert.Equal(t, "", flag.DefValue, "config flag default should be empty string")
 }
 
 func TestGlobalLogFileFlagRegistered(t *testing.T) {
 	flag := rootCmd.PersistentFlags().Lookup("logfile")
-	if flag == nil {
-		t.Fatal("Global logfile flag not registered")
-	}
+	assert.NotNil(t, flag, "Global logfile flag should be registered")
+	assert.Equal(t, "", flag.DefValue, "logfile flag default should be empty string")
+}
+
+func TestGlobalIgnoreProxyFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("ignore-proxy")
+	assert.NotNil(t, flag, "Global ignore-proxy flag should be registered")
+	assert.Equal(t, "false", flag.DefValue, "ignore-proxy flag default should be false")
+}
+
+func TestGlobalJSONFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("json")
+	assert.NotNil(t, flag, "Global json flag should be registered")
+	assert.Equal(t, "false", flag.DefValue, "json flag default should be false")
 }
 
 func TestPersistentPreRunRegistered(t *testing.T) {
-	if rootCmd.PersistentPreRun == nil {
-		t.Fatal("PersistentPreRun should be registered")
-	}
+	assert.NotNil(t, rootCmd.PersistentPreRun, "PersistentPreRun should be registered")
 }
 
 func TestTerminalRestorer(t *testing.T) {
@@ -336,4 +348,72 @@ func TestGetVersion(t *testing.T) {
 
 func TestRootCmdHasVersion(t *testing.T) {
 	assert.NotEmpty(t, rootCmd.Version, "rootCmd should have a version")
+}
+
+// TestFormatLevelWithHitColor_ColorEnabled verifies each log level gets the correct
+// color escape code when color output is enabled.
+func TestFormatLevelWithHitColor_ColorEnabled(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+
+	tests := []struct {
+		level    string
+		wantCode string
+	}{
+		{"hit", "\x1b[35m"},   // magenta
+		{"trace", "\x1b[90m"}, // dark grey
+		{"info", "\x1b[32m"},  // green
+		{"warn", "\x1b[33m"},  // yellow
+		{"error", "\x1b[31m"}, // red
+		{"fatal", "\x1b[31m"}, // red
+		{"panic", "\x1b[31m"}, // red
+		{"debug", "debug"},    // no color for debug - returned as-is
+	}
+
+	for _, tt := range tests {
+		t.Run("level_"+tt.level, func(t *testing.T) {
+			result := formatter(tt.level)
+			assert.Contains(t, result, tt.wantCode, "level=%q should contain color code %q", tt.level, tt.wantCode)
+		})
+	}
+}
+
+// TestFormatLevelWithHitColor_ColorDisabled verifies that every level is returned
+// unchanged (no escape codes) when color output is disabled.
+func TestFormatLevelWithHitColor_ColorDisabled(t *testing.T) {
+	formatter := formatLevelWithHitColor(false)
+
+	levels := []string{"hit", "trace", "debug", "info", "warn", "error", "fatal", "panic", "unknown"}
+	for _, level := range levels {
+		t.Run("level_"+level, func(t *testing.T) {
+			result := formatter(level)
+			assert.Equal(t, level, result, "color disabled: level=%q should be returned unchanged", level)
+		})
+	}
+}
+
+// TestFormatLevelWithHitColor_UnknownLevel verifies that unknown levels are passed through.
+func TestFormatLevelWithHitColor_UnknownLevel(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+	result := formatter("custom-level")
+	// Unknown levels fall through to the default case which returns the level unchanged
+	assert.Equal(t, "custom-level", result)
+}
+
+// TestFormatLevelWithHitColor_NonStringInput verifies that non-string input returns "".
+func TestFormatLevelWithHitColor_NonStringInput(t *testing.T) {
+	formatter := formatLevelWithHitColor(true)
+	result := formatter(42)
+	assert.Equal(t, "", result)
+}
+
+// TestLoadConfigFile_NoConfigFile verifies that loadConfigFile does not panic or error
+// when no config file path is set (default empty string).
+func TestLoadConfigFile_NoConfigFile(t *testing.T) {
+	origConfigFile := ConfigFile
+	defer func() { ConfigFile = origConfigFile }()
+
+	ConfigFile = ""
+	assert.NotPanics(t, func() {
+		loadConfigFile(rootCmd)
+	})
 }

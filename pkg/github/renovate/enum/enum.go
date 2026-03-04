@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
@@ -39,7 +40,7 @@ func RunEnumerate(client *github.Client, opts EnumOptions) {
 	ctx := context.Background()
 
 	if opts.ExtendRenovateConfigService != "" {
-		err := pkgrenovate.ValidateRenovateConfigService(opts.ExtendRenovateConfigService)
+		err := pkgrenovate.ValidateRenovateConfigService(opts.ExtendRenovateConfigService, httpclient.GetPipeleekHTTPClient("", nil, nil))
 		if err != nil {
 			log.Fatal().Stack().Err(err).Msg("Invalid extendRenovateConfigService URL")
 		}
@@ -315,7 +316,7 @@ func identifyRenovateBotWorkflow(ctx context.Context, client *github.Client, rep
 		if opts.ExtendRenovateConfigService != "" {
 			// Replace any occurrence of "local>" with "github>" this is best effort
 			configFileContent = strings.ReplaceAll(configFileContent, "local>", "github>")
-			configFileContent = pkgrenovate.ExtendRenovateConfig(configFileContent, opts.ExtendRenovateConfigService, repo.GetHTMLURL())
+			configFileContent = pkgrenovate.ExtendRenovateConfig(configFileContent, opts.ExtendRenovateConfigService, repo.GetHTMLURL(), httpclient.GetPipeleekHTTPClient("", nil, nil))
 		}
 	}
 
@@ -330,7 +331,7 @@ func identifyRenovateBotWorkflow(ctx context.Context, client *github.Client, rep
 
 		selfHostedConfigFile := false
 		if configFile != nil {
-			opts.SelfHostedOptions = pkgrenovate.FetchCurrentSelfHostedOptions(opts.SelfHostedOptions)
+			opts.SelfHostedOptions = pkgrenovate.FetchCurrentSelfHostedOptions(opts.SelfHostedOptions, httpclient.GetPipeleekHTTPClient("", nil, nil))
 			selfHostedConfigFile = pkgrenovate.IsSelfHostedConfig(configFileContent, opts.SelfHostedOptions)
 		}
 

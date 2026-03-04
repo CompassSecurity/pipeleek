@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
@@ -114,14 +114,14 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 }
 
 // FetchCurrentSelfHostedOptions retrieves the list of self-hosted Renovate configuration options.
-func FetchCurrentSelfHostedOptions(cachedOptions []string) []string {
+// Accepts a retryable HTTP client to allow injection for testing.
+func FetchCurrentSelfHostedOptions(cachedOptions []string, client *retryablehttp.Client) []string {
 	if len(cachedOptions) > 0 {
 		return cachedOptions
 	}
 
 	log.Debug().Msg("Fetching current self-hosted configuration from GitHub")
 
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	res, err := client.Get("https://raw.githubusercontent.com/renovatebot/renovate/refs/heads/main/docs/usage/self-hosted-configuration.md")
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed fetching self-hosted configuration documentation")
@@ -166,9 +166,8 @@ func IsSelfHostedConfig(config string, selfHostedOptions []string) bool {
 
 // ExtendRenovateConfig extends a Renovate configuration by sending it to a resolver service.
 // The config is normalized to valid JSON before sending (removes JSON5 comments/trailing commas).
-func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL string) string {
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-
+// Accepts a retryable HTTP client to allow injection for testing.
+func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL string, client *retryablehttp.Client) string {
 	u, err := url.Parse(serviceURL)
 	if err != nil {
 		log.Error().Stack().Err(err).Str("project", projectURL).Msg("Failed to parse renovate config service URL")
@@ -229,9 +228,8 @@ func normalizeRenovateConfig(config string) string {
 }
 
 // ValidateRenovateConfigService checks if the Renovate config resolver service is available.
-func ValidateRenovateConfigService(serviceUrl string) error {
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-
+// Accepts a retryable HTTP client to allow injection for testing.
+func ValidateRenovateConfigService(serviceUrl string, client *retryablehttp.Client) error {
 	u, err := url.Parse(serviceUrl)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed to parse renovate config service URL")

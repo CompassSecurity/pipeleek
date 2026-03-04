@@ -473,3 +473,22 @@ func TestContentQuality(t *testing.T) {
 		}
 	})
 }
+
+func TestRunGenerate_WithUsername(t *testing.T) {
+	createdFiles := make(map[string]fileInfo)
+	memberAdded := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && strings.Contains(r.URL.Path, "/members") {
+			memberAdded = true
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":456,"access_level":30}`))
+			return
+		}
+		createMockGitLabServer(createdFiles).Config.Handler.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	RunGenerate(server.URL, "test-token", "test-repo", "renovate-bot", false)
+
+	assert.True(t, memberAdded, "invite should be called when username is provided")
+}

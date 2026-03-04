@@ -2,11 +2,13 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -141,5 +143,203 @@ func TestFetchCICDYml_OtherError(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "syntax error on line 5") {
 		t.Fatalf("expected error to contain syntax error, got %q", err.Error())
+	}
+}
+
+// TestIterateProjects ensures pagination calls the callback for each project.
+func TestIterateProjects(t *testing.T) {
+	// Build two pages of projects; page 2 has NextPage=0 to terminate pagination.
+	page1 := []*gitlab.Project{
+		{ID: 1, Name: "project-one"},
+		{ID: 2, Name: "project-two"},
+	}
+	page2 := []*gitlab.Project{
+		{ID: 3, Name: "project-three"},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/api/v4/projects") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		pageParam := r.URL.Query().Get("page")
+		if pageParam == "2" {
+			// Last page – no X-Next-Page header
+			_ = json.NewEncoder(w).Encode(page2)
+		} else {
+			w.Header().Set("X-Next-Page", "2")
+			_ = json.NewEncoder(w).Encode(page1)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	var seen []int64
+	opts := &gitlab.ListProjectsOptions{}
+	err = IterateProjects(client, opts, func(p *gitlab.Project) error {
+		seen = append(seen, p.ID)
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("expected 3 projects, got %d", len(seen))
+	}
+}
+
+// TestIterateProjects_CallbackError ensures iteration stops on callback error.
+func TestIterateProjects_CallbackError(t *testing.T) {
+	projects := []*gitlab.Project{{ID: 1, Name: "p1"}, {ID: 2, Name: "p2"}}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(projects)
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	callCount := 0
+	opts := &gitlab.ListProjectsOptions{}
+	err = IterateProjects(client, opts, func(p *gitlab.Project) error {
+		callCount++
+		return fmt.Errorf("stop iteration")
+	})
+
+	if err == nil {
+		t.Fatal("expected callback error to propagate")
+	}
+	if callCount != 1 {
+		t.Fatalf("expected callback called once before error, got %d", callCount)
+	}
+}
+
+// TestIterateGroupProjects ensures pagination calls the callback for each group project.
+func TestIterateGroupProjects(t *testing.T) {
+	page1 := []*gitlab.Project{
+		{ID: 10, Name: "group-project-one"},
+		{ID: 11, Name: "group-project-two"},
+	}
+	page2 := []*gitlab.Project{
+		{ID: 12, Name: "group-project-three"},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/api/v4/groups/") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		pageParam := r.URL.Query().Get("page")
+		if pageParam == "2" {
+			_ = json.NewEncoder(w).Encode(page2)
+		} else {
+			w.Header().Set("X-Next-Page", "2")
+			_ = json.NewEncoder(w).Encode(page1)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	var seen []int64
+	opts := &gitlab.ListGroupProjectsOptions{}
+	err = IterateGroupProjects(client, "my-group", opts, func(p *gitlab.Project) error {
+		seen = append(seen, p.ID)
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("expected 3 projects, got %d", len(seen))
+	}
+}
+
+// TestIterateGroupProjects_CallbackError ensures iteration stops on callback error.
+func TestIterateGroupProjects_CallbackError(t *testing.T) {
+	projects := []*gitlab.Project{{ID: 10, Name: "gp1"}}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(projects)
+	}))
+	defer srv.Close()
+
+	client, err := gitlab.NewClient("token", gitlab.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	opts := &gitlab.ListGroupProjectsOptions{}
+	err = IterateGroupProjects(client, "my-group", opts, func(p *gitlab.Project) error {
+		return fmt.Errorf("stop iteration")
+	})
+
+	if err == nil {
+		t.Fatal("expected callback error to propagate")
+	}
+}
+
+// TestFetchVersionFromHTML verifies that fetchVersionFromHTML correctly parses the version
+// from a mock /help HTML page response.
+func TestFetchVersionFromHTML_ParsesVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<html><script>var gon={"instance_version":"17.2.1"}</script></html>`))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML(srv.URL, client)
+	if meta.Version != "17.2.1" {
+		t.Fatalf("expected version 17.2.1, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_NoVersion verifies fallback when version is not found.
+func TestFetchVersionFromHTML_NoVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<html><body>No version here</body></html>`))
+	}))
+	defer srv.Close()
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML(srv.URL, client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_BadURL verifies fallback when URL cannot be parsed.
+func TestFetchVersionFromHTML_BadURL(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML("://bad-url", client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
+	}
+}
+
+// TestFetchVersionFromHTML_Unreachable verifies fallback when HTTP request fails.
+func TestFetchVersionFromHTML_Unreachable(t *testing.T) {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	meta := fetchVersionFromHTML("http://127.0.0.1:0", client)
+	if meta.Version != "none" {
+		t.Fatalf("expected 'none' version, got %s", meta.Version)
 	}
 }

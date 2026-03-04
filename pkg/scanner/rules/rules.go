@@ -9,6 +9,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/engine/defaults"
@@ -24,7 +25,7 @@ var truffelhogRules []detectors.Detector
 func DownloadRules() {
 	if _, err := os.Stat(ruleFileName); errors.Is(err, os.ErrNotExist) {
 		log.Debug().Msg("No rules file found, downloading")
-		err := downloadFile(ruleFile, ruleFileName)
+		err := downloadFile(ruleFile, ruleFileName, httpclient.GetPipeleekHTTPClient("", nil, nil))
 		if err != nil {
 			log.Fatal().Stack().Err(err).Msg("Failed downloading rules file")
 			os.Exit(1)
@@ -32,7 +33,7 @@ func DownloadRules() {
 	}
 }
 
-func downloadFile(url string, filepath string) error {
+func downloadFile(url string, filepath string, client *retryablehttp.Client) error {
 	// #nosec G304 - Creating file for rules download at controlled internal temp path
 	out, err := os.Create(filepath)
 	if err != nil {
@@ -40,7 +41,6 @@ func downloadFile(url string, filepath string) error {
 	}
 	defer func() { _ = out.Close() }()
 
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	resp, err := client.Get(url)
 	if err != nil {
 		return err

@@ -3,10 +3,12 @@ package docs
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
@@ -172,4 +174,269 @@ func TestWriteMkdocsYaml_GithubPagesPrefix(t *testing.T) {
 	// First item should be Getting Started with GitHub Pages prefix
 	firstItem := introItems[0].(map[string]interface{})
 	assert.Equal(t, "/pipeleek/introduction/getting_started/", firstItem["Getting Started"])
+}
+
+func TestCopyFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+
+	content := []byte("hello, test content")
+	require.NoError(t, os.WriteFile(srcPath, content, 0644))
+
+	err := copyFile(srcPath, dstPath)
+	assert.NoError(t, err)
+
+	got, err := os.ReadFile(dstPath)
+	assert.NoError(t, err)
+	assert.Equal(t, content, got)
+}
+
+func TestCopyFile_SourceNotExist(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := copyFile(filepath.Join(tmpDir, "nonexistent.txt"), filepath.Join(tmpDir, "dst.txt"))
+	assert.Error(t, err)
+}
+
+func TestCopyFile_DestinationNotWritable(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	require.NoError(t, os.WriteFile(srcPath, []byte("data"), 0644))
+
+	// Try to write to a directory path (should fail)
+	err := copyFile(srcPath, tmpDir)
+	assert.Error(t, err)
+}
+
+func TestCopyDir(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Create files in source
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("aaa"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.txt"), []byte("bbb"), 0644))
+
+	// Create a subdirectory
+	subDir := filepath.Join(srcDir, "sub")
+	require.NoError(t, os.Mkdir(subDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "c.txt"), []byte("ccc"), 0644))
+
+	err := copyDir(srcDir, dstDir)
+	assert.NoError(t, err)
+
+	// Verify files were copied
+	gotA, err := os.ReadFile(filepath.Join(dstDir, "a.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("aaa"), gotA)
+
+	gotB, err := os.ReadFile(filepath.Join(dstDir, "b.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("bbb"), gotB)
+
+	gotC, err := os.ReadFile(filepath.Join(dstDir, "sub", "c.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("ccc"), gotC)
+}
+
+func TestCopyDir_SourceNotExist(t *testing.T) {
+	dstDir := t.TempDir()
+	err := copyDir("/nonexistent/path", dstDir)
+	assert.Error(t, err)
+}
+
+func TestCopySubfolders(t *testing.T) {
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	// Create subdirectories with files in source (only subdirs should be copied, not root files)
+	sub1 := filepath.Join(srcDir, "sub1")
+	sub2 := filepath.Join(srcDir, "sub2")
+	require.NoError(t, os.Mkdir(sub1, 0755))
+	require.NoError(t, os.Mkdir(sub2, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sub1, "file1.txt"), []byte("f1"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(sub2, "file2.txt"), []byte("f2"), 0644))
+
+	// Root-level file (should NOT be copied by copySubfolders)
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root"), 0644))
+
+	err := copySubfolders(srcDir, dstDir)
+	assert.NoError(t, err)
+
+	// Subdirectory files should be present
+	got1, err := os.ReadFile(filepath.Join(dstDir, "sub1", "file1.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("f1"), got1)
+
+	got2, err := os.ReadFile(filepath.Join(dstDir, "sub2", "file2.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("f2"), got2)
+
+	// Root-level file should NOT be copied
+	_, err = os.Stat(filepath.Join(dstDir, "root.txt"))
+	assert.True(t, os.IsNotExist(err), "root-level files should not be copied by copySubfolders")
+}
+
+func TestCopySubfolders_SourceNotExist(t *testing.T) {
+	dstDir := t.TempDir()
+	err := copySubfolders("/nonexistent/path", dstDir)
+	assert.Error(t, err)
+}
+
+// TestGenerateDocs_LeafCommand verifies that a leaf command creates a .md file.
+func TestGenerateDocs_LeafCommand(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cmd := &cobra.Command{
+		Use:   "scan",
+		Short: "Scan for secrets",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+
+	err := generateDocs(cmd, tmpDir, 1, false)
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(tmpDir, "scan.md"))
+	assert.NoError(t, err, "leaf command should create a .md file")
+}
+
+// TestGenerateDocs_ParentCommand verifies that a parent command creates index.md in a subdirectory.
+func TestGenerateDocs_ParentCommand(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	parent := &cobra.Command{Use: "gitlab", Short: "GitLab commands"}
+	child := &cobra.Command{
+		Use:   "scan",
+		Short: "Scan CI/CD",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+	parent.AddCommand(child)
+
+	err := generateDocs(parent, tmpDir, 0, false)
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(tmpDir, "gitlab", "index.md"))
+	assert.NoError(t, err, "parent command should create index.md in subdirectory")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "gitlab", "scan.md"))
+	assert.NoError(t, err, "child command should create scan.md")
+}
+
+// TestGenerateDocs_GithubPages verifies link rewriting for GitHub Pages.
+func TestGenerateDocs_GithubPages(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cmd := &cobra.Command{
+		Use:   "scan",
+		Short: "Scan for secrets",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+
+	err := generateDocs(cmd, tmpDir, 1, true)
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "scan.md"))
+	require.NoError(t, err)
+	assert.NotEmpty(t, content, "generated docs should not be empty")
+}
+
+// TestGenerateDocs_OutputDirNotWritable verifies that an error is returned when the dir is not writable.
+func TestGenerateDocs_OutputDirNotWritable(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("skipping: running as root, permission restrictions don't apply")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping: read-only directory restriction test is Unix-specific")
+	}
+	tmpDir := t.TempDir()
+	// Create a read-only subdirectory so MkdirAll will fail for children
+	readonlyDir := filepath.Join(tmpDir, "readonly")
+	require.NoError(t, os.MkdirAll(readonlyDir, 0500))
+
+	parent := &cobra.Command{Use: "sub", Short: "sub with children"}
+	child := &cobra.Command{
+		Use:   "leaf",
+		Short: "leaf cmd",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+	parent.AddCommand(child)
+
+	// generateDocs for a parent creates subdirectory - this should fail in the read-only dir
+	err := generateDocs(parent, readonlyDir, 0, false)
+	assert.Error(t, err, "should return error when output dir is not writable")
+}
+
+// TestInlineSVGIntoGettingStarted_MissingFile verifies an error is returned when the markdown is missing.
+func TestInlineSVGIntoGettingStarted_MissingFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := inlineSVGIntoGettingStarted(tmpDir)
+	assert.Error(t, err, "should return error when getting_started.md does not exist")
+}
+
+// TestInlineSVGIntoGettingStarted_NoPlaceholder verifies early return when placeholder is absent.
+func TestInlineSVGIntoGettingStarted_NoPlaceholder(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	introDir := filepath.Join(tmpDir, "introduction")
+	require.NoError(t, os.MkdirAll(introDir, 0755))
+	mdPath := filepath.Join(introDir, "getting_started.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Getting Started\nNo placeholder here."), 0644))
+
+	err := inlineSVGIntoGettingStarted(tmpDir)
+	assert.NoError(t, err, "no placeholder should return nil without error")
+
+	// File should be unchanged
+	content, err := os.ReadFile(mdPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "No placeholder here.")
+}
+
+// TestInlineSVGIntoGettingStarted_MissingSVG verifies an error is returned when the SVG file is missing.
+func TestInlineSVGIntoGettingStarted_MissingSVG(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	introDir := filepath.Join(tmpDir, "introduction")
+	require.NoError(t, os.MkdirAll(introDir, 0755))
+	mdPath := filepath.Join(introDir, "getting_started.md")
+	placeholder := "<!-- INLINE_SVG:pipeleek-anim.svg -->"
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Getting Started\n"+placeholder), 0644))
+
+	// Change to tmpDir so the SVG file path ("docs/pipeleek-anim.svg") is relative to it
+	origDir, _ := os.Getwd()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	err := inlineSVGIntoGettingStarted(tmpDir)
+	assert.Error(t, err, "should return error when SVG file does not exist")
+}
+
+// TestInlineSVGIntoGettingStarted_ReplacesPlaceholder verifies SVG content is inlined.
+func TestInlineSVGIntoGettingStarted_ReplacesPlaceholder(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	introDir := filepath.Join(tmpDir, "introduction")
+	require.NoError(t, os.MkdirAll(introDir, 0755))
+	placeholder := "<!-- INLINE_SVG:pipeleek-anim.svg -->"
+	mdContent := "# Getting Started\n" + placeholder + "\nEnd of file."
+	mdPath := filepath.Join(introDir, "getting_started.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(mdContent), 0644))
+
+	// Create a mock SVG at the expected relative path "docs/pipeleek-anim.svg"
+	docsDir := filepath.Join(tmpDir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0755))
+	svgContent := `<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>`
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "pipeleek-anim.svg"), []byte(svgContent), 0644))
+
+	origDir, _ := os.Getwd()
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	err := inlineSVGIntoGettingStarted(tmpDir)
+	require.NoError(t, err)
+
+	result, err := os.ReadFile(mdPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(result), svgContent, "SVG content should be inlined")
+	assert.NotContains(t, string(result), placeholder, "placeholder should be replaced")
 }

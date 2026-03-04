@@ -1,9 +1,13 @@
 package renovate
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 func TestExtractSelfHostedOptions(t *testing.T) {
@@ -114,9 +118,9 @@ Controls where Renovate installs binaries.`)
 
 func TestValidateOrderBy(t *testing.T) {
 	tests := []struct {
-		name       string
-		orderBy    string
-		shouldFail bool
+		name        string
+		orderBy     string
+		expectError bool
 	}{
 		{"accepts id", "id", false},
 		{"accepts name", "name", false},
@@ -126,14 +130,19 @@ func TestValidateOrderBy(t *testing.T) {
 		{"accepts star_count", "star_count", false},
 		{"accepts last_activity_at", "last_activity_at", false},
 		{"accepts similarity", "similarity", false},
+		{"rejects invalid value", "random", true},
+		{"rejects empty string", "", true},
+		{"rejects uppercase variant", "Name", true},
+		{"rejects SQL injection attempt", "id; DROP TABLE", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if !tt.shouldFail {
-				assert.NotPanics(t, func() {
-					validateOrderBy(tt.orderBy)
-				}, "Valid orderBy values should not panic")
+			err := validateOrderBy(tt.orderBy)
+			if tt.expectError {
+				assert.Error(t, err, "expected error for orderBy=%q", tt.orderBy)
+			} else {
+				assert.NoError(t, err, "expected no error for orderBy=%q", tt.orderBy)
 			}
 		})
 	}
@@ -147,9 +156,7 @@ func TestValidOrderByValues(t *testing.T) {
 
 	for _, value := range validValues {
 		t.Run("validates_"+value, func(t *testing.T) {
-			assert.NotPanics(t, func() {
-				validateOrderBy(value)
-			}, "orderBy=%s should be valid", value)
+			assert.NoError(t, validateOrderBy(value), "orderBy=%s should be valid", value)
 		})
 	}
 }
@@ -287,4 +294,69 @@ func TestIsSelfHostedConfig(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
+}
+
+func TestDumpConfigFileContents_CreatesFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	project := &gitlab.Project{PathWithNamespace: "myorg/myproject"}
+
+	dumpConfigFileContents(project, "# CI/CD YAML content", `{"extends":["config:base"]}`, "renovate.json", tmpDir)
+
+	// Verify CI/CD YAML was written
+	ciCdPath := filepath.Join(tmpDir, "myorg", "myproject", "gitlab-ci.yml")
+	data, err := os.ReadFile(ciCdPath)
+	require.NoError(t, err)
+	assert.Equal(t, "# CI/CD YAML content", string(data))
+
+	// Verify renovate config was written
+	configPath := filepath.Join(tmpDir, "myorg", "myproject", "renovate.json")
+	data, err = os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, `{"extends":["config:base"]}`, string(data))
+}
+
+func TestDumpConfigFileContents_DefaultsFilenameToRenovateJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	project := &gitlab.Project{PathWithNamespace: "org/repo"}
+
+	// Empty filename should default to renovate.json
+	dumpConfigFileContents(project, "", `{"key":"val"}`, "", tmpDir)
+
+	configPath := filepath.Join(tmpDir, "org", "repo", "renovate.json")
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, `{"key":"val"}`, string(data))
+}
+
+func TestDumpConfigFileContents_SkipsEmptyContent(t *testing.T) {
+	tmpDir := t.TempDir()
+	project := &gitlab.Project{PathWithNamespace: "org/repo"}
+
+	// Both cicd and config are empty: files should NOT be created
+	dumpConfigFileContents(project, "", "", "renovate.json", tmpDir)
+
+	ciCdPath := filepath.Join(tmpDir, "org", "repo", "gitlab-ci.yml")
+	_, err := os.Stat(ciCdPath)
+	assert.True(t, os.IsNotExist(err), "gitlab-ci.yml should not be created when ciCdYml is empty")
+
+	configPath := filepath.Join(tmpDir, "org", "repo", "renovate.json")
+	_, err = os.Stat(configPath)
+	assert.True(t, os.IsNotExist(err), "renovate.json should not be created when content is empty")
+}
+
+func TestDumpConfigFileContents_OnlyCICD(t *testing.T) {
+	tmpDir := t.TempDir()
+	project := &gitlab.Project{PathWithNamespace: "org/repo"}
+
+	dumpConfigFileContents(project, "ci: content", "", "", tmpDir)
+
+	ciCdPath := filepath.Join(tmpDir, "org", "repo", "gitlab-ci.yml")
+	data, err := os.ReadFile(ciCdPath)
+	require.NoError(t, err)
+	assert.Equal(t, "ci: content", string(data))
+
+	// renovate.json should NOT be created
+	configPath := filepath.Join(tmpDir, "org", "repo", "renovate.json")
+	_, err = os.Stat(configPath)
+	assert.True(t, os.IsNotExist(err))
 }

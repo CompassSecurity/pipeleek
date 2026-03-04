@@ -4,85 +4,58 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/devops/scan"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAzureDevOpsRootCmd(t *testing.T) {
 	cmd := NewAzureDevOpsRootCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "ad [command]" {
-		t.Errorf("Expected Use to be 'ad [command]', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
-
-	if cmd.GroupID != "AzureDevOps" {
-		t.Errorf("Expected GroupID 'AzureDevOps', got %q", cmd.GroupID)
-	}
-
-	if len(cmd.Commands()) < 1 {
-		t.Errorf("Expected at least 1 subcommand, got %d", len(cmd.Commands()))
-	}
+	require.NotNil(t, cmd, "NewAzureDevOpsRootCmd should return non-nil command")
+	assert.Equal(t, "ad [command]", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+	assert.Equal(t, "AzureDevOps", cmd.GroupID)
+	assert.GreaterOrEqual(t, len(cmd.Commands()), 1, "should have at least 1 subcommand")
 
 	scanCmd := cmd.Commands()[0]
-	if scanCmd.Use != "scan [no options!]" {
-		t.Errorf("Expected first subcommand Use to be 'scan [no options!]', got %q", scanCmd.Use)
-	}
+	assert.Equal(t, "scan [no options!]", scanCmd.Use)
 }
 
 func TestNewScanCmd(t *testing.T) {
 	cmd := scan.NewScanCmd()
 
-	if cmd == nil {
-		t.Fatal("Expected non-nil command")
-		return
-	}
-
-	if cmd.Use != "scan [no options!]" {
-		t.Errorf("Expected Use to be 'scan [no options!]', got %q", cmd.Use)
-	}
-
-	if cmd.Short == "" {
-		t.Error("Expected non-empty Short description")
-	}
-
-	if cmd.Long == "" {
-		t.Error("Expected non-empty Long description")
-	}
-
-	if cmd.Example == "" {
-		t.Error("Expected non-empty Example")
-	}
+	require.NotNil(t, cmd, "NewScanCmd should return non-nil command")
+	assert.Equal(t, "scan [no options!]", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
+	assert.NotEmpty(t, cmd.Example, "Example should not be empty")
 
 	flags := cmd.Flags()
-	if flags.Lookup("token") == nil {
-		t.Error("Expected 'token' flag to exist")
-	}
-	if flags.Lookup("organization") == nil {
-		t.Error("Expected 'organization' flag to exist")
-	}
-	if flags.Lookup("project") == nil {
-		t.Error("Expected 'project' flag to exist")
-	}
-	if flags.Lookup("confidence") == nil {
-		t.Error("Expected 'confidence' flag to exist")
-	}
-	if flags.Lookup("threads") == nil {
-		t.Error("Expected 'threads' flag to exist")
-	}
-	if flags.Lookup("truffle-hog-verification") == nil {
-		t.Error("Expected 'truffle-hog-verification' flag to exist")
-	}
-	if flags.Lookup("max-builds") == nil {
-		t.Error("Expected 'max-builds' flag to exist")
-	}
-	if flags.Lookup("max-artifact-size") == nil {
-		t.Error("Expected 'max-artifact-size' flag to exist")
-	}
+
+	tokenFlag := flags.Lookup("token")
+	assert.NotNil(t, tokenFlag, "'token' flag should be registered")
+	assert.Equal(t, "", tokenFlag.DefValue, "'token' flag default should be empty")
+	assert.Equal(t, "t", tokenFlag.Shorthand, "'token' flag shorthand should be 't'")
+
+	orgFlag := flags.Lookup("organization")
+	assert.NotNil(t, orgFlag, "'organization' flag should be registered")
+	assert.Equal(t, "", orgFlag.DefValue, "'organization' flag default should be empty")
+
+	projectFlag := flags.Lookup("project")
+	assert.NotNil(t, projectFlag, "'project' flag should be registered")
+	assert.Equal(t, "", projectFlag.DefValue, "'project' flag default should be empty")
+
+	devopsFlag := flags.Lookup("devops")
+	assert.NotNil(t, devopsFlag, "'devops' flag should be registered")
+	assert.Equal(t, "https://dev.azure.com", devopsFlag.DefValue,
+		"'devops' flag default should be https://dev.azure.com")
+
+	maxBuildsFlag := flags.Lookup("max-builds")
+	assert.NotNil(t, maxBuildsFlag, "'max-builds' flag should be registered")
+	assert.Equal(t, "-1", maxBuildsFlag.DefValue, "'max-builds' flag default should be -1")
+
+	assert.NotNil(t, flags.Lookup("confidence"), "'confidence' flag should be registered")
+	assert.NotNil(t, flags.Lookup("threads"), "'threads' flag should be registered")
+	assert.NotNil(t, flags.Lookup("truffle-hog-verification"), "'truffle-hog-verification' flag should be registered")
+	assert.NotNil(t, flags.Lookup("max-artifact-size"), "'max-artifact-size' flag should be registered")
 }
