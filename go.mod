@@ -1,6 +1,6 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.25
+go 1.25.0
 
 toolchain go1.25.1
 
@@ -23,7 +23,7 @@ require (
 	github.com/trufflesecurity/trufflehog/v3 v3.93.4
 	gitlab.com/gitlab-org/api/client-go v1.43.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.34.0
 	golift.io/xtractr v0.3.0
