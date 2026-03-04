@@ -367,17 +367,18 @@ func TestSetGlobalHitWriter(t *testing.T) {
 // TestHit_NilGlobalWriter verifies that Hit() initializes globalHitWriter via
 // setupGlobalHitWriter when it is nil, and still returns a valid HitEvent.
 func TestHit_NilGlobalWriter(t *testing.T) {
-	// Save original state and ensure full restoration
+	// Save original state for cleanup. globalHitWriterOnce is not saved/restored
+	// because sync.Once contains sync.noCopy and cannot be copied. Restoring
+	// globalHitWriter is sufficient since Hit() only calls setupGlobalHitWriter
+	// when globalHitWriter == nil.
 	origWriter := globalHitWriter
-	origOnce := globalHitWriterOnce
 	origLogger := log.Logger
 	defer func() {
 		globalHitWriter = origWriter
-		globalHitWriterOnce = origOnce
 		log.Logger = origLogger
 	}()
 
-	// Force the initialization path by resetting both the writer and the sync.Once
+	// Force the initialization path by resetting both the writer and the sync.Once.
 	globalHitWriter = nil
 	globalHitWriterOnce = sync.Once{}
 
@@ -389,19 +390,18 @@ func TestHit_NilGlobalWriter(t *testing.T) {
 // TestSetupGlobalHitWriter_IdempotentOnce verifies that setupGlobalHitWriter only
 // initializes globalHitWriter once even when called multiple times concurrently.
 func TestSetupGlobalHitWriter_IdempotentOnce(t *testing.T) {
+	// See TestHit_NilGlobalWriter for why globalHitWriterOnce is not saved/restored.
 	origWriter := globalHitWriter
-	origOnce := globalHitWriterOnce
 	origLogger := log.Logger
 	defer func() {
 		globalHitWriter = origWriter
-		globalHitWriterOnce = origOnce
 		log.Logger = origLogger
 	}()
 
 	globalHitWriter = nil
 	globalHitWriterOnce = sync.Once{}
 
-	// Call setupGlobalHitWriter from multiple goroutines concurrently
+	// Call setupGlobalHitWriter from multiple goroutines concurrently.
 	done := make(chan struct{}, 5)
 	for i := 0; i < 5; i++ {
 		go func() {
