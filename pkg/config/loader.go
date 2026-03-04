@@ -72,6 +72,9 @@ func normalizeFlagKey(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
 }
 
+// Deprecated: BindCommandFlags is deprecated. Use AutoBindFlags instead, which provides
+// explicit flag-to-key mappings without relying on baseKey concatenation.
+//
 // BindCommandFlags binds a command's flags (including inherited ones) to Viper keys.
 // Keys are derived from the provided baseKey plus the normalized flag name, unless
 // an override is provided in the overrides map (flag name -> viper key).

@@ -62,7 +62,7 @@ func TestGLCicdYaml_MissingProject(t *testing.T) {
 
 	assert.NotNil(t, exitErr, "Should fail without project flag")
 	output := stdout + stderr
-	assert.Contains(t, output, "Project name is required", "Should mention missing required project")
+	assert.Contains(t, output, "gitlab.cicd.yaml.project", "Should mention missing required project config key")
 }
 
 func TestGLCicdYaml_InvalidProject(t *testing.T) {
