@@ -78,10 +78,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
-	if err := config.RequireConfigKeys("bitbucket.url"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.token")
 	options.Email = config.GetString("bitbucket.email")
