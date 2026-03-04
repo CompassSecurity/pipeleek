@@ -24,13 +24,13 @@ func NewYamlCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
+			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.project"); err != nil {
+				log.Fatal().Err(err).Msg("required configuration missing")
+			}
+
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
 			projectName = config.GetString("gitlab.cicd.yaml.project")
-
-			if projectName == "" {
-				log.Fatal().Msg("Project name is required (use --project flag, config file, or PIPELEEK_GITLAB_CICD_YAML_PROJECT env var)")
-			}
 
 			pkgcicd.DumpCICDYaml(gitlabUrl, gitlabApiToken, projectName)
 			log.Info().Msg("Done, Bye Bye 🏳️‍🌈🔥")
