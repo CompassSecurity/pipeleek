@@ -315,11 +315,16 @@ func TestInitLogger_ConsoleMode(t *testing.T) {
 	origJson := JsonLogoutput
 	origColor := LogColor
 	origLogger := log.Logger
+	origLogFileCloser := logFileCloser
 	defer func() {
+		log.Logger = origLogger
+		if logFileCloser != nil && logFileCloser != origLogFileCloser {
+			_ = logFileCloser.Close()
+		}
+		logFileCloser = origLogFileCloser
 		LogFile = origLogFile
 		JsonLogoutput = origJson
 		LogColor = origColor
-		log.Logger = origLogger
 	}()
 
 	tmpDir := t.TempDir()
@@ -342,10 +347,15 @@ func TestInitLogger_JSONMode(t *testing.T) {
 	origLogFile := LogFile
 	origJson := JsonLogoutput
 	origLogger := log.Logger
+	origLogFileCloser := logFileCloser
 	defer func() {
+		log.Logger = origLogger
+		if logFileCloser != nil && logFileCloser != origLogFileCloser {
+			_ = logFileCloser.Close()
+		}
+		logFileCloser = origLogFileCloser
 		LogFile = origLogFile
 		JsonLogoutput = origJson
-		log.Logger = origLogger
 	}()
 
 	tmpDir := t.TempDir()
