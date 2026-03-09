@@ -129,12 +129,7 @@ builds:
       - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Date={{.Date}}
 
 archives:
-  - formats:
-      - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
+  - formats: binary
     name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 release:
