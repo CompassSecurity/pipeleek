@@ -21,35 +21,38 @@ help:
 	@echo "  make serve-docs       - Generate and serve CLI documentation"
 	@echo "  make clean            - Remove built artifacts"
 
+# Build flags to reduce binary size (strip symbols, debug info, and file paths)
+GO_BUILD_FLAGS = -trimpath -ldflags="-s -w"
+
 # Build the main pipeleek binary
 build:
 	@echo "Building pipeleek..."
-	CGO_ENABLED=0 go build -o pipeleek ./cmd/pipeleek
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek ./cmd/pipeleek
 
 # Build GitLab-specific binary
 build-gitlab:
 	@echo "Building pipeleek-gitlab..."
-	CGO_ENABLED=0 go build -o pipeleek-gitlab ./cmd/pipeleek-gitlab
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-gitlab ./cmd/pipeleek-gitlab
 
 # Build GitHub-specific binary
 build-github:
 	@echo "Building pipeleek-github..."
-	CGO_ENABLED=0 go build -o pipeleek-github ./cmd/pipeleek-github
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-github ./cmd/pipeleek-github
 
 # Build BitBucket-specific binary
 build-bitbucket:
 	@echo "Building pipeleek-bitbucket..."
-	CGO_ENABLED=0 go build -o pipeleek-bitbucket ./cmd/pipeleek-bitbucket
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-bitbucket ./cmd/pipeleek-bitbucket
 
 # Build Azure DevOps-specific binary
 build-devops:
 	@echo "Building pipeleek-devops..."
-	CGO_ENABLED=0 go build -o pipeleek-devops ./cmd/pipeleek-devops
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-devops ./cmd/pipeleek-devops
 
 # Build Gitea-specific binary
 build-gitea:
 	@echo "Building pipeleek-gitea..."
-	CGO_ENABLED=0 go build -o pipeleek-gitea ./cmd/pipeleek-gitea
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-gitea ./cmd/pipeleek-gitea
 
 # Build all binaries
 build-all: build build-gitlab build-github build-bitbucket build-devops build-gitea
