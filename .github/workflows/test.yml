@@ -64,7 +64,7 @@ jobs:
 
       - name: Build pipeleek binary for e2e tests (Windows)
         if: runner.os == 'Windows'
-        run: go build -o pipeleek.exe ./cmd/pipeleek
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o pipeleek.exe ./cmd/pipeleek
 
       - name: Run e2e tests (Linux)
         if: runner.os == 'Linux'
