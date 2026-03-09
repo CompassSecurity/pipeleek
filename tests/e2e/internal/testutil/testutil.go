@@ -159,7 +159,7 @@ var (
 )
 
 func buildBinary(moduleDir, outputPath string) error {
-	cmd := exec.Command("go", "build", "-o", outputPath, "./cmd/pipeleek")
+	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", outputPath, "./cmd/pipeleek")
 	cmd.Dir = moduleDir
 	cmd.Env = os.Environ()
 	return cmd.Run()
