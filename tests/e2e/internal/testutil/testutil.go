@@ -161,7 +161,18 @@ var (
 func buildBinary(moduleDir, outputPath string) error {
 	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", outputPath, "./cmd/pipeleek")
 	cmd.Dir = moduleDir
-	cmd.Env = os.Environ()
+
+	// Ensure CGO is disabled so the e2e-built binary matches Makefile/CI builds.
+	env := os.Environ()
+	filteredEnv := make([]string, 0, len(env)+1)
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "CGO_ENABLED=") {
+			continue
+		}
+		filteredEnv = append(filteredEnv, kv)
+	}
+	filteredEnv = append(filteredEnv, "CGO_ENABLED=0")
+	cmd.Env = filteredEnv
 	return cmd.Run()
 }
 
