@@ -159,6 +159,7 @@ var (
 )
 
 func buildBinary(moduleDir, outputPath string) error {
+	// #nosec G204 -- build args/paths are controlled by test harness input
 	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", outputPath, "./cmd/pipeleek")
 	cmd.Dir = moduleDir
 
@@ -208,13 +209,15 @@ func executeCLIWithContext(ctx context.Context, args []string) error {
 		if !filepath.IsAbs(binPath) {
 			// If relative, try to resolve from module root
 			if moduleDir, err := findModuleRoot(); err == nil {
+				// #nosec G703 -- binPath comes from explicit test configuration and is intentionally resolved relative to module root
 				absPath := filepath.Join(moduleDir, binPath)
+				// #nosec G703 -- stat check is part of controlled test-path resolution
 				if _, err := os.Stat(absPath); err == nil {
 					binPath = absPath
 				}
 			}
 		}
-		// #nosec G204 -- binPath is the test binary path, intentionally variable for testing
+		// #nosec G204 G702 -- binPath is the test binary path, intentionally variable for testing
 		cmd := exec.CommandContext(ctx, binPath, args...)
 		cmd.Env = os.Environ()
 		cmd.Stdout = os.Stdout
@@ -258,7 +261,7 @@ func executeCLIWithContext(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to build pipeleek test binary")
 	}
 
-	// #nosec G204 -- pipeleekBinaryResolved is the test binary path, intentionally variable for testing
+	// #nosec G204 G702 -- pipeleekBinaryResolved is the test binary path, intentionally variable for testing
 	cmd := exec.CommandContext(ctx, pipeleekBinaryResolved, args...)
 	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout

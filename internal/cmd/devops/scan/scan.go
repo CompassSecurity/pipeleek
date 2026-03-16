@@ -39,13 +39,13 @@ Create your personal access token here: https://dev.azure.com/{yourproject}/_use
 		`,
 		Example: `
 # Scan all pipelines the current user has access to
-pipeleek ad scan --token xxxxxxxxxxx --username auser --artifacts
+pipeleek ad scan --token <azdo_pat> --username auser --artifacts
 
 # Scan all pipelines of an organization
-pipeleek ad scan --token xxxxxxxxxxx --username auser --artifacts --organization myOrganization
+pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization myOrganization
 
 # Scan all pipelines of a project e.g. https://dev.azure.com/PowerShell/PowerShell
-pipeleek ad scan --token xxxxxxxxxxx --username auser --artifacts --organization powershell --project PowerShell
+pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization powershell --project PowerShell
 		`,
 		Run: Scan,
 	}
@@ -63,6 +63,7 @@ pipeleek ad scan --token xxxxxxxxxxx --username auser --artifacts --organization
 }
 
 func Scan(cmd *cobra.Command, args []string) {
+	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"devops":                   "azure_devops.url",
 		"token":                    "azure_devops.token",

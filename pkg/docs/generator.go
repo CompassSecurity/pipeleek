@@ -198,7 +198,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		if err != nil {
 			return err
 		}
-		// #nosec G306 - Documentation assets should be world-readable
+		// #nosec G306 G703 - Documentation assets are copied to controlled internal output paths and should be world-readable
 		if err := os.WriteFile(dst, data, format.FilePublicRead); err != nil {
 			return err
 		}
@@ -390,7 +390,7 @@ func inlineSVGIntoGettingStarted(docsDir string) error {
 	svgStr := strings.TrimSpace(string(svgContent))
 
 	mdStr = strings.Replace(mdStr, placeholder, svgStr, -1)
-	// #nosec G306 - Documentation markdown file should be world-readable
+	// #nosec G306 G703 - Documentation markdown output path is controlled and should be world-readable
 	return os.WriteFile(gettingStartedPath, []byte(mdStr), format.FilePublicRead)
 }
 
