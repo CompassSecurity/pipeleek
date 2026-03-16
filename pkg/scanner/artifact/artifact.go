@@ -57,8 +57,9 @@ func HandleArchiveArtifactWithDepth(archivefileName string, content []byte, jobW
 		log.Error().Stack().Err(err).Msg("Cannot create artifact archive temp file")
 		return
 	}
+	defer func() { _ = tmpArchiveFile.Close() }()
 
-	err = os.WriteFile(tmpArchiveFile.Name(), content, format.FileUserReadWrite)
+	_, err = tmpArchiveFile.Write(content)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed writing archive to disk")
 		return

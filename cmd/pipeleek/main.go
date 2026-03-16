@@ -40,8 +40,10 @@ func main() {
 }
 
 func saveTerminalState() {
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		state, err := term.GetState(int(os.Stdin.Fd()))
+	// #nosec G115 -- os.Stdin file descriptor is provided by the runtime and fits into int on supported platforms
+	stdinFD := int(os.Stdin.Fd())
+	if term.IsTerminal(stdinFD) {
+		state, err := term.GetState(stdinFD)
 		if err == nil {
 			originalTermState = state
 		}
@@ -50,7 +52,9 @@ func saveTerminalState() {
 
 func restoreTerminalState() {
 	if originalTermState != nil {
-		_ = term.Restore(int(os.Stdin.Fd()), originalTermState)
+		// #nosec G115 -- os.Stdin file descriptor is provided by the runtime and fits into int on supported platforms
+		stdinFD := int(os.Stdin.Fd())
+		_ = term.Restore(stdinFD, originalTermState)
 	}
 }
 
