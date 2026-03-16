@@ -1,8 +1,6 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.25.0
-
-toolchain go1.25.1
+go 1.25.7
 
 require (
 	atomicgo.dev/keyboard v0.2.9
@@ -26,7 +24,7 @@ require (
 	golang.org/x/net v0.51.0
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.34.0
-	golift.io/xtractr v0.3.0
+	golift.io/xtractr v0.3.1
 	resty.dev/v3 v3.0.0-beta.6
 )
 
@@ -44,6 +42,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
+	github.com/Unpackerr/iso9660 v0.0.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.39.0 // indirect
@@ -114,11 +113,11 @@ require (
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/headzoo/ut v0.0.0-20181013193318-a13b5a7a02ca // indirect
+	github.com/icza/bitio v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jlaffaye/ftp v0.2.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/kdomanski/iso9660 v0.4.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
@@ -134,6 +133,9 @@ require (
 	github.com/marusama/semaphore/v2 v2.5.0 // indirect
 	github.com/mattn/go-runewidth v0.0.17 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
+	github.com/mewkiz/flac v1.0.13 // indirect
+	github.com/mewkiz/pkg v0.0.0-20250417130911-3f050ff8c56d // indirect
+	github.com/mewpkg/term v0.0.0-20241026122259-37a80af23985 // indirect
 	github.com/microsoft/go-mssqldb v1.8.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -142,7 +144,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/peterebden/ar v0.0.0-20241106141004-20dc11b778e8 // indirect
-	github.com/pierrec/lz4/v4 v4.1.25 // indirect
+	github.com/pierrec/lz4/v4 v4.1.26 // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -155,6 +157,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
+	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
@@ -189,6 +192,7 @@ require (
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
+	golift.io/udf v0.0.1 // indirect
 	google.golang.org/api v0.259.0 // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
