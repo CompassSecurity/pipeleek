@@ -104,6 +104,25 @@ func InitRules(confidenceFilter []string) {
 func AppendPipeleekRules(rules []types.PatternElement) []types.PatternElement {
 	customRules := []types.PatternElement{}
 	customRules = append(customRules, types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Predefined Environment Variable", Regex: `(GITLAB_USER_ID|KUBECONFIG|CI_SERVER_TLS_KEY_FILE|CI_REPOSITORY_URL|CI_REGISTRY_PASSWORD|DOCKER_AUTH_CONFIG)=.*`, Confidence: "medium"}})
+
+	// Built-in rules for GitLab token types to ensure detection regardless of
+	// TruffleHog verification (which only verifies against gitlab.com and
+	// therefore misses tokens for self-hosted GitLab instances).
+	customRules = append(customRules,
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token", Regex: `glpat-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Pipeline Trigger Token", Regex: `glptt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Registration Token", Regex: `glrt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Deploy Token", Regex: `gldt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - CI Build Token", Regex: `glcbt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - OAuth Application Secret", Regex: `gloas-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - SCIM/OAuth Access Token", Regex: `glsoat-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feed Token", Regex: `glft-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Incoming Mail Token", Regex: `glimt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feature Flags Client Token", Regex: `glffct-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Agent for Kubernetes Token", Regex: `glagent-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Authentication Token (Legacy)", Regex: `GR1348941[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+	)
+
 	return slices.Concat(rules, customRules)
 }
 

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -247,5 +248,63 @@ func TestDeduplicateFindingsWithState_TrimsAtLimit(t *testing.T) {
 	// After trim, length should be exactly 500 (grew to 501, first element removed)
 	if len(newState) != 500 {
 		t.Fatalf("expected state len 500 after trim, got %d", len(newState))
+	}
+}
+
+func TestDetectHits_GitLabTokenDetection(t *testing.T) {
+	// GitLab tokens should be detected by built-in rules regardless of TruffleHog
+	// verification status (which only verifies against gitlab.com).
+	tests := []struct {
+		name  string
+		text  []byte
+		token string
+	}{
+		{
+			name:  "personal access token",
+			text:  []byte("export GITLAB_TOKEN=glpat-abcdefghij1234567890"),
+			token: "glpat-",
+		},
+		{
+			name:  "pipeline trigger token",
+			text:  []byte("TRIGGER_TOKEN=glptt-abcdefghij1234567890"),
+			token: "glptt-",
+		},
+		{
+			name:  "deploy token",
+			text:  []byte("DEPLOY_TOKEN=gldt-abcdefghij1234567890xx"),
+			token: "gldt-",
+		},
+		{
+			name:  "runner registration token",
+			text:  []byte("RUNNER_TOKEN=glrt-abcdefghij1234567890xx"),
+			token: "glrt-",
+		},
+		{
+			name:  "legacy runner authentication token",
+			text:  []byte("TOKEN=GR1348941abcdefghij1234567890"),
+			token: "GR1348941",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use verification=true to prove that the built-in rules catch
+			// GitLab tokens even when TruffleHog verification is active.
+			findings, err := DetectHits(tt.text, 1, true, 60*time.Second)
+			if err != nil {
+				t.Fatalf("DetectHits() error = %v", err)
+			}
+
+			foundByBuiltinRule := false
+			for _, f := range findings {
+				if strings.Contains(f.Text, tt.token) && f.Pattern.Pattern.Confidence == "high" {
+					foundByBuiltinRule = true
+					break
+				}
+			}
+			if !foundByBuiltinRule {
+				t.Errorf("Expected GitLab token %q to be detected by built-in rule, findings: %v", tt.token, findings)
+			}
+		})
 	}
 }

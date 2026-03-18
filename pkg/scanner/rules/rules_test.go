@@ -22,14 +22,14 @@ func TestAppendPipeleekRules(t *testing.T) {
 		{
 			name:          "empty rules",
 			inputRules:    []types.PatternElement{},
-			expectedCount: 1,
+			expectedCount: 13,
 		},
 		{
 			name: "with existing rules",
 			inputRules: []types.PatternElement{
 				{Pattern: types.PatternPattern{Name: "Test Rule", Regex: "test", Confidence: "high"}},
 			},
-			expectedCount: 2,
+			expectedCount: 14,
 		},
 	}
 
@@ -317,4 +317,35 @@ func TestDownloadFile_BadOutputPath(t *testing.T) {
 	// Attempting to write to a path inside a non-existent directory should fail
 	err := downloadFile(srv.URL, "/nonexistent-dir/rules.yml", client)
 	assert.Error(t, err)
+}
+
+func TestAppendPipeleekRules_GitLabTokenRules(t *testing.T) {
+	result := AppendPipeleekRules([]types.PatternElement{})
+
+	expectedTokenRules := []string{
+		"Gitlab - Personal Access Token",
+		"Gitlab - Pipeline Trigger Token",
+		"Gitlab - Runner Registration Token",
+		"Gitlab - Deploy Token",
+		"Gitlab - CI Build Token",
+		"Gitlab - OAuth Application Secret",
+		"Gitlab - SCIM/OAuth Access Token",
+		"Gitlab - Feed Token",
+		"Gitlab - Incoming Mail Token",
+		"Gitlab - Feature Flags Client Token",
+		"Gitlab - Agent for Kubernetes Token",
+		"Gitlab - Runner Authentication Token (Legacy)",
+	}
+
+	for _, expectedName := range expectedTokenRules {
+		found := false
+		for _, rule := range result {
+			if rule.Pattern.Name == expectedName {
+				found = true
+				assert.Equal(t, "high", rule.Pattern.Confidence, "GitLab token rule %q should have high confidence", expectedName)
+				break
+			}
+		}
+		assert.True(t, found, "Expected GitLab token rule %q to be present", expectedName)
+	}
 }
