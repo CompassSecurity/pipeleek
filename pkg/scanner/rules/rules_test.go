@@ -22,14 +22,14 @@ func TestAppendPipeleekRules(t *testing.T) {
 		{
 			name:          "empty rules",
 			inputRules:    []types.PatternElement{},
-			expectedCount: 13,
+			expectedCount: 15,
 		},
 		{
 			name: "with existing rules",
 			inputRules: []types.PatternElement{
 				{Pattern: types.PatternPattern{Name: "Test Rule", Regex: "test", Confidence: "high"}},
 			},
-			expectedCount: 14,
+			expectedCount: 16,
 		},
 	}
 
@@ -323,8 +323,10 @@ func TestAppendPipeleekRules_GitLabTokenRules(t *testing.T) {
 	result := AppendPipeleekRules([]types.PatternElement{})
 
 	expectedTokenRules := []string{
-		"Gitlab - Personal Access Token",
+		"Gitlab - Personal Access Token v2",
+		"Gitlab - Personal Access Token v3",
 		"Gitlab - Pipeline Trigger Token",
+		"Gitlab - Runner Authentication Token",
 		"Gitlab - Runner Registration Token",
 		"Gitlab - Deploy Token",
 		"Gitlab - CI Build Token",
@@ -334,7 +336,7 @@ func TestAppendPipeleekRules_GitLabTokenRules(t *testing.T) {
 		"Gitlab - Incoming Mail Token",
 		"Gitlab - Feature Flags Client Token",
 		"Gitlab - Agent for Kubernetes Token",
-		"Gitlab - Runner Authentication Token (Legacy)",
+		"Gitlab - Runner Token (Legacy)",
 	}
 
 	for _, expectedName := range expectedTokenRules {

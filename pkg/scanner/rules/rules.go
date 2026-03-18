@@ -109,18 +109,34 @@ func AppendPipeleekRules(rules []types.PatternElement) []types.PatternElement {
 	// TruffleHog verification (which only verifies against gitlab.com and
 	// therefore misses tokens for self-hosted GitLab instances).
 	customRules = append(customRules,
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token", Regex: `glpat-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Pipeline Trigger Token", Regex: `glptt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Registration Token", Regex: `glrt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Deploy Token", Regex: `gldt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - CI Build Token", Regex: `glcbt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - OAuth Application Secret", Regex: `gloas-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - SCIM/OAuth Access Token", Regex: `glsoat-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feed Token", Regex: `glft-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Incoming Mail Token", Regex: `glimt-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feature Flags Client Token", Regex: `glffct-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Agent for Kubernetes Token", Regex: `glagent-[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Authentication Token (Legacy)", Regex: `GR1348941[0-9a-zA-Z_-]{20,}`, Confidence: "high"}},
+		// https://github.com/trufflesecurity/trufflehog/blob/main/pkg/detectors/gitlab/v2/gitlab_v2.go
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v2", Regex: `glpat-[a-zA-Z0-9\-=_]{20,22}`, Confidence: "high"}},
+		// https://github.com/trufflesecurity/trufflehog/blob/main/pkg/detectors/gitlab/v3/gitlab_v3.go
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v3", Regex: `glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/trigger.rb
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Pipeline Trigger Token", Regex: `glptt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/runner.rb (CREATED_RUNNER_TOKEN_PREFIX)
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Authentication Token", Regex: `glrt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/runner.rb (REGISTRATION_RUNNER_TOKEN_PREFIX)
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Registration Token", Regex: `glrtr-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/deploy_token.rb
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Deploy Token", Regex: `gldt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/build.rb
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - CI Build Token", Regex: `glcbt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/spec/lib/authn/tokens/oauth_application_secret_spec.rb
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - OAuth Application Secret", Regex: `gloas-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://docs.gitlab.com/security/token_overview/
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - SCIM/OAuth Access Token", Regex: `glsoat-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://docs.gitlab.com/security/token_overview/
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feed Token", Regex: `glft-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://docs.gitlab.com/security/token_overview/
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Incoming Mail Token", Regex: `glimt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://docs.gitlab.com/security/token_overview/
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feature Flags Client Token", Regex: `glffct-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://docs.gitlab.com/security/token_overview/
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Agent for Kubernetes Token", Regex: `glagent-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
+		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/concerns/runners_token_prefixable.rb
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Token (Legacy)", Regex: `GR1348941[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
 	)
 
 	return slices.Concat(rules, customRules)

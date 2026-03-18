@@ -260,8 +260,13 @@ func TestDetectHits_GitLabTokenDetection(t *testing.T) {
 		token string
 	}{
 		{
-			name:  "personal access token",
+			name:  "personal access token v2",
 			text:  []byte("export GITLAB_TOKEN=glpat-abcdefghij1234567890"),
+			token: "glpat-",
+		},
+		{
+			name:  "personal access token v3",
+			text:  []byte("export GITLAB_TOKEN=glpat-abcDEFghij1234567890_-=xyzABC0ab.ab.abc012345"),
 			token: "glpat-",
 		},
 		{
@@ -275,12 +280,17 @@ func TestDetectHits_GitLabTokenDetection(t *testing.T) {
 			token: "gldt-",
 		},
 		{
-			name:  "runner registration token",
+			name:  "runner authentication token",
 			text:  []byte("RUNNER_TOKEN=glrt-abcdefghij1234567890xx"),
 			token: "glrt-",
 		},
 		{
-			name:  "legacy runner authentication token",
+			name:  "runner registration token",
+			text:  []byte("RUNNER_TOKEN=glrtr-abcdefghij1234567890x"),
+			token: "glrtr-",
+		},
+		{
+			name:  "legacy runner token",
 			text:  []byte("TOKEN=GR1348941abcdefghij1234567890"),
 			token: "GR1348941",
 		},
