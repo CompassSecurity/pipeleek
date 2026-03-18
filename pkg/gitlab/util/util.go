@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +17,32 @@ import (
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
+
+// AccessLevelName returns the human-readable name for a GitLab access level value.
+func AccessLevelName(level gitlab.AccessLevelValue) string {
+	switch level {
+	case gitlab.NoPermissions:
+		return "No access"
+	case gitlab.MinimalAccessPermissions:
+		return "Minimal access"
+	case gitlab.GuestPermissions:
+		return "Guest"
+	case gitlab.PlannerPermissions:
+		return "Planner"
+	case gitlab.ReporterPermissions:
+		return "Reporter"
+	case gitlab.DeveloperPermissions:
+		return "Developer"
+	case gitlab.MaintainerPermissions:
+		return "Maintainer"
+	case gitlab.OwnerPermissions:
+		return "Owner"
+	case gitlab.AdminPermissions:
+		return "Admin"
+	default:
+		return fmt.Sprintf("Unknown (%d)", int(level))
+	}
+}
 
 // ProjectIteratorFunc is a callback function type for processing each project
 type ProjectIteratorFunc func(project *gitlab.Project) error

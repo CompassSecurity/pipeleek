@@ -9,6 +9,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog/log"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"resty.dev/v3"
 )
@@ -157,12 +158,12 @@ func listTokenAssociations(client resty.Client, baseUrl string, pat string, acce
 	}
 
 	for _, group := range resp.Groups {
-		log.Warn().Str("group", group.WebURL).Int("accessLevel", group.AccessLevels).Str("name", group.Name).Str("visibility", string(group.Visibility)).Msg("Group")
+		log.Warn().Str("group", group.WebURL).Str("accessLevel", util.AccessLevelName(gitlab.AccessLevelValue(group.AccessLevels))).Str("name", group.Name).Str("visibility", string(group.Visibility)).Msg("Group")
 		log.Debug().Interface("full_group", group).Msg("Full Group details")
 	}
 
 	for _, project := range resp.Projects {
-		log.Warn().Str("project", project.WebURL).Str("name", project.NameWithNamespace).Int("groupAccessLevel", project.AccessLevels.GroupAccessLevel).Int("projectAccessLevel", project.AccessLevels.ProjectAccessLevel).Msg("Project")
+		log.Warn().Str("project", project.WebURL).Str("name", project.NameWithNamespace).Str("groupAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.GroupAccessLevel))).Str("projectAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.ProjectAccessLevel))).Msg("Project")
 		log.Debug().Interface("full_project", project).Msg("Full Project details")
 	}
 

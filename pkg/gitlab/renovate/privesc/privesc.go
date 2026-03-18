@@ -37,7 +37,7 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex, moni
 
 	projectAccessLevel := getUserAccessLevel(project)
 	if projectAccessLevel < gogitlab.DeveloperPermissions {
-		log.Fatal().Any("projectAccessLevel", projectAccessLevel).Msg("You (probably) need at least Developer permissions to exploit this vulnerability, you must be able to push to the Renovate Bot created branches branches")
+		log.Fatal().Str("projectAccessLevel", util.AccessLevelName(projectAccessLevel)).Msg("You (probably) need at least Developer permissions to exploit this vulnerability, you must be able to push to the Renovate Bot created branches")
 	}
 
 	ciCdYml, err := util.FetchCICDYml(git, project.ID)
@@ -91,20 +91,20 @@ func checkDefaultBranchProtections(git *gogitlab.Client, project *gogitlab.Proje
 	}
 
 	for _, accessLevel := range protectedbranch.PushAccessLevels {
-		log.Debug().Str("branch", project.DefaultBranch).Any("userAccessLevel", currentAccessLevel).Any("requiredAccessLevel", accessLevel.AccessLevel).Msg("Testing push access level for default branch")
+		log.Debug().Str("branch", project.DefaultBranch).Str("userAccessLevel", util.AccessLevelName(currentAccessLevel)).Str("requiredAccessLevel", util.AccessLevelName(accessLevel.AccessLevel)).Msg("Testing push access level for default branch")
 		if currentAccessLevel >= accessLevel.AccessLevel {
-			log.Fatal().Str("branch", project.DefaultBranch).Any("userAccessLevel", currentAccessLevel).Any("requiredAccessLevel", accessLevel.AccessLevel).Msg("You can already push to the default branch, no need to exploit")
+			log.Fatal().Str("branch", project.DefaultBranch).Str("userAccessLevel", util.AccessLevelName(currentAccessLevel)).Str("requiredAccessLevel", util.AccessLevelName(accessLevel.AccessLevel)).Msg("You can already push to the default branch, no need to exploit")
 		}
 	}
 
 	for _, accessLevel := range protectedbranch.MergeAccessLevels {
-		log.Debug().Str("branch", project.DefaultBranch).Any("userAccessLevel", currentAccessLevel).Any("requiredAccessLevel", accessLevel.AccessLevel).Msg("Testing merge access level for default branch")
+		log.Debug().Str("branch", project.DefaultBranch).Str("userAccessLevel", util.AccessLevelName(currentAccessLevel)).Str("requiredAccessLevel", util.AccessLevelName(accessLevel.AccessLevel)).Msg("Testing merge access level for default branch")
 		if currentAccessLevel >= accessLevel.AccessLevel {
-			log.Fatal().Str("branch", project.DefaultBranch).Any("userAccessLevel", currentAccessLevel).Any("requiredAccessLevel", accessLevel.AccessLevel).Msg("You can already merge to the default branch, no need to exploit")
+			log.Fatal().Str("branch", project.DefaultBranch).Str("userAccessLevel", util.AccessLevelName(currentAccessLevel)).Str("requiredAccessLevel", util.AccessLevelName(accessLevel.AccessLevel)).Msg("You can already merge to the default branch, no need to exploit")
 		}
 	}
 
-	log.Info().Str("branch", project.DefaultBranch).Any("currentAccessLevel", currentAccessLevel).Msg("Default branch is protected and you do not have direct access, proceeding with exploit")
+	log.Info().Str("branch", project.DefaultBranch).Str("currentAccessLevel", util.AccessLevelName(currentAccessLevel)).Msg("Default branch is protected and you do not have direct access, proceeding with exploit")
 }
 
 func monitorBranches(git *gogitlab.Client, project *gogitlab.Project, branchMonitor *pkgrenovate.BranchMonitor, monitoringInterval time.Duration) *gogitlab.Branch {
