@@ -37,7 +37,7 @@ func RunExploit(gitlabUrl, gitlabApiToken, repoName, renovateBranchesRegex, moni
 
 	projectAccessLevel := getUserAccessLevel(project)
 	if projectAccessLevel < gogitlab.DeveloperPermissions {
-		log.Fatal().Str("projectAccessLevel", util.AccessLevelName(projectAccessLevel)).Msg("You (probably) need at least Developer permissions to exploit this vulnerability, you must be able to push to the Renovate Bot created branches branches")
+		log.Fatal().Str("projectAccessLevel", util.AccessLevelName(projectAccessLevel)).Msg("You (probably) need at least Developer permissions to exploit this vulnerability, you must be able to push to the Renovate Bot created branches")
 	}
 
 	ciCdYml, err := util.FetchCICDYml(git, project.ID)
