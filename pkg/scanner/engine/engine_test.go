@@ -265,6 +265,11 @@ func TestDetectHits_GitLabTokenDetection(t *testing.T) {
 			token: "glpat-",
 		},
 		{
+			name:  "personal access token v2 max length",
+			text:  []byte("export GITLAB_TOKEN=glpat-abcdefghij12345678901x"),
+			token: "glpat-",
+		},
+		{
 			name:  "personal access token v3",
 			text:  []byte("export GITLAB_TOKEN=glpat-abcDEFghij1234567890_-=xyzABC0ab.ab.abc012345"),
 			token: "glpat-",
