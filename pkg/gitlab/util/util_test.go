@@ -12,7 +12,41 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
-// TestDetermineVersion_ParsesVersion ensures the help page parsing extracts instance_version.
+// TestAccessLevelName_KnownLevels ensures all known access levels return correct names.
+func TestAccessLevelName_KnownLevels(t *testing.T) {
+	tests := []struct {
+		level    gitlab.AccessLevelValue
+		expected string
+	}{
+		{gitlab.NoPermissions, "No access"},
+		{gitlab.MinimalAccessPermissions, "Minimal access"},
+		{gitlab.GuestPermissions, "Guest"},
+		{gitlab.PlannerPermissions, "Planner"},
+		{gitlab.ReporterPermissions, "Reporter"},
+		{gitlab.DeveloperPermissions, "Developer"},
+		{gitlab.MaintainerPermissions, "Maintainer"},
+		{gitlab.OwnerPermissions, "Owner"},
+		{gitlab.AdminPermissions, "Admin"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			result := AccessLevelName(tt.level)
+			if result != tt.expected {
+				t.Fatalf("AccessLevelName(%d) = %q, want %q", int(tt.level), result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestAccessLevelName_UnknownLevel ensures unknown access levels return a descriptive fallback.
+func TestAccessLevelName_UnknownLevel(t *testing.T) {
+	result := AccessLevelName(gitlab.AccessLevelValue(99))
+	expected := "Unknown (99)"
+	if result != expected {
+		t.Fatalf("AccessLevelName(99) = %q, want %q", result, expected)
+	}
+}
 func TestDetermineVersion_ParsesVersion(t *testing.T) {
 	// Simulate GitLab /help endpoint content containing instance_version JSON fragment
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
