@@ -111,8 +111,8 @@ func AppendPipeleekRules(rules []types.PatternElement) []types.PatternElement {
 	customRules = append(customRules,
 		// https://github.com/trufflesecurity/trufflehog/blob/main/pkg/detectors/gitlab/v2/gitlab_v2.go
 		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v2", Regex: `glpat-[a-zA-Z0-9\-=_]{20,22}`, Confidence: "high"}},
-		// https://github.com/trufflesecurity/trufflehog/blob/main/pkg/detectors/gitlab/v3/gitlab_v3.go
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v3", Regex: `glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9}`, Confidence: "high"}},
+		// https://github.com/trufflesecurity/trufflehog/blob/afd5336caad0f61da51750ffe39869974b27b0db/pkg/detectors/gitlab/v3/gitlab_v3.go#L34
+		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v3", Regex: `\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`, Confidence: "high"}},
 		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/trigger.rb
 		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Pipeline Trigger Token", Regex: `glptt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
 		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/runner.rb (CREATED_RUNNER_TOKEN_PREFIX)
