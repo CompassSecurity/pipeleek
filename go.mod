@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	atomicgo.dev/keyboard v0.2.9
 	code.gitea.io/sdk/gitea v0.23.2
-	github.com/PuerkitoBio/goquery v1.11.0
+	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.17.0
 	github.com/gofri/go-github-ratelimit/v2 v2.0.2
