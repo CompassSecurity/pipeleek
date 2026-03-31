@@ -1,10 +1,10 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.25.7
+go 1.26
 
 require (
 	atomicgo.dev/keyboard v0.2.9
-	code.gitea.io/sdk/gitea v0.23.2
+	code.gitea.io/sdk/gitea v0.24.1
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.17.1
@@ -36,7 +36,7 @@ require (
 	cloud.google.com/go/secretmanager v1.16.0 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
-	github.com/42wim/httpsig v1.2.3 // indirect
+	github.com/42wim/httpsig v1.2.4 // indirect
 	github.com/Azure/go-ntlmssp v0.1.0 // indirect
 	github.com/BobuSumisu/aho-corasick v1.0.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -110,7 +110,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/headzoo/ut v0.0.0-20181013193318-a13b5a7a02ca // indirect
 	github.com/icza/bitio v1.1.0 // indirect
