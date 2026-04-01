@@ -116,7 +116,7 @@ gitlab:
 
   scan:
     threads: 10 # gl scan --threads (can override common.threads)
-  
+
   tf:
     output_dir: ./terraform-states # gl tf --output-dir
     threads: 4 # gl tf --threads (can override common.threads)
@@ -184,6 +184,7 @@ gitea:
   scan:
     owner: myorg # gitea scan --owner
     repo: myrepo # gitea scan --repo (optional, scans all if not specified)
+```
 
 ### Jenkins
 
@@ -197,12 +198,6 @@ jenkins:
     folder: team-a # jenkins scan --folder (optional)
     job: team-a/service-a # jenkins scan --job (optional)
     max_builds: 25 # jenkins scan --max-builds
-```
-
-CLI example:
-
-```bash
-pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token <token>
 ```
 
 ### Common Settings

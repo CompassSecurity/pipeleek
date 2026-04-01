@@ -47,7 +47,7 @@ pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --t
 		Run: Scan,
 	}
 
-	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
+	flags.AddCommonScanFlagsNoOwned(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 	scanCmd.Flags().StringVarP(&options.JenkinsURL, "jenkins", "j", "", "Jenkins base URL")
 	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Jenkins username")
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "Jenkins API token")
