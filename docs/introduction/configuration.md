@@ -204,7 +204,6 @@ CLI example:
 ```bash
 pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token <token>
 ```
-```
 
 ### Common Settings
 

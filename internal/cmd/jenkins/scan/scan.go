@@ -46,7 +46,7 @@ pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --t
 	}
 
 	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
-	scanCmd.Flags().StringVarP(&options.JenkinsURL, "jenkins", "j", "http://localhost:8080", "Jenkins base URL")
+	scanCmd.Flags().StringVarP(&options.JenkinsURL, "jenkins", "j", "", "Jenkins base URL")
 	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Jenkins username")
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "Jenkins API token")
 	scanCmd.Flags().StringVarP(&options.Folder, "folder", "f", "", "Jenkins folder path to scan recursively (e.g. team-a/platform)")
@@ -62,6 +62,9 @@ func Scan(cmd *cobra.Command, args []string) {
 		"jenkins":                  "jenkins.url",
 		"username":                 "jenkins.username",
 		"token":                    "jenkins.token",
+		"folder":                   "jenkins.scan.folder",
+		"job":                      "jenkins.scan.job",
+		"max-builds":               "jenkins.scan.max_builds",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -78,6 +81,9 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.JenkinsURL = config.GetString("jenkins.url")
 	options.Username = config.GetString("jenkins.username")
 	options.Token = config.GetString("jenkins.token")
+	options.Folder = config.GetString("jenkins.scan.folder")
+	options.Job = config.GetString("jenkins.scan.job")
+	options.MaxBuilds = config.GetInt("jenkins.scan.max_builds")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")

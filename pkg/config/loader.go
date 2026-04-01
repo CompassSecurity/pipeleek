@@ -253,7 +253,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.url", "https://api.github.com")
 	v.SetDefault("bitbucket.url", "https://bitbucket.org")
 	v.SetDefault("azure_devops.url", "https://dev.azure.com")
-	v.SetDefault("jenkins.url", "http://localhost:8080")
 }
 
 // AutoBindFlags automatically binds all flags from a command to Viper using the provided key mappings.

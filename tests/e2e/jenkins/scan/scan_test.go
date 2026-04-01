@@ -74,12 +74,15 @@ func TestJenkinsScan_HappyPath(t *testing.T) {
 	requests := getRequests()
 	assert.True(t, len(requests) >= 4, "should make multiple Jenkins API requests")
 
+	sawBasicAuth := false
 	for _, req := range requests {
 		authHeader := req.Headers.Get("Authorization")
 		if authHeader != "" {
 			assert.True(t, strings.HasPrefix(authHeader, "Basic "), "expected basic auth header")
+			sawBasicAuth = true
 		}
 	}
+	assert.True(t, sawBasicAuth, "expected at least one request with basic auth header")
 
 	t.Logf("STDOUT:\n%s", stdout)
 	t.Logf("STDERR:\n%s", stderr)

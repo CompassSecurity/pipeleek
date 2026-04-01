@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -129,7 +130,7 @@ func (s *jenkinsScanner) collectJobPathsRecursive(entry gojenkins.InnerJob, pare
 
 func (s *jenkinsScanner) scanJobs(jobPaths []string) {
 	for _, jobPath := range jobPaths {
-		s.scanJobByPath(jobPath)
+		_ = s.scanJobByPath(jobPath) // ignore error since we already logged it
 	}
 }
 
@@ -137,7 +138,7 @@ func (s *jenkinsScanner) scanJobByPath(jobPath string) error {
 	job, err := s.options.Client.GetJob(s.options.Context, jobPath)
 	if err != nil {
 		log.Warn().Err(err).Str("job", jobPath).Msg("Failed loading job, skipping")
-		return err
+		return nil
 	}
 
 	log.Info().Str("job", job.Raw.FullName).Msg("Scanning Jenkins job")
@@ -249,7 +250,7 @@ func (s *jenkinsScanner) scanBuildArtifacts(job *gojenkins.Job, build *gojenkins
 	for _, artifact := range build.GetArtifacts() {
 		artifactBytes, err := artifact.GetData(s.options.Context)
 		if err != nil {
-			log.Debug().Err(err).Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Str("artifact", artifact.FileName).Msg("Failed downloading artifact")
+			log.Debug().Err(err).Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Str("artifact", artifact.Path).Msg("Failed downloading artifact")
 			continue
 		}
 
@@ -257,17 +258,17 @@ func (s *jenkinsScanner) scanBuildArtifacts(job *gojenkins.Job, build *gojenkins
 			log.Debug().
 				Int("bytes", len(artifactBytes)).
 				Int64("maxBytes", s.options.MaxArtifactSize).
-				Str("artifact", artifact.FileName).
+				Str("artifact", artifact.Path).
 				Msg("Skipped large artifact")
 			continue
 		}
 
 		if filetype.IsArchive(artifactBytes) {
-			pkgscanner.HandleArchiveArtifact(artifact.FileName, artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), s.options.TruffleHogVerification, s.options.HitTimeout)
+			pkgscanner.HandleArchiveArtifact(artifact.Path, artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), s.options.TruffleHogVerification, s.options.HitTimeout)
 			continue
 		}
 
-		pkgscanner.DetectFileHits(artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), artifact.FileName, "", s.options.TruffleHogVerification, s.options.HitTimeout)
+		pkgscanner.DetectFileHits(artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), artifact.Path, "", s.options.TruffleHogVerification, s.options.HitTimeout)
 	}
 }
 
@@ -320,8 +321,10 @@ func isFolderClass(className string) bool {
 }
 
 func joinJenkinsPath(base, name string) string {
+	base = strings.Trim(base, "/")
+	name = strings.Trim(name, "/")
 	if base == "" {
-		return strings.Trim(name, "/")
+		return name
 	}
-	return strings.Trim(base, "/") + "/" + strings.Trim(name, "/")
+	return path.Join(base, name)
 }
