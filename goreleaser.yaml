@@ -127,6 +127,27 @@ builds:
       - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Version={{.Version}}
       - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Commit={{.Commit}}
       - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Date={{.Date}}
+  - id: "pipeleek-jenkins"
+    skip: "{{ .IsSnapshot }}"
+    main: ./cmd/pipeleek-jenkins
+    binary: pipeleek-jenkins
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -buildid=
+      - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Version={{.Version}}
+      - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Commit={{.Commit}}
+      - -X github.com/CompassSecurity/pipeleek/internal/cmd/common.Date={{.Date}}
 
 archives:
   - formats: binary

@@ -185,3 +185,18 @@ gitea:
     owner: "example-org"
     repo: "example-repo"
     # Inherits common.* settings
+
+#------------------------------------------------------------------------------
+# Jenkins Platform Configuration
+#------------------------------------------------------------------------------
+jenkins:
+  url: https://jenkins.example.com
+  username: admin
+  token: jenkins_api_token_REPLACE_ME
+
+  # scan - Scan Jenkins jobs, build logs, env vars, and optional artifacts
+  scan:
+    folder: "team-a" # Optional: scan all jobs recursively in this folder
+    job: "team-a/service-a" # Optional: scan a single job path
+    max_builds: 25 # Maximum builds to scan per job (0 = all)
+    # Inherits common.* settings

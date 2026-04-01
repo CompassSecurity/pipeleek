@@ -20,6 +20,7 @@ type Config struct {
 	BitBucket   BitBucketConfig   `mapstructure:"bitbucket"`
 	AzureDevOps AzureDevOpsConfig `mapstructure:"azure_devops"`
 	Gitea       GiteaConfig       `mapstructure:"gitea"`
+	Jenkins     JenkinsConfig     `mapstructure:"jenkins"`
 	Common      CommonConfig      `mapstructure:"common"`
 }
 
@@ -53,6 +54,12 @@ type AzureDevOpsConfig struct {
 type GiteaConfig struct {
 	URL   string `mapstructure:"url"`
 	Token string `mapstructure:"token"`
+}
+
+type JenkinsConfig struct {
+	URL      string `mapstructure:"url"`
+	Username string `mapstructure:"username"`
+	Token    string `mapstructure:"token"`
 }
 
 // CommonConfig contains common configuration settings
