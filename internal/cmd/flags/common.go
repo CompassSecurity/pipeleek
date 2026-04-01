@@ -29,6 +29,15 @@ func AddCommonScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions, maxA
 	cmd.Flags().BoolVarP(&opts.Owned, "owned", "o", false, "Scan only user owned repositories")
 }
 
+// AddCommonScanFlagsNoOwned adds standard scan flags including artifacts but excluding the
+// --owned flag, for platforms that have no concept of job/repository ownership (e.g. Jenkins).
+func AddCommonScanFlagsNoOwned(cmd *cobra.Command, opts *config.CommonScanOptions, maxArtifactSize *string) {
+	addBaseScanFlags(cmd, opts)
+	cmd.Flags().BoolVarP(&opts.Artifacts, "artifacts", "a", false, "Scan artifacts")
+	cmd.Flags().StringVarP(maxArtifactSize, "max-artifact-size", "", "500Mb",
+		"Maximum artifact size to scan. Larger files are skipped. Format: https://pkg.go.dev/github.com/docker/go-units#FromHumanSize")
+}
+
 // AddCommonScanFlagsNoArtifacts adds standard scan flags excluding artifact and ownership filters.
 func AddCommonScanFlagsNoArtifacts(cmd *cobra.Command, opts *config.CommonScanOptions) {
 	addBaseScanFlags(cmd, opts)

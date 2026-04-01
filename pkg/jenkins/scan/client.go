@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/bndr/gojenkins"
@@ -74,7 +75,7 @@ func (c *goJenkinsClient) GetJobConfigXML(ctx context.Context, jobPath string) (
 	}
 
 	var configXML string
-	_, err = c.jenkins.Requester.GetXML(ctx, job.Base+"/config.xml", &configXML, nil)
+	_, err = c.jenkins.Requester.GetXML(ctx, path.Join(job.Base, "config.xml"), &configXML, nil)
 	if err != nil {
 		return "", err
 	}

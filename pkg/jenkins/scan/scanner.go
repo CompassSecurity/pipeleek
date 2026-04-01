@@ -82,10 +82,8 @@ func (s *jenkinsScanner) Scan() error {
 	if s.options.Job != "" {
 		log.Debug().Str("job", s.options.Job).Msg("Scanning single job")
 		atomic.StoreInt64(&s.jobsTotal, 1)
-		return s.scanJobByPath(s.options.Job)
-	}
-
-	if s.options.Folder != "" {
+		_ = s.scanJobByPath(s.options.Job)
+	} else if s.options.Folder != "" {
 		log.Debug().Str("folder", s.options.Folder).Msg("Enumerating jobs in folder")
 		jobs, err := s.collectJobsFromFolder(s.options.Folder)
 		if err != nil {
@@ -94,18 +92,16 @@ func (s *jenkinsScanner) Scan() error {
 		log.Debug().Int("count", len(jobs)).Str("folder", s.options.Folder).Msg("Jobs collected from folder")
 		atomic.StoreInt64(&s.jobsTotal, int64(len(jobs)))
 		s.scanJobs(jobs)
-		log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
-		return nil
+	} else {
+		log.Debug().Msg("Enumerating all root jobs")
+		jobs, err := s.collectAllJobs()
+		if err != nil {
+			return err
+		}
+		log.Debug().Int("count", len(jobs)).Msg("Jobs collected")
+		atomic.StoreInt64(&s.jobsTotal, int64(len(jobs)))
+		s.scanJobs(jobs)
 	}
-
-	log.Debug().Msg("Enumerating all root jobs")
-	jobs, err := s.collectAllJobs()
-	if err != nil {
-		return err
-	}
-	log.Debug().Int("count", len(jobs)).Msg("Jobs collected")
-	atomic.StoreInt64(&s.jobsTotal, int64(len(jobs)))
-	s.scanJobs(jobs)
 
 	log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
 	return nil

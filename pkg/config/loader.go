@@ -56,7 +56,6 @@ type GiteaConfig struct {
 	Token string `mapstructure:"token"`
 }
 
-// JenkinsConfig contains Jenkins-specific configuration
 type JenkinsConfig struct {
 	URL      string `mapstructure:"url"`
 	Username string `mapstructure:"username"`
