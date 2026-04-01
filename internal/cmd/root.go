@@ -41,6 +41,9 @@ var (
 		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com",
 		Version: getVersion(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if isCompletionCommand(cmd) {
+				return
+			}
 			initLogger(cmd)
 			setGlobalLogLevel(cmd)
 			loadConfigFile(cmd)
@@ -239,6 +242,18 @@ func formatLevelWithHitColor(colorEnabled bool) zerolog.Formatter {
 			return level
 		}
 	}
+}
+
+// isCompletionCommand returns true if the command being executed is a shell
+// completion command. Logging must be suppressed for these commands because
+// any output to stdout will break the generated completion script.
+func isCompletionCommand(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "completion" || c.Name() == cobra.ShellCompRequestCmd {
+			return true
+		}
+	}
+	return false
 }
 
 func setGlobalLogLevel(cmd *cobra.Command) {
