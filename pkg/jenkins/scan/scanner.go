@@ -53,28 +53,35 @@ func NewScanner(opts ScanOptions) Scanner {
 func (s *jenkinsScanner) Scan() error {
 	runner.InitScanner(s.options.ConfidenceFilter)
 
+	log.Debug().Str("url", s.options.JenkinsURL).Msg("Connecting to Jenkins")
 	if err := s.options.Client.Init(s.options.Context); err != nil {
 		return fmt.Errorf("failed initializing Jenkins client: %w", err)
 	}
+	log.Debug().Str("url", s.options.JenkinsURL).Msg("Connected to Jenkins")
 
 	if s.options.Job != "" {
+		log.Debug().Str("job", s.options.Job).Msg("Scanning single job")
 		return s.scanJobByPath(s.options.Job)
 	}
 
 	if s.options.Folder != "" {
+		log.Debug().Str("folder", s.options.Folder).Msg("Enumerating jobs in folder")
 		jobs, err := s.collectJobsFromFolder(s.options.Folder)
 		if err != nil {
 			return err
 		}
+		log.Debug().Int("count", len(jobs)).Str("folder", s.options.Folder).Msg("Jobs collected from folder")
 		s.scanJobs(jobs)
 		log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
 		return nil
 	}
 
+	log.Debug().Msg("Enumerating all root jobs")
 	jobs, err := s.collectAllJobs()
 	if err != nil {
 		return err
 	}
+	log.Debug().Int("count", len(jobs)).Msg("Jobs collected")
 	s.scanJobs(jobs)
 
 	log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
@@ -86,6 +93,7 @@ func (s *jenkinsScanner) collectAllJobs() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed listing Jenkins root jobs: %w", err)
 	}
+	log.Debug().Int("entries", len(entries)).Msg("Fetched root job entries")
 
 	jobs := make([]string, 0)
 	for _, entry := range entries {
@@ -100,6 +108,7 @@ func (s *jenkinsScanner) collectJobsFromFolder(folderPath string) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("failed listing folder jobs: %w", err)
 	}
+	log.Debug().Int("entries", len(entries)).Str("folder", folderPath).Msg("Fetched folder job entries")
 
 	jobs := make([]string, 0)
 	for _, entry := range entries {
@@ -112,6 +121,7 @@ func (s *jenkinsScanner) collectJobsFromFolder(folderPath string) ([]string, err
 func (s *jenkinsScanner) collectJobPathsRecursive(entry gojenkins.InnerJob, parent string) []string {
 	path := joinJenkinsPath(parent, entry.Name)
 	if isFolderClass(entry.Class) {
+		log.Debug().Str("folder", path).Msg("Traversing folder")
 		children, err := s.options.Client.ListFolderJobs(s.options.Context, path)
 		if err != nil {
 			log.Warn().Err(err).Str("folder", path).Msg("Failed to enumerate folder, skipping")
@@ -125,6 +135,7 @@ func (s *jenkinsScanner) collectJobPathsRecursive(entry gojenkins.InnerJob, pare
 		return jobs
 	}
 
+	log.Trace().Str("job", path).Msg("Discovered job")
 	return []string{path}
 }
 
@@ -177,10 +188,14 @@ func (s *jenkinsScanner) scanBuilds(jobPath string, job *gojenkins.Job) {
 
 	sort.Slice(builds, func(i, j int) bool { return builds[i].Number > builds[j].Number })
 	if s.options.MaxBuilds > 0 && len(builds) > s.options.MaxBuilds {
+		log.Debug().Str("job", jobPath).Int("total", len(builds)).Int("limit", s.options.MaxBuilds).Msg("Limiting builds to scan")
 		builds = builds[:s.options.MaxBuilds]
+	} else {
+		log.Debug().Str("job", jobPath).Int("count", len(builds)).Msg("Scanning builds")
 	}
 
 	for _, buildRef := range builds {
+		log.Debug().Str("job", jobPath).Int64("build", buildRef.Number).Msg("Scanning build")
 		build, err := s.options.Client.GetBuild(s.options.Context, jobPath, buildRef.Number)
 		if err != nil {
 			log.Debug().Err(err).Str("job", jobPath).Int64("build", buildRef.Number).Msg("Failed loading build")
@@ -196,8 +211,10 @@ func (s *jenkinsScanner) scanBuilds(jobPath string, job *gojenkins.Job) {
 }
 
 func (s *jenkinsScanner) scanBuildLogs(job *gojenkins.Job, build *gojenkins.Build) {
+	log.Debug().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("Scanning build logs")
 	logOutput := build.GetConsoleOutput(s.options.Context)
 	if logOutput == "" {
+		log.Trace().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("Build log is empty, skipping")
 		return
 	}
 
@@ -220,10 +237,13 @@ func (s *jenkinsScanner) scanBuildLogs(job *gojenkins.Job, build *gojenkins.Buil
 }
 
 func (s *jenkinsScanner) scanBuildEnvVars(job *gojenkins.Job, build *gojenkins.Build) {
+	log.Debug().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("Scanning injected env vars")
 	envMap, err := build.GetInjectedEnvVars(s.options.Context)
 	if err != nil || len(envMap) == 0 {
+		log.Trace().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("No injected env vars found")
 		return
 	}
+	log.Debug().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Int("count", len(envMap)).Msg("Found injected env vars")
 
 	builder := strings.Builder{}
 	for key, value := range envMap {
@@ -247,7 +267,15 @@ func (s *jenkinsScanner) scanBuildEnvVars(job *gojenkins.Job, build *gojenkins.B
 }
 
 func (s *jenkinsScanner) scanBuildArtifacts(job *gojenkins.Job, build *gojenkins.Build) {
-	for _, artifact := range build.GetArtifacts() {
+	artifacts := build.GetArtifacts()
+	if len(artifacts) == 0 {
+		log.Trace().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("No artifacts in build")
+		return
+	}
+	log.Debug().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Int("count", len(artifacts)).Msg("Scanning build artifacts")
+
+	for _, artifact := range artifacts {
+		log.Trace().Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Str("artifact", artifact.Path).Msg("Downloading artifact")
 		artifactBytes, err := artifact.GetData(s.options.Context)
 		if err != nil {
 			log.Debug().Err(err).Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Str("artifact", artifact.Path).Msg("Failed downloading artifact")
