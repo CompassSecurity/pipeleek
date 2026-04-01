@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -416,4 +417,81 @@ func TestLoadConfigFile_NoConfigFile(t *testing.T) {
 	assert.NotPanics(t, func() {
 		loadConfigFile(rootCmd)
 	})
+}
+
+func TestIsCompletionCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		buildCmd func() *cobra.Command
+		expected bool
+	}{
+		{
+			name: "completion bash subcommand",
+			buildCmd: func() *cobra.Command {
+				root := &cobra.Command{Use: "pipeleek"}
+				completion := &cobra.Command{Use: "completion"}
+				bashCmd := &cobra.Command{Use: "bash"}
+				completion.AddCommand(bashCmd)
+				root.AddCommand(completion)
+				return bashCmd
+			},
+			expected: true,
+		},
+		{
+			name: "completion command itself",
+			buildCmd: func() *cobra.Command {
+				root := &cobra.Command{Use: "pipeleek"}
+				completion := &cobra.Command{Use: "completion"}
+				root.AddCommand(completion)
+				return completion
+			},
+			expected: true,
+		},
+		{
+			name: "__complete hidden command",
+			buildCmd: func() *cobra.Command {
+				root := &cobra.Command{Use: "pipeleek"}
+				complete := &cobra.Command{Use: cobra.ShellCompRequestCmd}
+				root.AddCommand(complete)
+				return complete
+			},
+			expected: true,
+		},
+		{
+			name: "regular command",
+			buildCmd: func() *cobra.Command {
+				root := &cobra.Command{Use: "pipeleek"}
+				scan := &cobra.Command{Use: "scan"}
+				root.AddCommand(scan)
+				return scan
+			},
+			expected: false,
+		},
+		{
+			name: "root command",
+			buildCmd: func() *cobra.Command {
+				return &cobra.Command{Use: "pipeleek"}
+			},
+			expected: false,
+		},
+		{
+			name: "nested subcommand not under completion",
+			buildCmd: func() *cobra.Command {
+				root := &cobra.Command{Use: "pipeleek"}
+				gl := &cobra.Command{Use: "gl"}
+				scan := &cobra.Command{Use: "scan"}
+				gl.AddCommand(scan)
+				root.AddCommand(gl)
+				return scan
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := tt.buildCmd()
+			assert.Equal(t, tt.expected, isCompletionCommand(cmd))
+		})
+	}
 }
