@@ -4,6 +4,8 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	jenkinsscan "github.com/CompassSecurity/pipeleek/pkg/jenkins/scan"
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -121,6 +123,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	scanner := jenkinsscan.NewScanner(scanOpts)
+	logging.RegisterStatusHook(func() *zerolog.Event { return scanner.Status() })
+
 	if err := scanner.Scan(); err != nil {
 		log.Fatal().Err(err).Msg("Scan failed")
 	}

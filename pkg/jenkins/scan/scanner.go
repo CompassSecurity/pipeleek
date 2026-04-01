@@ -6,6 +6,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
@@ -16,6 +18,7 @@ import (
 	pkgscanner "github.com/CompassSecurity/pipeleek/pkg/scanner"
 	"github.com/bndr/gojenkins"
 	"github.com/h2non/filetype"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,16 +41,33 @@ type ScanOptions struct {
 
 type Scanner interface {
 	pkgscanner.BaseScanner
+	Status() *zerolog.Event
 }
 
 type jenkinsScanner struct {
-	options ScanOptions
+	options       ScanOptions
+	jobsTotal     int64
+	jobsScanned   atomic.Int64
+	buildsScanned atomic.Int64
+	currentJobMu  sync.RWMutex
+	currentJobURL string
 }
 
 var _ pkgscanner.BaseScanner = (*jenkinsScanner)(nil)
 
 func NewScanner(opts ScanOptions) Scanner {
 	return &jenkinsScanner{options: opts}
+}
+
+func (s *jenkinsScanner) Status() *zerolog.Event {
+	s.currentJobMu.RLock()
+	current := s.currentJobURL
+	s.currentJobMu.RUnlock()
+	return log.Info().
+		Int64("jobsScanned", s.jobsScanned.Load()).
+		Int64("jobsTotal", atomic.LoadInt64(&s.jobsTotal)).
+		Int64("buildsScanned", s.buildsScanned.Load()).
+		Str("currentJob", current)
 }
 
 func (s *jenkinsScanner) Scan() error {
@@ -61,6 +81,7 @@ func (s *jenkinsScanner) Scan() error {
 
 	if s.options.Job != "" {
 		log.Debug().Str("job", s.options.Job).Msg("Scanning single job")
+		atomic.StoreInt64(&s.jobsTotal, 1)
 		return s.scanJobByPath(s.options.Job)
 	}
 
@@ -71,6 +92,7 @@ func (s *jenkinsScanner) Scan() error {
 			return err
 		}
 		log.Debug().Int("count", len(jobs)).Str("folder", s.options.Folder).Msg("Jobs collected from folder")
+		atomic.StoreInt64(&s.jobsTotal, int64(len(jobs)))
 		s.scanJobs(jobs)
 		log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
 		return nil
@@ -82,6 +104,7 @@ func (s *jenkinsScanner) Scan() error {
 		return err
 	}
 	log.Debug().Int("count", len(jobs)).Msg("Jobs collected")
+	atomic.StoreInt64(&s.jobsTotal, int64(len(jobs)))
 	s.scanJobs(jobs)
 
 	log.Info().Msg("Scan Finished, Bye Bye 🏳️‍🌈🔥")
@@ -152,10 +175,15 @@ func (s *jenkinsScanner) scanJobByPath(jobPath string) error {
 		return nil
 	}
 
-	log.Info().Str("job", job.Raw.FullName).Msg("Scanning Jenkins job")
+	log.Info().Str("url", job.Raw.URL).Msg("Scanning Jenkins job")
+
+	s.currentJobMu.Lock()
+	s.currentJobURL = job.Raw.URL
+	s.currentJobMu.Unlock()
 
 	s.scanJobDefinition(jobPath, job)
 	s.scanBuilds(jobPath, job)
+	s.jobsScanned.Add(1)
 	return nil
 }
 
@@ -207,6 +235,7 @@ func (s *jenkinsScanner) scanBuilds(jobPath string, job *gojenkins.Job) {
 		if s.options.Artifacts {
 			s.scanBuildArtifacts(job, build)
 		}
+		s.buildsScanned.Add(1)
 	}
 }
 
