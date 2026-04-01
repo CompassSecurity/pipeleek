@@ -13,6 +13,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/jenkins"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -74,6 +75,7 @@ func init() {
 	rootCmd.AddCommand(bitbucket.NewBitBucketRootCmd())
 	rootCmd.AddCommand(devops.NewAzureDevOpsRootCmd())
 	rootCmd.AddCommand(gitea.NewGiteaRootCmd())
+	rootCmd.AddCommand(jenkins.NewJenkinsRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
 	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/pipeleek.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
@@ -93,6 +95,7 @@ func init() {
 	rootCmd.AddGroup(&cobra.Group{ID: "BitBucket", Title: "BitBucket Commands"})
 	rootCmd.AddGroup(&cobra.Group{ID: "AzureDevOps", Title: "Azure DevOps Commands"})
 	rootCmd.AddGroup(&cobra.Group{ID: "Gitea", Title: "Gitea Commands"})
+	rootCmd.AddGroup(&cobra.Group{ID: "Jenkins", Title: "Jenkins Commands"})
 }
 
 type CustomWriter struct {

@@ -20,6 +20,7 @@ type Config struct {
 	BitBucket   BitBucketConfig   `mapstructure:"bitbucket"`
 	AzureDevOps AzureDevOpsConfig `mapstructure:"azure_devops"`
 	Gitea       GiteaConfig       `mapstructure:"gitea"`
+	Jenkins     JenkinsConfig     `mapstructure:"jenkins"`
 	Common      CommonConfig      `mapstructure:"common"`
 }
 
@@ -53,6 +54,13 @@ type AzureDevOpsConfig struct {
 type GiteaConfig struct {
 	URL   string `mapstructure:"url"`
 	Token string `mapstructure:"token"`
+}
+
+// JenkinsConfig contains Jenkins-specific configuration
+type JenkinsConfig struct {
+	URL      string `mapstructure:"url"`
+	Username string `mapstructure:"username"`
+	Token    string `mapstructure:"token"`
 }
 
 // CommonConfig contains common configuration settings
@@ -245,6 +253,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.url", "https://api.github.com")
 	v.SetDefault("bitbucket.url", "https://bitbucket.org")
 	v.SetDefault("azure_devops.url", "https://dev.azure.com")
+	v.SetDefault("jenkins.url", "http://localhost:8080")
 }
 
 // AutoBindFlags automatically binds all flags from a command to Viper using the provided key mappings.

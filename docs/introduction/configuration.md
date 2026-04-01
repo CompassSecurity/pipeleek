@@ -184,6 +184,26 @@ gitea:
   scan:
     owner: myorg # gitea scan --owner
     repo: myrepo # gitea scan --repo (optional, scans all if not specified)
+
+### Jenkins
+
+```yaml
+jenkins:
+  url: https://jenkins.example.com
+  username: admin
+  token: jenkins-api-token
+
+  scan:
+    folder: team-a # jenkins scan --folder (optional)
+    job: team-a/service-a # jenkins scan --job (optional)
+    max_builds: 25 # jenkins scan --max-builds
+```
+
+CLI example:
+
+```bash
+pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token <token>
+```
 ```
 
 ### Common Settings
