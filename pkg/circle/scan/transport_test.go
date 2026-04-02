@@ -90,7 +90,7 @@ func TestListAccessibleProjectsV1FiltersAndNormalizes(t *testing.T) {
 		t.Fatalf("failed to parse base url: %v", err)
 	}
 
-	client := newCircleAPIClient(baseURL, "token", ts.Client())	
+	client := newCircleAPIClient(baseURL, "token", ts.Client())
 	projects, err := client.ListAccessibleProjectsV1(context.Background(), "github", "team")
 	if err != nil {
 		t.Fatalf("expected v1 discovery to succeed, got error: %v", err)

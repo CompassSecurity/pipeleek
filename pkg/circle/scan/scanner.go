@@ -303,7 +303,7 @@ func (s *circleScanner) scanWorkflow(project string, pipeline pipelineItem, work
 			Msg("Scanning job")
 
 		s.jobsScanned.Add(1)
-		if err := s.scanJob(project, pipeline, workflow, job); err != nil {
+			if err := s.scanJob(project, workflow, job); err != nil {
 			log.Warn().Err(err).Str("project", project).Int("jobNumber", job.JobNumber).Msg("Job scan failed, continuing")
 		}
 	}
@@ -311,7 +311,7 @@ func (s *circleScanner) scanWorkflow(project string, pipeline pipelineItem, work
 	return nil
 }
 
-func (s *circleScanner) scanJob(project string, pipeline pipelineItem, workflow workflowItem, job workflowJobItem) error {
+func (s *circleScanner) scanJob(project string, workflow workflowItem, job workflowJobItem) error {
 	jobDetails, err := s.options.APIClient.GetProjectJob(s.options.Context, project, job.JobNumber)
 	if err != nil {
 		return err
@@ -354,7 +354,6 @@ func (s *circleScanner) scanJob(project string, pipeline pipelineItem, workflow 
 		}
 	}
 
-	_ = pipeline
 	return nil
 }
 
@@ -408,7 +407,6 @@ func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, detai
 		}
 	}
 
-	_ = project
 	return nil
 }
 
@@ -571,7 +569,7 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 			if err != nil {
 				fallbackProjects, fallbackErr := apiClient.ListAccessibleProjectsV1(context.Background(), input.VCS, orgName)
 				if fallbackErr != nil {
-					return ScanOptions{}, err
+					return ScanOptions{}, fmt.Errorf("ListOrganizationProjects failed: %v; fallback ListAccessibleProjectsV1 failed: %w", err, fallbackErr)
 				}
 				projects = uniqueStrings(append(projects, fallbackProjects...))
 			} else {

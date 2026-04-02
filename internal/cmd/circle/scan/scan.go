@@ -77,7 +77,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	if err := config.AutoBindFlags(cmd, map[string]string{
 		"circle":                   "circle.url",
 		"token":                    "circle.token",
-		"org":                      "circle.org",
+		"org":                      "circle.scan.org",
 		"project":                  "circle.scan.project",
 		"vcs":                      "circle.scan.vcs",
 		"branch":                   "circle.scan.branch",
@@ -104,7 +104,7 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	options.Token = config.GetString("circle.token")
 	options.CircleURL = config.GetString("circle.url")
-	options.Organization = config.GetString("circle.org")
+	options.Organization = config.GetString("circle.scan.org")
 	options.Projects = config.GetStringSlice("circle.scan.project")
 	options.VCS = config.GetString("circle.scan.vcs")
 	options.Branch = config.GetString("circle.scan.branch")
