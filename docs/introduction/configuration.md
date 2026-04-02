@@ -200,6 +200,28 @@ jenkins:
     max_builds: 25 # jenkins scan --max-builds
 ```
 
+### CircleCI
+
+```yaml
+circle:
+  url: https://circleci.com
+  token: circleci-token
+
+  scan:
+    project: [my-org/my-repo] # circle scan --project (optional if org is set)
+    vcs: github # circle scan --vcs
+    org: my-org # circle scan --org (also enables org-wide discovery when project is omitted)
+    branch: main # circle scan --branch
+    status: [success, failed] # circle scan --status
+    workflow: [build, deploy] # circle scan --workflow
+    job: [unit-tests, release] # circle scan --job
+    since: 2026-01-01T00:00:00Z # circle scan --since (RFC3339)
+    until: 2026-01-31T23:59:59Z # circle scan --until (RFC3339)
+    max_pipelines: 50 # circle scan --max-pipelines
+    tests: true # circle scan --tests
+    insights: true # circle scan --insights
+```
+
 ### Common Settings
 
 Scan commands inherit from `common`:

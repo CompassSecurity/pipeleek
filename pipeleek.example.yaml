@@ -200,3 +200,26 @@ jenkins:
     job: "team-a/service-a" # Optional: scan a single job path
     max_builds: 25 # Maximum builds to scan per job (0 = all)
     # Inherits common.* settings
+
+#------------------------------------------------------------------------------
+# CircleCI Platform Configuration
+#------------------------------------------------------------------------------
+circle:
+  url: https://circleci.com
+  token: circleci_token_REPLACE_ME
+
+  # scan - Scan CircleCI pipelines, logs, test results and optional artifacts
+  scan:
+    project: ["example-org/example-repo"] # Optional project selector(s): org/repo or vcs/org/repo
+    vcs: "github" # Default VCS used when project entries omit prefix
+    org: "example-org" # Optional org filter; if project is omitted this discovers org projects
+    branch: "main" # Optional branch filter
+    status: ["success", "failed"] # Optional pipeline/workflow/job status filter
+    workflow: ["build", "deploy"] # Optional workflow name filter
+    job: ["unit-tests", "release"] # Optional job name filter
+    since: "2026-01-01T00:00:00Z" # Optional RFC3339 start timestamp
+    until: "2026-01-31T23:59:59Z" # Optional RFC3339 end timestamp
+    max_pipelines: 50 # Maximum number of pipelines to scan per project (0 = no limit)
+    tests: true # Scan job test results
+    insights: true # Scan workflow insights endpoints
+    # Inherits common.* settings
