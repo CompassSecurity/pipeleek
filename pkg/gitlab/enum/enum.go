@@ -24,7 +24,7 @@ func RunEnum(gitlabUrl, gitlabApiToken string, minAccessLevel int) {
 	user, _, err := git.Users.CurrentUser()
 
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("failed fetching current usert")
+		log.Fatal().Stack().Err(err).Msg("failed fetching current user")
 	}
 
 	log.Info().Msg("Enumerating User")
