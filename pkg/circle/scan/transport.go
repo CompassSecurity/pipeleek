@@ -15,6 +15,7 @@ import (
 )
 
 type CircleClient interface {
+	ListCollaborations(ctx context.Context) ([]collaborationItem, error)
 	ListOrganizationProjects(ctx context.Context, orgSlug, defaultVCS string) ([]string, error)
 	ListAccessibleProjectsV1(ctx context.Context, defaultVCS, orgFilter string) ([]string, error)
 	ListPipelines(ctx context.Context, projectSlug, branch, pageToken string) ([]pipelineItem, string, error)
@@ -41,6 +42,13 @@ func newCircleAPIClient(baseURL *url.URL, token string, httpClient *http.Client)
 		httpClient: httpClient,
 		token:      token,
 	}
+}
+
+type collaborationItem struct {
+	ID      string `json:"id"`
+	Slug    string `json:"slug"`
+	Name    string `json:"name"`
+	VCSType string `json:"vcs-type"`
 }
 
 type pipelineListResponse struct {
@@ -140,11 +148,31 @@ func (c *circleAPIClient) ListPipelines(ctx context.Context, projectSlug, branch
 	return out.Items, out.NextPageToken, nil
 }
 
+func (c *circleAPIClient) ListCollaborations(ctx context.Context) ([]collaborationItem, error) {
+	var items []collaborationItem
+	if err := c.getJSON(ctx, "me/collaborations", nil, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 func (c *circleAPIClient) ListOrganizationProjects(ctx context.Context, orgSlug, defaultVCS string) ([]string, error) {
 	candidates := []string{orgSlug}
 	if !strings.Contains(orgSlug, "/") {
 		for _, vcsSlug := range vcsSlugCandidates(defaultVCS) {
 			candidates = append(candidates, fmt.Sprintf("%s/%s", vcsSlug, orgSlug))
+		}
+	}
+	// For circleci-native orgs the v2 API requires the org UUID, not the slug.
+	// Attempt to resolve it via the collaborations endpoint.
+	if collabs, err := c.ListCollaborations(ctx); err == nil {
+		for _, collab := range collabs {
+			if strings.EqualFold(collab.Slug, orgSlug) || strings.EqualFold(collab.Name, orgSlug) {
+				if collab.ID != "" {
+					candidates = append(candidates, collab.ID)
+				}
+				break
+			}
 		}
 	}
 	candidates = uniqueStrings(candidates)

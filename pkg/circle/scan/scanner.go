@@ -574,7 +574,15 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 		if strings.TrimSpace(input.Organization) != "" {
 			resolved, err := apiClient.ListOrganizationProjects(context.Background(), input.Organization, input.VCS)
 			if err != nil {
-				fallbackProjects, fallbackErr := apiClient.ListAccessibleProjectsV1(context.Background(), input.VCS, orgName)
+				// v1 fallback only makes sense for GitHub/Bitbucket orgs whose username
+				// matches the GitHub/Bitbucket username in v1 project records. For native
+				// circleci/ orgs, the orgName is a UUID-like slug that will never match a
+				// VCS username, so skip the v1 fallback and surface the original error.
+				v1Filter := orgName
+				if strings.HasPrefix(strings.ToLower(input.Organization), "circleci/") {
+					v1Filter = ""
+				}
+				fallbackProjects, fallbackErr := apiClient.ListAccessibleProjectsV1(context.Background(), input.VCS, v1Filter)
 				if fallbackErr != nil {
 					return ScanOptions{}, fmt.Errorf("ListOrganizationProjects failed: %v; fallback ListAccessibleProjectsV1 failed: %w", err, fallbackErr)
 				}

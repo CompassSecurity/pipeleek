@@ -22,6 +22,10 @@ func TestListOrganizationProjectsCandidateFallback(t *testing.T) {
 		mu.Unlock()
 
 		switch r.URL.Path {
+		case "/api/v2/me/collaborations":
+			// Return empty — no UUID resolution available in this test scenario.
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[]`))
 		case "/api/v2/organization/my-org/project":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"message":"not found"}`))
@@ -57,14 +61,63 @@ func TestListOrganizationProjectsCandidateFallback(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if len(requests) < 2 {
-		t.Fatalf("expected at least 2 requests, got %d", len(requests))
+	// requests[0] = me/collaborations (UUID resolution attempt)
+	// requests[1] = organization/my-org/project (first slug candidate, 404)
+	// requests[2] = organization/github/my-org/project (VCS-prefixed candidate, succeeds)
+	if len(requests) < 3 {
+		t.Fatalf("expected at least 3 requests, got %d: %v", len(requests), requests)
 	}
-	if requests[0] != "/api/v2/organization/my-org/project" {
-		t.Fatalf("expected first candidate request path, got %q", requests[0])
+	if requests[0] != "/api/v2/me/collaborations" {
+		t.Fatalf("expected collaborations request first, got %q", requests[0])
 	}
-	if requests[1] != "/api/v2/organization/github/my-org/project" {
-		t.Fatalf("expected second candidate request path, got %q", requests[1])
+	if requests[1] != "/api/v2/organization/my-org/project" {
+		t.Fatalf("expected first candidate request path, got %q", requests[1])
+	}
+	if requests[2] != "/api/v2/organization/github/my-org/project" {
+		t.Fatalf("expected second candidate request path, got %q", requests[2])
+	}
+}
+
+func TestListOrganizationProjectsCollaborationUUIDResolution(t *testing.T) {
+	const orgUUID = "96df906d-3617-46fd-96d0-8f80a8c4d00a"
+	const orgSlug = "circleci/KdZvpc432VpdV8UBajzc9f"
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v2/me/collaborations":
+			payload := []collaborationItem{{
+				ID:      orgUUID,
+				Slug:    orgSlug,
+				Name:    "My Org",
+				VCSType: "circleci",
+			}}
+			_ = json.NewEncoder(w).Encode(payload)
+		case "/api/v2/organization/" + orgSlug + "/project":
+			// slug-based call fails — UUID not accepted at this path
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case "/api/v2/organization/" + orgUUID + "/project":
+			// UUID-based call succeeds
+			_, _ = w.Write([]byte(`{"items":[{"slug":"github/my-org/repo-a"}],"next_page_token":""}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL + "/api/v2/")
+	if err != nil {
+		t.Fatalf("failed to parse base url: %v", err)
+	}
+
+	client := newCircleAPIClient(baseURL, "token", ts.Client())
+	projects, err := client.ListOrganizationProjects(context.Background(), orgSlug, "github")
+	if err != nil {
+		t.Fatalf("expected UUID-resolution to succeed, got error: %v", err)
+	}
+	if len(projects) != 1 || projects[0] != "github/my-org/repo-a" {
+		t.Fatalf("unexpected projects: %#v", projects)
 	}
 }
 
