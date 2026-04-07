@@ -338,19 +338,20 @@ func (s *circleScanner) scanJob(project string, pipeline pipelineItem, workflow 
 		Msg("Fetched job details")
 
 	locationURL := circleAppWorkflowURL(workflow.ID)
+	jobURL := circleAppJobURL(project, pipeline.Number, workflow.ID, job.JobNumber, locationURL)
 
-	if err := s.scanJobLogs(project, pipeline, workflow, job.JobNumber, jobDetails, locationURL); err != nil {
+	if err := s.scanJobLogs(project, workflow, jobURL, jobDetails); err != nil {
 		log.Debug().Err(err).Str("project", project).Int("job", job.JobNumber).Msg("Failed scanning job logs")
 	}
 
 	if s.options.IncludeTests {
-		if err := s.scanJobTests(project, workflow, job, jobDetails, locationURL); err != nil {
+		if err := s.scanJobTests(project, workflow, job, jobDetails, jobURL); err != nil {
 			log.Debug().Err(err).Str("project", project).Int("job", job.JobNumber).Msg("Failed scanning job tests")
 		}
 	}
 
 	if s.options.Artifacts {
-		if err := s.scanJobArtifacts(project, workflow, job, jobDetails, locationURL); err != nil {
+		if err := s.scanJobArtifacts(project, workflow, job, jobDetails, jobURL); err != nil {
 			log.Debug().Err(err).Str("project", project).Int("job", job.JobNumber).Msg("Failed scanning job artifacts")
 		}
 	}
@@ -358,10 +359,9 @@ func (s *circleScanner) scanJob(project string, pipeline pipelineItem, workflow 
 	return nil
 }
 
-func (s *circleScanner) scanJobLogs(project string, pipeline pipelineItem, workflow workflowItem, jobNum int, details projectJobResponse, locationURL string) error {
+func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, jobURL string, details projectJobResponse) error {
 	log.Debug().
 		Str("project", project).
-		Int("pipelineNumber", pipeline.Number).
 		Str("workflowID", workflow.ID).
 		Str("jobName", details.Name).
 		Int("steps", len(details.Steps)).
@@ -401,7 +401,6 @@ func (s *circleScanner) scanJobLogs(project string, pipeline pipelineItem, workf
 					Msg("Detected findings in job log output")
 			}
 
-			jobURL := circleAppJobURL(project, pipeline.Number, workflow.ID, jobNum, locationURL)
 			stepLabel := step.Name
 			if action.Name != "" && action.Name != step.Name {
 				stepLabel = step.Name + " / " + action.Name
