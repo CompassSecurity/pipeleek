@@ -121,6 +121,52 @@ func TestListOrganizationProjectsCollaborationUUIDResolution(t *testing.T) {
 	}
 }
 
+func TestListOrganizationProjectsPrefixedOrgFallback(t *testing.T) {
+	var requests []string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.Path)
+		switch r.URL.Path {
+		case "/api/v2/me/collaborations":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[]`))
+		case "/api/v2/organization/github/storybookjs/project":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case "/api/v2/organization/storybookjs/project":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"items":[{"slug":"storybookjs/repo-a"}],"next_page_token":""}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL + "/api/v2/")
+	if err != nil {
+		t.Fatalf("failed to parse base url: %v", err)
+	}
+
+	client := newCircleAPIClient(baseURL, "token", ts.Client())
+	projects, err := client.ListOrganizationProjects(context.Background(), "github/storybookjs", "github")
+	if err != nil {
+		t.Fatalf("expected prefixed fallback to succeed, got error: %v", err)
+	}
+	if len(projects) != 1 || projects[0] != "github/storybookjs/repo-a" {
+		t.Fatalf("unexpected projects: %#v", projects)
+	}
+
+	if len(requests) < 3 {
+		t.Fatalf("expected at least 3 requests, got %d (%v)", len(requests), requests)
+	}
+	if requests[1] != "/api/v2/organization/github/storybookjs/project" {
+		t.Fatalf("unexpected first org candidate request: %q", requests[1])
+	}
+	if requests[2] != "/api/v2/organization/storybookjs/project" {
+		t.Fatalf("unexpected fallback org candidate request: %q", requests[2])
+	}
+}
+
 func TestListAccessibleProjectsV1FiltersAndNormalizes(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1.1/projects" {

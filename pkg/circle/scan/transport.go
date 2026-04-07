@@ -157,17 +157,19 @@ func (c *circleAPIClient) ListCollaborations(ctx context.Context) ([]collaborati
 }
 
 func (c *circleAPIClient) ListOrganizationProjects(ctx context.Context, orgSlug, defaultVCS string) ([]string, error) {
-	candidates := []string{orgSlug}
-	if !strings.Contains(orgSlug, "/") {
-		for _, vcsSlug := range vcsSlugCandidates(defaultVCS) {
-			candidates = append(candidates, fmt.Sprintf("%s/%s", vcsSlug, orgSlug))
-		}
-	}
+	candidates := orgSlugCandidates(orgSlug, defaultVCS)
 	// For circleci-native orgs the v2 API requires the org UUID, not the slug.
 	// Attempt to resolve it via the collaborations endpoint.
 	if collabs, err := c.ListCollaborations(ctx); err == nil {
 		for _, collab := range collabs {
-			if strings.EqualFold(collab.Slug, orgSlug) || strings.EqualFold(collab.Name, orgSlug) {
+			matched := false
+			for _, candidate := range candidates {
+				if strings.EqualFold(collab.Slug, candidate) || strings.EqualFold(collab.Name, candidate) {
+					matched = true
+					break
+				}
+			}
+			if matched {
 				if collab.ID != "" {
 					candidates = append(candidates, collab.ID)
 				}

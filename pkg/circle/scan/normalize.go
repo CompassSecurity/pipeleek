@@ -2,6 +2,7 @@ package scan
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -166,4 +167,39 @@ func uniqueStrings(values []string) []string {
 		out = append(out, key)
 	}
 	return out
+}
+
+func orgSlugCandidates(value, defaultVCS string) []string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+
+	candidates := []string{trimmed}
+
+	// Support org/project URLs like:
+	// https://app.circleci.com/pipelines/github/storybookjs/storybook
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Host != "" {
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		if len(parts) >= 3 && parts[0] == "pipelines" {
+			vcs := normalizeVCSName(parts[1])
+			org := strings.TrimSpace(parts[2])
+			if vcs != "" && org != "" {
+				candidates = append(candidates, fmt.Sprintf("%s/%s", vcs, org), org)
+			}
+		}
+	}
+
+	orgName := normalizedOrgName(trimmed)
+	if orgName != "" && !strings.EqualFold(orgName, trimmed) {
+		candidates = append(candidates, orgName)
+	}
+
+	if !strings.Contains(orgName, "/") && orgName != "" {
+		for _, vcsSlug := range vcsSlugCandidates(defaultVCS) {
+			candidates = append(candidates, fmt.Sprintf("%s/%s", vcsSlug, orgName))
+		}
+	}
+
+	return uniqueStrings(candidates)
 }

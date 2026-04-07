@@ -61,6 +61,48 @@ func TestNormalizedOrgName(t *testing.T) {
 	}
 }
 
+func TestOrgSlugCandidates(t *testing.T) {
+	t.Run("prefixed org adds plain candidate", func(t *testing.T) {
+		got := orgSlugCandidates("github/storybookjs", "github")
+		if len(got) == 0 {
+			t.Fatal("expected non-empty candidates")
+		}
+		if got[0] != "github/storybookjs" {
+			t.Fatalf("expected first candidate to preserve input, got %q", got[0])
+		}
+		seenPlain := false
+		for _, c := range got {
+			if c == "storybookjs" {
+				seenPlain = true
+				break
+			}
+		}
+		if !seenPlain {
+			t.Fatalf("expected plain org candidate in %v", got)
+		}
+	})
+
+	t.Run("app pipelines url extracts vcs org", func(t *testing.T) {
+		got := orgSlugCandidates("https://app.circleci.com/pipelines/github/storybookjs/storybook", "github")
+		if len(got) == 0 {
+			t.Fatal("expected non-empty candidates")
+		}
+		seenPrefixed := false
+		seenPlain := false
+		for _, c := range got {
+			if c == "github/storybookjs" {
+				seenPrefixed = true
+			}
+			if c == "storybookjs" {
+				seenPlain = true
+			}
+		}
+		if !seenPrefixed || !seenPlain {
+			t.Fatalf("expected both github/storybookjs and storybookjs candidates, got %v", got)
+		}
+	})
+}
+
 func TestVCSFromURL(t *testing.T) {
 	tests := []struct {
 		in   string
