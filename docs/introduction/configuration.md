@@ -211,13 +211,17 @@ circle:
     project: [my-org/my-repo] # circle scan --project (optional if org is set)
     vcs: github # circle scan --vcs
     org: my-org # circle scan --org (also enables org-wide discovery when project is omitted)
+    # --org accepts: my-org, github/my-org, or app URL forms like
+    # https://app.circleci.com/pipelines/github/my-org/my-repo
+    # Note: org-wide discovery requires token visibility to that org. If not,
+    # use explicit --project selectors instead.
     branch: main # circle scan --branch
     status: [success, failed] # circle scan --status
     workflow: [build, deploy] # circle scan --workflow
     job: [unit-tests, release] # circle scan --job
     since: 2026-01-01T00:00:00Z # circle scan --since (RFC3339)
     until: 2026-01-31T23:59:59Z # circle scan --until (RFC3339)
-    max_pipelines: 50 # circle scan --max-pipelines
+    max_pipelines: 0 # circle scan --max-pipelines (0 = no limit)
     tests: true # circle scan --tests
     insights: true # circle scan --insights
 ```
