@@ -338,7 +338,7 @@ func (s *circleScanner) scanJob(project string, workflow workflowItem, job workf
 
 	locationURL := circleAppWorkflowURL(workflow.ID)
 
-	if err := s.scanJobLogs(project, workflow, jobDetails, locationURL); err != nil {
+	if err := s.scanJobLogs(project, workflow, job.JobNumber, jobDetails, locationURL); err != nil {
 		log.Debug().Err(err).Str("project", project).Int("job", job.JobNumber).Msg("Failed scanning job logs")
 	}
 
@@ -357,7 +357,7 @@ func (s *circleScanner) scanJob(project string, workflow workflowItem, job workf
 	return nil
 }
 
-func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, details projectJobResponse, locationURL string) error {
+func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, jobNum int, details projectJobResponse, locationURL string) error {
 	log.Debug().
 		Str("project", project).
 		Str("workflowID", workflow.ID).
@@ -399,7 +399,7 @@ func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, detai
 					Msg("Detected findings in job log output")
 			}
 
-			stepURL := circleJobStepURL(details.WebURL, action.Step, action.Index, locationURL)
+			stepURL := circleJobStepURL(workflow.ID, jobNum, action.Step, action.Index)
 			stepLabel := step.Name
 			if action.Name != "" && action.Name != step.Name {
 				stepLabel = step.Name + " / " + action.Name
@@ -683,12 +683,8 @@ func circleAppWorkflowURL(workflowID string) string {
 	return fmt.Sprintf("https://app.circleci.com/pipelines/workflows/%s", workflowID)
 }
 
-// circleJobStepURL builds a direct link to a specific step in the CircleCI UI.
-// Format: <job-web-url>/steps/<step>:<index>  (e.g. .../jobs/42/steps/3:0)
-// Falls back to fallback when the job WebURL is not available.
-func circleJobStepURL(jobWebURL string, step, index int, fallback string) string {
-	if strings.TrimSpace(jobWebURL) == "" {
-		return fallback
-	}
-	return fmt.Sprintf("%s/steps/%d:%d", strings.TrimRight(jobWebURL, "/"), step, index)
+// circleJobStepURL builds a direct link to a specific step in the CircleCI app UI.
+// Format: https://app.circleci.com/pipelines/workflows/<wf-id>/jobs/<job-num>/steps/<step>:<index>
+func circleJobStepURL(workflowID string, jobNum, step, index int) string {
+	return fmt.Sprintf("https://app.circleci.com/pipelines/workflows/%s/jobs/%d/steps/%d:%d", workflowID, jobNum, step, index)
 }
