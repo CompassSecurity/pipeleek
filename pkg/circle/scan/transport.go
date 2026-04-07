@@ -64,6 +64,7 @@ type v1ProjectItem struct {
 
 type pipelineItem struct {
 	ID        string `json:"id"`
+	Number    int    `json:"number"`
 	State     string `json:"state"`
 	CreatedAt string `json:"created_at"`
 }

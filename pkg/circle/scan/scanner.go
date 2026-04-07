@@ -303,7 +303,7 @@ func (s *circleScanner) scanWorkflow(project string, pipeline pipelineItem, work
 			Msg("Scanning job")
 
 		s.jobsScanned.Add(1)
-			if err := s.scanJob(project, workflow, job); err != nil {
+		if err := s.scanJob(project, pipeline, workflow, job); err != nil {
 			log.Warn().Err(err).Str("project", project).Int("jobNumber", job.JobNumber).Msg("Job scan failed, continuing")
 		}
 	}
@@ -311,7 +311,7 @@ func (s *circleScanner) scanWorkflow(project string, pipeline pipelineItem, work
 	return nil
 }
 
-func (s *circleScanner) scanJob(project string, workflow workflowItem, job workflowJobItem) error {
+func (s *circleScanner) scanJob(project string, pipeline pipelineItem, workflow workflowItem, job workflowJobItem) error {
 	jobDetails, err := s.options.APIClient.GetProjectJob(s.options.Context, project, job.JobNumber)
 	if err != nil {
 		return err
@@ -331,6 +331,7 @@ func (s *circleScanner) scanJob(project string, workflow workflowItem, job workf
 
 	log.Debug().
 		Str("project", project).
+		Int("pipelineNumber", pipeline.Number).
 		Str("workflowID", workflow.ID).
 		Int("jobNumber", job.JobNumber).
 		Int("steps", len(jobDetails.Steps)).
@@ -338,7 +339,7 @@ func (s *circleScanner) scanJob(project string, workflow workflowItem, job workf
 
 	locationURL := circleAppWorkflowURL(workflow.ID)
 
-	if err := s.scanJobLogs(project, workflow, job.JobNumber, jobDetails, locationURL); err != nil {
+	if err := s.scanJobLogs(project, pipeline, workflow, job.JobNumber, jobDetails, locationURL); err != nil {
 		log.Debug().Err(err).Str("project", project).Int("job", job.JobNumber).Msg("Failed scanning job logs")
 	}
 
@@ -357,9 +358,10 @@ func (s *circleScanner) scanJob(project string, workflow workflowItem, job workf
 	return nil
 }
 
-func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, jobNum int, details projectJobResponse, locationURL string) error {
+func (s *circleScanner) scanJobLogs(project string, pipeline pipelineItem, workflow workflowItem, jobNum int, details projectJobResponse, locationURL string) error {
 	log.Debug().
 		Str("project", project).
+		Int("pipelineNumber", pipeline.Number).
 		Str("workflowID", workflow.ID).
 		Str("jobName", details.Name).
 		Int("steps", len(details.Steps)).
@@ -399,13 +401,13 @@ func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, jobNu
 					Msg("Detected findings in job log output")
 			}
 
-			stepURL := circleJobStepURL(workflow.ID, jobNum, action.Step, action.Index)
+			jobURL := circleAppJobURL(project, pipeline.Number, workflow.ID, jobNum, locationURL)
 			stepLabel := step.Name
 			if action.Name != "" && action.Name != step.Name {
 				stepLabel = step.Name + " / " + action.Name
 			}
 			result.ReportFindings(logResult.Findings, result.ReportOptions{
-				LocationURL: stepURL,
+				LocationURL: jobURL,
 				JobName:     workflow.Name,
 				BuildName:   details.Name + " / " + stepLabel,
 				Type:        logging.SecretTypeLog,
@@ -683,8 +685,22 @@ func circleAppWorkflowURL(workflowID string) string {
 	return fmt.Sprintf("https://app.circleci.com/pipelines/workflows/%s", workflowID)
 }
 
-// circleJobStepURL builds a direct link to a specific step in the CircleCI app UI.
-// Format: https://app.circleci.com/pipelines/workflows/<wf-id>/jobs/<job-num>/steps/<step>:<index>
-func circleJobStepURL(workflowID string, jobNum, step, index int) string {
-	return fmt.Sprintf("https://app.circleci.com/pipelines/workflows/%s/jobs/%d/steps/%d:%d", workflowID, jobNum, step, index)
+// circleAppJobURL builds the stable CircleCI app job URL.
+// Format: https://app.circleci.com/pipelines/<vcs>/<org>/<repo>/<pipeline-number>/workflows/<workflow-id>/jobs/<job-number>
+func circleAppJobURL(project string, pipelineNumber int, workflowID string, jobNum int, fallback string) string {
+	parts := strings.Split(project, "/")
+	if len(parts) != 3 || strings.TrimSpace(workflowID) == "" || pipelineNumber <= 0 || jobNum <= 0 {
+		return fallback
+	}
+
+	vcs := normalizeVCSName(parts[0])
+	return fmt.Sprintf(
+		"https://app.circleci.com/pipelines/%s/%s/%s/%d/workflows/%s/jobs/%d",
+		vcs,
+		parts[1],
+		parts[2],
+		pipelineNumber,
+		workflowID,
+		jobNum,
+	)
 }

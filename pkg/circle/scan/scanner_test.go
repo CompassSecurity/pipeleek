@@ -138,16 +138,20 @@ func TestCircleAppWorkflowURL(t *testing.T) {
 	}
 }
 
-func TestCircleJobStepURL(t *testing.T) {
-	want := "https://app.circleci.com/pipelines/workflows/wf-123/jobs/42/steps/3:1"
-	if got := circleJobStepURL("wf-123", 42, 3, 1); got != want {
+func TestCircleAppJobURL(t *testing.T) {
+	fallback := "https://app.circleci.com/pipelines/workflows/wf-123"
+
+	want := "https://app.circleci.com/pipelines/github/storybookjs/storybook/119097/workflows/4ddee5f3-d2bf-4b90-a3a9-3939595fd3c4/jobs/1339721"
+	if got := circleAppJobURL("github/storybookjs/storybook", 119097, "4ddee5f3-d2bf-4b90-a3a9-3939595fd3c4", 1339721, fallback); got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 
-	// step and index zero
-	want0 := "https://app.circleci.com/pipelines/workflows/wf-abc/jobs/7/steps/0:0"
-	if got := circleJobStepURL("wf-abc", 7, 0, 0); got != want0 {
-		t.Fatalf("expected %q, got %q", want0, got)
+	if got := circleAppJobURL("bad-slug", 119097, "wf-123", 42, fallback); got != fallback {
+		t.Fatalf("expected fallback for invalid slug, got %q", got)
+	}
+
+	if got := circleAppJobURL("github/storybookjs/storybook", 0, "wf-123", 42, fallback); got != fallback {
+		t.Fatalf("expected fallback for invalid pipeline number, got %q", got)
 	}
 }
 
