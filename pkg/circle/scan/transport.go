@@ -93,7 +93,11 @@ type projectJobResponse struct {
 	Name   string `json:"name"`
 	WebURL string `json:"web_url"`
 	Steps  []struct {
+		Name    string `json:"name"`
 		Actions []struct {
+			Step      int    `json:"step"`
+			Index     int    `json:"index"`
+			Name      string `json:"name"`
 			OutputURL string `json:"output_url"`
 		} `json:"actions"`
 	} `json:"steps"`

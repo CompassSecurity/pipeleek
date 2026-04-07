@@ -394,14 +394,20 @@ func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, detai
 					Str("project", project).
 					Str("workflowID", workflow.ID).
 					Str("jobName", details.Name).
+					Str("stepName", step.Name).
 					Int("findings", len(logResult.Findings)).
 					Msg("Detected findings in job log output")
 			}
 
+			stepURL := circleJobStepURL(details.WebURL, action.Step, action.Index, locationURL)
+			stepLabel := step.Name
+			if action.Name != "" && action.Name != step.Name {
+				stepLabel = step.Name + " / " + action.Name
+			}
 			result.ReportFindings(logResult.Findings, result.ReportOptions{
-				LocationURL: locationURL,
+				LocationURL: stepURL,
 				JobName:     workflow.Name,
-				BuildName:   details.Name,
+				BuildName:   details.Name + " / " + stepLabel,
 				Type:        logging.SecretTypeLog,
 			})
 		}
@@ -675,4 +681,14 @@ func circleAppWorkflowURL(workflowID string) string {
 		return "https://app.circleci.com/pipelines"
 	}
 	return fmt.Sprintf("https://app.circleci.com/pipelines/workflows/%s", workflowID)
+}
+
+// circleJobStepURL builds a direct link to a specific step in the CircleCI UI.
+// Format: <job-web-url>/steps/<step>:<index>  (e.g. .../jobs/42/steps/3:0)
+// Falls back to fallback when the job WebURL is not available.
+func circleJobStepURL(jobWebURL string, step, index int, fallback string) string {
+	if strings.TrimSpace(jobWebURL) == "" {
+		return fallback
+	}
+	return fmt.Sprintf("%s/steps/%d:%d", strings.TrimRight(jobWebURL, "/"), step, index)
 }

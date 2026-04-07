@@ -138,6 +138,27 @@ func TestCircleAppWorkflowURL(t *testing.T) {
 	}
 }
 
+func TestCircleJobStepURL(t *testing.T) {
+	fallback := "https://app.circleci.com/pipelines/workflows/wf-123"
+
+	// empty WebURL falls back gracefully
+	if got := circleJobStepURL("", 0, 0, fallback); got != fallback {
+		t.Fatalf("expected fallback url, got %q", got)
+	}
+
+	// normal step link
+	jobURL := "https://app.circleci.com/pipelines/workflows/wf-123/jobs/42"
+	want := "https://app.circleci.com/pipelines/workflows/wf-123/jobs/42/steps/3:1"
+	if got := circleJobStepURL(jobURL, 3, 1, fallback); got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+
+	// trailing slash in WebURL is stripped
+	if got := circleJobStepURL(jobURL+"/", 0, 0, fallback); got != jobURL+"/steps/0:0" {
+		t.Fatalf("unexpected trailing-slash result: %q", got)
+	}
+}
+
 func TestFlattenLogOutput(t *testing.T) {
 	t.Run("json array", func(t *testing.T) {
 		raw := []byte(`[{"message":"line1"},{"message":"line2"}]`)
