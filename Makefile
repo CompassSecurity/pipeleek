@@ -1,4 +1,4 @@
-.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea test test-unit test-e2e lint clean coverage coverage-html serve-docs
+.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea build-circle test test-unit test-e2e lint clean coverage coverage-html serve-docs
 
 # Default target
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make build-bitbucket  - Build BitBucket-specific binary"
 	@echo "  make build-devops     - Build Azure DevOps-specific binary"
 	@echo "  make build-gitea      - Build Gitea-specific binary"
+	@echo "  make build-circle     - Build CircleCI-specific binary"
 	@echo "  make test             - Run all tests (unit + e2e)"
 	@echo "  make test-unit        - Run unit tests only"
 	@echo "  make test-e2e         - Run e2e tests (builds binary first)"
@@ -54,8 +55,13 @@ build-gitea:
 	@echo "Building pipeleek-gitea..."
 	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-gitea ./cmd/pipeleek-gitea
 
+# Build CircleCI-specific binary
+build-circle:
+	@echo "Building pipeleek-circle..."
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o pipeleek-circle ./cmd/pipeleek-circle
+
 # Build all binaries
-build-all: build build-gitlab build-github build-bitbucket build-devops build-gitea
+build-all: build build-gitlab build-github build-bitbucket build-devops build-gitea build-circle
 	@echo "All binaries built successfully"
 
 # Run all tests
@@ -91,6 +97,10 @@ test-e2e-devops: build
 test-e2e-gitea: build
 	@echo "Running Gitea e2e tests..."
 	PIPELEEK_BINARY=$$(pwd)/pipeleek go test ./tests/e2e/gitea/... -tags=e2e -v
+
+test-e2e-circle: build
+	@echo "Running CircleCI e2e tests..."
+	PIPELEEK_BINARY=$$(pwd)/pipeleek go test ./tests/e2e/circle/... -tags=e2e -v
 
 # Generate test coverage report
 coverage:
@@ -139,4 +149,5 @@ clean:
 	rm -f pipeleek-bitbucket pipeleek-bitbucket.exe
 	rm -f pipeleek-devops pipeleek-devops.exe
 	rm -f pipeleek-gitea pipeleek-gitea.exe
+	rm -f pipeleek-circle pipeleek-circle.exe
 	go clean -cache -testcache

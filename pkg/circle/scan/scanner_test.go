@@ -1,0 +1,319 @@
+package scan
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestNormalizeProjectSlug(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		vcs       string
+		want      string
+		wantError bool
+	}{
+		{name: "org/repo", in: "org/repo", vcs: "github", want: "github/org/repo"},
+		{name: "vcs/org/repo", in: "bitbucket/org/repo", vcs: "github", want: "bitbucket/org/repo"},
+		{name: "invalid", in: "org", vcs: "github", wantError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizeProjectSlug(tt.in, tt.vcs)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestBelongsToOrg(t *testing.T) {
+	if !belongsToOrg("github/my-org/my-repo", "my-org") {
+		t.Fatal("expected project to belong to org")
+	}
+	if belongsToOrg("github/other-org/my-repo", "my-org") {
+		t.Fatal("expected project to not belong to org")
+	}
+}
+
+func TestNormalizedOrgName(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "my-org", want: "my-org"},
+		{in: "github/my-org", want: "my-org"},
+		{in: "gh/my-org", want: "my-org"},
+		{in: "", want: ""},
+	}
+
+	for _, tt := range tests {
+		if got := normalizedOrgName(tt.in); got != tt.want {
+			t.Fatalf("normalizedOrgName(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestOrgSlugCandidates(t *testing.T) {
+	t.Run("prefixed org adds plain candidate", func(t *testing.T) {
+		got := orgSlugCandidates("github/storybookjs", "github")
+		if len(got) == 0 {
+			t.Fatal("expected non-empty candidates")
+		}
+		if got[0] != "github/storybookjs" {
+			t.Fatalf("expected first candidate to preserve input, got %q", got[0])
+		}
+		seenPlain := false
+		for _, c := range got {
+			if c == "storybookjs" {
+				seenPlain = true
+				break
+			}
+		}
+		if !seenPlain {
+			t.Fatalf("expected plain org candidate in %v", got)
+		}
+	})
+
+	t.Run("app pipelines url extracts vcs org", func(t *testing.T) {
+		got := orgSlugCandidates("https://app.circleci.com/pipelines/github/storybookjs/storybook", "github")
+		if len(got) == 0 {
+			t.Fatal("expected non-empty candidates")
+		}
+		seenPrefixed := false
+		seenPlain := false
+		for _, c := range got {
+			if c == "github/storybookjs" {
+				seenPrefixed = true
+			}
+			if c == "storybookjs" {
+				seenPlain = true
+			}
+		}
+		if !seenPrefixed || !seenPlain {
+			t.Fatalf("expected both github/storybookjs and storybookjs candidates, got %v", got)
+		}
+	})
+}
+
+func TestOrgDiscoveryHint(t *testing.T) {
+	t.Run("project url input", func(t *testing.T) {
+		hint := orgDiscoveryHint("https://app.circleci.com/pipelines/github/storybookjs/storybook")
+		want := "--org appears to be a project URL; use --project github/storybookjs/storybook instead"
+		if hint != want {
+			t.Fatalf("unexpected hint: %q", hint)
+		}
+	})
+
+	t.Run("project selector input", func(t *testing.T) {
+		hint := orgDiscoveryHint("github/storybookjs/storybook")
+		want := "--org appears to be a project selector; use --project github/storybookjs/storybook instead"
+		if hint != want {
+			t.Fatalf("unexpected hint: %q", hint)
+		}
+	})
+
+	t.Run("org input", func(t *testing.T) {
+		hint := orgDiscoveryHint("github/storybookjs")
+		if hint == "" {
+			t.Fatal("expected non-empty generic hint")
+		}
+	})
+}
+
+func TestVCSFromURL(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "https://github.com/example/repo", want: "github"},
+		{in: "https://bitbucket.org/example/repo", want: "bitbucket"},
+		{in: "https://example.com/example/repo", want: ""},
+	}
+
+	for _, tt := range tests {
+		if got := vcsFromURL(tt.in); got != tt.want {
+			t.Fatalf("vcsFromURL(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestNormalizeVCSName(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "github", want: "github"},
+		{in: "gh", want: "github"},
+		{in: "circleci", want: "circleci"},
+		{in: "bb", want: "bitbucket"},
+		{in: "bitbucket", want: "bitbucket"},
+	}
+
+	for _, tt := range tests {
+		if got := normalizeVCSName(tt.in); got != tt.want {
+			t.Fatalf("normalizeVCSName(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestCircleciUUIDSlug(t *testing.T) {
+	slug, ok := circleciUUIDSlug("//circleci.com/3901667c-bcfd-4296-8bda-c5c6e35ab886/4856fff8-1113-43d7-a091-4f7950757db9")
+	if !ok {
+		t.Fatal("expected slug extraction to succeed")
+	}
+
+	want := "circleci/3901667c-bcfd-4296-8bda-c5c6e35ab886/4856fff8-1113-43d7-a091-4f7950757db9"
+	if slug != want {
+		t.Fatalf("expected %q, got %q", want, slug)
+	}
+}
+
+func TestProjectSlugFromV1(t *testing.T) {
+	item := v1ProjectItem{
+		Username: "pipeleek",
+		Reponame: "pipeleek-secrets-demo",
+		VCSURL:   "//circleci.com/3901667c-bcfd-4296-8bda-c5c6e35ab886/4856fff8-1113-43d7-a091-4f7950757db9",
+		VCSType:  "circleci",
+	}
+
+	slug, ok := projectSlugFromV1(item, "github")
+	if !ok {
+		t.Fatal("expected project slug conversion to succeed")
+	}
+
+	want := "circleci/3901667c-bcfd-4296-8bda-c5c6e35ab886/4856fff8-1113-43d7-a091-4f7950757db9"
+	if slug != want {
+		t.Fatalf("expected %q, got %q", want, slug)
+	}
+}
+
+func TestCircleAppWorkflowURL(t *testing.T) {
+	if got := circleAppWorkflowURL(""); got != "https://app.circleci.com/pipelines" {
+		t.Fatalf("unexpected fallback url: %s", got)
+	}
+
+	if got := circleAppWorkflowURL("wf-123"); got != "https://app.circleci.com/pipelines/workflows/wf-123" {
+		t.Fatalf("unexpected workflow url: %s", got)
+	}
+}
+
+func TestCircleAppJobURL(t *testing.T) {
+	fallback := "https://app.circleci.com/pipelines/workflows/wf-123"
+
+	want := "https://app.circleci.com/pipelines/github/storybookjs/storybook/119097/workflows/4ddee5f3-d2bf-4b90-a3a9-3939595fd3c4/jobs/1339721"
+	if got := circleAppJobURL("github/storybookjs/storybook", 119097, "4ddee5f3-d2bf-4b90-a3a9-3939595fd3c4", 1339721, fallback); got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+
+	if got := circleAppJobURL("bad-slug", 119097, "wf-123", 42, fallback); got != fallback {
+		t.Fatalf("expected fallback for invalid slug, got %q", got)
+	}
+
+	if got := circleAppJobURL("github/storybookjs/storybook", 0, "wf-123", 42, fallback); got != fallback {
+		t.Fatalf("expected fallback for invalid pipeline number, got %q", got)
+	}
+}
+
+func TestFlattenLogOutput(t *testing.T) {
+	t.Run("json array", func(t *testing.T) {
+		raw := []byte(`[{"message":"line1"},{"message":"line2"}]`)
+		got := string(flattenLogOutput(raw))
+		if got != "line1\nline2\n" {
+			t.Fatalf("unexpected flattened output: %q", got)
+		}
+	})
+
+	t.Run("json object", func(t *testing.T) {
+		raw := []byte(`{"message":"single-line"}`)
+		got := string(flattenLogOutput(raw))
+		if got != "single-line" {
+			t.Fatalf("unexpected flattened output: %q", got)
+		}
+	})
+
+	t.Run("plain text", func(t *testing.T) {
+		raw := []byte("  hello secrets  \n")
+		got := string(flattenLogOutput(raw))
+		if got != "hello secrets" {
+			t.Fatalf("unexpected flattened output: %q", got)
+		}
+	})
+}
+
+func TestInitializeOptionsOrgDiscoveryHints(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v2/me/collaborations":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[]`))
+		case strings.HasPrefix(r.URL.Path, "/api/v2/organization/") && strings.HasSuffix(r.URL.Path, "/project"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case r.URL.Path == "/api/v1.1/projects":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]v1ProjectItem{{
+				Username: "pipeleek",
+				Reponame: "demo",
+				VCSType:  "github",
+				VCSURL:   "https://github.com/pipeleek/demo",
+			}})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	tests := []struct {
+		name      string
+		org       string
+		hintMatch string
+	}{
+		{
+			name:      "generic org visibility hint",
+			org:       "github/storybookjs",
+			hintMatch: "Hint: org-wide discovery requires token visibility",
+		},
+		{
+			name:      "project url hint",
+			org:       "https://app.circleci.com/pipelines/github/storybookjs/storybook",
+			hintMatch: "Hint: --org appears to be a project URL; use --project github/storybookjs/storybook instead",
+		},
+		{
+			name:      "project selector hint",
+			org:       "github/storybookjs/storybook",
+			hintMatch: "Hint: --org appears to be a project selector; use --project github/storybookjs/storybook instead",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := InitializeOptions(InitializeOptionsInput{
+				Token:           "test-token",
+				CircleURL:       ts.URL,
+				Organization:    tt.org,
+				VCS:             "github",
+				MaxArtifactSize: "1MB",
+			})
+			if err == nil {
+				t.Fatal("expected InitializeOptions to fail")
+			}
+			if !strings.Contains(err.Error(), tt.hintMatch) {
+				t.Fatalf("expected error to contain %q, got %q", tt.hintMatch, err.Error())
+			}
+		})
+	}
+}
