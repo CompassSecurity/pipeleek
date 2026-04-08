@@ -1,6 +1,12 @@
 package scan
 
-import "testing"
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
 func TestNormalizeProjectSlug(t *testing.T) {
 	tests := []struct {
@@ -246,4 +252,68 @@ func TestFlattenLogOutput(t *testing.T) {
 			t.Fatalf("unexpected flattened output: %q", got)
 		}
 	})
+}
+
+func TestInitializeOptionsOrgDiscoveryHints(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v2/me/collaborations":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[]`))
+		case strings.HasPrefix(r.URL.Path, "/api/v2/organization/") && strings.HasSuffix(r.URL.Path, "/project"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case r.URL.Path == "/api/v1.1/projects":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]v1ProjectItem{{
+				Username: "pipeleek",
+				Reponame: "demo",
+				VCSType:  "github",
+				VCSURL:   "https://github.com/pipeleek/demo",
+			}})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	tests := []struct {
+		name      string
+		org       string
+		hintMatch string
+	}{
+		{
+			name:      "generic org visibility hint",
+			org:       "github/storybookjs",
+			hintMatch: "Hint: org-wide discovery requires token visibility",
+		},
+		{
+			name:      "project url hint",
+			org:       "https://app.circleci.com/pipelines/github/storybookjs/storybook",
+			hintMatch: "Hint: --org appears to be a project URL; use --project github/storybookjs/storybook instead",
+		},
+		{
+			name:      "project selector hint",
+			org:       "github/storybookjs/storybook",
+			hintMatch: "Hint: --org appears to be a project selector; use --project github/storybookjs/storybook instead",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := InitializeOptions(InitializeOptionsInput{
+				Token:           "test-token",
+				CircleURL:       ts.URL,
+				Organization:    tt.org,
+				VCS:             "github",
+				MaxArtifactSize: "1MB",
+			})
+			if err == nil {
+				t.Fatal("expected InitializeOptions to fail")
+			}
+			if !strings.Contains(err.Error(), tt.hintMatch) {
+				t.Fatalf("expected error to contain %q, got %q", tt.hintMatch, err.Error())
+			}
+		})
+	}
 }

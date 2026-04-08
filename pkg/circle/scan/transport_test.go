@@ -167,6 +167,54 @@ func TestListOrganizationProjectsPrefixedOrgFallback(t *testing.T) {
 	}
 }
 
+func TestListOrganizationProjectsCollaborationNameCaseInsensitive(t *testing.T) {
+	const orgUUID = "96df906d-3617-46fd-96d0-8f80a8c4d00a"
+	var uuidRequests int
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v2/me/collaborations":
+			// Name matches the normalized org candidate with mixed casing.
+			payload := []collaborationItem{{
+				ID:   orgUUID,
+				Slug: "circleci/some-other-org",
+				Name: "StOrYbOoKjS",
+			}}
+			_ = json.NewEncoder(w).Encode(payload)
+		case "/api/v2/organization/github/storybookjs/project":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case "/api/v2/organization/storybookjs/project":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"not found"}`))
+		case "/api/v2/organization/" + orgUUID + "/project":
+			uuidRequests++
+			_, _ = w.Write([]byte(`{"items":[{"slug":"github/storybookjs/repo-a"}],"next_page_token":""}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL + "/api/v2/")
+	if err != nil {
+		t.Fatalf("failed to parse base url: %v", err)
+	}
+
+	client := newCircleAPIClient(baseURL, "token", ts.Client())
+	projects, err := client.ListOrganizationProjects(context.Background(), "github/storybookjs", "github")
+	if err != nil {
+		t.Fatalf("expected name-based UUID fallback to succeed, got error: %v", err)
+	}
+	if len(projects) != 1 || projects[0] != "github/storybookjs/repo-a" {
+		t.Fatalf("unexpected projects: %#v", projects)
+	}
+	if uuidRequests != 1 {
+		t.Fatalf("expected exactly one UUID project request, got %d", uuidRequests)
+	}
+}
+
 func TestListAccessibleProjectsV1FiltersAndNormalizes(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1.1/projects" {
