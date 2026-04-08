@@ -584,22 +584,11 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 				}
 				fallbackProjects, fallbackErr := apiClient.ListAccessibleProjectsV1(context.Background(), input.VCS, v1Filter)
 				if fallbackErr != nil {
-					vcsHint := normalizeVCSName(input.VCS)
-					if vcsHint == "" {
-						vcsHint = "github"
+					hint := orgDiscoveryHint(input.Organization)
+					if hint != "" {
+						return ScanOptions{}, fmt.Errorf("ListOrganizationProjects failed: %v; fallback ListAccessibleProjectsV1 failed: %w. Hint: %s", err, fallbackErr, hint)
 					}
-					orgHint := normalizedOrgName(input.Organization)
-					if orgHint == "" {
-						orgHint = "<org>"
-					}
-					return ScanOptions{}, fmt.Errorf(
-						"ListOrganizationProjects failed: %v; fallback ListAccessibleProjectsV1 failed: %w. This token likely cannot enumerate org %q. Try scanning explicit project(s) with --project %s/%s/<repo> or use a token with org access",
-						err,
-						fallbackErr,
-						input.Organization,
-						vcsHint,
-						orgHint,
-					)
+					return ScanOptions{}, fmt.Errorf("ListOrganizationProjects failed: %v; fallback ListAccessibleProjectsV1 failed: %w", err, fallbackErr)
 				}
 				projects = uniqueStrings(append(projects, fallbackProjects...))
 			} else {

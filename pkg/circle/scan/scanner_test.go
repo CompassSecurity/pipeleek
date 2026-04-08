@@ -103,6 +103,31 @@ func TestOrgSlugCandidates(t *testing.T) {
 	})
 }
 
+func TestOrgDiscoveryHint(t *testing.T) {
+	t.Run("project url input", func(t *testing.T) {
+		hint := orgDiscoveryHint("https://app.circleci.com/pipelines/github/storybookjs/storybook")
+		want := "--org appears to be a project URL; use --project github/storybookjs/storybook instead"
+		if hint != want {
+			t.Fatalf("unexpected hint: %q", hint)
+		}
+	})
+
+	t.Run("project selector input", func(t *testing.T) {
+		hint := orgDiscoveryHint("github/storybookjs/storybook")
+		want := "--org appears to be a project selector; use --project github/storybookjs/storybook instead"
+		if hint != want {
+			t.Fatalf("unexpected hint: %q", hint)
+		}
+	})
+
+	t.Run("org input", func(t *testing.T) {
+		hint := orgDiscoveryHint("github/storybookjs")
+		if hint == "" {
+			t.Fatal("expected non-empty generic hint")
+		}
+	})
+}
+
 func TestVCSFromURL(t *testing.T) {
 	tests := []struct {
 		in   string

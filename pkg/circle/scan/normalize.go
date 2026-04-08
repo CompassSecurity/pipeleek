@@ -203,3 +203,29 @@ func orgSlugCandidates(value, defaultVCS string) []string {
 
 	return uniqueStrings(candidates)
 }
+
+func orgDiscoveryHint(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Host != "" {
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		if len(parts) >= 4 && parts[0] == "pipelines" {
+			vcs := normalizeVCSName(parts[1])
+			org := strings.TrimSpace(parts[2])
+			repo := strings.TrimSpace(parts[3])
+			if vcs != "" && org != "" && repo != "" {
+				return fmt.Sprintf("--org appears to be a project URL; use --project %s/%s/%s instead", vcs, org, repo)
+			}
+		}
+	}
+
+	parts := strings.Split(strings.Trim(trimmed, "/"), "/")
+	if len(parts) == 3 && normalizeVCSName(parts[0]) != "" {
+		return fmt.Sprintf("--org appears to be a project selector; use --project %s instead", strings.Join(parts, "/"))
+	}
+
+	return "org-wide discovery requires token visibility to that CircleCI org; if discovery fails, scan explicit projects with --project"
+}
