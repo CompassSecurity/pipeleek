@@ -9,7 +9,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/bndr/gojenkins v1.2.0
 	github.com/docker/go-units v0.5.0
-	github.com/go-git/go-git/v5 v5.17.2
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/gofri/go-github-ratelimit/v2 v2.0.2
 	github.com/google/go-github/v69 v69.2.0
 	github.com/headzoo/surf v1.0.1
