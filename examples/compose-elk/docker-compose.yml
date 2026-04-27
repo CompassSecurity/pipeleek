@@ -1,0 +1,185 @@
+name: pipeleek-elk
+
+x-pipeleek-job-env: &pipeleek-job-env
+  PIPELEEK_CONFIG_PATH: /config/pipeleek.yaml
+
+x-pipeleek-job: &pipeleek-job
+  image: alpine:3.20
+  working_dir: /work
+  restart: "no"
+  depends_on:
+    logstash:
+      condition: service_healthy
+  volumes:
+    - ./pipeleek.shared.example.yaml:/config/pipeleek.yaml:ro
+  entrypoint:
+    - /bin/sh
+    - -ec
+    - |
+      apk add --no-cache ca-certificates curl jq netcat-openbsd
+      curl -sL https://compasssecurity.github.io/pipeleek/install.sh | sh
+
+      pipeleek_bin="$(command -v pipeleek || true)"
+      if [ -z "$${pipeleek_bin}" ] && [ -x /root/.local/bin/pipeleek ]; then
+        pipeleek_bin=/root/.local/bin/pipeleek
+      fi
+      if [ -z "$${pipeleek_bin}" ] && [ -x /usr/local/bin/pipeleek ]; then
+        pipeleek_bin=/usr/local/bin/pipeleek
+      fi
+      if [ -z "$${pipeleek_bin}" ]; then
+        echo "pipeleek binary not found after install script execution" >&2
+        exit 1
+      fi
+
+      echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=starting" >&2
+      start_epoch=$$(date +%s)
+
+      (
+        "$${pipeleek_bin}" --config "$${PIPELEEK_CONFIG_PATH}" $${PIPELEEK_SCAN_COMMAND} --json \
+          | jq -c --arg scan_job "$${SCAN_JOB}" '. + {scan_job: $$scan_job, source: "docker-compose"}' \
+          | nc -q0 logstash 5000
+      ) &
+      scan_pid=$$!
+
+      while kill -0 "$$scan_pid" 2>/dev/null; do
+        sleep 30
+        if kill -0 "$$scan_pid" 2>/dev/null; then
+          elapsed=$$(( $$(date +%s) - start_epoch ))
+          echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=running elapsed=$${elapsed}s" >&2
+        fi
+      done
+
+      wait "$$scan_pid"
+      scan_exit=$$?
+      total_elapsed=$$(( $$(date +%s) - start_epoch ))
+
+      if [ "$$scan_exit" -eq 0 ]; then
+        echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=completed elapsed=$${total_elapsed}s" >&2
+      else
+        echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=failed exit_code=$$scan_exit elapsed=$${total_elapsed}s" >&2
+      fi
+
+      exit "$$scan_exit"
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.4
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+
+  scan-circle:
+    <<: *pipeleek-job
+    profiles: ["jobs", "circle"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: circle
+      PIPELEEK_SCAN_COMMAND: circle scan
+    networks:
+      - elk
+
+  scan-gitlab:
+    <<: *pipeleek-job
+    profiles: ["jobs", "gitlab"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: gitlab
+      PIPELEEK_SCAN_COMMAND: gl scan -a --search gcp -v -j 15 --max-artifact-size 50mb
+    networks:
+      - elk
+
+  scan-github:
+    <<: *pipeleek-job
+    profiles: ["jobs", "github"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: github
+      PIPELEEK_SCAN_COMMAND: gh scan
+    networks:
+      - elk
+
+  scan-bitbucket:
+    <<: *pipeleek-job
+    profiles: ["jobs", "bitbucket"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: bitbucket
+      PIPELEEK_SCAN_COMMAND: bb scan
+    networks:
+      - elk
+
+  scan-devops:
+    <<: *pipeleek-job
+    profiles: ["jobs", "devops"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: azure-devops
+      PIPELEEK_SCAN_COMMAND: ad scan
+    networks:
+      - elk
+
+  scan-gitea:
+    <<: *pipeleek-job
+    profiles: ["jobs", "gitea"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: gitea
+      PIPELEEK_SCAN_COMMAND: gitea scan
+    networks:
+      - elk
+
+  scan-jenkins:
+    <<: *pipeleek-job
+    profiles: ["jobs", "jenkins"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: jenkins
+      PIPELEEK_SCAN_COMMAND: jenkins scan
+    networks:
+      - elk
+
+networks:
+  elk:
+    name: pipeleek-elk

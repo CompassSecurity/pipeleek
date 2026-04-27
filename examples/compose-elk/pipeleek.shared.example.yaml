@@ -1,0 +1,50 @@
+common:
+  threads: 4
+  trufflehog_verification: true
+  confidence_filter: medium
+
+circle:
+  url: https://circleci.com
+  token: CCIPAT_REPLACE_ME
+  scan:
+    org: KdZvpc432VpdV8UBajzc9f
+    vcs: github
+    max_pipelines: 100
+
+gitlab:
+  url: https://gitlab.com
+  token: glpat-REPLACE_ME
+
+github:
+  url: https://api.github.com
+  token: ghp_REPLACE_ME
+  scan:
+    owner: my-github-org
+
+bitbucket:
+  url: https://bitbucket.org
+  email: user@example.com
+  token: ATATT_REPLACE_ME
+  scan:
+    workspace: my-workspace
+
+azure_devops:
+  url: https://dev.azure.com/my-organization
+  username: ado-user
+  token: ado_REPLACE_ME
+  scan:
+    project: my-project
+
+gitea:
+  url: https://gitea.example.com
+  token: gitea_REPLACE_ME
+  scan:
+    owner: my-org
+
+jenkins:
+  url: https://jenkins.example.com
+  username: jenkins-user
+  token: jenkins_token_REPLACE_ME
+  scan:
+    folder: team-a
+    max_builds: 10
