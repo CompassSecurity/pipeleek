@@ -14,7 +14,7 @@ require (
 	github.com/google/go-github/v69 v69.2.0
 	github.com/headzoo/surf v1.0.1
 	github.com/rhysd/actionlint v1.7.12
-	github.com/rs/zerolog v1.35.0
+	github.com/rs/zerolog v1.35.1
 	github.com/rxwycdh/rxhash v0.0.0-20230131062142-10b7a38b400d
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
