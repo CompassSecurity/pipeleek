@@ -6,6 +6,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/register"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/shodan"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
 	"github.com/stretchr/testify/assert"
@@ -86,4 +87,12 @@ func TestNewShodanCmd(t *testing.T) {
 	jsonFlag := flags.Lookup("json")
 	assert.NotNil(t, jsonFlag, "'json' flag should be registered")
 	assert.Equal(t, "", jsonFlag.DefValue, "'json' flag default should be empty string (path to Shodan JSON file)")
+}
+
+func TestNewSnippetsRootCmd(t *testing.T) {
+	cmd := snippets.NewSnippetsRootCmd()
+
+	require.NotNil(t, cmd, "NewSnippetsRootCmd should return non-nil command")
+	assert.Equal(t, "snippets", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 }

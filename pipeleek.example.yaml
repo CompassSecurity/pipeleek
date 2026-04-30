@@ -106,6 +106,19 @@ gitlab:
     threads: 15 # Override common.threads for GitLab scans
     max_artifact_size: 52428800 # 50MB for GitLab artifacts
 
+  # snippets scan - Scan snippets for secrets
+  snippets:
+    scan:
+      project: "group/project" # Optional: scan snippets in a single project
+      namespace: "group" # Optional: scan snippets of all projects in this group and subgroups
+      search: "" # Optional: filter projects by search query (used with default/group scope)
+      owned: false # Scan only user-owned projects for project-scoped snippet scan
+      member: false # Scan only projects where token user is a member
+      threads: 10 # Override common.threads for snippet scanning
+      trufflehog_verification: true # Override common.trufflehog_verification
+      confidence_filter: ["medium", "high"] # Override common.confidence_filter
+      hit_timeout: 5 # Override common.hit_timeout (seconds)
+
   # tf - Discover and scan Terraform/OpenTofu state files
   tf:
     output_dir: ./terraform-states # Directory to save downloaded state files
