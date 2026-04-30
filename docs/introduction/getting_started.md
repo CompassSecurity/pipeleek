@@ -135,7 +135,7 @@ docker run --rm ghcr.io/compasssecurity/pipeleek:latest --version
 docker run --rm ghcr.io/compasssecurity/pipeleek:latest gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com
 ```
 
-You can also pass credentials via environment variables to avoid exposing them in shell history:
+You can also pass credentials via environment variables:
 
 ```bash
 docker run --rm \
