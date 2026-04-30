@@ -33,6 +33,11 @@ func TestNewGitLabRootCmd(t *testing.T) {
 	tokenFlag := flags.Lookup("token")
 	assert.NotNil(t, tokenFlag, "'token' persistent flag should be registered")
 	assert.Equal(t, "", tokenFlag.DefValue, "'token' flag default should be empty")
+
+	snippetsCmd, _, err := cmd.Find([]string{"snippets"})
+	require.NoError(t, err)
+	require.NotNil(t, snippetsCmd)
+	assert.Equal(t, "snippets", snippetsCmd.Name())
 }
 
 func TestNewVulnCmd(t *testing.T) {
@@ -95,4 +100,9 @@ func TestNewSnippetsRootCmd(t *testing.T) {
 	require.NotNil(t, cmd, "NewSnippetsRootCmd should return non-nil command")
 	assert.Equal(t, "snippets", cmd.Use)
 	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+
+	scanCmd, _, err := cmd.Find([]string{"scan"})
+	require.NoError(t, err)
+	require.NotNil(t, scanCmd)
+	assert.Equal(t, "scan", scanCmd.Name())
 }

@@ -2,6 +2,8 @@ package scan
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -118,4 +120,35 @@ func TestStatusFields(t *testing.T) {
 	assert.Contains(t, serialized, "processedSnippets")
 	assert.Contains(t, serialized, "4242")
 	assert.Contains(t, serialized, "1")
+}
+
+func TestFetchFileContent(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "test-token", r.Header.Get("Private-Token"))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("content"))
+		}))
+		defer server.Close()
+
+		scanner := &snippetsScanner{options: &ScanOptions{GitlabToken: "test-token"}}
+		content, err := scanner.fetchFileContent(server.URL + "/raw")
+
+		require.NoError(t, err)
+		assert.Equal(t, []byte("content"), content)
+	})
+
+	t.Run("non-200", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		scanner := &snippetsScanner{options: &ScanOptions{GitlabToken: "test-token"}}
+		content, err := scanner.fetchFileContent(server.URL + "/raw")
+
+		require.Error(t, err)
+		assert.Nil(t, content)
+		assert.Contains(t, err.Error(), "HTTP 403")
+	})
 }
