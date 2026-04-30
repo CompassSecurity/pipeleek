@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   goreleaser:
@@ -34,6 +35,46 @@ jobs:
           args: release --clean --verbose -f goreleaser.yaml ${{ env.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up QEMU
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+      - name: Set up Docker Buildx
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - name: Log in to GitHub Container Registry
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - name: Prepare binaries for container image
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          cp "dist/pipeleek_${VERSION}_linux_amd64" pipeleek_amd64
+          cp "dist/pipeleek_${VERSION}_linux_arm64" pipeleek_arm64
+          chmod +x pipeleek_amd64 pipeleek_arm64
+      - name: Build and push container image
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
       - name: Upload assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
