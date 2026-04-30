@@ -60,12 +60,9 @@ jobs:
             type=raw,value=latest
       - name: Prepare binaries for container image
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        env:
-          VERSION: ${{ github.ref_name }}
         run: |
-          VERSION_NO_V="${VERSION#v}"
-          cp "dist/pipeleek_${VERSION_NO_V}_linux_amd64" pipeleek_amd64
-          cp "dist/pipeleek_${VERSION_NO_V}_linux_arm64" pipeleek_arm64
+          cp "$(find dist -path 'dist/pipeleek_linux_amd64*/pipeleek' -print -quit)" pipeleek_amd64
+          cp "$(find dist -path 'dist/pipeleek_linux_arm64*/pipeleek' -print -quit)" pipeleek_arm64
           chmod +x pipeleek_amd64 pipeleek_arm64
       - name: Build and push container image
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
