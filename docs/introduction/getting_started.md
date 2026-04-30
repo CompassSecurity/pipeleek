@@ -115,45 +115,6 @@ go install github.com/CompassSecurity/pipeleek/cmd/pipeleek@latest
    .\pipeleek.exe --version
    ```
 
-### Docker
-
-Pipeleek is available as a minimal container image on the GitHub Container Registry.
-
-Pull the latest image:
-
-```bash
-docker pull ghcr.io/compasssecurity/pipeleek:latest
-```
-
-Run Pipeleek directly from the container:
-
-```bash
-docker run --rm ghcr.io/compasssecurity/pipeleek:latest --version
-```
-
-```bash
-docker run --rm ghcr.io/compasssecurity/pipeleek:latest gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com
-```
-
-You can also pass credentials via environment variables:
-
-```bash
-docker run --rm \
-  -e PIPELEEK_TOKEN=glpat-[redacted] \
-  -e PIPELEEK_GITLAB=https://gitlab.example.com \
-  ghcr.io/compasssecurity/pipeleek:latest gl scan
-```
-
-To use a local configuration file inside the container, mount it as a volume:
-
-```bash
-docker run --rm \
-  -v /path/to/pipeleek.yaml:/root/pipeleek.yaml:ro \
-  ghcr.io/compasssecurity/pipeleek:latest gl scan
-```
-
-The image supports both `linux/amd64` and `linux/arm64` architectures. Versioned tags are available for pinning to a specific release (e.g., `ghcr.io/compasssecurity/pipeleek:1.0.0`).
-
 ### Platform-Specific Binaries
 
 Pipeleek also provides platform-specific binaries that include only the commands for a specific platform. These are smaller and can be downloaded manually at [Pipeleek GitHub Releases](https://github.com/CompassSecurity/pipeleek/releases):
