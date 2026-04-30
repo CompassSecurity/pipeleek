@@ -124,10 +124,9 @@ gitlab:
       search: "" # gl snippets scan --search
       owned: false # gl snippets scan --owned
       member: false # gl snippets scan --member
-      threads: 10 # gl snippets scan --threads (can override common.threads)
-      trufflehog_verification: true # gl snippets scan --truffle-hog-verification
-      confidence_filter: [medium, high] # gl snippets scan --confidence
-      hit_timeout: 120 # gl snippets scan --hit-timeout (seconds)
+      # Runtime scan settings come from common.*:
+      # common.threads, common.trufflehog_verification,
+      # common.confidence_filter, common.hit_timeout (duration, e.g. "120s")
 
   tf:
     output_dir: ./terraform-states # gl tf --output-dir

@@ -114,10 +114,8 @@ gitlab:
       search: "" # Optional: filter projects by search query (used with default/group scope)
       owned: false # Scan only user-owned projects for project-scoped snippet scan
       member: false # Scan only projects where token user is a member
-      threads: 10 # Override common.threads for snippet scanning
-      trufflehog_verification: true # Override common.trufflehog_verification
-      confidence_filter: ["medium", "high"] # Override common.confidence_filter
-      hit_timeout: 5 # Override common.hit_timeout (seconds)
+      # Runtime scan settings for snippets come from common.*
+      # (threads, trufflehog_verification, confidence_filter, hit_timeout)
 
   # tf - Discover and scan Terraform/OpenTofu state files
   tf:
