@@ -10,6 +10,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/scan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/schedule"
 	securefiles "github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/secureFiles"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/tf"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
@@ -52,6 +53,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(container.NewContainerScanCmd())
 	glCmd.AddCommand(cicd.NewCiCdCmd())
 	glCmd.AddCommand(schedule.NewScheduleCmd())
+	glCmd.AddCommand(snippets.NewSnippetsRootCmd())
 	glCmd.AddCommand(tf.NewTFCmd())
 
 	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")

@@ -117,6 +117,17 @@ gitlab:
   scan:
     threads: 10 # gl scan --threads (can override common.threads)
 
+  snippets:
+    scan:
+      project: group/project # gl snippets scan --project
+      namespace: group # gl snippets scan --namespace
+      search: "" # gl snippets scan --search
+      owned: false # gl snippets scan --owned
+      member: false # gl snippets scan --member
+      # Runtime scan settings come from common.*:
+      # common.threads, common.trufflehog_verification,
+      # common.confidence_filter, common.hit_timeout (duration, e.g. "120s")
+
   tf:
     output_dir: ./terraform-states # gl tf --output-dir
     threads: 4 # gl tf --threads (can override common.threads)

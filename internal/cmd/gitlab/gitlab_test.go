@@ -6,6 +6,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/register"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/shodan"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,11 @@ func TestNewGitLabRootCmd(t *testing.T) {
 	tokenFlag := flags.Lookup("token")
 	assert.NotNil(t, tokenFlag, "'token' persistent flag should be registered")
 	assert.Equal(t, "", tokenFlag.DefValue, "'token' flag default should be empty")
+
+	snippetsCmd, _, err := cmd.Find([]string{"snippets"})
+	require.NoError(t, err)
+	require.NotNil(t, snippetsCmd)
+	assert.Equal(t, "snippets", snippetsCmd.Name())
 }
 
 func TestNewVulnCmd(t *testing.T) {
@@ -86,4 +92,17 @@ func TestNewShodanCmd(t *testing.T) {
 	jsonFlag := flags.Lookup("json")
 	assert.NotNil(t, jsonFlag, "'json' flag should be registered")
 	assert.Equal(t, "", jsonFlag.DefValue, "'json' flag default should be empty string (path to Shodan JSON file)")
+}
+
+func TestNewSnippetsRootCmd(t *testing.T) {
+	cmd := snippets.NewSnippetsRootCmd()
+
+	require.NotNil(t, cmd, "NewSnippetsRootCmd should return non-nil command")
+	assert.Equal(t, "snippets", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+
+	scanCmd, _, err := cmd.Find([]string{"scan"})
+	require.NoError(t, err)
+	require.NotNil(t, scanCmd)
+	assert.Equal(t, "scan", scanCmd.Name())
 }
