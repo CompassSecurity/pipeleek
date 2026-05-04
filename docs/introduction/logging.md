@@ -115,12 +115,12 @@ Using Kibana you can filter for interesting messages, based on the JSON attribut
 
 ### Docker Compose Example (Shared Config + One-Shot Jobs)
 
-An end-to-end Docker Compose example is available at `examples/compose-elk/`.
+An end-to-end Docker Compose example is available in [examples/compose-elk](https://github.com/CompassSecurity/pipeleek/tree/main/examples/compose-elk).
 
 It includes:
 
 - One shared Pipeleek config file mounted read-only into all scanner containers
-- One-shot scanner services for all scan commands (`gl`, `gh`, `bb`, `ad`, `gitea`, `circle`, `jenkins`)
+- One-shot scanner services for all scan commands (`gl`, `gh`, `bb`, `ad`, `gitea`, `jenkins`)
 - Logstash TCP ingestion for Pipeleek JSON lines
 - Elasticsearch storage and Kibana visualization
 

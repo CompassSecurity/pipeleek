@@ -6,7 +6,7 @@ set -e
 KIBANA_URL="${KIBANA_URL:-http://localhost:5601}"
 DATA_VIEW_NAME="pipeleek-logs"
 INDEX_PATTERN="pipeleek-logs-*"
-KIBANA_VERSION="8.13.4"
+KIBANA_VERSION="${KIBANA_VERSION:-}"
 
 echo "Setting up Kibana data view..."
 
@@ -59,6 +59,20 @@ for attempt in $(seq 1 $MAX_RETRIES); do
 done
 
 # Set as default data view
+if [ -z "$KIBANA_VERSION" ]; then
+  echo "Detecting Kibana version..."
+  status_json=$(curl -s -X GET "$KIBANA_URL/api/status" -H "kbn-xsrf: true" 2>/dev/null || echo "")
+  status_json_compact=$(echo "$status_json" | tr -d '\n')
+  KIBANA_VERSION=$(echo "$status_json_compact" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*{[^}]*"number"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+fi
+
+if [ -z "$KIBANA_VERSION" ]; then
+  echo "  ✗ Unable to detect Kibana version from $KIBANA_URL/api/status"
+  echo "  Set KIBANA_VERSION manually and re-run setup-kibana.sh"
+  exit 1
+fi
+
+echo "Using Kibana config version: $KIBANA_VERSION"
 echo "Setting as default data view..."
 curl -s -X POST "$KIBANA_URL/api/saved_objects/config/$KIBANA_VERSION" \
   -H "kbn-xsrf: true" \
