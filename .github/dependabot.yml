@@ -28,11 +28,3 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
-
-  # Docker base image dependencies
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
