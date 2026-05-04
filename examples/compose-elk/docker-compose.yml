@@ -8,6 +8,8 @@ x-pipeleek-job: &pipeleek-job
   working_dir: /work
   restart: "no"
   depends_on:
+    elasticsearch:
+      condition: service_healthy
     logstash:
       condition: service_healthy
   volumes:
@@ -34,10 +36,16 @@ x-pipeleek-job: &pipeleek-job
       echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=starting" >&2
       start_epoch=$$(date +%s)
 
+      raw_json_log="/tmp/pipeleek-raw.jsonl"
+      forwarded_json_log="/tmp/pipeleek-forwarded.jsonl"
+      rm -f "$${raw_json_log}" "$${forwarded_json_log}"
+
       (
         "$${pipeleek_bin}" --config "$${PIPELEEK_CONFIG_PATH}" $${PIPELEEK_SCAN_COMMAND} --json \
-          | jq -c --arg scan_job "$${SCAN_JOB}" '. + {scan_job: $$scan_job, source: "docker-compose"}' \
-          | nc -q0 logstash 5000
+          | tee "$${raw_json_log}" \
+          | jq -cR --arg scan_job "$${SCAN_JOB}" 'fromjson? | select(type == "object") | . + {scan_job: $$scan_job, source: "docker-compose"}' \
+          | tee "$${forwarded_json_log}" \
+          | nc -q1 logstash 5000
       ) &
       scan_pid=$$!
 
@@ -53,6 +61,13 @@ x-pipeleek-job: &pipeleek-job
       scan_exit=$$?
       total_elapsed=$$(( $$(date +%s) - start_epoch ))
 
+      raw_lines=$$(wc -l < "$${raw_json_log}" 2>/dev/null || echo 0)
+      forwarded_lines=$$(wc -l < "$${forwarded_json_log}" 2>/dev/null || echo 0)
+      raw_hits=$$(grep -c '"level":"hit"' "$${raw_json_log}" 2>/dev/null || true)
+      forwarded_hits=$$(grep -c '"level":"hit"' "$${forwarded_json_log}" 2>/dev/null || true)
+
+      echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} stats raw_lines=$${raw_lines} forwarded_lines=$${forwarded_lines} raw_hits=$${raw_hits} forwarded_hits=$${forwarded_hits}" >&2
+
       if [ "$$scan_exit" -eq 0 ]; then
         echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=completed elapsed=$${total_elapsed}s" >&2
       else
@@ -64,12 +79,16 @@ x-pipeleek-job: &pipeleek-job
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    restart: unless-stopped
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.ml.enabled=false
+      - ES_JAVA_OPTS=-Xms384m -Xmx384m
     ports:
       - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
       interval: 10s
@@ -80,11 +99,14 @@ services:
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.13.4
+    restart: unless-stopped
     depends_on:
       elasticsearch:
         condition: service_healthy
     environment:
-      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+      - LS_JAVA_OPTS=-Xms192m -Xmx192m
+      - PIPELINE_WORKERS=1
+      - PIPELINE_BATCH_SIZE=50
     ports:
       - "5000:5000"
     volumes:
@@ -100,6 +122,7 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.4
+    restart: unless-stopped
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -109,24 +132,13 @@ services:
       - "5601:5601"
     networks:
       - elk
-
-  scan-circle:
-    <<: *pipeleek-job
-    profiles: ["jobs", "circle"]
-    environment:
-      <<: *pipeleek-job-env
-      SCAN_JOB: circle
-      PIPELEEK_SCAN_COMMAND: circle scan
-    networks:
-      - elk
-
   scan-gitlab:
     <<: *pipeleek-job
     profiles: ["jobs", "gitlab"]
     environment:
       <<: *pipeleek-job-env
       SCAN_JOB: gitlab
-      PIPELEEK_SCAN_COMMAND: gl scan -a --search gcp -v -j 15 --max-artifact-size 50mb
+      PIPELEEK_SCAN_COMMAND: gl scan -a -o -v -j 4 --max-artifact-size 50mb --truffle-hog-verification=true --search aws
     networks:
       - elk
 
@@ -183,3 +195,6 @@ services:
 networks:
   elk:
     name: pipeleek-elk
+
+volumes:
+  elasticsearch-data:

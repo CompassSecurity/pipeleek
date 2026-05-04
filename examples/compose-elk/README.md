@@ -6,11 +6,10 @@ This example runs Pipeleek scan jobs as one-shot containers and forwards all JSO
 
 - One shared Pipeleek config file mounted read-only in every scan-job container.
 - One Elasticsearch instance.
-- Elasticsearch heap is tuned to 512MB for better stability in constrained local/dev environments.
+- Elasticsearch heap is tuned to 384MB for better stability in constrained local/dev environments.
 - One Kibana instance.
-- One Logstash instance that accepts newline-delimited JSON on TCP port 5000 and is tuned to 256MB heap for local/dev environments.
+- One Logstash instance that accepts newline-delimited JSON on TCP port 5000 and is tuned to 192MB heap for local/dev environments.
 - One service definition per scan job:
-  - `scan-circle`
   - `scan-gitlab`
   - `scan-github`
   - `scan-bitbucket`
@@ -45,10 +44,8 @@ This script:
 **Manual alternative** (if you prefer to control services separately):
 
 ```bash
-DOCKER_API_VERSION=1.43 docker compose up -d elasticsearch logstash kibana
+docker compose up -d elasticsearch logstash kibana
 ```
-
-If you get an error like `client version 1.53 is too new. Maximum supported API version is 1.43`, use the `DOCKER_API_VERSION` prefix shown above.
 
 Then manually setup the index template and Kibana data view:
 
@@ -62,20 +59,6 @@ bash setup-kibana.sh
 Run any individual scan job with:
 
 ```bash
-DOCKER_API_VERSION=1.43 docker compose --profile circle run --rm scan-circle
-DOCKER_API_VERSION=1.43 docker compose --profile gitlab run --rm scan-gitlab
-DOCKER_API_VERSION=1.43 docker compose --profile github run --rm scan-github
-DOCKER_API_VERSION=1.43 docker compose --profile bitbucket run --rm scan-bitbucket
-DOCKER_API_VERSION=1.43 docker compose --profile devops run --rm scan-devops
-DOCKER_API_VERSION=1.43 docker compose --profile gitea run --rm scan-gitea
-DOCKER_API_VERSION=1.43 docker compose --profile jenkins run --rm scan-jenkins
-```
-
-Or export once for your shell session:
-
-```bash
-export DOCKER_API_VERSION=1.43
-docker compose --profile circle run --rm scan-circle
 docker compose --profile gitlab run --rm scan-gitlab
 docker compose --profile github run --rm scan-github
 docker compose --profile bitbucket run --rm scan-bitbucket
@@ -132,62 +115,4 @@ For better searchability, logs are also normalized into common fields:
 
 ```bash
 bash setup-kibana.sh
-```
-
-## Notes
-
-- This is an example for local or lab environments.
-- The scanner containers are intentionally one-shot jobs (`restart: no`).
-- The shared config file is mounted read-only into every scanner service.
-- Scanner jobs install Pipeleek using the official install script.
-- If needed, customize installation behavior by editing the scanner entrypoint in `docker-compose.yml`.
-- The index template keeps common scan fields as keyword/boolean/date types to improve filtering and aggregations in Kibana.
-
-## Troubleshooting
-
-### Kibana readiness detection
-
-The `start-elk.sh` script includes robust checks to ensure Kibana is fully ready before attempting to create data views:
-
-- Monitors the Kibana status endpoint for availability indicators
-- Tests actual API calls to confirm SavedObjects API is operational (not just status responding)
-- Automatically retries data view creation up to 10 times with 2-second delays between attempts
-- Maximum wait time is ~4 minutes; if Kibana isn't ready by then, the script will exit with an error
-
-If you see "Kibana server is not ready yet" errors, the retry logic will automatically handle them.
-
-### Manual intervention
-
-If the automated setup fails, you can always run the setup script manually after Kibana boots:
-
-```bash
-bash setup-kibana.sh
-```
-
-Or manually create the data view in the Kibana UI (once the `pipeleek-logs-*` index pattern exists in Elasticsearch).
-
-### Scan job gets "Killed"
-
-If a scan job prints `Killed`, the most likely reason is host memory pressure and an OOM kill, not a Pipeleek application error.
-
-Typical causes in this example:
-
-- Elasticsearch, Logstash, and Kibana are already using a significant amount of RAM.
-- Running multiple scan jobs at the same time increases memory pressure further.
-- Large artifact scans and high thread counts increase Pipeleek memory usage.
-- This environment has no swap configured, so memory spikes are less forgiving.
-
-Ways to reduce the risk:
-
-- Run only one scan job at a time.
-- Stop older leftover scan containers before starting a new one.
-- Reduce thread count, for example `-j 4` or lower.
-- Reduce artifact size limits if you do not need large artifacts.
-- Avoid broad searches and very verbose scans until the pipeline is stable.
-
-Useful cleanup commands:
-
-```bash
-DOCKER_API_VERSION=1.43 docker compose ps
-DOCKER_API_VERSION=1.43 docker compose down --remove-orphans
 ```

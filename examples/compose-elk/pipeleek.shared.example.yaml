@@ -1,7 +1,6 @@
 common:
   threads: 4
   trufflehog_verification: true
-  confidence_filter: medium
 
 circle:
   url: https://circleci.com
