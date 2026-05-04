@@ -115,7 +115,7 @@ search_payload='{
   "attributes": {
     "title": "Pipeleek - Last 100 Scan Entries",
     "description": "Latest 100 hit events, filterable by platform and severity",
-    "columns": ["@timestamp", "scan_job", "confidence", "level", "ruleName", "url", "message"],
+    "columns": ["@timestamp", "scan_job", "confidence", "ruleName", "url", "value"],
     "sort": [["@timestamp", "desc"]],
     "kibanaSavedObjectMeta": {
       "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"level:hit\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\",\"size\":100}"
