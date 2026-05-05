@@ -35,8 +35,6 @@ azure_devops:
 gitea:
   url: https://gitea.example.com
   token: gitea_REPLACE_ME
-  scan:
-    owner: my-org
 
 jenkins:
   url: https://jenkins.example.com
