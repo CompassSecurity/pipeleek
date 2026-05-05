@@ -25,6 +25,17 @@ See if you can already identify potentially sensitive data e.g. credentials in s
 The next step would be to try to create an account. Head to `https://leakycompany.com/users/sign_up` and try to register a new account.
 Sometimes you can only create an account with an email address managed by the customer, some instances require the admins to accept the register request, and others completely disable it.
 
+## Anonymous Secret Scan
+
+If there is no possibility to register an account and perform an authenticated secrets scan, you can still scan all publicly available CI/CD logs using Pipeleek's unauthenticated mode.
+
+Prefer the authenticated scan over the unauthenticated one whenever possible, as it provides broader coverage.
+
+```bash
+# Scan all publicly accessible CI/CD logs, including artifacts (breadth-first)
+pipeleek gluna scan -g https://leakycompany.com -a --job-limit 10
+```
+
 ## Authenticated Access
 
 Sweet now you have access to the GitLab instance with an account.

@@ -107,12 +107,20 @@ gitlab:
     privesc: {} # gl renovate privesc (inherits url/token)
 
   register:
-    username: newuser # gl register --username
-    password: secret # gl register --password
-    email: user@example.com # gl register --email
+    username: newuser # gluna register --username
+    password: secret # gluna register --password
+    email: user@example.com # gluna register --email
 
   shodan:
-    json: shodan_data.json # gl shodan --json
+    json: shodan_data.json # gluna shodan --json
+
+  scan_public:
+    search: "" # gluna scan --search
+    repo: "" # gluna scan --repo
+    namespace: "" # gluna scan --namespace
+    job_limit: 0 # gluna scan --job-limit
+    queue: "" # gluna scan --queue
+    artifacts: false # gluna scan --artifacts
 
   scan:
     threads: 10 # gl scan --threads (can override common.threads)

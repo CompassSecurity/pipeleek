@@ -5,6 +5,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/enum"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/register"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/scanpublic"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/shodan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
@@ -105,4 +106,37 @@ func TestNewSnippetsRootCmd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, scanCmd)
 	assert.Equal(t, "scan", scanCmd.Name())
+}
+
+func TestNewGitLabRootUnauthenticatedCmd(t *testing.T) {
+	cmd := NewGitLabRootUnauthenticatedCmd()
+
+	require.NotNil(t, cmd)
+	assert.Equal(t, "gluna [command]", cmd.Use)
+	assert.Equal(t, "Helper", cmd.GroupID)
+
+	shodanCmd, _, err := cmd.Find([]string{"shodan"})
+	require.NoError(t, err)
+	assert.NotNil(t, shodanCmd)
+
+	registerCmd, _, err := cmd.Find([]string{"register"})
+	require.NoError(t, err)
+	assert.NotNil(t, registerCmd)
+
+	publicScanCmd, _, err := cmd.Find([]string{"scan"})
+	require.NoError(t, err)
+	assert.NotNil(t, publicScanCmd)
+}
+
+func TestNewScanPublicCmd(t *testing.T) {
+	cmd := scanpublic.NewScanPublicCmd()
+
+	require.NotNil(t, cmd)
+	assert.Equal(t, "scan", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+
+	flags := cmd.Flags()
+	assert.NotNil(t, flags.Lookup("repo"), "'repo' flag should be registered")
+	assert.NotNil(t, flags.Lookup("namespace"), "'namespace' flag should be registered")
+	assert.NotNil(t, flags.Lookup("search"), "'search' flag should be registered")
 }

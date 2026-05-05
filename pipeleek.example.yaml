@@ -90,15 +90,24 @@ gitlab:
     bots:
       term: "renovate" # Search term for identifying potential renovate bot users
 
-  # register - Register new user account
+  # register - Register new user account (gluna register)
   register:
     username: "newuser"
     password: "securepassword"
     email: "newuser@example.com"
 
-  # shodan - Query Shodan for GitLab instances
+  # shodan - Query Shodan for GitLab instances (gluna shodan)
   shodan:
     json: "shodan_data.json" # Path to Shodan JSON export
+
+  # scan - Scan public pipelines without account or token (gluna scan)
+  scan_public:
+    search: "" # Optional project search query
+    repo: "" # Optional single repository namespace/project
+    namespace: "" # Optional namespace/group to scan
+    job_limit: 0 # Max jobs per project; 0 scans all
+    queue: "" # Optional queue folder path
+    artifacts: false # Scan artifacts in addition to job traces
 
   # scan - Scan CI/CD artifacts for secrets
   scan:
