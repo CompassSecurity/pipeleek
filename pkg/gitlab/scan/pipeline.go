@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,6 +42,10 @@ type ScanOptions struct {
 func ScanGitLabPipelines(options *ScanOptions) {
 	globQueue, queueFileName = setupQueue(options)
 	system.RegisterGracefulShutdownHandler(cleanUp)
+
+	if isUnauthenticatedMode(options) {
+		log.Info().Msg("Running in unauthenticated mode: only publicly accessible resources will be scanned")
+	}
 
 	runner.InitScanner(options.ConfidenceFilter)
 	if !options.TruffleHogVerification {
@@ -91,10 +96,18 @@ func scanRepository(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup
 
 	project, resp, err := git.Projects.GetProject(options.Repository, &gitlab.GetProjectOptions{})
 	if err != nil {
+		if isUnauthenticatedMode(options) {
+			log.Warn().Err(err).Str("repository", options.Repository).Msg("Repository is not publicly accessible in unauthenticated mode")
+			return
+		}
 		log.Fatal().Stack().Err(err).Str("repository", options.Repository).Msg("Failed fetching project by repository name")
 	}
 
-	if resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == 404 {
+		if isUnauthenticatedMode(options) {
+			log.Warn().Str("repository", options.Repository).Msg("Project not found or not publicly accessible")
+			return
+		}
 		log.Fatal().Str("repository", options.Repository).Msg("Project not found")
 	}
 
@@ -109,6 +122,10 @@ func scanNamespace(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 	group, _, err := git.Groups.GetGroup(options.Namespace, &gitlab.GetGroupOptions{})
 
 	if err != nil {
+		if isUnauthenticatedMode(options) {
+			log.Warn().Err(err).Str("namespace", options.Namespace).Msg("Namespace is not publicly accessible in unauthenticated mode")
+			return
+		}
 		log.Fatal().Stack().Err(err).Msg("Failed fetching namespace")
 	}
 
@@ -189,6 +206,11 @@ func fetchProjects(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 
 func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOptions) {
 
+	if isUnauthenticatedMode(options) {
+		getAllJobsViaPipelines(git, project, options)
+		return
+	}
+
 	opts := &gitlab.ListJobsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
@@ -207,7 +229,7 @@ jobOut:
 			break
 		}
 
-		if resp.StatusCode == 403 {
+		if resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 403) {
 			break
 		}
 
@@ -250,6 +272,85 @@ jobOut:
 		opts.Page = resp.NextPage
 	}
 
+}
+
+func isUnauthenticatedMode(options *ScanOptions) bool {
+	return strings.TrimSpace(options.GitlabApiToken) == ""
+}
+
+// getAllJobsViaPipelines enqueues jobs by iterating pipelines then their jobs.
+// Used as a fallback for unauthenticated mode where the project-level jobs API is restricted.
+func getAllJobsViaPipelines(git *gitlab.Client, project *gitlab.Project, options *ScanOptions) {
+	pipelineOpts := &gitlab.ListProjectPipelinesOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+			Page:    1,
+		},
+	}
+
+	currentJobCtr := 0
+
+pipelineOut:
+	for {
+		pipelines, resp, err := git.Pipelines.ListProjectPipelines(project.ID, pipelineOpts)
+		if err != nil || (resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 403)) {
+			log.Trace().Err(err).Str("project", project.PathWithNamespace).Msg("Pipelines not publicly accessible, skipping")
+			break
+		}
+
+		for _, pipeline := range pipelines {
+			jobOpts := &gitlab.ListJobsOptions{
+				ListOptions: gitlab.ListOptions{
+					PerPage: 100,
+					Page:    1,
+				},
+			}
+			for {
+				jobs, jresp, jerr := git.Jobs.ListPipelineJobs(project.ID, pipeline.ID, jobOpts)
+				if jerr != nil || (jresp != nil && (jresp.StatusCode == 401 || jresp.StatusCode == 403)) {
+					break
+				}
+
+				for _, job := range jobs {
+					currentJobCtr++
+					log.Trace().Str("url", getJobUrl(git, project, job)).Msg("Enqueue job for scanning (via pipelines)")
+
+					var artifactSize int64
+					if job.ArtifactsFile.Size > 0 {
+						artifactSize = int64(job.ArtifactsFile.Size)
+					}
+
+					meta := QueueMeta{
+						JobId:                    int(job.ID),
+						ProjectId:                int(project.ID),
+						JobWebUrl:                getJobUrl(git, project, job),
+						JobName:                  job.Name,
+						ProjectPathWithNamespace: project.PathWithNamespace,
+						ArtifactSize:             artifactSize,
+					}
+					enqueueItem(globQueue, QueueItemJobTrace, meta, waitGroup)
+
+					if options.Artifacts {
+						enqueueItem(globQueue, QueueItemArtifact, meta, waitGroup)
+					}
+
+					if options.JobLimit > 0 && currentJobCtr >= options.JobLimit {
+						break pipelineOut
+					}
+				}
+
+				if jresp == nil || jresp.NextPage == 0 {
+					break
+				}
+				jobOpts.Page = jresp.NextPage
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		pipelineOpts.Page = resp.NextPage
+	}
 }
 
 func getJobUrl(git *gitlab.Client, project *gitlab.Project, job *gitlab.Job) string {

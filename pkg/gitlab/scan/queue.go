@@ -133,7 +133,7 @@ func enqueueItem(queue diskqueue.Interface, qType QueueItemType, meta QueueMeta,
 }
 
 func analyzeJobTrace(git *gitlab.Client, item QueueItem, options *ScanOptions) {
-	trace := getJobTrace(git, item.Meta.ProjectId, item.Meta.JobId)
+	trace := getJobTrace(git, item.Meta.ProjectId, item.Meta.JobId, item.Meta.JobWebUrl, options)
 	if len(trace) < 1 {
 		return
 	}
@@ -212,8 +212,18 @@ func analyzeDotenvArtifact(git *gitlab.Client, item QueueItem, options *ScanOpti
 	}
 }
 
-func getJobTrace(git *gitlab.Client, projectId int, jobId int) []byte {
-	reader, _, err := git.Jobs.GetTraceFile(projectId, int64(jobId))
+func getJobTrace(git *gitlab.Client, projectId int, jobId int, jobWebUrl string, options *ScanOptions) []byte {
+	if isUnauthenticatedMode(options) {
+		return getJobTraceViaWeb(jobWebUrl, options)
+	}
+
+	reader, resp, err := git.Jobs.GetTraceFile(projectId, int64(jobId))
+
+	if resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 404) {
+		log.Debug().Int("project", projectId).Int("job", jobId).Int("status", resp.StatusCode).Msg("Job trace is not publicly accessible")
+		return nil
+	}
+
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed fetching job trace")
 		return nil
@@ -227,11 +237,53 @@ func getJobTrace(git *gitlab.Client, projectId int, jobId int) []byte {
 	return trace
 }
 
+// getJobTraceViaWeb fetches a job trace using the public web raw URL (/-/jobs/:id/raw).
+// This works for public projects even without an API token.
+func getJobTraceViaWeb(jobWebUrl string, options *ScanOptions) []byte {
+	// jobWebUrl is like "gitlab.example.com/group/project/-/jobs/123"
+	// We need "https://gitlab.example.com/group/project/-/jobs/123/raw"
+	rawURL := "https://" + jobWebUrl + "/raw"
+
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		log.Debug().Err(err).Str("url", rawURL).Msg("Failed building request for web trace")
+		return nil
+	}
+
+	if options.GitlabCookie != "" {
+		req.Header.Set("Cookie", "_gitlab_session="+options.GitlabCookie)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Debug().Err(err).Str("url", rawURL).Msg("Failed fetching job trace via web URL")
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 404 {
+		log.Debug().Str("url", rawURL).Int("status", resp.StatusCode).Msg("Job trace not accessible via web URL")
+		return nil
+	}
+
+	trace, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Debug().Err(err).Str("url", rawURL).Msg("Failed reading web trace response")
+		return nil
+	}
+
+	return trace
+}
+
 func getJobArtifacts(git *gitlab.Client, projectId int, jobId int, jobWebUrl string, options *ScanOptions) []byte {
 	artifactsReader, resp, err := git.Jobs.GetJobArtifacts(projectId, int64(jobId))
 
 	if resp != nil {
-		if resp.StatusCode == 404 {
+		if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 404 {
+			if resp.StatusCode != 404 {
+				log.Debug().Int("project", projectId).Int("job", jobId).Int("status", resp.StatusCode).Str("url", jobWebUrl).Msg("Job artifacts are not publicly accessible")
+			}
 			return nil
 		}
 	}
