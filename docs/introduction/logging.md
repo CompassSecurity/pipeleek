@@ -134,3 +134,6 @@ docker compose --profile gitlab run --rm scan-gitlab
 ```
 
 Then open Kibana at `http://localhost:5601` and visit the dashboard.
+
+Example after running some scans for a while.
+![ELK dashboard](elk-dashboard.png)
