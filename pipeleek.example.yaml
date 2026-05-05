@@ -100,7 +100,7 @@ gitlab:
   shodan:
     json: "shodan_data.json" # Path to Shodan JSON export
 
-  # scan-public - Scan public pipelines without account or token (gluna scan-public)
+  # scan - Scan public pipelines without account or token (gluna scan)
   scan_public:
     search: "" # Optional project search query
     repo: "" # Optional single repository namespace/project

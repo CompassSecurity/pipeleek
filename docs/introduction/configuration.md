@@ -115,12 +115,12 @@ gitlab:
     json: shodan_data.json # gluna shodan --json
 
   scan_public:
-    search: "" # gluna scan-public --search
-    repo: "" # gluna scan-public --repo
-    namespace: "" # gluna scan-public --namespace
-    job_limit: 0 # gluna scan-public --job-limit
-    queue: "" # gluna scan-public --queue
-    artifacts: false # gluna scan-public --artifacts
+    search: "" # gluna scan --search
+    repo: "" # gluna scan --repo
+    namespace: "" # gluna scan --namespace
+    job_limit: 0 # gluna scan --job-limit
+    queue: "" # gluna scan --queue
+    artifacts: false # gluna scan --artifacts
 
   scan:
     threads: 10 # gl scan --threads (can override common.threads)

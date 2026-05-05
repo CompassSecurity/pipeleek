@@ -30,7 +30,7 @@ var maxArtifactSize string
 
 func NewScanPublicCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
-		Use:   "scan-public",
+		Use:   "scan",
 		Short: "Scan public GitLab pipelines without an account",
 		Long: `Scan public GitLab project pipelines for secrets in job traces and optionally artifacts.
 
@@ -38,16 +38,16 @@ This command does not require an API token and only covers resources that are pu
 Dotenv artifacts are intentionally not scanned in this mode because they require a UI session cookie.`,
 		Example: `
 # Scan public project pipelines and traces
-pipeleek gluna scan-public --gitlab https://gitlab.example.com
+pipeleek gluna scan --gitlab https://gitlab.example.com
 
 # Scan public pipelines with artifacts and tuned performance
-pipeleek gluna scan-public --gitlab https://gitlab.example.com --artifacts --job-limit 10 --max-artifact-size 200Mb --threads 8
+pipeleek gluna scan --gitlab https://gitlab.example.com --artifacts --job-limit 10 --max-artifact-size 200Mb --threads 8
 
 # Scan one public repository
-pipeleek gluna scan-public --gitlab https://gitlab.example.com --repo mygroup/myproject
+pipeleek gluna scan --gitlab https://gitlab.example.com --repo mygroup/myproject
 
 # Scan all public repositories in a namespace
-pipeleek gluna scan-public --gitlab https://gitlab.example.com --namespace mygroup
+pipeleek gluna scan --gitlab https://gitlab.example.com --namespace mygroup
 		`,
 		Run: ScanPublic,
 	}

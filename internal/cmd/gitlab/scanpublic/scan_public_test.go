@@ -12,10 +12,10 @@ func TestNewScanPublicCmd(t *testing.T) {
 	cmd := NewScanPublicCmd()
 
 	require.NotNil(t, cmd)
-	assert.Equal(t, "scan-public", cmd.Use)
+	assert.Equal(t, "scan", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.Contains(t, cmd.Long, "does not require an API token")
-	assert.Contains(t, cmd.Example, "gluna scan-public")
+	assert.Contains(t, cmd.Example, "gluna scan --gitlab")
 
 	flags := cmd.Flags()
 	assert.NotNil(t, flags.Lookup("search"))

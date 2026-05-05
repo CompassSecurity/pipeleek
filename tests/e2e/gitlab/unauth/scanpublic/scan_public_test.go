@@ -55,7 +55,7 @@ func TestGLunaScanPublic_UsesPipelineJobsAndRawTrace(t *testing.T) {
 	defer cleanup()
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gluna", "scan-public",
+		"gluna", "scan",
 		"--gitlab", server.URL + "/gitlab",
 		"--repo", "group/project",
 		"--job-limit", "1",

@@ -123,7 +123,7 @@ func TestNewGitLabRootUnauthenticatedCmd(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, registerCmd)
 
-	publicScanCmd, _, err := cmd.Find([]string{"scan-public"})
+	publicScanCmd, _, err := cmd.Find([]string{"scan"})
 	require.NoError(t, err)
 	assert.NotNil(t, publicScanCmd)
 }
@@ -132,7 +132,7 @@ func TestNewScanPublicCmd(t *testing.T) {
 	cmd := scanpublic.NewScanPublicCmd()
 
 	require.NotNil(t, cmd)
-	assert.Equal(t, "scan-public", cmd.Use)
+	assert.Equal(t, "scan", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 
 	flags := cmd.Flags()
