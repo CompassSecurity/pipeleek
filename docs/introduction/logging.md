@@ -112,3 +112,28 @@ pipeleek gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com  -
 ```
 
 Using Kibana you can filter for interesting messages, based on the JSON attributes of the output.
+
+### ELK Docker Compose Example (Shared Config + One-Shot Jobs)
+
+A Docker Compose example is available in [examples/compose-elk](https://github.com/CompassSecurity/pipeleek/tree/main/examples/compose-elk).
+
+It includes:
+
+- Elasticsearch storage and Kibana visualization
+- One shared Pipeleek config file mounted read-only into all scanner containers
+- One-shot scanner services for all scan commands (`gl`, `gh`, `bb`, `ad`, `gitea`, `jenkins`)
+- Logstash TCP ingestion for Pipeleek JSON lines
+
+Quick start:
+
+```bash
+git clone https://github.com/CompassSecurity/pipeleek.git
+cd pipeleek/examples/compose-elk
+bash start-elk.sh
+docker compose --profile gitlab run --rm scan-gitlab
+```
+
+Then open Kibana at `http://localhost:5601` and visit the dashboard.
+
+Example after running some scans for a while.
+![ELK dashboard](elk-dashboard.png)

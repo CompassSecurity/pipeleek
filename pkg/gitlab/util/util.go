@@ -104,6 +104,7 @@ func GetGitlabClient(token string, url string) (*gitlab.Client, error) {
 func CookieSessionValid(gitlabUrl string, cookieVal string) {
 	gitlabSessionsUrl, _ := url.JoinPath(gitlabUrl, "-/user_settings/active_sessions")
 
+	//nolint:gosec
 	client := httpclient.GetPipeleekHTTPClient(gitlabUrl, []*http.Cookie{{Name: "_gitlab_session", Value: cookieVal}}, nil)
 	resp, err := client.Get(gitlabSessionsUrl)
 	if err != nil {

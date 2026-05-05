@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
@@ -120,9 +121,12 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
-	if hitTimeoutSeconds := config.GetInt("common.hit_timeout"); hitTimeoutSeconds > 0 {
-		options.HitTimeout = time.Duration(hitTimeoutSeconds) * time.Second
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
+	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(options.CircleURL, "CircleCI URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid CircleCI URL")

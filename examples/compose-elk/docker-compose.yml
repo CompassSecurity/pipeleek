@@ -1,0 +1,209 @@
+name: pipeleek-elk
+
+x-pipeleek-job-env: &pipeleek-job-env
+  PIPELEEK_CONFIG_PATH: /config/pipeleek.yaml
+
+x-pipeleek-job: &pipeleek-job
+  image: alpine:3.20
+  working_dir: /work
+  restart: "no"
+  depends_on:
+    elasticsearch:
+      condition: service_healthy
+    logstash:
+      condition: service_healthy
+  volumes:
+    - ./pipeleek.shared.example.yaml:/config/pipeleek.yaml:ro
+  entrypoint:
+    - /bin/sh
+    - -ec
+    - |
+      apk add --no-cache ca-certificates curl jq netcat-openbsd
+      curl -sL https://compasssecurity.github.io/pipeleek/install.sh | sh
+
+      pipeleek_bin="$(command -v pipeleek || true)"
+      if [ -z "$${pipeleek_bin}" ] && [ -x /root/.local/bin/pipeleek ]; then
+        pipeleek_bin=/root/.local/bin/pipeleek
+      fi
+      if [ -z "$${pipeleek_bin}" ] && [ -x /usr/local/bin/pipeleek ]; then
+        pipeleek_bin=/usr/local/bin/pipeleek
+      fi
+      if [ -z "$${pipeleek_bin}" ]; then
+        echo "pipeleek binary not found after install script execution" >&2
+        exit 1
+      fi
+
+      echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=starting" >&2
+      start_epoch=$$(date +%s)
+
+      raw_json_log="/tmp/pipeleek-raw.jsonl"
+      forwarded_json_log="/tmp/pipeleek-forwarded.jsonl"
+      rm -f "$${raw_json_log}" "$${forwarded_json_log}"
+
+      (
+        "$${pipeleek_bin}" --config "$${PIPELEEK_CONFIG_PATH}" $${PIPELEEK_SCAN_COMMAND} --json \
+          | tee "$${raw_json_log}" \
+          | jq -cR --arg scan_job "$${SCAN_JOB}" 'fromjson? | select(type == "object") | . + {scan_job: $$scan_job, source: "docker-compose"}' \
+          | tee "$${forwarded_json_log}" \
+          | nc -q1 logstash 5000
+      ) &
+      scan_pid=$$!
+
+      while kill -0 "$$scan_pid" 2>/dev/null; do
+        sleep 30
+        if kill -0 "$$scan_pid" 2>/dev/null; then
+          elapsed=$$(( $$(date +%s) - start_epoch ))
+          echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=running elapsed=$${elapsed}s" >&2
+        fi
+      done
+
+      wait "$$scan_pid"
+      scan_exit=$$?
+      total_elapsed=$$(( $$(date +%s) - start_epoch ))
+
+      raw_lines=$$(wc -l < "$${raw_json_log}" 2>/dev/null || echo 0)
+      forwarded_lines=$$(wc -l < "$${forwarded_json_log}" 2>/dev/null || echo 0)
+      raw_hits=$$(grep -c '"level":"hit"' "$${raw_json_log}" 2>/dev/null || true)
+      forwarded_hits=$$(grep -c '"level":"hit"' "$${forwarded_json_log}" 2>/dev/null || true)
+
+      echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} stats raw_lines=$${raw_lines} forwarded_lines=$${forwarded_lines} raw_hits=$${raw_hits} forwarded_hits=$${forwarded_hits}" >&2
+
+      if [ "$$scan_exit" -eq 0 ]; then
+        echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=completed elapsed=$${total_elapsed}s" >&2
+      else
+        echo "[$$(date -u +%Y-%m-%dT%H:%M:%SZ)] scan-job=$${SCAN_JOB} status=failed exit_code=$$scan_exit elapsed=$${total_elapsed}s" >&2
+      fi
+
+      exit "$$scan_exit"
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.ml.enabled=false
+      - ES_JAVA_OPTS=-Xms384m -Xmx384m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.4
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - LS_JAVA_OPTS=-Xms192m -Xmx192m
+      - PIPELINE_WORKERS=1
+      - PIPELINE_BATCH_SIZE=50
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+  scan-gitlab:
+    <<: *pipeleek-job
+    profiles: ["jobs", "gitlab"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: gitlab
+      PIPELEEK_SCAN_COMMAND: gl scan -a -t glpat-o_FOY1xbz4GqXxk3I9JXoGM6MQpvOjEKdTo4dnI0Mg8.01.170gteqfo -j 10 -s iac -c cell-1-e881b0fb058ecc2a56c80aa9f2ec774b
+    networks:
+      - elk
+  scan-gitlab-gcp:
+    <<: *pipeleek-job
+    profiles: ["jobs", "gitlab"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: gitlab
+      PIPELEEK_SCAN_COMMAND: gl scan -a -t glpat-o_FOY1xbz4GqXxk3I9JXoGM6MQpvOjEKdTo4dnI0Mg8.01.170gteqfo -j 10 -s gcp -c cell-1-e881b0fb058ecc2a56c80aa9f2ec774b
+    networks:
+      - elk
+
+  scan-github:
+    <<: *pipeleek-job
+    profiles: ["jobs", "github"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: github
+      PIPELEEK_SCAN_COMMAND: gh scan
+    networks:
+      - elk
+
+  scan-bitbucket:
+    <<: *pipeleek-job
+    profiles: ["jobs", "bitbucket"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: bitbucket
+      PIPELEEK_SCAN_COMMAND: bb scan
+    networks:
+      - elk
+
+  scan-devops:
+    <<: *pipeleek-job
+    profiles: ["jobs", "devops"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: azure-devops
+      PIPELEEK_SCAN_COMMAND: ad scan
+    networks:
+      - elk
+
+  scan-gitea:
+    <<: *pipeleek-job
+    profiles: ["jobs", "gitea"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: gitea
+      PIPELEEK_SCAN_COMMAND: gitea scan
+    networks:
+      - elk
+
+  scan-jenkins:
+    <<: *pipeleek-job
+    profiles: ["jobs", "jenkins"]
+    environment:
+      <<: *pipeleek-job-env
+      SCAN_JOB: jenkins
+      PIPELEEK_SCAN_COMMAND: jenkins scan
+    networks:
+      - elk
+
+networks:
+  elk:
+    name: pipeleek-elk
+
+volumes:
+  elasticsearch-data:
