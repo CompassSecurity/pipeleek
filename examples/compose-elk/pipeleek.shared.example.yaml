@@ -17,8 +17,6 @@ gitlab:
 github:
   url: https://api.github.com
   token: ghp_REPLACE_ME
-  scan:
-    owner: my-github-org
 
 bitbucket:
   url: https://bitbucket.org
