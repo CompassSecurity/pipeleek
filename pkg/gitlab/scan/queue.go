@@ -296,6 +296,7 @@ func DownloadEnvArtifact(cookieVal string, gitlabUrl string, prjectPath string, 
 	reqUrl.RawQuery = q.Encode()
 	dotenvUrl = reqUrl.String()
 
+	//nolint:gosec
 	client := httpclient.GetPipeleekHTTPClient(gitlabUrl, []*http.Cookie{{Name: "_gitlab_session", Value: cookieVal}}, nil)
 	resp, err := client.Get(dotenvUrl)
 	if err != nil {

@@ -272,6 +272,7 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 
 	var httpClient *retryablehttp.Client
 	if cookie != "" {
+		//nolint:gosec
 		httpClient = httpclient.GetPipeleekHTTPClient(
 			giteaURL,
 			[]*http.Cookie{
