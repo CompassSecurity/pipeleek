@@ -272,7 +272,7 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 
 	var httpClient *retryablehttp.Client
 	if cookie != "" {
-		//nolint:gosec
+		// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 		httpClient = httpclient.GetPipeleekHTTPClient(
 			giteaURL,
 			[]*http.Cookie{

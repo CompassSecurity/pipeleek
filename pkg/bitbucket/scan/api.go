@@ -43,6 +43,7 @@ func NewClient(username string, password string, bitBucketCookie string, baseURL
 		jar, _ := cookiejar.New(nil)
 		// set cookie on the internal host root so requests to internal endpoints include it
 		targetURL := &url.URL{Scheme: parsedBase.Scheme, Host: internalHost, Path: "/"}
+		// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 		jar.SetCookies(targetURL, []*http.Cookie{
 			{
 				Name:  "cloud.session.token",
