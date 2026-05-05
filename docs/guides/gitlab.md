@@ -49,7 +49,7 @@ pipeleek gl vuln -g https://leakycompany.com -t glpat-[redacted]
 2024-11-14T14:29:05+01:00 info Fetching CVEs for this version version=17.5.1-ee
 ```
 
-## Enumerating CI/CD Variables And Secure Files
+## Enumerating Accessible Secrets
 
 If you already have access to projects and groups you can try to enumerate CI/CD variables and use these for potential privilege escalation/lateral movement paths.
 
@@ -63,10 +63,10 @@ pipeleek gl variables -g https://leakycompany.com -t glpat-[redacted]
 pipeleek gl schedule -g https://leakycompany.com -t glpat-[redacted]
 
 # Secure files are an alternative to variables and often times contain sensitive info
-pipeleek gl secureFiles  --gitlab https://leakycompany.com --token glpat-[redacted]
-2024-11-18T15:38:08Z info Fetching project variables
-2024-11-18T15:38:09Z warn Secure file content="this is a secure file!!" downloadUrl=https://leakycompany.com/api/v4/projects/60367314/secure_files/9149327/download
-2024-11-18T15:38:12Z info Fetched all secure files
+pipeleek gl secureFiles -g https://leakycompany.com -t glpat-[redacted]
+
+# Terraform states can contain secrets
+pipeleek gl tf --token -g https://leakycompany.com -t glpat-[redacted]
 ```
 
 ## Secret Detection in Source Code
@@ -79,7 +79,7 @@ Use Trufflehog to find hardcoded secrets in the source code:
 trufflehog gitlab --token=glpat-[redacted]
 ```
 
-Note: this only scanned repository you have access to. You can specify single repositories as well.
+Note: this only scans repositories you have access to. You can specify single repositories as well.
 
 ## Secret Detection in Pipelines And Artifacts
 
@@ -166,7 +166,7 @@ Review the findings manually and tweak the flags according to your needs.
 
 If you found any valid credentials, e.g. personal access tokens, cloud credentials, and so on, check if you can move laterally or escalate privileges.
 
-### An example of privilege escalation
+### An example of lateral movement
 
 Pipeleek identified the following based64 encode secret in the environment variable `CI_REPO_TOKEN`:
 
@@ -209,11 +209,11 @@ pipeleek gl enum -g https://gitlab.example.com -t glpat-[redacted]
 2025-09-29T12:25:52Z info Done
 ```
 
-Abusing this access token grants you access to the `another-project` repository, thus you escalated privileges to this repository.
+Abusing this access token grants you access to the `another-project` repository.
 
 ## Attacking Runners
 
-Chances are high that if pipelines are used, custom runners are registered. These come in different flavors. Most of the time the docker executor is used, which allows pipelines to define container images in which their commands are executed. For a full list of possibilities [rtfm](https://docs.gitlab.example.com/runner/executors/).
+Chances are high that if pipelines are used, custom runners are registered. These come in different flavors. Often times a container / docker based executor is used, which allows pipelines to define container images in which their commands are executed. For a full list of possibilities [rtfm](https://docs.gitlab.example.com/runner/executors/).
 
 If you can create projects or contribute to existing ones, you can interact with runners. We want to test if it is possible to escape from the runner context e.g. escape from the container to the host machine or if the runner leaks additional privileges e.g. in the form of attached files or environment variables set by the runner config.
 
@@ -231,7 +231,6 @@ $ pipeleek gl runners --token glpat-[redacted] --gitlab https://gitlab.example.c
 2024-09-26T14:26:55+02:00 info group runner description=blue-3.saas-linux-large-amd64.runners-manager.gitlab.example.com/default name=comp-test-ia paused=false runner=gitlab-runner tags=saas-linux-large-amd64 type=instance_type
 2024-09-26T14:26:55+02:00 info group runner description=green-1.saas-linux-2xlarge-amd64.runners-manager.gitlab.example.com/default name=comp-test-ia paused=false runner= tags=saas-linux-2xlarge-amd64 type=instance_type
 2024-09-26T14:26:55+02:00 info Unique runner tags tags=gitlab-org,saas-linux-large-arm64,windows,gitlab-org-docker,e2e-runner2,saas-macos-large-m2pro,saas-linux-xlarge-amd64,saas-linux-small-amd64,saas-linux-2xlarge-amd64,saas-linux-medium-amd64,saas-windows-medium-amd64,e2e-runner3,saas-linux-medium-arm64,saas-linux-medium-amd64-gpu-standard,saas-macos-medium-m1,shared-windows,saas-linux-large-amd64,windows-1809
-2024-09-26T14:26:55+02:00 info Done, Bye Bye 🏳️‍🌈🔥
 ```
 
 Review the runners and select the interesting ones. The Gitlab Ci/CD config file allows you to select runners by their tags. Thus we create a list of the most interesting tags, printed by the command above.
