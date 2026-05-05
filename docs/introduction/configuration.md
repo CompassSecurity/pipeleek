@@ -222,7 +222,8 @@ circle:
     project: [my-org/my-repo] # circle scan --project (optional if org is set)
     vcs: github # circle scan --vcs
     org: my-org # circle scan --org (also enables org-wide discovery when project is omitted)
-    # --org accepts: my-org, github/my-org, or app URL forms like
+    # --org accepts: my-org, github/my-org, circleci/my-org (required for native
+    # CircleCI orgs), or app URL forms like
     # https://app.circleci.com/pipelines/github/my-org/my-repo
     # Note: org-wide discovery requires token visibility to that org. If not,
     # use explicit --project selectors instead.
