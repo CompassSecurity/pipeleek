@@ -29,8 +29,6 @@ azure_devops:
   url: https://dev.azure.com/my-organization
   username: ado-user
   token: ado_REPLACE_ME
-  scan:
-    project: my-project
 
 gitea:
   url: https://gitea.example.com
