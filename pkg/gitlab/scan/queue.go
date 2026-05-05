@@ -240,11 +240,13 @@ func getJobTrace(git *gitlab.Client, projectId int, jobId int, jobWebUrl string,
 // getJobTraceViaWeb fetches a job trace using the public web raw URL (/-/jobs/:id/raw).
 // This works for public projects even without an API token.
 func getJobTraceViaWeb(jobWebUrl string, options *ScanOptions) []byte {
-	// jobWebUrl is like "gitlab.example.com/group/project/-/jobs/123"
-	// We need "https://gitlab.example.com/group/project/-/jobs/123/raw"
-	rawURL := "https://" + jobWebUrl + "/raw"
+	rawURL, err := url.JoinPath(jobWebUrl, "raw")
+	if err != nil {
+		log.Debug().Err(err).Str("url", jobWebUrl).Msg("Failed building raw job trace URL")
+		return nil
+	}
 
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
+	client := httpclient.GetPipeleekHTTPClient(options.GitlabUrl, nil, nil).StandardClient()
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		log.Debug().Err(err).Str("url", rawURL).Msg("Failed building request for web trace")
@@ -262,7 +264,7 @@ func getJobTraceViaWeb(jobWebUrl string, options *ScanOptions) []byte {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 404 {
+	if resp.StatusCode != http.StatusOK {
 		log.Debug().Str("url", rawURL).Int("status", resp.StatusCode).Msg("Job trace not accessible via web URL")
 		return nil
 	}
