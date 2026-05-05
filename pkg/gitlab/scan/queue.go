@@ -296,7 +296,7 @@ func DownloadEnvArtifact(cookieVal string, gitlabUrl string, prjectPath string, 
 	reqUrl.RawQuery = q.Encode()
 	dotenvUrl = reqUrl.String()
 
-	//nolint:gosec
+	// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 	client := httpclient.GetPipeleekHTTPClient(gitlabUrl, []*http.Cookie{{Name: "_gitlab_session", Value: cookieVal}}, nil)
 	resp, err := client.Get(dotenvUrl)
 	if err != nil {
