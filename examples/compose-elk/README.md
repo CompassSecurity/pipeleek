@@ -6,7 +6,6 @@ This example runs Pipeleek scan jobs as one-shot containers and forwards all JSO
 
 - One shared Pipeleek config file mounted read-only in every scan-job container.
 - One Elasticsearch instance.
-- Elasticsearch heap is tuned to 384MB for better stability in constrained local/dev environments.
 - One Kibana instance.
 - One Logstash instance that accepts newline-delimited JSON on TCP port 5000 and is tuned to 192MB heap for local/dev environments.
 - One service definition per scan job:
@@ -24,7 +23,6 @@ Edit `pipeleek.shared.example.yaml` and fill all token/url placeholders.
 The file is mounted into each scanner as:
 
 - Container path: `/config/pipeleek.yaml`
-- Access mode: read-only
 
 ## 2) Start ELK services
 
@@ -41,7 +39,7 @@ This script:
 3. Waits for Kibana to be ready
 4. Automatically creates and configures the Kibana data view for pipeleek logs
 
-**Manual alternative** (if you prefer to control services separately):
+**Manual alternative**:
 
 ```bash
 docker compose up -d elasticsearch logstash kibana

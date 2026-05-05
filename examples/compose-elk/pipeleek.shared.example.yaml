@@ -6,7 +6,7 @@ circle:
   url: https://circleci.com
   token: CCIPAT_REPLACE_ME
   scan:
-    org: KdZvpc432VpdV8UBajzc9f
+    org: KnZvpc232VpdV8UBcjzc9f
     vcs: github
     max_pipelines: 100
 
