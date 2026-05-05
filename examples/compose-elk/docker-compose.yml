@@ -138,7 +138,7 @@ services:
     environment:
       <<: *pipeleek-job-env
       SCAN_JOB: gitlab
-      PIPELEEK_SCAN_COMMAND: gl scan -a -c cell-1-fe187376be1d62f79e80dc20bf260bcc -v -j 15 --search terraform
+      PIPELEEK_SCAN_COMMAND: gl scan
     networks:
       - elk
 
