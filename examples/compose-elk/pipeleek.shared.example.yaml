@@ -24,8 +24,6 @@ bitbucket:
   url: https://bitbucket.org
   email: user@example.com
   token: ATATT_REPLACE_ME
-  scan:
-    workspace: my-workspace
 
 azure_devops:
   url: https://dev.azure.com/my-organization
