@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
@@ -82,6 +85,14 @@ func Scan(cmd *cobra.Command, args []string) {
 		"gitlab":                   "gitlab.url",
 		"token":                    "gitlab.token",
 		"cookie":                   "gitlab.cookie",
+		"search":                   "gitlab.scan.search",
+		"member":                   "gitlab.scan.member",
+		"repo":                     "gitlab.scan.repo",
+		"namespace":                "gitlab.scan.namespace",
+		"job-limit":                "gitlab.scan.job_limit",
+		"queue":                    "gitlab.scan.queue",
+		"artifacts":                "gitlab.scan.artifacts",
+		"owned":                    "gitlab.scan.owned",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -98,10 +109,24 @@ func Scan(cmd *cobra.Command, args []string) {
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
 	options.GitlabCookie = config.GetString("gitlab.cookie")
+	options.ProjectSearchQuery = config.GetString("gitlab.scan.search")
+	options.Member = config.GetBool("gitlab.scan.member")
+	options.Repository = config.GetString("gitlab.scan.repo")
+	options.Namespace = config.GetString("gitlab.scan.namespace")
+	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
+	options.QueueFolder = config.GetString("gitlab.scan.queue")
+	options.Artifacts = config.GetBool("gitlab.scan.artifacts")
+	options.Owned = config.GetBool("gitlab.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")

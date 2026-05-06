@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/bitbucket/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
@@ -69,6 +72,12 @@ func Scan(cmd *cobra.Command, args []string) {
 		"token":                    "bitbucket.token",
 		"email":                    "bitbucket.email",
 		"cookie":                   "bitbucket.cookie",
+		"workspace":                "bitbucket.scan.workspace",
+		"max-pipelines":            "bitbucket.scan.max_pipelines",
+		"public":                   "bitbucket.scan.public",
+		"after":                    "bitbucket.scan.after",
+		"artifacts":                "bitbucket.scan.artifacts",
+		"owned":                    "bitbucket.scan.owned",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -82,10 +91,22 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.AccessToken = config.GetString("bitbucket.token")
 	options.Email = config.GetString("bitbucket.email")
 	options.BitBucketCookie = config.GetString("bitbucket.cookie")
+	options.Workspace = config.GetString("bitbucket.scan.workspace")
+	options.MaxPipelines = config.GetInt("bitbucket.scan.max_pipelines")
+	options.Public = config.GetBool("bitbucket.scan.public")
+	options.After = config.GetString("bitbucket.scan.after")
+	options.Artifacts = config.GetBool("bitbucket.scan.artifacts")
+	options.Owned = config.GetBool("bitbucket.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	options.HitTimeout = hitTimeout
 
 	if options.AccessToken != "" && options.Email == "" {
 		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.email in config)")

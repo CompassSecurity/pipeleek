@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/devops/scan"
@@ -68,6 +71,11 @@ func Scan(cmd *cobra.Command, args []string) {
 		"devops":                   "azure_devops.url",
 		"token":                    "azure_devops.token",
 		"username":                 "azure_devops.username",
+		"organization":             "azure_devops.scan.organization",
+		"project":                  "azure_devops.scan.project",
+		"max-builds":               "azure_devops.scan.max_builds",
+		"artifacts":                "azure_devops.scan.artifacts",
+		"owned":                    "azure_devops.scan.owned",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -84,10 +92,21 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")
+	options.Organization = config.GetString("azure_devops.scan.organization")
+	options.Project = config.GetString("azure_devops.scan.project")
+	options.MaxBuilds = config.GetInt("azure_devops.scan.max_builds")
+	options.Artifacts = config.GetBool("azure_devops.scan.artifacts")
+	options.Owned = config.GetBool("azure_devops.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(options.DevOpsURL, "Azure DevOps URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid Azure DevOps URL")

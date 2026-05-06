@@ -1,4 +1,4 @@
-.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea build-circle test test-unit test-e2e lint clean coverage coverage-html serve-docs
+.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea build-circle test test-unit test-e2e lint clean coverage coverage-html serve-docs gen-config
 
 # Default target
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  make test-e2e         - Run e2e tests (builds binary first)"
 	@echo "  make coverage         - Generate test coverage report"
 	@echo "  make coverage-html    - Generate and open HTML coverage report"
+	@echo "  make gen-config       - Generate pipeleek.example.yaml from the config gen command"
 	@echo "  make lint             - Run golangci-lint"
 	@echo "  make serve-docs       - Generate and serve CLI documentation"
 	@echo "  make clean            - Remove built artifacts"
@@ -125,6 +126,12 @@ coverage-html: coverage
 	else \
 		echo "Open coverage.html in your browser to view the report"; \
 	fi
+
+# Generate pipeleek.example.yaml using the config gen command
+gen-config: build
+	@echo "Generating pipeleek.example.yaml..."
+	./pipeleek config gen --output pipeleek.example.yaml
+	@echo "pipeleek.example.yaml updated"
 
 # Run golangci-lint
 lint:
