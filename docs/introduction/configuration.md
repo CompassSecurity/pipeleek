@@ -28,6 +28,23 @@ pipeleek gl enum
 pipeleek gl scan
 ```
 
+## Generating a Configuration Template
+
+Generate a fully-commented configuration template with all available options:
+
+```bash
+# Print to stdout
+pipeleek config gen
+
+# Write to a file
+pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
+
+# Or use make (regenerates pipeleek.example.yaml)
+make gen-config
+```
+
+The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
+
 ## Priority Order
 
 Configuration sources are resolved in this order (highest to lowest):
