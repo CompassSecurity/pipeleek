@@ -14,6 +14,13 @@ var (
 	autodiscoveryUsername string
 )
 
+var flagBindings = map[string]string{
+	"github":    "github.url",
+	"token":     "github.token",
+	"repo-name": "github.renovate.autodiscovery.repo_name",
+	"username":  "github.renovate.autodiscovery.username",
+}
+
 func NewAutodiscoveryCmd() *cobra.Command {
 	autodiscoveryCmd := &cobra.Command{
 		Use:   "autodiscovery",
@@ -24,12 +31,7 @@ func NewAutodiscoveryCmd() *cobra.Command {
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":    "github.url",
-				"token":     "github.token",
-				"repo-name": "github.renovate.autodiscovery.repo_name",
-				"username":  "github.renovate.autodiscovery.username",
-			}); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

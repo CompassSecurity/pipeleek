@@ -8,6 +8,12 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+var flagBindings = map[string]string{
+	"gitlab": "gitlab.url",
+	"token":  "gitlab.token",
+	"level":  "gitlab.enum.level",
+}
+
 func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:     "enum",
@@ -24,11 +30,7 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab": "gitlab.url",
-		"token":  "gitlab.token",
-		"level":  "gitlab.enum.level",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

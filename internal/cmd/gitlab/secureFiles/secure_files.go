@@ -10,6 +10,11 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+var flagBindings = map[string]string{
+	"gitlab": "gitlab.url",
+	"token":  "gitlab.token",
+}
+
 func NewSecureFilesCmd() *cobra.Command {
 	secureFilesCmd := &cobra.Command{
 		Use:     "secureFiles",
@@ -25,10 +30,7 @@ func NewSecureFilesCmd() *cobra.Command {
 }
 
 func FetchSecureFiles(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab": "gitlab.url",
-		"token":  "gitlab.token",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

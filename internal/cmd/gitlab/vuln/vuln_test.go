@@ -1,4 +1,4 @@
-package variables
+package vuln
 
 import (
 	"testing"
@@ -7,16 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewVariablesCommand(t *testing.T) {
-	cmd := NewVariablesCommand()
-
+func TestNewVulnCmd(t *testing.T) {
+	cmd := NewVulnCmd()
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "variables", cmd.Use)
-	assert.Contains(t, cmd.Short, "Actions variables")
+	assert.Equal(t, "vuln", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+	assert.NotNil(t, cmd.Flags().Lookup("gitlab"))
+	assert.NotNil(t, cmd.Flags().Lookup("token"))
 }
 
-func TestVariablesCommand_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewVariablesCommand()
+func TestVulnCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewVulnCmd()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == "help" {
 			return

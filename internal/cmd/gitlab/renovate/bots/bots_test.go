@@ -1,4 +1,4 @@
-package secrets
+package bots
 
 import (
 	"testing"
@@ -7,8 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewSecretsCommand()
+func TestNewBotsCmd(t *testing.T) {
+	cmd := NewBotsCmd()
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "bots", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+	assert.NotNil(t, cmd.Flags().Lookup("term"))
+}
+
+func TestBotsCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewBotsCmd()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == "help" {
 			return
@@ -17,12 +25,4 @@ func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
 			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
 		}
 	})
-}
-
-func TestNewSecretsCommand(t *testing.T) {
-	cmd := NewSecretsCommand()
-
-	assert.NotNil(t, cmd)
-	assert.Equal(t, "secrets", cmd.Use)
-	assert.Contains(t, cmd.Short, "Actions secrets")
 }

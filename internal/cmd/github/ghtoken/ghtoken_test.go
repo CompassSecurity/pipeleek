@@ -1,6 +1,10 @@
 package ghtoken
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/spf13/pflag"
+)
 
 func TestNewGhTokenRootCmd(t *testing.T) {
 	cmd := NewGhTokenRootCmd()
@@ -38,4 +42,16 @@ func TestNewGhTokenRootCmd(t *testing.T) {
 	if !foundExploit {
 		t.Fatal("expected exploit subcommand to be registered")
 	}
+}
+
+func TestGhTokenCmd_AllDefinedFlagsAreBound(t *testing.T) {
+cmd := NewGhTokenRootCmd()
+cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+if flag.Name == "help" {
+return
+}
+if _, ok := flagBindings[flag.Name]; !ok {
+t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+}
+})
 }

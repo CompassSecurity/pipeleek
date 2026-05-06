@@ -29,6 +29,21 @@ var options = ScanPublicOptions{
 
 var maxArtifactSize string
 
+var flagBindings = map[string]string{
+	"gitlab":                   "gitlab.url",
+	"search":                   "gitlab.scan_public.search",
+	"repo":                     "gitlab.scan_public.repo",
+	"namespace":                "gitlab.scan_public.namespace",
+	"job-limit":                "gitlab.scan_public.job_limit",
+	"queue":                    "gitlab.scan_public.queue",
+	"artifacts":                "gitlab.scan_public.artifacts",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanPublicCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -68,20 +83,7 @@ pipeleek gluna scan --gitlab https://gitlab.example.com --namespace mygroup
 }
 
 func ScanPublic(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"search":                   "gitlab.scan_public.search",
-		"repo":                     "gitlab.scan_public.repo",
-		"namespace":                "gitlab.scan_public.namespace",
-		"job-limit":                "gitlab.scan_public.job_limit",
-		"queue":                    "gitlab.scan_public.queue",
-		"artifacts":                "gitlab.scan_public.artifacts",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

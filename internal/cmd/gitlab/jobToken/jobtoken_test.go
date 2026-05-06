@@ -3,6 +3,7 @@ package jobtoken
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,4 +33,16 @@ func TestNewJobTokenRootCmd(t *testing.T) {
 		}
 	}
 	assert.True(t, foundExploit, "jobToken command should have 'exploit' subcommand")
+}
+
+func TestJobTokenCmd_AllDefinedFlagsAreBound(t *testing.T) {
+cmd := NewJobTokenRootCmd()
+cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+if flag.Name == "help" {
+return
+}
+if _, ok := flagBindings[flag.Name]; !ok {
+t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+}
+})
 }

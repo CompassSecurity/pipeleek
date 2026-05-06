@@ -7,6 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagBindings = map[string]string{
+	"gitlab":   "gitlab.url",
+	"username": "gitlab.register.username",
+	"password": "gitlab.register.password",
+	"email":    "gitlab.register.email",
+}
+
 func NewRegisterCmd() *cobra.Command {
 	registerCmd := &cobra.Command{
 		Use:     "register",
@@ -14,12 +21,7 @@ func NewRegisterCmd() *cobra.Command {
 		Long:    "Register a new user to a Gitlab instance that allows self-registration. This command is best effort and might not work.",
 		Example: `pipeleek gl register --gitlab https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":   "gitlab.url",
-				"username": "gitlab.register.username",
-				"password": "gitlab.register.password",
-				"email":    "gitlab.register.email",
-			}); err != nil {
+				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

@@ -14,6 +14,11 @@ var (
 	githubUrl      string
 )
 
+var flagBindings = map[string]string{
+	"github": "github.url",
+	"token":  "github.token",
+}
+
 func NewGhTokenRootCmd() *cobra.Command {
 	ghTokenCmd := &cobra.Command{
 		Use:   "ghtoken",
@@ -25,10 +30,7 @@ func NewGhTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github": "github.url",
-				"token":  "github.token",
-			}); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

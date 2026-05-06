@@ -1,4 +1,4 @@
-package secrets
+package shodan
 
 import (
 	"testing"
@@ -7,8 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewSecretsCommand()
+func TestNewShodanCmd(t *testing.T) {
+	cmd := NewShodanCmd()
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "shodan", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+	assert.NotNil(t, cmd.Flags().Lookup("json"))
+}
+
+func TestShodanCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewShodanCmd()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == "help" {
 			return
@@ -17,12 +25,4 @@ func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
 			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
 		}
 	})
-}
-
-func TestNewSecretsCommand(t *testing.T) {
-	cmd := NewSecretsCommand()
-
-	assert.NotNil(t, cmd)
-	assert.Equal(t, "secrets", cmd.Use)
-	assert.Contains(t, cmd.Short, "Actions secrets")
 }

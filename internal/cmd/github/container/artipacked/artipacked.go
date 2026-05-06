@@ -20,24 +20,26 @@ var (
 	dangerousPatterns  string
 )
 
+var flagBindings = map[string]string{
+	"github":       "github.url",
+	"token":        "github.token",
+	"owned":        "github.container.artipacked.owned",
+	"member":       "github.container.artipacked.member",
+	"public":       "github.container.artipacked.public",
+	"repo":         "github.container.artipacked.repo",
+	"organization": "github.container.artipacked.organization",
+	"search":       "github.container.artipacked.search",
+	"page":         "github.container.artipacked.page",
+	"order-by":     "github.container.artipacked.order_by",
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":       "github.url",
-				"token":        "github.token",
-				"owned":        "github.container.artipacked.owned",
-				"member":       "github.container.artipacked.member",
-				"public":       "github.container.artipacked.public",
-				"repo":         "github.container.artipacked.repo",
-				"organization": "github.container.artipacked.organization",
-				"search":       "github.container.artipacked.search",
-				"page":         "github.container.artipacked.page",
-				"order-by":     "github.container.artipacked.order_by",
-			}); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

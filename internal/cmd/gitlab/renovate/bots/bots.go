@@ -11,17 +11,19 @@ var (
 	searchTerm string
 )
 
+var flagBindings = map[string]string{
+	"gitlab": "gitlab.url",
+	"token":  "gitlab.token",
+	"term":   "gitlab.renovate.bots.term",
+}
+
 func NewBotsCmd() *cobra.Command {
 	botsCmd := &cobra.Command{
 		Use:   "bots",
 		Short: "Enumerate potential Renovate bot user accounts",
 		Long:  "Search GitLab users by term, inspect their profile visibility and activity, and highlight potential Renovate bot accounts.",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab": "gitlab.url",
-				"token":  "gitlab.token",
-				"term":   "gitlab.renovate.bots.term",
-			}); err != nil {
+				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

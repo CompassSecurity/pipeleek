@@ -14,6 +14,11 @@ var (
 	gitlabUrl      string
 )
 
+var flagBindings = map[string]string{
+	"gitlab": "gitlab.url",
+	"token":  "gitlab.token",
+}
+
 func NewJobTokenRootCmd() *cobra.Command {
 	jobTokenCmd := &cobra.Command{
 		Use:   "jobToken",
@@ -25,10 +30,7 @@ func NewJobTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab": "gitlab.url",
-				"token":  "gitlab.token",
-			}); err != nil {
+				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

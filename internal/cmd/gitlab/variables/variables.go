@@ -7,6 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagBindings = map[string]string{
+	"gitlab": "gitlab.url",
+	"token":  "gitlab.token",
+}
+
 func NewVariablesCmd() *cobra.Command {
 	variablesCmd := &cobra.Command{
 		Use:     "variables",
@@ -22,10 +27,7 @@ func NewVariablesCmd() *cobra.Command {
 }
 
 func FetchVariables(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab": "gitlab.url",
-		"token":  "gitlab.token",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

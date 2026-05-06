@@ -3,6 +3,7 @@ package privesc
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,4 +46,16 @@ func TestGLPrivescCmdMonitoringIntervalFlagDefaults(t *testing.T) {
 func TestGLPrivescCmdHasRun(t *testing.T) {
 	cmd := NewPrivescCmd()
 	assert.NotNil(t, cmd.Run, "Privesc command should have Run function")
+}
+
+func TestGLPrivescCmd_AllDefinedFlagsAreBound(t *testing.T) {
+cmd := NewPrivescCmd()
+cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+if flag.Name == "help" {
+return
+}
+if _, ok := flagBindings[flag.Name]; !ok {
+t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+}
+})
 }

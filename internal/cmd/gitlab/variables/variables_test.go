@@ -7,16 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewVariablesCommand(t *testing.T) {
-	cmd := NewVariablesCommand()
-
+func TestNewVariablesCmd(t *testing.T) {
+	cmd := NewVariablesCmd()
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "variables", cmd.Use)
-	assert.Contains(t, cmd.Short, "Actions variables")
+	assert.NotEmpty(t, cmd.Short)
+	assert.NotNil(t, cmd.Flags().Lookup("gitlab"))
+	assert.NotNil(t, cmd.Flags().Lookup("token"))
 }
 
-func TestVariablesCommand_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewVariablesCommand()
+func TestVariablesCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewVariablesCmd()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == "help" {
 			return

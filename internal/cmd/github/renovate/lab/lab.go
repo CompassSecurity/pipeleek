@@ -15,6 +15,12 @@ var (
 	labRepoName string
 )
 
+var flagBindings = map[string]string{
+	"github":    "github.url",
+	"token":     "github.token",
+	"repo-name": "github.renovate.lab.repo_name",
+}
+
 func NewLabCmd() *cobra.Command {
 	labCmd := &cobra.Command{
 		Use:   "lab",
@@ -25,11 +31,7 @@ func NewLabCmd() *cobra.Command {
 pipeleek gh renovate lab --token ghp_xxxxx --github https://api.github.com --repo-name renovate-lab
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":    "github.url",
-				"token":     "github.token",
-				"repo-name": "github.renovate.lab.repo_name",
-			}); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

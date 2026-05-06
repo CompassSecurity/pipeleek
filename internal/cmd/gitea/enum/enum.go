@@ -7,6 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagBindings = map[string]string{
+	"gitea": "gitea.url",
+	"token": "gitea.token",
+}
+
 func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:     "enum",
@@ -20,10 +25,7 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitea": "gitea.url",
-		"token": "gitea.token",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

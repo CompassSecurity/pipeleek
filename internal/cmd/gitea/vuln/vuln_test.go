@@ -1,4 +1,4 @@
-package secrets
+package vuln
 
 import (
 	"testing"
@@ -7,8 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewSecretsCommand()
+func TestNewGiteaVulnCmd(t *testing.T) {
+	cmd := NewVulnCmd()
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "vuln", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+}
+
+func TestGiteaVulnCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewVulnCmd()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == "help" {
 			return
@@ -17,12 +24,4 @@ func TestSecretsCmd_AllDefinedFlagsAreBound(t *testing.T) {
 			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
 		}
 	})
-}
-
-func TestNewSecretsCommand(t *testing.T) {
-	cmd := NewSecretsCommand()
-
-	assert.NotNil(t, cmd)
-	assert.Equal(t, "secrets", cmd.Use)
-	assert.Contains(t, cmd.Short, "Actions secrets")
 }

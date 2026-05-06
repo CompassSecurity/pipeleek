@@ -25,6 +25,20 @@ var options = ScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 
+var flagBindings = map[string]string{
+	"gitlab":                   "gitlab.url",
+	"token":                    "gitlab.token",
+	"project":                  "gitlab.snippets.scan.project",
+	"namespace":                "gitlab.snippets.scan.namespace",
+	"search":                   "gitlab.snippets.scan.search",
+	"owned":                    "gitlab.snippets.scan.owned",
+	"member":                   "gitlab.snippets.scan.member",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -57,19 +71,7 @@ pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.exam
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"project":                  "gitlab.snippets.scan.project",
-		"namespace":                "gitlab.snippets.scan.namespace",
-		"search":                   "gitlab.snippets.scan.search",
-		"owned":                    "gitlab.snippets.scan.owned",
-		"member":                   "gitlab.snippets.scan.member",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

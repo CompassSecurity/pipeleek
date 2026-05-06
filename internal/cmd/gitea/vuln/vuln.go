@@ -7,6 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagBindings = map[string]string{
+	"gitea": "gitea.url",
+	"token": "gitea.token",
+}
+
 func NewVulnCmd() *cobra.Command {
 	vulnCmd := &cobra.Command{
 		Use:     "vuln",
@@ -20,10 +25,7 @@ func NewVulnCmd() *cobra.Command {
 }
 
 func CheckVulns(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitea": "gitea.url",
-		"token": "gitea.token",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
