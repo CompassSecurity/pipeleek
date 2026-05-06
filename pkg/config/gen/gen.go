@@ -1,306 +1,322 @@
-// Package gen provides functionality to generate the example pipeleek configuration file.
-// The generated output reflects the actual Viper defaults and flag-to-key mappings used by each command.
 package gen
 
-// ExampleConfig is the canonical template for pipeleek.example.yaml.
-// It is generated from the actual defaults in pkg/config/loader.go setDefaults()
-// and the flag-to-Viper-key mappings registered in each command's AutoBindFlags call.
-const ExampleConfig = `# Pipeleek Configuration File (YAML)
-#
-# This file provides a comprehensive template for configuring Pipeleek.
-# Configuration values can be provided via:
-#   1. CLI flags (highest priority)
-#   2. Environment variables (PIPELEEK_* prefix, e.g., PIPELEEK_GITLAB_TOKEN)
-#   3. Configuration file (this file)
-#   4. Defaults (lowest priority)
-#
-# Schema: <platform>.<subcommand>.<flag_name>
-#   - Flag names with dashes are converted to underscores (e.g., --max-artifact-size -> max_artifact_size)
-#   - Platform-level settings (url, token) can be shared across subcommands
-#   - Command-specific settings override platform defaults
-#
-# Copy this file to one of these locations:
-#   - ~/.config/pipeleek/pipeleek.yaml (recommended)
-#   - ~/pipeleek.yaml
-#   - ./pipeleek.yaml (current directory)
-# Or specify explicitly: pipeleek --config /path/to/config.yaml
+import (
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
-# Common settings applied across all platforms (primarily for scan commands)
-common:
-  threads: 4                    # --threads | PIPELEEK_COMMON_THREADS
-  trufflehog_verification: true # --truffle-hog-verification | PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION
-  max_artifact_size: "500Mb"    # --max-artifact-size | PIPELEEK_COMMON_MAX_ARTIFACT_SIZE
-  confidence_filter: []         # --confidence | PIPELEEK_COMMON_CONFIDENCE_FILTER (values: low, medium, high, high-verified)
-  hit_timeout: "60s"            # --hit-timeout | PIPELEEK_COMMON_HIT_TIMEOUT
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
 
-#------------------------------------------------------------------------------
-# GitLab Platform Configuration
-#------------------------------------------------------------------------------
-gitlab:
-  # Platform-wide settings (shared across all GitLab commands)
-  url: https://gitlab.example.com    # --gitlab | PIPELEEK_GITLAB_URL
-  token: glpat-REPLACE_ME           # --token | PIPELEEK_GITLAB_TOKEN
-  cookie: ""                        # --cookie (optional, _gitlab_session for dotenv artifacts)
+type configNode struct {
+	Children map[string]*configNode
+	Flags    map[string]flagMeta
+}
 
-  # enum - Enumerate token access rights
-  enum:
-    level: "full"                   # --level | PIPELEEK_GITLAB_ENUM_LEVEL (values: minimal, full)
+type flagMeta struct {
+	DefaultValue string
+	EnvVar       string
+}
 
-  # cicd yaml - Dump CI/CD YAML configuration
-  cicd:
-    yaml:
-      project: "group/project"      # --project | PIPELEEK_GITLAB_CICD_YAML_PROJECT
+var commonFlagNames = map[string]struct{}{
+	"threads":                  {},
+	"truffle-hog-verification": {},
+	"max-artifact-size":        {},
+	"confidence":               {},
+	"hit-timeout":              {},
+}
 
-  # schedule - Enumerate scheduled pipelines (inherits gitlab.url and gitlab.token)
-  schedule: {}
+var rootFlagsToSkip = map[string]struct{}{
+	"config":       {},
+	"json":         {},
+	"logfile":      {},
+	"verbose":      {},
+	"log-level":    {},
+	"color":        {},
+	"ignore-proxy": {},
+	"help":         {},
+	"version":      {},
+	"output":       {},
+}
 
-  # secureFiles - Print CI/CD secure files (inherits gitlab.url and gitlab.token)
-  secureFiles: {}
+var platformNameByCommand = map[string]string{
+	"gl":      "gitlab",
+	"gluna":   "gitlab",
+	"gh":      "github",
+	"bb":      "bitbucket",
+	"ad":      "azure_devops",
+	"gitea":   "gitea",
+	"jenkins": "jenkins",
+	"circle":  "circle",
+}
 
-  # variables - Print CI/CD variables (inherits gitlab.url and gitlab.token)
-  variables: {}
+// GenerateExampleConfig builds a YAML template from the currently registered CLI commands and flags.
+func GenerateExampleConfig(root *cobra.Command) string {
+	node := &configNode{Children: map[string]*configNode{}, Flags: map[string]flagMeta{}}
+	common := map[string]flagMeta{}
 
-  # jobToken exploit - Validate job token and attempt repo write
-  jobToken:
-    exploit:
-      project: "group/project"      # --project | PIPELEEK_GITLAB_JOBTOKEN_EXPLOIT_PROJECT
+	if root != nil {
+		buildTreeFromRoot(root, node, common)
+	}
 
-  # vuln - Check GitLab version vulnerabilities (inherits gitlab.url and gitlab.token)
-  vuln: {}
+	var b strings.Builder
+	b.WriteString("# Pipeleek Configuration File (YAML)\n")
+	b.WriteString("# Generated dynamically from currently registered CLI commands and flags.\n\n")
 
-  # runners list - List available runners (inherits gitlab.url and gitlab.token)
-  runners:
-    list: {}
+	if len(common) > 0 {
+		b.WriteString("common:\n")
+		writeFlags(&b, common, 1)
+		b.WriteString("\n")
+	}
 
-    # runners exploit - Create exploit project for runners
-    exploit:
-      tags: []                      # --tags | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_TAGS
-      dry: false                    # --dry | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_DRY
-      shell: "bash"                 # --shell | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_SHELL (values: bash, powershell, pwsh)
-      age_public_key: ""            # --age-public-key | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_AGE_PUBLIC_KEY
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_REPO_NAME
+	platformNames := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		platformNames = append(platformNames, name)
+	}
+	sort.Strings(platformNames)
 
-  # renovate - Renovate bot commands
-  renovate:
-    # enum - Enumerate Renovate bot configurations
-    enum:
-      owned: true                                  # --owned | PIPELEEK_GITLAB_RENOVATE_ENUM_OWNED
-      member: true                                 # --member | PIPELEEK_GITLAB_RENOVATE_ENUM_MEMBER
-      repo: false                                  # --repo | PIPELEEK_GITLAB_RENOVATE_ENUM_REPO
-      namespace: false                             # --namespace | PIPELEEK_GITLAB_RENOVATE_ENUM_NAMESPACE
-      search: ""                                   # --search | PIPELEEK_GITLAB_RENOVATE_ENUM_SEARCH
-      fast: false                                  # --fast | PIPELEEK_GITLAB_RENOVATE_ENUM_FAST
-      dump: false                                  # --dump | PIPELEEK_GITLAB_RENOVATE_ENUM_DUMP
-      page: 1                                      # --page | PIPELEEK_GITLAB_RENOVATE_ENUM_PAGE
-      order_by: "last_activity_at"                 # --order-by | PIPELEEK_GITLAB_RENOVATE_ENUM_ORDER_BY
-      extend_renovate_config_service: ""           # --extend-renovate-config-service | PIPELEEK_GITLAB_RENOVATE_ENUM_EXTEND_RENOVATE_CONFIG_SERVICE
+	for i, platform := range platformNames {
+		b.WriteString(platform)
+		b.WriteString(":\n")
+		writeNode(&b, node.Children[platform], 1)
+		if i < len(platformNames)-1 {
+			b.WriteString("\n")
+		}
+	}
 
-    bots:
-      term: "renovate"              # --term | PIPELEEK_GITLAB_RENOVATE_BOTS_TERM
+	return b.String()
+}
 
-    autodiscovery:
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_REPO_NAME
-      username: ""                  # --username | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_USERNAME
-      add_renovate_cicd_for_debugging: false  # --add-renovate-cicd-for-debugging | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_ADD_RENOVATE_CICD_FOR_DEBUGGING
+func buildTreeFromRoot(root *cobra.Command, rootNode *configNode, common map[string]flagMeta) {
+	for _, sub := range root.Commands() {
+		cmdName := commandName(sub)
+		platformName, ok := platformNameByCommand[cmdName]
+		if !ok {
+			continue
+		}
 
-    privesc:
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RENOVATE_PRIVESC_REPO_NAME
+		platformNode := ensureChild(rootNode, platformName)
 
-  # register - Register new user account
-  register:
-    username: "newuser"             # --username | PIPELEEK_GITLAB_REGISTER_USERNAME
-    password: "securepassword"      # --password | PIPELEEK_GITLAB_REGISTER_PASSWORD
-    email: "newuser@example.com"    # --email | PIPELEEK_GITLAB_REGISTER_EMAIL
+		if cmdName == "gluna" {
+			visitCommand(sub, platformName, platformNode, []string{}, common, true)
+			continue
+		}
 
-  # shodan - Query Shodan for GitLab instances
-  shodan:
-    json: "shodan_data.json"        # --json | PIPELEEK_GITLAB_SHODAN_JSON
+		captureFlags(sub.PersistentFlags(), []string{platformName}, platformNode, common)
+		visitCommand(sub, platformName, platformNode, []string{}, common, false)
+	}
+}
 
-  # scan_public - Scan public GitLab pipelines without an account
-  scan_public:
-    search: ""                      # --search | PIPELEEK_GITLAB_SCAN_PUBLIC_SEARCH
-    repo: ""                        # --repo | PIPELEEK_GITLAB_SCAN_PUBLIC_REPO
-    namespace: ""                   # --namespace | PIPELEEK_GITLAB_SCAN_PUBLIC_NAMESPACE
-    job_limit: 0                    # --job-limit | PIPELEEK_GITLAB_SCAN_PUBLIC_JOB_LIMIT
-    queue: ""                       # --queue | PIPELEEK_GITLAB_SCAN_PUBLIC_QUEUE
-    artifacts: false                # --artifacts | PIPELEEK_GITLAB_SCAN_PUBLIC_ARTIFACTS
+func visitCommand(cmd *cobra.Command, platformName string, platformNode *configNode, path []string, common map[string]flagMeta, includeLocal bool) {
+	currentPath := append([]string{}, path...)
+	if includeLocal {
+		name := normalizeSegment(commandName(cmd))
 
-  # scan - Scan CI/CD artifacts for secrets
-  scan:
-    search: ""                      # --search | PIPELEEK_GITLAB_SCAN_SEARCH
-    member: false                   # --member | PIPELEEK_GITLAB_SCAN_MEMBER
-    repo: ""                        # --repo | PIPELEEK_GITLAB_SCAN_REPO
-    namespace: ""                   # --namespace | PIPELEEK_GITLAB_SCAN_NAMESPACE
-    job_limit: 0                    # --job-limit | PIPELEEK_GITLAB_SCAN_JOB_LIMIT
-    queue: ""                       # --queue | PIPELEEK_GITLAB_SCAN_QUEUE
-    artifacts: false                # --artifacts | PIPELEEK_GITLAB_SCAN_ARTIFACTS
-    owned: false                    # --owned | PIPELEEK_GITLAB_SCAN_OWNED
-    # Inherits common.* settings (threads, trufflehog_verification, max_artifact_size, confidence_filter, hit_timeout)
+		if commandName(cmd) == "scan" && len(path) == 0 && cmd.Parent() != nil && commandName(cmd.Parent()) == "gluna" {
+			currentPath = append(path, "scan_public")
+		} else {
+			currentPath = append(currentPath, name)
+		}
 
-  # snippets scan - Scan snippets for secrets
-  snippets:
-    scan:
-      project: ""                   # --project | PIPELEEK_GITLAB_SNIPPETS_SCAN_PROJECT
-      namespace: ""                 # --namespace | PIPELEEK_GITLAB_SNIPPETS_SCAN_NAMESPACE
-      search: ""                    # --search | PIPELEEK_GITLAB_SNIPPETS_SCAN_SEARCH
-      owned: false                  # --owned | PIPELEEK_GITLAB_SNIPPETS_SCAN_OWNED
-      member: false                 # --member | PIPELEEK_GITLAB_SNIPPETS_SCAN_MEMBER
-      # Inherits common.* settings
+		captureFlags(cmd.Flags(), append([]string{platformName}, currentPath...), platformNodeForPath(platformNode, currentPath), common)
+	}
 
-  # tf - Discover and scan Terraform/OpenTofu state files
-  tf:
-    output_dir: "./terraform-states" # --output-dir | PIPELEEK_GITLAB_TF_OUTPUT_DIR
-    threads: 4                       # --threads | PIPELEEK_GITLAB_TF_THREADS
+	for _, sub := range cmd.Commands() {
+		if sub.Hidden {
+			continue
+		}
+		visitCommand(sub, platformName, platformNode, currentPath, common, true)
+	}
+}
 
-#------------------------------------------------------------------------------
-# GitHub Platform Configuration
-#------------------------------------------------------------------------------
-github:
-  url: https://api.github.com    # --github | PIPELEEK_GITHUB_URL
-  token: ghp_REPLACE_ME          # --token | PIPELEEK_GITHUB_TOKEN
+func platformNodeForPath(platformNode *configNode, path []string) *configNode {
+	n := platformNode
+	for _, segment := range path {
+		n = ensureChild(n, segment)
+	}
+	return n
+}
 
-  # ghtoken exploit - Validate GitHub Actions token and attempt repo clone
-  ghtoken:
-    exploit:
-      repo: "owner/repo"         # --repo | PIPELEEK_GITHUB_GHTOKEN_EXPLOIT_REPO
+func captureFlags(flagSet *pflag.FlagSet, keyPrefix []string, node *configNode, common map[string]flagMeta) {
+	if flagSet == nil {
+		return
+	}
 
-  # scan - Scan GitHub Actions artifacts for secrets
-  scan:
-    org: ""                      # --org | PIPELEEK_GITHUB_SCAN_ORG
-    user: ""                     # --user | PIPELEEK_GITHUB_SCAN_USER
-    search: ""                   # --search | PIPELEEK_GITHUB_SCAN_SEARCH
-    repo: ""                     # --repo | PIPELEEK_GITHUB_SCAN_REPO
-    public: false                # --public | PIPELEEK_GITHUB_SCAN_PUBLIC
-    max_workflows: 0             # --max-workflows | PIPELEEK_GITHUB_SCAN_MAX_WORKFLOWS (0 = no limit)
-    artifacts: false             # --artifacts | PIPELEEK_GITHUB_SCAN_ARTIFACTS
-    owned: false                 # --owned | PIPELEEK_GITHUB_SCAN_OWNED
-    # Inherits common.* settings
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		if _, skip := rootFlagsToSkip[flag.Name]; skip {
+			return
+		}
 
-  # renovate - Renovate bot commands
-  renovate:
-    enum:
-      owned: true                # --owned | PIPELEEK_GITHUB_RENOVATE_ENUM_OWNED
-      member: true               # --member | PIPELEEK_GITHUB_RENOVATE_ENUM_MEMBER
-      search: ""                 # --search | PIPELEEK_GITHUB_RENOVATE_ENUM_SEARCH
-      fast: false                # --fast | PIPELEEK_GITHUB_RENOVATE_ENUM_FAST
-      dump: false                # --dump | PIPELEEK_GITHUB_RENOVATE_ENUM_DUMP
+		flagName := normalizeSegment(flag.Name)
+		defaultValue := yamlValueFromFlag(flag)
 
-    autodiscovery:
-      repo_name: ""              # --repo-name | PIPELEEK_GITHUB_RENOVATE_AUTODISCOVERY_REPO_NAME
+		if _, isCommon := commonFlagNames[flag.Name]; isCommon {
+			common[flagName] = flagMeta{
+				DefaultValue: defaultValue,
+				EnvVar:       envVarForPath([]string{"common", flagName}),
+			}
+			return
+		}
 
-    privesc:
-      repo_name: ""              # --repo-name | PIPELEEK_GITHUB_RENOVATE_PRIVESC_REPO_NAME
+		if node.Flags == nil {
+			node.Flags = map[string]flagMeta{}
+		}
+		node.Flags[flagName] = flagMeta{
+			DefaultValue: defaultValue,
+			EnvVar:       envVarForPath(append(keyPrefix, flagName)),
+		}
+	})
+}
 
-#------------------------------------------------------------------------------
-# BitBucket Platform Configuration
-#------------------------------------------------------------------------------
-bitbucket:
-  url: https://api.bitbucket.org/2.0  # --bitbucket | PIPELEEK_BITBUCKET_URL
-  email: user@example.com             # --email | PIPELEEK_BITBUCKET_EMAIL
-  token: ATATTxxxxxx                  # --token | PIPELEEK_BITBUCKET_TOKEN
-  cookie: ""                          # --cookie | PIPELEEK_BITBUCKET_COOKIE (cloud.session.token for artifact scanning)
+func writeNode(b *strings.Builder, node *configNode, indent int) {
+	if node == nil {
+		return
+	}
 
-  # scan - Scan BitBucket Pipelines artifacts
-  scan:
-    workspace: ""                     # --workspace | PIPELEEK_BITBUCKET_SCAN_WORKSPACE
-    max_pipelines: 0                  # --max-pipelines | PIPELEEK_BITBUCKET_SCAN_MAX_PIPELINES (0 = no limit)
-    public: false                     # --public | PIPELEEK_BITBUCKET_SCAN_PUBLIC
-    after: ""                         # --after | PIPELEEK_BITBUCKET_SCAN_AFTER (ISO 8601 format)
-    artifacts: false                  # --artifacts | PIPELEEK_BITBUCKET_SCAN_ARTIFACTS
-    owned: false                      # --owned | PIPELEEK_BITBUCKET_SCAN_OWNED
-    # Inherits common.* settings
+	if len(node.Flags) > 0 {
+		writeFlags(b, node.Flags, indent)
+	}
 
-#------------------------------------------------------------------------------
-# Azure DevOps Configuration
-#------------------------------------------------------------------------------
-azure_devops:
-  url: https://dev.azure.com    # --devops | PIPELEEK_AZURE_DEVOPS_URL
-  token: ado_pat_REPLACE_ME     # --token | PIPELEEK_AZURE_DEVOPS_TOKEN
-  username: ""                  # --username | PIPELEEK_AZURE_DEVOPS_USERNAME
+	childNames := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
 
-  # scan - Scan Azure Pipelines artifacts
-  scan:
-    organization: ""            # --organization | PIPELEEK_AZURE_DEVOPS_SCAN_ORGANIZATION
-    project: ""                 # --project | PIPELEEK_AZURE_DEVOPS_SCAN_PROJECT
-    max_builds: 0               # --max-builds | PIPELEEK_AZURE_DEVOPS_SCAN_MAX_BUILDS (0 = no limit)
-    artifacts: false            # --artifacts | PIPELEEK_AZURE_DEVOPS_SCAN_ARTIFACTS
-    owned: false                # --owned | PIPELEEK_AZURE_DEVOPS_SCAN_OWNED
-    # Inherits common.* settings
+	for _, child := range childNames {
+		writeIndent(b, indent)
+		b.WriteString(child)
+		b.WriteString(":\n")
+		writeNode(b, node.Children[child], indent+1)
+	}
+}
 
-#------------------------------------------------------------------------------
-# Gitea Platform Configuration
-#------------------------------------------------------------------------------
-gitea:
-  url: https://gitea.example.com    # --gitea | PIPELEEK_GITEA_URL
-  token: gitea_pat_REPLACE_ME       # --token | PIPELEEK_GITEA_TOKEN
+func writeFlags(b *strings.Builder, flags map[string]flagMeta, indent int) {
+	flagNames := make([]string, 0, len(flags))
+	for name := range flags {
+		flagNames = append(flagNames, name)
+	}
+	sort.Strings(flagNames)
 
-  # enum - Enumerate token access rights (inherits gitea.url and gitea.token)
-  enum: {}
+	for _, name := range flagNames {
+		meta := flags[name]
+		writeIndent(b, indent)
+		b.WriteString(name)
+		b.WriteString(": ")
+		b.WriteString(meta.DefaultValue)
+		if meta.EnvVar != "" {
+			b.WriteString(" # ")
+			b.WriteString(meta.EnvVar)
+		}
+		b.WriteString("\n")
+	}
+}
 
-  # variables - Print repository/organization variables
-  variables:
-    owner: "example-org"    # --owner | PIPELEEK_GITEA_VARIABLES_OWNER
-    repo: "example-repo"    # --repo | PIPELEEK_GITEA_VARIABLES_REPO
+func ensureChild(node *configNode, name string) *configNode {
+	if node.Children == nil {
+		node.Children = map[string]*configNode{}
+	}
+	child, ok := node.Children[name]
+	if !ok {
+		child = &configNode{Children: map[string]*configNode{}, Flags: map[string]flagMeta{}}
+		node.Children[name] = child
+	}
+	return child
+}
 
-  # secrets - Print repository/organization secrets
-  secrets:
-    owner: "example-org"    # --owner | PIPELEEK_GITEA_SECRETS_OWNER
-    repo: "example-repo"    # --repo | PIPELEEK_GITEA_SECRETS_REPO
+func commandName(cmd *cobra.Command) string {
+	if cmd == nil {
+		return ""
+	}
+	parts := strings.Fields(cmd.Use)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
+}
 
-  # vuln - Check Gitea version vulnerabilities (inherits gitea.url and gitea.token)
-  vuln: {}
+func normalizeSegment(value string) string {
+	replacer := strings.NewReplacer("-", "_", " ", "_")
+	return replacer.Replace(strings.TrimSpace(value))
+}
 
-  # scan - Scan Gitea Actions artifacts
-  scan:
-    organization: ""        # --organization | PIPELEEK_GITEA_SCAN_ORGANIZATION
-    repository: ""          # --repository | PIPELEEK_GITEA_SCAN_REPOSITORY
-    runs_limit: 0           # --runs-limit | PIPELEEK_GITEA_SCAN_RUNS_LIMIT (0 = no limit)
-    start_run_id: 0         # --start-run-id | PIPELEEK_GITEA_SCAN_START_RUN_ID
-    artifacts: false        # --artifacts | PIPELEEK_GITEA_SCAN_ARTIFACTS
-    owned: false            # --owned | PIPELEEK_GITEA_SCAN_OWNED
-    # Inherits common.* settings
+func envVarForPath(path []string) string {
+	filtered := make([]string, 0, len(path))
+	for _, segment := range path {
+		if segment == "" {
+			continue
+		}
+		filtered = append(filtered, strings.ToUpper(normalizeSegment(segment)))
+	}
+	return "PIPELEEK_" + strings.Join(filtered, "_")
+}
 
-#------------------------------------------------------------------------------
-# Jenkins Platform Configuration
-#------------------------------------------------------------------------------
-jenkins:
-  url: https://jenkins.example.com    # --jenkins | PIPELEEK_JENKINS_URL
-  username: admin                     # --username | PIPELEEK_JENKINS_USERNAME
-  token: jenkins_api_token_REPLACE_ME # --token | PIPELEEK_JENKINS_TOKEN
+func yamlValueFromFlag(flag *pflag.Flag) string {
+	switch flag.Value.Type() {
+	case "bool":
+		if flag.DefValue == "true" {
+			return "true"
+		}
+		return "false"
+	case "int", "int32", "int64", "uint", "uint32", "uint64", "float32", "float64":
+		return flag.DefValue
+	case "stringSlice", "intSlice", "durationSlice":
+		trimmed := strings.TrimSpace(flag.DefValue)
+		if trimmed == "" || trimmed == "[]" {
+			return "[]"
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "["), "]"))
+			if inner == "" {
+				return "[]"
+			}
+			parts := strings.Split(inner, ",")
+			vals := make([]string, 0, len(parts))
+			for _, part := range parts {
+				vals = append(vals, quoteYAMLString(strings.TrimSpace(part)))
+			}
+			return "[" + strings.Join(vals, ", ") + "]"
+		}
+		return "[]"
+	case "duration":
+		return quoteYAMLString(flag.DefValue)
+	case "string":
+		return quoteYAMLString(flag.DefValue)
+	default:
+		if strings.TrimSpace(flag.DefValue) == "" {
+			return `""`
+		}
+		if isLikelyPlainScalar(flag.DefValue) {
+			return flag.DefValue
+		}
+		return quoteYAMLString(flag.DefValue)
+	}
+}
 
-  # scan - Scan Jenkins jobs, build logs, env vars, and optional artifacts
-  scan:
-    folder: ""             # --folder | PIPELEEK_JENKINS_SCAN_FOLDER
-    job: ""                # --job | PIPELEEK_JENKINS_SCAN_JOB
-    max_builds: 25         # --max-builds | PIPELEEK_JENKINS_SCAN_MAX_BUILDS (0 = all builds)
-    artifacts: false       # --artifacts | PIPELEEK_JENKINS_SCAN_ARTIFACTS
-    # Inherits common.* settings
+func isLikelyPlainScalar(value string) bool {
+	if value == "" {
+		return false
+	}
+	if _, err := strconv.Atoi(value); err == nil {
+		return true
+	}
+	if value == "true" || value == "false" {
+		return true
+	}
+	if strings.ContainsAny(value, "#:[]{}\",'\n\t") {
+		return false
+	}
+	return true
+}
 
-#------------------------------------------------------------------------------
-# CircleCI Platform Configuration
-#------------------------------------------------------------------------------
-circle:
-  url: https://circleci.com          # --circle | PIPELEEK_CIRCLE_URL
-  token: circleci_token_REPLACE_ME   # --token | PIPELEEK_CIRCLE_TOKEN
+func quoteYAMLString(value string) string {
+	return fmt.Sprintf("%q", value)
+}
 
-  # scan - Scan CircleCI pipelines, logs, test results and optional artifacts
-  scan:
-    org: ""                                    # --org | PIPELEEK_CIRCLE_SCAN_ORG
-    project: []                                # --project | PIPELEEK_CIRCLE_SCAN_PROJECT (format: org/repo or vcs/org/repo)
-    vcs: "github"                              # --vcs | PIPELEEK_CIRCLE_SCAN_VCS (github or bitbucket)
-    branch: ""                                 # --branch | PIPELEEK_CIRCLE_SCAN_BRANCH
-    status: []                                 # --status | PIPELEEK_CIRCLE_SCAN_STATUS (success, failed, etc.)
-    workflow: []                               # --workflow | PIPELEEK_CIRCLE_SCAN_WORKFLOW
-    job: []                                    # --job | PIPELEEK_CIRCLE_SCAN_JOB
-    since: ""                                  # --since | PIPELEEK_CIRCLE_SCAN_SINCE (RFC3339 timestamp)
-    until: ""                                  # --until | PIPELEEK_CIRCLE_SCAN_UNTIL (RFC3339 timestamp)
-    max_pipelines: 0                           # --max-pipelines | PIPELEEK_CIRCLE_SCAN_MAX_PIPELINES (0 = no limit)
-    tests: true                                # --tests | PIPELEEK_CIRCLE_SCAN_TESTS
-    insights: true                             # --insights | PIPELEEK_CIRCLE_SCAN_INSIGHTS
-    # Inherits common.* settings
-`
-
-// GenerateExampleConfig returns the example configuration file content.
-func GenerateExampleConfig() string {
-	return ExampleConfig
+func writeIndent(b *strings.Builder, indent int) {
+	for i := 0; i < indent; i++ {
+		b.WriteString("  ")
+	}
 }

@@ -1,293 +1,216 @@
 # Pipeleek Configuration File (YAML)
-#
-# This file provides a comprehensive template for configuring Pipeleek.
-# Configuration values can be provided via:
-#   1. CLI flags (highest priority)
-#   2. Environment variables (PIPELEEK_* prefix, e.g., PIPELEEK_GITLAB_TOKEN)
-#   3. Configuration file (this file)
-#   4. Defaults (lowest priority)
-#
-# Schema: <platform>.<subcommand>.<flag_name>
-#   - Flag names with dashes are converted to underscores (e.g., --max-artifact-size -> max_artifact_size)
-#   - Platform-level settings (url, token) can be shared across subcommands
-#   - Command-specific settings override platform defaults
-#
-# Copy this file to one of these locations:
-#   - ~/.config/pipeleek/pipeleek.yaml (recommended)
-#   - ~/pipeleek.yaml
-#   - ./pipeleek.yaml (current directory)
-# Or specify explicitly: pipeleek --config /path/to/config.yaml
+# Generated dynamically from currently registered CLI commands and flags.
 
-# Common settings applied across all platforms (primarily for scan commands)
 common:
-  threads: 4                    # --threads | PIPELEEK_COMMON_THREADS
-  trufflehog_verification: true # --truffle-hog-verification | PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION
-  max_artifact_size: "500Mb"    # --max-artifact-size | PIPELEEK_COMMON_MAX_ARTIFACT_SIZE
-  confidence_filter: []         # --confidence | PIPELEEK_COMMON_CONFIDENCE_FILTER (values: low, medium, high, high-verified)
-  hit_timeout: "60s"            # --hit-timeout | PIPELEEK_COMMON_HIT_TIMEOUT
+  confidence: [] # PIPELEEK_COMMON_CONFIDENCE
+  hit_timeout: "1m0s" # PIPELEEK_COMMON_HIT_TIMEOUT
+  max_artifact_size: "500Mb" # PIPELEEK_COMMON_MAX_ARTIFACT_SIZE
+  threads: 4 # PIPELEEK_COMMON_THREADS
+  truffle_hog_verification: true # PIPELEEK_COMMON_TRUFFLE_HOG_VERIFICATION
 
-#------------------------------------------------------------------------------
-# GitLab Platform Configuration
-#------------------------------------------------------------------------------
-gitlab:
-  # Platform-wide settings (shared across all GitLab commands)
-  url: https://gitlab.example.com    # --gitlab | PIPELEEK_GITLAB_URL
-  token: glpat-REPLACE_ME           # --token | PIPELEEK_GITLAB_TOKEN
-  cookie: ""                        # --cookie (optional, _gitlab_session for dotenv artifacts)
-
-  # enum - Enumerate token access rights
-  enum:
-    level: "full"                   # --level | PIPELEEK_GITLAB_ENUM_LEVEL (values: minimal, full)
-
-  # cicd yaml - Dump CI/CD YAML configuration
-  cicd:
-    yaml:
-      project: "group/project"      # --project | PIPELEEK_GITLAB_CICD_YAML_PROJECT
-
-  # schedule - Enumerate scheduled pipelines (inherits gitlab.url and gitlab.token)
-  schedule: {}
-
-  # secureFiles - Print CI/CD secure files (inherits gitlab.url and gitlab.token)
-  secureFiles: {}
-
-  # variables - Print CI/CD variables (inherits gitlab.url and gitlab.token)
-  variables: {}
-
-  # jobToken exploit - Validate job token and attempt repo write
-  jobToken:
-    exploit:
-      project: "group/project"      # --project | PIPELEEK_GITLAB_JOBTOKEN_EXPLOIT_PROJECT
-
-  # vuln - Check GitLab version vulnerabilities (inherits gitlab.url and gitlab.token)
-  vuln: {}
-
-  # runners list - List available runners (inherits gitlab.url and gitlab.token)
-  runners:
-    list: {}
-
-    # runners exploit - Create exploit project for runners
-    exploit:
-      tags: []                      # --tags | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_TAGS
-      dry: false                    # --dry | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_DRY
-      shell: "bash"                 # --shell | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_SHELL (values: bash, powershell, pwsh)
-      age_public_key: ""            # --age-public-key | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_AGE_PUBLIC_KEY
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RUNNERS_EXPLOIT_REPO_NAME
-
-  # renovate - Renovate bot commands
-  renovate:
-    # enum - Enumerate Renovate bot configurations
-    enum:
-      owned: true                                  # --owned | PIPELEEK_GITLAB_RENOVATE_ENUM_OWNED
-      member: true                                 # --member | PIPELEEK_GITLAB_RENOVATE_ENUM_MEMBER
-      repo: false                                  # --repo | PIPELEEK_GITLAB_RENOVATE_ENUM_REPO
-      namespace: false                             # --namespace | PIPELEEK_GITLAB_RENOVATE_ENUM_NAMESPACE
-      search: ""                                   # --search | PIPELEEK_GITLAB_RENOVATE_ENUM_SEARCH
-      fast: false                                  # --fast | PIPELEEK_GITLAB_RENOVATE_ENUM_FAST
-      dump: false                                  # --dump | PIPELEEK_GITLAB_RENOVATE_ENUM_DUMP
-      page: 1                                      # --page | PIPELEEK_GITLAB_RENOVATE_ENUM_PAGE
-      order_by: "last_activity_at"                 # --order-by | PIPELEEK_GITLAB_RENOVATE_ENUM_ORDER_BY
-      extend_renovate_config_service: ""           # --extend-renovate-config-service | PIPELEEK_GITLAB_RENOVATE_ENUM_EXTEND_RENOVATE_CONFIG_SERVICE
-
-    bots:
-      term: "renovate"              # --term | PIPELEEK_GITLAB_RENOVATE_BOTS_TERM
-
-    autodiscovery:
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_REPO_NAME
-      username: ""                  # --username | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_USERNAME
-      add_renovate_cicd_for_debugging: false  # --add-renovate-cicd-for-debugging | PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_ADD_RENOVATE_CICD_FOR_DEBUGGING
-
-    privesc:
-      repo_name: ""                 # --repo-name | PIPELEEK_GITLAB_RENOVATE_PRIVESC_REPO_NAME
-
-  # register - Register new user account
-  register:
-    username: "newuser"             # --username | PIPELEEK_GITLAB_REGISTER_USERNAME
-    password: "securepassword"      # --password | PIPELEEK_GITLAB_REGISTER_PASSWORD
-    email: "newuser@example.com"    # --email | PIPELEEK_GITLAB_REGISTER_EMAIL
-
-  # shodan - Query Shodan for GitLab instances
-  shodan:
-    json: "shodan_data.json"        # --json | PIPELEEK_GITLAB_SHODAN_JSON
-
-  # scan_public - Scan public GitLab pipelines without an account
-  scan_public:
-    search: ""                      # --search | PIPELEEK_GITLAB_SCAN_PUBLIC_SEARCH
-    repo: ""                        # --repo | PIPELEEK_GITLAB_SCAN_PUBLIC_REPO
-    namespace: ""                   # --namespace | PIPELEEK_GITLAB_SCAN_PUBLIC_NAMESPACE
-    job_limit: 0                    # --job-limit | PIPELEEK_GITLAB_SCAN_PUBLIC_JOB_LIMIT
-    queue: ""                       # --queue | PIPELEEK_GITLAB_SCAN_PUBLIC_QUEUE
-    artifacts: false                # --artifacts | PIPELEEK_GITLAB_SCAN_PUBLIC_ARTIFACTS
-
-  # scan - Scan CI/CD artifacts for secrets
+azure_devops:
   scan:
-    search: ""                      # --search | PIPELEEK_GITLAB_SCAN_SEARCH
-    member: false                   # --member | PIPELEEK_GITLAB_SCAN_MEMBER
-    repo: ""                        # --repo | PIPELEEK_GITLAB_SCAN_REPO
-    namespace: ""                   # --namespace | PIPELEEK_GITLAB_SCAN_NAMESPACE
-    job_limit: 0                    # --job-limit | PIPELEEK_GITLAB_SCAN_JOB_LIMIT
-    queue: ""                       # --queue | PIPELEEK_GITLAB_SCAN_QUEUE
-    artifacts: false                # --artifacts | PIPELEEK_GITLAB_SCAN_ARTIFACTS
-    owned: false                    # --owned | PIPELEEK_GITLAB_SCAN_OWNED
-    # Inherits common.* settings (threads, trufflehog_verification, max_artifact_size, confidence_filter, hit_timeout)
+    artifacts: false # PIPELEEK_AZURE_DEVOPS_SCAN_ARTIFACTS
+    devops: "https://dev.azure.com" # PIPELEEK_AZURE_DEVOPS_SCAN_DEVOPS
+    max_builds: -1 # PIPELEEK_AZURE_DEVOPS_SCAN_MAX_BUILDS
+    organization: "" # PIPELEEK_AZURE_DEVOPS_SCAN_ORGANIZATION
+    owned: false # PIPELEEK_AZURE_DEVOPS_SCAN_OWNED
+    project: "" # PIPELEEK_AZURE_DEVOPS_SCAN_PROJECT
+    token: "" # PIPELEEK_AZURE_DEVOPS_SCAN_TOKEN
+    username: "" # PIPELEEK_AZURE_DEVOPS_SCAN_USERNAME
 
-  # snippets scan - Scan snippets for secrets
-  snippets:
-    scan:
-      project: ""                   # --project | PIPELEEK_GITLAB_SNIPPETS_SCAN_PROJECT
-      namespace: ""                 # --namespace | PIPELEEK_GITLAB_SNIPPETS_SCAN_NAMESPACE
-      search: ""                    # --search | PIPELEEK_GITLAB_SNIPPETS_SCAN_SEARCH
-      owned: false                  # --owned | PIPELEEK_GITLAB_SNIPPETS_SCAN_OWNED
-      member: false                 # --member | PIPELEEK_GITLAB_SNIPPETS_SCAN_MEMBER
-      # Inherits common.* settings
+bitbucket:
+  scan:
+    after: "" # PIPELEEK_BITBUCKET_SCAN_AFTER
+    artifacts: false # PIPELEEK_BITBUCKET_SCAN_ARTIFACTS
+    bitbucket: "https://api.bitbucket.org/2.0" # PIPELEEK_BITBUCKET_SCAN_BITBUCKET
+    cookie: "" # PIPELEEK_BITBUCKET_SCAN_COOKIE
+    email: "" # PIPELEEK_BITBUCKET_SCAN_EMAIL
+    max_pipelines: -1 # PIPELEEK_BITBUCKET_SCAN_MAX_PIPELINES
+    owned: false # PIPELEEK_BITBUCKET_SCAN_OWNED
+    public: false # PIPELEEK_BITBUCKET_SCAN_PUBLIC
+    token: "" # PIPELEEK_BITBUCKET_SCAN_TOKEN
+    workspace: "" # PIPELEEK_BITBUCKET_SCAN_WORKSPACE
 
-  # tf - Discover and scan Terraform/OpenTofu state files
-  tf:
-    output_dir: "./terraform-states" # --output-dir | PIPELEEK_GITLAB_TF_OUTPUT_DIR
-    threads: 4                       # --threads | PIPELEEK_GITLAB_TF_THREADS
+circle:
+  scan:
+    artifacts: false # PIPELEEK_CIRCLE_SCAN_ARTIFACTS
+    branch: "" # PIPELEEK_CIRCLE_SCAN_BRANCH
+    circle: "https://circleci.com" # PIPELEEK_CIRCLE_SCAN_CIRCLE
+    insights: true # PIPELEEK_CIRCLE_SCAN_INSIGHTS
+    job: [] # PIPELEEK_CIRCLE_SCAN_JOB
+    max_pipelines: 0 # PIPELEEK_CIRCLE_SCAN_MAX_PIPELINES
+    org: "" # PIPELEEK_CIRCLE_SCAN_ORG
+    project: [] # PIPELEEK_CIRCLE_SCAN_PROJECT
+    since: "" # PIPELEEK_CIRCLE_SCAN_SINCE
+    status: [] # PIPELEEK_CIRCLE_SCAN_STATUS
+    tests: true # PIPELEEK_CIRCLE_SCAN_TESTS
+    token: "" # PIPELEEK_CIRCLE_SCAN_TOKEN
+    until: "" # PIPELEEK_CIRCLE_SCAN_UNTIL
+    vcs: "github" # PIPELEEK_CIRCLE_SCAN_VCS
+    workflow: [] # PIPELEEK_CIRCLE_SCAN_WORKFLOW
 
-#------------------------------------------------------------------------------
-# GitHub Platform Configuration
-#------------------------------------------------------------------------------
+gitea:
+  gitea: "" # PIPELEEK_GITEA_GITEA
+  token: "" # PIPELEEK_GITEA_TOKEN
+  enum:
+  scan:
+    artifacts: false # PIPELEEK_GITEA_SCAN_ARTIFACTS
+    cookie: "" # PIPELEEK_GITEA_SCAN_COOKIE
+    organization: "" # PIPELEEK_GITEA_SCAN_ORGANIZATION
+    owned: false # PIPELEEK_GITEA_SCAN_OWNED
+    repository: "" # PIPELEEK_GITEA_SCAN_REPOSITORY
+    runs_limit: 0 # PIPELEEK_GITEA_SCAN_RUNS_LIMIT
+    start_run_id: 0 # PIPELEEK_GITEA_SCAN_START_RUN_ID
+  secrets:
+  variables:
+  vuln:
+
 github:
-  url: https://api.github.com    # --github | PIPELEEK_GITHUB_URL
-  token: ghp_REPLACE_ME          # --token | PIPELEEK_GITHUB_TOKEN
-
-  # ghtoken exploit - Validate GitHub Actions token and attempt repo clone
+  container:
+    artipacked:
+      github: "" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_GITHUB
+      order_by: "updated" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_ORDER_BY
+      organization: "" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_ORGANIZATION
+      page: 1 # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_PAGE
+      repo: "" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_REPO
+      search: "" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_SEARCH
+      token: "" # PIPELEEK_GITHUB_CONTAINER_ARTIPACKED_TOKEN
   ghtoken:
     exploit:
-      repo: "owner/repo"         # --repo | PIPELEEK_GITHUB_GHTOKEN_EXPLOIT_REPO
-
-  # scan - Scan GitHub Actions artifacts for secrets
-  scan:
-    org: ""                      # --org | PIPELEEK_GITHUB_SCAN_ORG
-    user: ""                     # --user | PIPELEEK_GITHUB_SCAN_USER
-    search: ""                   # --search | PIPELEEK_GITHUB_SCAN_SEARCH
-    repo: ""                     # --repo | PIPELEEK_GITHUB_SCAN_REPO
-    public: false                # --public | PIPELEEK_GITHUB_SCAN_PUBLIC
-    max_workflows: 0             # --max-workflows | PIPELEEK_GITHUB_SCAN_MAX_WORKFLOWS (0 = no limit)
-    artifacts: false             # --artifacts | PIPELEEK_GITHUB_SCAN_ARTIFACTS
-    owned: false                 # --owned | PIPELEEK_GITHUB_SCAN_OWNED
-    # Inherits common.* settings
-
-  # renovate - Renovate bot commands
+      repo: "" # PIPELEEK_GITHUB_GHTOKEN_EXPLOIT_REPO
   renovate:
-    enum:
-      owned: true                # --owned | PIPELEEK_GITHUB_RENOVATE_ENUM_OWNED
-      member: true               # --member | PIPELEEK_GITHUB_RENOVATE_ENUM_MEMBER
-      search: ""                 # --search | PIPELEEK_GITHUB_RENOVATE_ENUM_SEARCH
-      fast: false                # --fast | PIPELEEK_GITHUB_RENOVATE_ENUM_FAST
-      dump: false                # --dump | PIPELEEK_GITHUB_RENOVATE_ENUM_DUMP
-
     autodiscovery:
-      repo_name: ""              # --repo-name | PIPELEEK_GITHUB_RENOVATE_AUTODISCOVERY_REPO_NAME
-
+      repo_name: "" # PIPELEEK_GITHUB_RENOVATE_AUTODISCOVERY_REPO_NAME
+      username: "" # PIPELEEK_GITHUB_RENOVATE_AUTODISCOVERY_USERNAME
+    enum:
+      dump: false # PIPELEEK_GITHUB_RENOVATE_ENUM_DUMP
+      extend_renovate_config_service: "" # PIPELEEK_GITHUB_RENOVATE_ENUM_EXTEND_RENOVATE_CONFIG_SERVICE
+      fast: false # PIPELEEK_GITHUB_RENOVATE_ENUM_FAST
+      member: false # PIPELEEK_GITHUB_RENOVATE_ENUM_MEMBER
+      order_by: "created" # PIPELEEK_GITHUB_RENOVATE_ENUM_ORDER_BY
+      org: "" # PIPELEEK_GITHUB_RENOVATE_ENUM_ORG
+      owned: false # PIPELEEK_GITHUB_RENOVATE_ENUM_OWNED
+      page: 1 # PIPELEEK_GITHUB_RENOVATE_ENUM_PAGE
+      repo: "" # PIPELEEK_GITHUB_RENOVATE_ENUM_REPO
+      search: "" # PIPELEEK_GITHUB_RENOVATE_ENUM_SEARCH
+    lab:
+      repo_name: "" # PIPELEEK_GITHUB_RENOVATE_LAB_REPO_NAME
     privesc:
-      repo_name: ""              # --repo-name | PIPELEEK_GITHUB_RENOVATE_PRIVESC_REPO_NAME
-
-#------------------------------------------------------------------------------
-# BitBucket Platform Configuration
-#------------------------------------------------------------------------------
-bitbucket:
-  url: https://api.bitbucket.org/2.0  # --bitbucket | PIPELEEK_BITBUCKET_URL
-  email: user@example.com             # --email | PIPELEEK_BITBUCKET_EMAIL
-  token: ATATTxxxxxx                  # --token | PIPELEEK_BITBUCKET_TOKEN
-  cookie: ""                          # --cookie | PIPELEEK_BITBUCKET_COOKIE (cloud.session.token for artifact scanning)
-
-  # scan - Scan BitBucket Pipelines artifacts
+      monitoring_interval: "1s" # PIPELEEK_GITHUB_RENOVATE_PRIVESC_MONITORING_INTERVAL
+      renovate_branches_regex: "renovate/.*" # PIPELEEK_GITHUB_RENOVATE_PRIVESC_RENOVATE_BRANCHES_REGEX
+      repo_name: "" # PIPELEEK_GITHUB_RENOVATE_PRIVESC_REPO_NAME
   scan:
-    workspace: ""                     # --workspace | PIPELEEK_BITBUCKET_SCAN_WORKSPACE
-    max_pipelines: 0                  # --max-pipelines | PIPELEEK_BITBUCKET_SCAN_MAX_PIPELINES (0 = no limit)
-    public: false                     # --public | PIPELEEK_BITBUCKET_SCAN_PUBLIC
-    after: ""                         # --after | PIPELEEK_BITBUCKET_SCAN_AFTER (ISO 8601 format)
-    artifacts: false                  # --artifacts | PIPELEEK_BITBUCKET_SCAN_ARTIFACTS
-    owned: false                      # --owned | PIPELEEK_BITBUCKET_SCAN_OWNED
-    # Inherits common.* settings
+    artifacts: false # PIPELEEK_GITHUB_SCAN_ARTIFACTS
+    github: "https://api.github.com" # PIPELEEK_GITHUB_SCAN_GITHUB
+    max_workflows: -1 # PIPELEEK_GITHUB_SCAN_MAX_WORKFLOWS
+    org: "" # PIPELEEK_GITHUB_SCAN_ORG
+    owned: false # PIPELEEK_GITHUB_SCAN_OWNED
+    public: false # PIPELEEK_GITHUB_SCAN_PUBLIC
+    repo: "" # PIPELEEK_GITHUB_SCAN_REPO
+    search: "" # PIPELEEK_GITHUB_SCAN_SEARCH
+    token: "" # PIPELEEK_GITHUB_SCAN_TOKEN
+    user: "" # PIPELEEK_GITHUB_SCAN_USER
 
-#------------------------------------------------------------------------------
-# Azure DevOps Configuration
-#------------------------------------------------------------------------------
-azure_devops:
-  url: https://dev.azure.com    # --devops | PIPELEEK_AZURE_DEVOPS_URL
-  token: ado_pat_REPLACE_ME     # --token | PIPELEEK_AZURE_DEVOPS_TOKEN
-  username: ""                  # --username | PIPELEEK_AZURE_DEVOPS_USERNAME
-
-  # scan - Scan Azure Pipelines artifacts
+gitlab:
+  gitlab: "" # PIPELEEK_GITLAB_GITLAB
+  token: "" # PIPELEEK_GITLAB_TOKEN
+  cicd:
+    yaml:
+      project: "" # PIPELEEK_GITLAB_CICD_YAML_PROJECT
+  container:
+    artipacked:
+      namespace: "" # PIPELEEK_GITLAB_CONTAINER_ARTIPACKED_NAMESPACE
+      order_by: "last_activity_at" # PIPELEEK_GITLAB_CONTAINER_ARTIPACKED_ORDER_BY
+      page: 1 # PIPELEEK_GITLAB_CONTAINER_ARTIPACKED_PAGE
+      repo: "" # PIPELEEK_GITLAB_CONTAINER_ARTIPACKED_REPO
+      search: "" # PIPELEEK_GITLAB_CONTAINER_ARTIPACKED_SEARCH
+  enum:
+    gitlab: "" # PIPELEEK_GITLAB_ENUM_GITLAB
+    level: 10 # PIPELEEK_GITLAB_ENUM_LEVEL
+    token: "" # PIPELEEK_GITLAB_ENUM_TOKEN
+  gluna:
+    register:
+      email: "" # PIPELEEK_GITLAB_GLUNA_REGISTER_EMAIL
+      gitlab: "" # PIPELEEK_GITLAB_GLUNA_REGISTER_GITLAB
+      password: "" # PIPELEEK_GITLAB_GLUNA_REGISTER_PASSWORD
+      username: "" # PIPELEEK_GITLAB_GLUNA_REGISTER_USERNAME
+    scan:
+      artifacts: false # PIPELEEK_GITLAB_GLUNA_SCAN_ARTIFACTS
+      gitlab: "" # PIPELEEK_GITLAB_GLUNA_SCAN_GITLAB
+      job_limit: 0 # PIPELEEK_GITLAB_GLUNA_SCAN_JOB_LIMIT
+      namespace: "" # PIPELEEK_GITLAB_GLUNA_SCAN_NAMESPACE
+      queue: "" # PIPELEEK_GITLAB_GLUNA_SCAN_QUEUE
+      repo: "" # PIPELEEK_GITLAB_GLUNA_SCAN_REPO
+      search: "" # PIPELEEK_GITLAB_GLUNA_SCAN_SEARCH
+    shodan:
+  jobToken:
+    exploit:
+      project: "" # PIPELEEK_GITLAB_JOBTOKEN_EXPLOIT_PROJECT
+  renovate:
+    autodiscovery:
+      add_renovate_cicd_for_debugging: false # PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_ADD_RENOVATE_CICD_FOR_DEBUGGING
+      repo_name: "" # PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_REPO_NAME
+      username: "" # PIPELEEK_GITLAB_RENOVATE_AUTODISCOVERY_USERNAME
+    bots:
+      term: "renovate" # PIPELEEK_GITLAB_RENOVATE_BOTS_TERM
+    enum:
+      dump: false # PIPELEEK_GITLAB_RENOVATE_ENUM_DUMP
+      extend_renovate_config_service: "" # PIPELEEK_GITLAB_RENOVATE_ENUM_EXTEND_RENOVATE_CONFIG_SERVICE
+      fast: false # PIPELEEK_GITLAB_RENOVATE_ENUM_FAST
+      namespace: "" # PIPELEEK_GITLAB_RENOVATE_ENUM_NAMESPACE
+      order_by: "created_at" # PIPELEEK_GITLAB_RENOVATE_ENUM_ORDER_BY
+      page: 1 # PIPELEEK_GITLAB_RENOVATE_ENUM_PAGE
+      repo: "" # PIPELEEK_GITLAB_RENOVATE_ENUM_REPO
+      search: "" # PIPELEEK_GITLAB_RENOVATE_ENUM_SEARCH
+    privesc:
+      monitoring_interval: "1s" # PIPELEEK_GITLAB_RENOVATE_PRIVESC_MONITORING_INTERVAL
+      renovate_branches_regex: "renovate/.*" # PIPELEEK_GITLAB_RENOVATE_PRIVESC_RENOVATE_BRANCHES_REGEX
+      repo_name: "" # PIPELEEK_GITLAB_RENOVATE_PRIVESC_REPO_NAME
+  runners:
+    exploit:
+      age_public_key: "" # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_AGE_PUBLIC_KEY
+      repo_name: "pipeleek-runner-test" # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_REPO_NAME
+      tags: [] # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_TAGS
+    list:
   scan:
-    organization: ""            # --organization | PIPELEEK_AZURE_DEVOPS_SCAN_ORGANIZATION
-    project: ""                 # --project | PIPELEEK_AZURE_DEVOPS_SCAN_PROJECT
-    max_builds: 0               # --max-builds | PIPELEEK_AZURE_DEVOPS_SCAN_MAX_BUILDS (0 = no limit)
-    artifacts: false            # --artifacts | PIPELEEK_AZURE_DEVOPS_SCAN_ARTIFACTS
-    owned: false                # --owned | PIPELEEK_AZURE_DEVOPS_SCAN_OWNED
-    # Inherits common.* settings
-
-#------------------------------------------------------------------------------
-# Gitea Platform Configuration
-#------------------------------------------------------------------------------
-gitea:
-  url: https://gitea.example.com    # --gitea | PIPELEEK_GITEA_URL
-  token: gitea_pat_REPLACE_ME       # --token | PIPELEEK_GITEA_TOKEN
-
-  # enum - Enumerate token access rights (inherits gitea.url and gitea.token)
-  enum: {}
-
-  # variables - Print repository/organization variables
+    artifacts: false # PIPELEEK_GITLAB_SCAN_ARTIFACTS
+    cookie: "" # PIPELEEK_GITLAB_SCAN_COOKIE
+    job_limit: 0 # PIPELEEK_GITLAB_SCAN_JOB_LIMIT
+    member: false # PIPELEEK_GITLAB_SCAN_MEMBER
+    namespace: "" # PIPELEEK_GITLAB_SCAN_NAMESPACE
+    owned: false # PIPELEEK_GITLAB_SCAN_OWNED
+    queue: "" # PIPELEEK_GITLAB_SCAN_QUEUE
+    repo: "" # PIPELEEK_GITLAB_SCAN_REPO
+    search: "" # PIPELEEK_GITLAB_SCAN_SEARCH
+  schedule:
+    gitlab: "" # PIPELEEK_GITLAB_SCHEDULE_GITLAB
+    token: "" # PIPELEEK_GITLAB_SCHEDULE_TOKEN
+  secureFiles:
+    gitlab: "" # PIPELEEK_GITLAB_SECUREFILES_GITLAB
+    token: "" # PIPELEEK_GITLAB_SECUREFILES_TOKEN
+  snippets:
+    scan:
+      member: false # PIPELEEK_GITLAB_SNIPPETS_SCAN_MEMBER
+      namespace: "" # PIPELEEK_GITLAB_SNIPPETS_SCAN_NAMESPACE
+      owned: false # PIPELEEK_GITLAB_SNIPPETS_SCAN_OWNED
+      project: "" # PIPELEEK_GITLAB_SNIPPETS_SCAN_PROJECT
+      search: "" # PIPELEEK_GITLAB_SNIPPETS_SCAN_SEARCH
+  tf:
+    output_dir: "./terraform-states" # PIPELEEK_GITLAB_TF_OUTPUT_DIR
   variables:
-    owner: "example-org"    # --owner | PIPELEEK_GITEA_VARIABLES_OWNER
-    repo: "example-repo"    # --repo | PIPELEEK_GITEA_VARIABLES_REPO
+    gitlab: "" # PIPELEEK_GITLAB_VARIABLES_GITLAB
+    token: "" # PIPELEEK_GITLAB_VARIABLES_TOKEN
+  vuln:
+    gitlab: "" # PIPELEEK_GITLAB_VULN_GITLAB
+    token: "" # PIPELEEK_GITLAB_VULN_TOKEN
 
-  # secrets - Print repository/organization secrets
-  secrets:
-    owner: "example-org"    # --owner | PIPELEEK_GITEA_SECRETS_OWNER
-    repo: "example-repo"    # --repo | PIPELEEK_GITEA_SECRETS_REPO
-
-  # vuln - Check Gitea version vulnerabilities (inherits gitea.url and gitea.token)
-  vuln: {}
-
-  # scan - Scan Gitea Actions artifacts
-  scan:
-    organization: ""        # --organization | PIPELEEK_GITEA_SCAN_ORGANIZATION
-    repository: ""          # --repository | PIPELEEK_GITEA_SCAN_REPOSITORY
-    runs_limit: 0           # --runs-limit | PIPELEEK_GITEA_SCAN_RUNS_LIMIT (0 = no limit)
-    start_run_id: 0         # --start-run-id | PIPELEEK_GITEA_SCAN_START_RUN_ID
-    artifacts: false        # --artifacts | PIPELEEK_GITEA_SCAN_ARTIFACTS
-    owned: false            # --owned | PIPELEEK_GITEA_SCAN_OWNED
-    # Inherits common.* settings
-
-#------------------------------------------------------------------------------
-# Jenkins Platform Configuration
-#------------------------------------------------------------------------------
 jenkins:
-  url: https://jenkins.example.com    # --jenkins | PIPELEEK_JENKINS_URL
-  username: admin                     # --username | PIPELEEK_JENKINS_USERNAME
-  token: jenkins_api_token_REPLACE_ME # --token | PIPELEEK_JENKINS_TOKEN
-
-  # scan - Scan Jenkins jobs, build logs, env vars, and optional artifacts
   scan:
-    folder: ""             # --folder | PIPELEEK_JENKINS_SCAN_FOLDER
-    job: ""                # --job | PIPELEEK_JENKINS_SCAN_JOB
-    max_builds: 25         # --max-builds | PIPELEEK_JENKINS_SCAN_MAX_BUILDS (0 = all builds)
-    artifacts: false       # --artifacts | PIPELEEK_JENKINS_SCAN_ARTIFACTS
-    # Inherits common.* settings
-
-#------------------------------------------------------------------------------
-# CircleCI Platform Configuration
-#------------------------------------------------------------------------------
-circle:
-  url: https://circleci.com          # --circle | PIPELEEK_CIRCLE_URL
-  token: circleci_token_REPLACE_ME   # --token | PIPELEEK_CIRCLE_TOKEN
-
-  # scan - Scan CircleCI pipelines, logs, test results and optional artifacts
-  scan:
-    org: ""                                    # --org | PIPELEEK_CIRCLE_SCAN_ORG
-    project: []                                # --project | PIPELEEK_CIRCLE_SCAN_PROJECT (format: org/repo or vcs/org/repo)
-    vcs: "github"                              # --vcs | PIPELEEK_CIRCLE_SCAN_VCS (github or bitbucket)
-    branch: ""                                 # --branch | PIPELEEK_CIRCLE_SCAN_BRANCH
-    status: []                                 # --status | PIPELEEK_CIRCLE_SCAN_STATUS (success, failed, etc.)
-    workflow: []                               # --workflow | PIPELEEK_CIRCLE_SCAN_WORKFLOW
-    job: []                                    # --job | PIPELEEK_CIRCLE_SCAN_JOB
-    since: ""                                  # --since | PIPELEEK_CIRCLE_SCAN_SINCE (RFC3339 timestamp)
-    until: ""                                  # --until | PIPELEEK_CIRCLE_SCAN_UNTIL (RFC3339 timestamp)
-    max_pipelines: 0                           # --max-pipelines | PIPELEEK_CIRCLE_SCAN_MAX_PIPELINES (0 = no limit)
-    tests: true                                # --tests | PIPELEEK_CIRCLE_SCAN_TESTS
-    insights: true                             # --insights | PIPELEEK_CIRCLE_SCAN_INSIGHTS
-    # Inherits common.* settings
+    artifacts: false # PIPELEEK_JENKINS_SCAN_ARTIFACTS
+    folder: "" # PIPELEEK_JENKINS_SCAN_FOLDER
+    jenkins: "" # PIPELEEK_JENKINS_SCAN_JENKINS
+    job: "" # PIPELEEK_JENKINS_SCAN_JOB
+    max_builds: 25 # PIPELEEK_JENKINS_SCAN_MAX_BUILDS
+    token: "" # PIPELEEK_JENKINS_SCAN_TOKEN
+    username: "" # PIPELEEK_JENKINS_SCAN_USERNAME

@@ -87,7 +87,9 @@ func Scan(cmd *cobra.Command, args []string) {
 		WithFlagBindings(flagBindings).
 		RequireKeys("azure_devops.token", "azure_devops.username").
 		AddValidator(func() error { return config.ValidateURL(config.GetString("azure_devops.url"), "Azure DevOps URL") }).
-		AddValidator(func() error { return config.ValidateToken(config.GetString("azure_devops.token"), "Azure DevOps Access Token") }).
+		AddValidator(func() error {
+			return config.ValidateToken(config.GetString("azure_devops.token"), "Azure DevOps Access Token")
+		}).
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 

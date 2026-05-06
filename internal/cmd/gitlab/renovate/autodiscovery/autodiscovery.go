@@ -35,7 +35,7 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gi
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name my-exploit-repo --add-renovate-cicd-for-debugging
     `,
 		Run: func(cmd *cobra.Command, args []string) {
-				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

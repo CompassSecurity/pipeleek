@@ -121,6 +121,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.MaxPipelines = config.GetInt("circle.scan.max_pipelines")
 	options.IncludeTests = config.GetBool("circle.scan.tests")
 	options.Insights = config.GetBool("circle.scan.insights")
+	options.Artifacts = config.GetBool("circle.scan.artifacts")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")

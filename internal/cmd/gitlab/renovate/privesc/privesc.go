@@ -30,7 +30,7 @@ func NewPrivescCmd() *cobra.Command {
 		Long:    "Inject a job into the CI/CD pipeline of the project's default branch by adding a commit (race condition) to a Renovate Bot branch, which is then auto-merged into the main branch. Assumes the Renovate Bot has owner/maintainer access whereas you only have developer access. See https://blog.compass-security.com/2025/05/renovate-keeping-your-updates-secure/",
 		Example: `pipeleek gl renovate privesc --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --repo-name mygroup/myproject --renovate-branches-regex 'renovate/.*'`,
 		Run: func(cmd *cobra.Command, args []string) {
-				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 

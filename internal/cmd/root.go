@@ -294,7 +294,6 @@ func setGlobalLogLevel(cmd *cobra.Command) {
 	}
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	log.Debug().Msg("Log level set to info (default)")
 }
 
 func loadConfigFile(cmd *cobra.Command) {

@@ -152,7 +152,7 @@ func TestUnmarshalConfig_Defaults(t *testing.T) {
 	assert.True(t, cfg.Common.TruffleHogVerification)
 	assert.Equal(t, "500Mb", cfg.Common.MaxArtifactSize)
 	assert.Equal(t, "https://api.github.com", cfg.GitHub.URL)
-	assert.Equal(t, "https://bitbucket.org", cfg.BitBucket.URL)
+	assert.Equal(t, "https://api.bitbucket.org/2.0", cfg.BitBucket.URL)
 	assert.Equal(t, "https://dev.azure.com", cfg.AzureDevOps.URL)
 }
 

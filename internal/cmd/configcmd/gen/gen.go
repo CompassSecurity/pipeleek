@@ -33,7 +33,7 @@ pipeleek config gen --output pipeleek.yaml
 pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
 		`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			content := configgen.GenerateExampleConfig()
+			content := configgen.GenerateExampleConfig(cmd.Root())
 
 			if outputFile != "" {
 				if err := writeFile(outputFile, content); err != nil {

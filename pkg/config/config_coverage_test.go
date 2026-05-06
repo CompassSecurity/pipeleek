@@ -9,11 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestScanCommandFlagCoverage verifies that all scan commands define their flags
-// and that no flags are missing from AutoBindFlags mappings.
+// TestScanCommandFlagCoverage is a documentation/checklist test that records the
+// expected flags for each scan command. It verifies that a set of critical flags
+// is a subset of the declared expected flags, serving as a living specification.
 //
-// Note: This test documents the expected flag coverage for scan commands.
-// Maintainers should add new tests here when new commands or flags are added.
+// Note: This test does NOT instantiate commands or inspect flagBindings maps at
+// runtime. Maintainers should add new entries here when new commands or flags are
+// added, and use per-command _test.go files for runtime flag-binding assertions.
 func TestScanCommandFlagCoverage(t *testing.T) {
 	tests := map[string]struct {
 		// Description of the command
