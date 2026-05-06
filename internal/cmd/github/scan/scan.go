@@ -29,6 +29,23 @@ var options = GitHubScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"github":                   "github.url",
+	"token":                    "github.token",
+	"org":                      "github.scan.org",
+	"user":                     "github.scan.user",
+	"search":                   "github.scan.search",
+	"repo":                     "github.scan.repo",
+	"public":                   "github.scan.public",
+	"max-workflows":            "github.scan.max_workflows",
+	"artifacts":                "github.scan.artifacts",
+	"owned":                    "github.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -72,23 +89,7 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"github":                   "github.url",
-		"token":                    "github.token",
-		"org":                      "github.scan.org",
-		"user":                     "github.scan.user",
-		"search":                   "github.scan.search",
-		"repo":                     "github.scan.repo",
-		"public":                   "github.scan.public",
-		"max-workflows":            "github.scan.max_workflows",
-		"artifacts":                "github.scan.artifacts",
-		"owned":                    "github.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

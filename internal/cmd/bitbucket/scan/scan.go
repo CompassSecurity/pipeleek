@@ -27,6 +27,23 @@ var options = BitBucketScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"bitbucket":                "bitbucket.url",
+	"token":                    "bitbucket.token",
+	"email":                    "bitbucket.email",
+	"cookie":                   "bitbucket.cookie",
+	"workspace":                "bitbucket.scan.workspace",
+	"max-pipelines":            "bitbucket.scan.max_pipelines",
+	"public":                   "bitbucket.scan.public",
+	"after":                    "bitbucket.scan.after",
+	"artifacts":                "bitbucket.scan.artifacts",
+	"owned":                    "bitbucket.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -67,23 +84,7 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"bitbucket":                "bitbucket.url",
-		"token":                    "bitbucket.token",
-		"email":                    "bitbucket.email",
-		"cookie":                   "bitbucket.cookie",
-		"workspace":                "bitbucket.scan.workspace",
-		"max-pipelines":            "bitbucket.scan.max_pipelines",
-		"public":                   "bitbucket.scan.public",
-		"after":                    "bitbucket.scan.after",
-		"artifacts":                "bitbucket.scan.artifacts",
-		"owned":                    "bitbucket.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

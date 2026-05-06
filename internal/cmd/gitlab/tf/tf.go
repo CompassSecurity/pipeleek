@@ -1,6 +1,9 @@
 package tf
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	tfpkg "github.com/CompassSecurity/pipeleek/pkg/gitlab/tf"
@@ -14,6 +17,15 @@ type TFCommandOptions struct {
 }
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
+var flagBindings = map[string]string{
+	"gitlab":                   "gitlab.url",
+	"token":                    "gitlab.token",
+	"output-dir":               "gitlab.tf.output_dir",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewTFCmd() *cobra.Command {
 	tfCmd := &cobra.Command{
@@ -48,15 +60,7 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --c
 }
 
 func tfRun(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"output-dir":               "gitlab.tf.output_dir",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
@@ -70,6 +74,12 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")

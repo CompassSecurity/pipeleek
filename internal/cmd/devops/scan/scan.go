@@ -25,6 +25,21 @@ var options = DevOpsScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"devops":                   "azure_devops.url",
+	"token":                    "azure_devops.token",
+	"username":                 "azure_devops.username",
+	"organization":             "azure_devops.scan.organization",
+	"project":                  "azure_devops.scan.project",
+	"max-builds":               "azure_devops.scan.max_builds",
+	"artifacts":                "azure_devops.scan.artifacts",
+	"owned":                    "azure_devops.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -67,21 +82,7 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 
 func Scan(cmd *cobra.Command, args []string) {
 	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"devops":                   "azure_devops.url",
-		"token":                    "azure_devops.token",
-		"username":                 "azure_devops.username",
-		"organization":             "azure_devops.scan.organization",
-		"project":                  "azure_devops.scan.project",
-		"max-builds":               "azure_devops.scan.max_builds",
-		"artifacts":                "azure_devops.scan.artifacts",
-		"owned":                    "azure_devops.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

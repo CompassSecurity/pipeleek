@@ -28,6 +28,20 @@ var options = JenkinsScanOptions{
 }
 
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"jenkins":                  "jenkins.url",
+	"username":                 "jenkins.username",
+	"token":                    "jenkins.token",
+	"folder":                   "jenkins.scan.folder",
+	"job":                      "jenkins.scan.job",
+	"max-builds":               "jenkins.scan.max_builds",
+	"artifacts":                "jenkins.scan.artifacts",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -63,20 +77,7 @@ pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --t
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"jenkins":                  "jenkins.url",
-		"username":                 "jenkins.username",
-		"token":                    "jenkins.token",
-		"folder":                   "jenkins.scan.folder",
-		"job":                      "jenkins.scan.job",
-		"max-builds":               "jenkins.scan.max_builds",
-		"artifacts":                "jenkins.scan.artifacts",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

@@ -4,7 +4,21 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
+	"github.com/spf13/pflag"
 )
+
+func TestGitHubScan_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewScanCmd()
+
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
+}
 
 func TestGitHubScanFlagBindings(t *testing.T) {
 	t.Setenv("PIPELEEK_NO_CONFIG", "1")
@@ -36,23 +50,7 @@ func TestGitHubScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set owned flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"github":                   "github.url",
-		"token":                    "github.token",
-		"org":                      "github.scan.org",
-		"user":                     "github.scan.user",
-		"search":                   "github.scan.search",
-		"repo":                     "github.scan.repo",
-		"public":                   "github.scan.public",
-		"max-workflows":            "github.scan.max_workflows",
-		"artifacts":                "github.scan.artifacts",
-		"owned":                    "github.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

@@ -5,7 +5,21 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
+	"github.com/spf13/pflag"
 )
+
+func TestGitLabScan_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewScanCmd()
+
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
+}
 
 func TestNewScanCmd(t *testing.T) {
 	cmd := NewScanCmd()
@@ -80,24 +94,7 @@ func TestGitLabScanFlagBindings(t *testing.T) {
 	}
 
 	// Bind flags to Viper keys (same mapping as in Scan())
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"cookie":                   "gitlab.cookie",
-		"search":                   "gitlab.scan.search",
-		"member":                   "gitlab.scan.member",
-		"repo":                     "gitlab.scan.repo",
-		"namespace":                "gitlab.scan.namespace",
-		"job-limit":                "gitlab.scan.job_limit",
-		"queue":                    "gitlab.scan.queue",
-		"artifacts":                "gitlab.scan.artifacts",
-		"owned":                    "gitlab.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

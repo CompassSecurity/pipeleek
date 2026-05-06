@@ -4,7 +4,21 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
+	"github.com/spf13/pflag"
 )
+
+func TestGiteaScan_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewScanCmd()
+
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
+}
 
 func TestNewScanCmd(t *testing.T) {
 	cmd := NewScanCmd()
@@ -66,22 +80,7 @@ func TestGiteaScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set owned flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitea":                    "gitea.url",
-		"token":                    "gitea.token",
-		"cookie":                   "gitea.cookie",
-		"organization":             "gitea.scan.organization",
-		"repository":               "gitea.scan.repository",
-		"runs-limit":               "gitea.scan.runs_limit",
-		"start-run-id":             "gitea.scan.start_run_id",
-		"artifacts":                "gitea.scan.artifacts",
-		"owned":                    "gitea.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

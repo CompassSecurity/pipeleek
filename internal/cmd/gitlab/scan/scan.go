@@ -29,6 +29,24 @@ var options = ScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"gitlab":                   "gitlab.url",
+	"token":                    "gitlab.token",
+	"cookie":                   "gitlab.cookie",
+	"search":                   "gitlab.scan.search",
+	"member":                   "gitlab.scan.member",
+	"repo":                     "gitlab.scan.repo",
+	"namespace":                "gitlab.scan.namespace",
+	"job-limit":                "gitlab.scan.job_limit",
+	"queue":                    "gitlab.scan.queue",
+	"artifacts":                "gitlab.scan.artifacts",
+	"owned":                    "gitlab.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -81,24 +99,7 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"cookie":                   "gitlab.cookie",
-		"search":                   "gitlab.scan.search",
-		"member":                   "gitlab.scan.member",
-		"repo":                     "gitlab.scan.repo",
-		"namespace":                "gitlab.scan.namespace",
-		"job-limit":                "gitlab.scan.job_limit",
-		"queue":                    "gitlab.scan.queue",
-		"artifacts":                "gitlab.scan.artifacts",
-		"owned":                    "gitlab.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

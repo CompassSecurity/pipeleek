@@ -4,7 +4,21 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
+	"github.com/spf13/pflag"
 )
+
+func TestJenkinsScan_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewScanCmd()
+
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
+}
 
 func TestNewScanCmd(t *testing.T) {
 	cmd := NewScanCmd()
@@ -58,20 +72,7 @@ func TestJenkinsScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set artifacts flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"jenkins":                  "jenkins.url",
-		"username":                 "jenkins.username",
-		"token":                    "jenkins.token",
-		"folder":                   "jenkins.scan.folder",
-		"job":                      "jenkins.scan.job",
-		"max-builds":               "jenkins.scan.max_builds",
-		"artifacts":                "jenkins.scan.artifacts",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

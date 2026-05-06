@@ -24,6 +24,22 @@ var scanOptions = GiteaScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"gitea":                    "gitea.url",
+	"token":                    "gitea.token",
+	"cookie":                   "gitea.cookie",
+	"organization":             "gitea.scan.organization",
+	"repository":               "gitea.scan.repository",
+	"runs-limit":               "gitea.scan.runs_limit",
+	"start-run-id":             "gitea.scan.start_run_id",
+	"artifacts":                "gitea.scan.artifacts",
+	"owned":                    "gitea.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -79,22 +95,7 @@ pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com 
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitea":                    "gitea.url",
-		"token":                    "gitea.token",
-		"cookie":                   "gitea.cookie",
-		"organization":             "gitea.scan.organization",
-		"repository":               "gitea.scan.repository",
-		"runs-limit":               "gitea.scan.runs_limit",
-		"start-run-id":             "gitea.scan.start_run_id",
-		"artifacts":                "gitea.scan.artifacts",
-		"owned":                    "gitea.scan.owned",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

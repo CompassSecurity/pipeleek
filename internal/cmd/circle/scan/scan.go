@@ -36,6 +36,28 @@ var options = CircleScanOptions{
 }
 
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"circle":                   "circle.url",
+	"token":                    "circle.token",
+	"org":                      "circle.scan.org",
+	"project":                  "circle.scan.project",
+	"vcs":                      "circle.scan.vcs",
+	"branch":                   "circle.scan.branch",
+	"status":                   "circle.scan.status",
+	"workflow":                 "circle.scan.workflow",
+	"job":                      "circle.scan.job",
+	"since":                    "circle.scan.since",
+	"until":                    "circle.scan.until",
+	"max-pipelines":            "circle.scan.max_pipelines",
+	"tests":                    "circle.scan.tests",
+	"insights":                 "circle.scan.insights",
+	"artifacts":                "circle.scan.artifacts",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -75,27 +97,7 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"circle":                   "circle.url",
-		"token":                    "circle.token",
-		"org":                      "circle.scan.org",
-		"project":                  "circle.scan.project",
-		"vcs":                      "circle.scan.vcs",
-		"branch":                   "circle.scan.branch",
-		"status":                   "circle.scan.status",
-		"workflow":                 "circle.scan.workflow",
-		"job":                      "circle.scan.job",
-		"since":                    "circle.scan.since",
-		"until":                    "circle.scan.until",
-		"max-pipelines":            "circle.scan.max_pipelines",
-		"tests":                    "circle.scan.tests",
-		"insights":                 "circle.scan.insights",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 

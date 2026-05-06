@@ -13,8 +13,19 @@ Pipeleek can be configured via config files, environment variables, or CLI flags
 
 ## Quick Start
 
-Create `~/.config/pipeleek/pipeleek.yaml`:
+Generate a configuration template with all available options:
 
+```bash
+# Print to stdout
+pipeleek config gen
+
+# Write to a file
+pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
+```
+
+The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
+
+Then configure your needed object keys, for example:
 ```yaml
 gitlab:
   url: https://gitlab.example.com
@@ -27,23 +38,6 @@ Run commands without flags:
 pipeleek gl enum
 pipeleek gl scan
 ```
-
-## Generating a Configuration Template
-
-Generate a fully-commented configuration template with all available options:
-
-```bash
-# Print to stdout
-pipeleek config gen
-
-# Write to a file
-pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
-
-# Or use make (regenerates pipeleek.example.yaml)
-make gen-config
-```
-
-The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
 
 ## Priority Order
 
@@ -69,199 +63,7 @@ Config keys follow the pattern: `<platform>.<subcommand>.<flag_name>`
 
 Platform-level settings (like `url` and `token`) are inherited by all commands under that platform.
 
-### GitLab
-
-```yaml
-gitlab:
-  url: https://gitlab.example.com # Shared across all gl commands
-  token: glpat-xxxxxxxxxxxxxxxxxxxx # Shared across all gl commands
-  cookie: "" # Optional: _gitlab_session cookie for dotenv artifacts
-
-  enum:
-    level: full # gl enum --level
-
-  cicd:
-    yaml:
-      project: group/project # gl cicd yaml --project
-
-  schedule: {} # gl schedule (inherits url/token)
-
-  secureFiles: {} # gl secureFiles (inherits url/token)
-
-  variables: {} # gl variables (inherits url/token)
-
-  jobToken:
-    exploit:
-      project: group/project # gl jobToken exploit --project
-
-  vuln: {} # gl vuln (inherits url/token)
-
-  runners:
-    list: {} # gl runners list (inherits url/token)
-
-    exploit:
-      tags: [docker, linux] # gl runners exploit --tags
-      shell: bash # gl runners exploit --shell
-      dry: false # gl runners exploit --dry
-      age_public_key: "" # gl runners exploit --age-public-key
-      repo_name: "" # gl runners exploit --repo-name
-
-  renovate:
-    enum:
-      owned: true # gl renovate enum --owned
-      member: true # gl renovate enum --member
-      repo: false # gl renovate enum --repo
-      namespace: false # gl renovate enum --namespace
-      search: "" # gl renovate enum --search
-      fast: false # gl renovate enum --fast
-      dump: false # gl renovate enum --dump
-
-    bots:
-      term: renovate # gl renovate bots --term
-
-    autodiscovery: {} # gl renovate autodiscovery (inherits url/token)
-
-    privesc: {} # gl renovate privesc (inherits url/token)
-
-  register:
-    username: newuser # gluna register --username
-    password: secret # gluna register --password
-    email: user@example.com # gluna register --email
-
-  shodan:
-    json: shodan_data.json # gluna shodan --json
-
-  scan_public:
-    search: "" # gluna scan --search
-    repo: "" # gluna scan --repo
-    namespace: "" # gluna scan --namespace
-    job_limit: 0 # gluna scan --job-limit
-    queue: "" # gluna scan --queue
-    artifacts: false # gluna scan --artifacts
-
-  scan:
-    threads: 10 # gl scan --threads (can override common.threads)
-
-  snippets:
-    scan:
-      project: group/project # gl snippets scan --project
-      namespace: group # gl snippets scan --namespace
-      search: "" # gl snippets scan --search
-      owned: false # gl snippets scan --owned
-      member: false # gl snippets scan --member
-      # Runtime scan settings come from common.*:
-      # common.threads, common.trufflehog_verification,
-      # common.confidence_filter, common.hit_timeout (duration, e.g. "120s")
-
-  tf:
-    output_dir: ./terraform-states # gl tf --output-dir
-    threads: 4 # gl tf --threads (can override common.threads)
-    # Note: artifacts, max_artifact_size, and owned do not apply to gl tf.
-```
-
-### GitHub
-
-```yaml
-github:
-  url: https://api.github.com
-  token: ghp_xxxxxxxxxxxxxxxxxxxx
-
-  ghtoken:
-    exploit:
-      repo: owner/repo # gh ghtoken exploit --repo
-
-  scan:
-    owner: myorg
-    repo: myrepo
-```
-
-### BitBucket
-
-```yaml
-bitbucket:
-  url: https://bitbucket.org
-  email: user@example.com
-  token: ATATTxxxxxx
-
-  scan:
-    workspace: myworkspace
-    repo_slug: myrepo
-```
-
-### Azure DevOps
-
-```yaml
-azure_devops:
-  url: https://dev.azure.com/myorg
-  token: ado-token
-
-  scan:
-    project: myproject
-```
-
-### Gitea
-
-```yaml
-gitea:
-  url: https://gitea.example.com
-  token: gitea-token
-
-  enum:
-    owner: myorg # gitea enum --owner
-
-  secrets:
-    owner: myorg # gitea secrets --owner
-    repo: myrepo # gitea secrets --repo
-
-  variables:
-    owner: myorg # gitea variables --owner
-    repo: myrepo # gitea variables --repo
-
-  scan:
-    owner: myorg # gitea scan --owner
-    repo: myrepo # gitea scan --repo (optional, scans all if not specified)
-```
-
-### Jenkins
-
-```yaml
-jenkins:
-  url: https://jenkins.example.com
-  username: admin
-  token: jenkins-api-token
-
-  scan:
-    folder: team-a # jenkins scan --folder (optional)
-    job: team-a/service-a # jenkins scan --job (optional)
-    max_builds: 25 # jenkins scan --max-builds
-```
-
-### CircleCI
-
-```yaml
-circle:
-  url: https://circleci.com
-  token: circleci-token
-
-  scan:
-    project: [my-org/my-repo] # circle scan --project (optional if org is set)
-    vcs: github # circle scan --vcs
-    org: my-org # circle scan --org (also enables org-wide discovery when project is omitted)
-    # --org accepts: my-org, github/my-org, circleci/my-org (required for native
-    # CircleCI orgs), or app URL forms like
-    # https://app.circleci.com/pipelines/github/my-org/my-repo
-    # Note: org-wide discovery requires token visibility to that org. If not,
-    # use explicit --project selectors instead.
-    branch: main # circle scan --branch
-    status: [success, failed] # circle scan --status
-    workflow: [build, deploy] # circle scan --workflow
-    job: [unit-tests, release] # circle scan --job
-    since: 2026-01-01T00:00:00Z # circle scan --since (RFC3339)
-    until: 2026-01-31T23:59:59Z # circle scan --until (RFC3339)
-    max_pipelines: 0 # circle scan --max-pipelines (0 = no limit)
-    tests: true # circle scan --tests
-    insights: true # circle scan --insights
-```
+To view a full example of the available keys run `pipeleek config gen`.
 
 ### Common Settings
 
@@ -345,7 +147,7 @@ pipeleek gl enum --token glpat-xxxxxxxxxxxxxxxxxxxx
 
 ## Full Example
 
-See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented.
+See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented or run `pipeleek config gen`
 
 ## Troubleshooting
 
