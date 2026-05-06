@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
 	"github.com/acarl005/stripansi"
@@ -75,6 +76,32 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 	findingsCombined := slices.Concat(resultsYml...)
 
 	trGroup := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
+
+	// Keep custom GitLab verification alongside default TruffleHog detectors.
+	gitlabDetector := detectors.GetGitLabURLDetector()
+	trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
+		findingsTr := []types.Finding{}
+		glHits, err := gitlabDetector.FromData(ctx, enableTruffleHogVerification, text)
+		if err != nil {
+			log.Error().Err(err).Msg("GitLab URL detector failed")
+			return []types.Finding{}, err
+		}
+
+		for _, result := range glHits {
+			secret := result.Raw
+			if len(result.RawV2) > 0 {
+				secret = result.RawV2
+			}
+			confidence := "high"
+			if result.Verified {
+				confidence = "high-verified"
+			}
+			finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorName, Confidence: confidence}}, Text: string(secret)}
+			findingsTr = append(findingsTr, finding)
+		}
+		return findingsTr, nil
+	})
+
 	for _, detector := range defaults.DefaultDetectors() {
 		trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
 			findingsTr := []types.Finding{}

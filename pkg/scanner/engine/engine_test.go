@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
 )
@@ -321,5 +322,100 @@ func TestDetectHits_GitLabTokenDetection(t *testing.T) {
 				t.Errorf("Expected GitLab token %q to be detected by built-in rule, findings: %v", tt.token, findings)
 			}
 		})
+	}
+}
+
+func TestDetectHits_CustomGitLabDetector_WithURLSet(t *testing.T) {
+	// Test that the custom GitLab detector is active when URL is set
+	// This ensures GitLab tokens are detected by the custom detector
+	defer detectors.ClearGitLabURL()
+
+	testURL := "https://gitlab.example.com"
+	detectors.SetGitLabURL(testURL)
+
+	testData := []byte(`
+	export GITLAB_TOKEN="glpat-abcdefghijklmnopqrst"
+	`)
+
+	findings, err := DetectHits(testData, 1, false, 60*time.Second)
+	if err != nil {
+		t.Fatalf("DetectHits() error = %v", err)
+	}
+
+	// Should find the token via custom detector
+	found := false
+	for _, f := range findings {
+		if strings.Contains(f.Text, "glpat-abcdefghijklmnopqrst") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected GitLab PAT to be detected by custom detector, findings: %v", findings)
+	}
+}
+
+func TestDetectHits_CustomGitLabDetector_WithoutURLSet(t *testing.T) {
+	// Test that the custom GitLab detector detects tokens even without URL set
+	// (it just won't verify them)
+	defer detectors.ClearGitLabURL()
+	detectors.ClearGitLabURL()
+
+	testData := []byte(`
+	runner_token: glrt-1234567890123456789012
+	`)
+
+	findings, err := DetectHits(testData, 1, false, 60*time.Second)
+	if err != nil {
+		t.Fatalf("DetectHits() error = %v", err)
+	}
+
+	// Should still find the token even without URL
+	found := false
+	for _, f := range findings {
+		if strings.Contains(f.Text, "glrt-1234567890123456789012") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected GitLab runner token to be detected, findings: %v", findings)
+	}
+}
+
+func TestDetectHits_CustomGitLabDetector_MultipleTypes(t *testing.T) {
+	// Test that multiple GitLab token types are detected
+	defer detectors.ClearGitLabURL()
+
+	testData := []byte(`
+	pat: glpat-abcdefghijklmnopqrst
+	trigger: glptt-1234567890123456789012
+	deploy: gldt-abcdefghijklmnopqrst
+	`)
+
+	findings, err := DetectHits(testData, 4, false, 60*time.Second)
+	if err != nil {
+		t.Fatalf("DetectHits() error = %v", err)
+	}
+
+	// Should find multiple token types
+	tokenCounts := map[string]int{
+		"glpat-": 0,
+		"glptt-": 0,
+		"gldt-":  0,
+	}
+
+	for _, f := range findings {
+		for prefix := range tokenCounts {
+			if strings.Contains(f.Text, prefix) {
+				tokenCounts[prefix]++
+			}
+		}
+	}
+
+	for prefix, count := range tokenCounts {
+		if count == 0 {
+			t.Errorf("Expected to find token with prefix %s, but found none. All findings: %v", prefix, findings)
+		}
 	}
 }

@@ -79,8 +79,6 @@ patterns:
 
 You can create additional custom rules.
 
-
-
 > **💡Tip:** Test your regexes at [regex101.com](https://regex101.com/) (select Golang flavor).
 
 A simple example that detects strings that follow the Regex pattern `PIPELEEK_.*` and that are logged with a custom confidence:
