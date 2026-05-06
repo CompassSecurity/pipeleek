@@ -8,6 +8,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	gitlabscan "github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -111,6 +112,8 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 	if err := config.ValidateThreadCount(threads); err != nil {
 		log.Fatal().Err(err).Msg("Invalid thread count")
 	}
+
+	detectors.SetGitLabURL(gitlabURL)
 
 	scanOpts, err := gitlabscan.InitializeOptions(
 		gitlabURL,
