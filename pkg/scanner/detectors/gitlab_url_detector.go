@@ -14,6 +14,8 @@ import (
 var (
 	gitlabURLMutex sync.RWMutex
 	gitlabURL      string
+	detectorOnce   sync.Once
+	detector       *GitLabURLDetector
 )
 
 type gitlabPattern struct {
@@ -49,10 +51,11 @@ func ClearGitLabURL() {
 }
 
 type GitLabURLDetector struct {
-	patterns []gitlabPattern
+	patterns          []gitlabPattern
+	verificationCache sync.Map
 }
 
-func NewGitLabURLDetector() (*GitLabURLDetector, error) {
+func NewGitLabURLDetector() *GitLabURLDetector {
 	patterns := []gitlabPattern{
 		{name: "Gitlab - Personal Access Token v2", regex: regexp.MustCompile(`glpat-[a-zA-Z0-9\-=_]{20,22}`), strategy: verifyUserAPI},
 		{name: "Gitlab - Personal Access Token v3", regex: regexp.MustCompile(`\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`), strategy: verifyUserAPI},
@@ -70,31 +73,48 @@ func NewGitLabURLDetector() (*GitLabURLDetector, error) {
 		{name: "Gitlab - Runner Token (Legacy)", regex: regexp.MustCompile(`GR1348941[a-zA-Z0-9\-=_]{20,}`), strategy: verifyRunnerAPI},
 	}
 
-	return &GitLabURLDetector{patterns: patterns}, nil
+	return &GitLabURLDetector{patterns: patterns}
+}
+
+func GetGitLabURLDetector() *GitLabURLDetector {
+	detectorOnce.Do(func() {
+		detector = NewGitLabURLDetector()
+	})
+	return detector
 }
 
 func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []byte) ([]detectors.Result, error) {
 	var results []detectors.Result
-
-	dataStr := string(data)
 	url := GetGitLabURL()
 
 	for _, pattern := range d.patterns {
-		matches := pattern.regex.FindAllString(dataStr, -1)
-		for _, match := range matches {
+		if err := ctx.Err(); err != nil {
+			return results, err
+		}
+
+		matches := pattern.regex.FindAll(data, -1)
+		seenMatches := make(map[string]struct{}, len(matches))
+		for _, matchBytes := range matches {
+			if err := ctx.Err(); err != nil {
+				return results, err
+			}
+
+			match := string(matchBytes)
+			if _, seen := seenMatches[match]; seen {
+				continue
+			}
+			seenMatches[match] = struct{}{}
+
 			result := detectors.Result{
 				DetectorName: pattern.name,
-				Raw:          []byte(match),
+				Raw:          append([]byte(nil), matchBytes...),
 				Verified:     false,
 			}
 
 			if verify && url != "" && pattern.strategy != verifyNone {
-				if d.verifyTokenAgainstURL(match, url, pattern.name, pattern.strategy) {
+				if d.verifyTokenAgainstURL(ctx, match, url, pattern.name, pattern.strategy) {
 					result.Verified = true
-					result.VerificationFromCache = false
 				} else {
-					// If URL verification fails for an API-capable token, skip this result
-					// during verification-enabled mode
 					continue
 				}
 			}
@@ -106,27 +126,40 @@ func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []by
 	return results, nil
 }
 
-func (d *GitLabURLDetector) verifyTokenAgainstURL(token string, gitlabURL string, tokenName string, strategy verificationStrategy) bool {
+func (d *GitLabURLDetector) verifyTokenAgainstURL(ctx context.Context, token string, gitlabURL string, tokenName string, strategy verificationStrategy) bool {
+	if err := ctx.Err(); err != nil {
+		return false
+	}
+
+	cacheKey := string(rune(strategy)) + "|" + gitlabURL + "|" + token
+	if cached, ok := d.verificationCache.Load(cacheKey); ok {
+		return cached.(bool)
+	}
+
 	client, err := util.GetGitlabClient(token, gitlabURL)
 	if err != nil {
 		log.Debug().Err(err).Str("url", gitlabURL).Str("token_type", tokenName).Msg("Failed to create GitLab client for token verification")
+		d.verificationCache.Store(cacheKey, false)
 		return false
 	}
 
 	switch strategy {
 	case verifyUserAPI:
-		_, _, err = client.Users.CurrentUser()
+		_, _, err = client.Users.CurrentUser(gitlab.WithContext(ctx))
 	case verifyRunnerAPI:
-		_, err = client.Runners.VerifyRegisteredRunner(&gitlab.VerifyRegisteredRunnerOptions{Token: gitlab.Ptr(token)})
+		_, err = client.Runners.VerifyRegisteredRunner(&gitlab.VerifyRegisteredRunnerOptions{Token: gitlab.Ptr(token)}, gitlab.WithContext(ctx))
 	default:
+		d.verificationCache.Store(cacheKey, false)
 		return false
 	}
 	if err != nil {
 		log.Debug().Err(err).Str("url", gitlabURL).Str("token_type", tokenName).Msg("Token verification failed against GitLab instance")
+		d.verificationCache.Store(cacheKey, false)
 		return false
 	}
 
 	log.Debug().Str("url", gitlabURL).Str("token_type", tokenName).Msg("Token verified successfully against GitLab instance")
+	d.verificationCache.Store(cacheKey, true)
 	return true
 }
 

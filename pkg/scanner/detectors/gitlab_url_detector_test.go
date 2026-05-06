@@ -2,21 +2,21 @@ package detectors
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewGitLabURLDetector(t *testing.T) {
-	detector, err := NewGitLabURLDetector()
-	assert.NoError(t, err)
+	detector := NewGitLabURLDetector()
 	assert.NotNil(t, detector)
 	assert.Len(t, detector.patterns, 14, "Should have 14 GitLab token patterns")
 }
 
 func TestNewGitLabURLDetector_VerificationStrategies(t *testing.T) {
-	detector, err := NewGitLabURLDetector()
-	assert.NoError(t, err)
+	detector := NewGitLabURLDetector()
 
 	strategies := map[string]verificationStrategy{}
 	for _, pattern := range detector.patterns {
@@ -33,7 +33,7 @@ func TestNewGitLabURLDetector_VerificationStrategies(t *testing.T) {
 }
 
 func TestGitLabURLDetector_Keywords(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	keywords := detector.Keywords()
 
 	assert.Contains(t, keywords, "glpat-")
@@ -52,19 +52,19 @@ func TestGitLabURLDetector_Keywords(t *testing.T) {
 }
 
 func TestGitLabURLDetector_Type(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	assert.NotNil(t, detector.Type())
 }
 
 func TestGitLabURLDetector_Description(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	desc := detector.Description()
 	assert.NotEmpty(t, desc)
 	assert.Contains(t, desc, "GitLab")
 }
 
 func TestGitLabURLDetector_FromData_PersonalAccessTokenV2(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	// Test data containing a v2 PAT pattern (format: glpat-[20-22 chars])
@@ -87,7 +87,7 @@ func TestGitLabURLDetector_FromData_PersonalAccessTokenV2(t *testing.T) {
 }
 
 func TestGitLabURLDetector_FromData_PipelineTriggerToken(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	testData := []byte(`pipeline_token: glptt-abcdefghijklmnopqrstuvwxy`)
@@ -107,7 +107,7 @@ func TestGitLabURLDetector_FromData_PipelineTriggerToken(t *testing.T) {
 }
 
 func TestGitLabURLDetector_FromData_RunnerRegistrationToken(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	testData := []byte(`runner_token: glrtr-1234567890123456789012`)
@@ -126,7 +126,7 @@ func TestGitLabURLDetector_FromData_RunnerRegistrationToken(t *testing.T) {
 }
 
 func TestGitLabURLDetector_FromData_DeployToken(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	testData := []byte(`deploy_token: gldt-abcdefghijklmnopqrst`)
@@ -145,7 +145,7 @@ func TestGitLabURLDetector_FromData_DeployToken(t *testing.T) {
 }
 
 func TestGitLabURLDetector_FromData_VerifyDisabledNoURL(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ClearGitLabURL()
 	ctx := context.Background()
 
@@ -165,7 +165,7 @@ func TestGitLabURLDetector_FromData_VerifyDisabledNoURL(t *testing.T) {
 }
 
 func TestGitLabURLDetector_FromData_VerifyEnabledNoURL(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ClearGitLabURL()
 	ctx := context.Background()
 
@@ -195,7 +195,7 @@ func TestSetGetClearGitLabURL(t *testing.T) {
 }
 
 func TestGitLabURLDetector_MultipleTokenTypes(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	testData := []byte(`
@@ -218,7 +218,7 @@ func TestGitLabURLDetector_MultipleTokenTypes(t *testing.T) {
 }
 
 func TestGitLabURLDetector_LegacyRunnerToken(t *testing.T) {
-	detector, _ := NewGitLabURLDetector()
+	detector := NewGitLabURLDetector()
 	ctx := context.Background()
 
 	testData := []byte(`legacy_runner_token: GR1348941abcdefghijklmnopqrst`)
@@ -234,4 +234,46 @@ func TestGitLabURLDetector_LegacyRunnerToken(t *testing.T) {
 		}
 	}
 	assert.True(t, found)
+}
+
+func TestGitLabURLDetector_FromData_VerifyEnabledWithURL_UserAPISuccess(t *testing.T) {
+	defer ClearGitLabURL()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v4/user" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"id":1}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	SetGitLabURL(server.URL)
+	detector := NewGitLabURLDetector()
+
+	results, err := detector.FromData(context.Background(), true, []byte(`token: glpat-abcdefghijklmnopqrst`))
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.True(t, results[0].Verified)
+	assert.Equal(t, "Gitlab - Personal Access Token v2", results[0].DetectorName)
+}
+
+func TestGitLabURLDetector_FromData_VerifyEnabledWithURL_UserAPIFailure(t *testing.T) {
+	defer ClearGitLabURL()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v4/user" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	SetGitLabURL(server.URL)
+	detector := NewGitLabURLDetector()
+
+	results, err := detector.FromData(context.Background(), true, []byte(`token: glpat-abcdefghijklmnopqrst`))
+	assert.NoError(t, err)
+	assert.Empty(t, results)
 }
