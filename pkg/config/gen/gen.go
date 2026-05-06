@@ -1,4 +1,11 @@
-# Pipeleek Configuration File (YAML)
+// Package gen provides functionality to generate the example pipeleek configuration file.
+// The generated output reflects the actual Viper defaults and flag-to-key mappings used by each command.
+package gen
+
+// ExampleConfig is the canonical template for pipeleek.example.yaml.
+// It is generated from the actual defaults in pkg/config/loader.go setDefaults()
+// and the flag-to-Viper-key mappings registered in each command's AutoBindFlags call.
+const ExampleConfig = `# Pipeleek Configuration File (YAML)
 #
 # This file provides a comprehensive template for configuring Pipeleek.
 # Configuration values can be provided via:
@@ -291,3 +298,9 @@ circle:
     tests: true                                # --tests | PIPELEEK_CIRCLE_SCAN_TESTS
     insights: true                             # --insights | PIPELEEK_CIRCLE_SCAN_INSIGHTS
     # Inherits common.* settings
+`
+
+// GenerateExampleConfig returns the example configuration file content.
+func GenerateExampleConfig() string {
+	return ExampleConfig
+}

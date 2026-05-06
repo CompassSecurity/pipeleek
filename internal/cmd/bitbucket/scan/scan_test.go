@@ -72,6 +72,94 @@ func TestNewScanCmd(t *testing.T) {
 	}
 }
 
+func TestBitBucketScanFlagBindings(t *testing.T) {
+	t.Setenv("PIPELEEK_NO_CONFIG", "1")
+
+	if err := config.InitializeViper(""); err != nil {
+		t.Fatalf("InitializeViper failed: %v", err)
+	}
+
+	cmd := NewScanCmd()
+
+	if err := cmd.Flags().Set("workspace", "my-workspace"); err != nil {
+		t.Fatalf("Failed to set workspace flag: %v", err)
+	}
+	if err := cmd.Flags().Set("public", "true"); err != nil {
+		t.Fatalf("Failed to set public flag: %v", err)
+	}
+	if err := cmd.Flags().Set("artifacts", "true"); err != nil {
+		t.Fatalf("Failed to set artifacts flag: %v", err)
+	}
+	if err := cmd.Flags().Set("owned", "true"); err != nil {
+		t.Fatalf("Failed to set owned flag: %v", err)
+	}
+	if err := cmd.Flags().Set("after", "2025-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("Failed to set after flag: %v", err)
+	}
+
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"bitbucket":                "bitbucket.url",
+		"token":                    "bitbucket.token",
+		"email":                    "bitbucket.email",
+		"cookie":                   "bitbucket.cookie",
+		"workspace":                "bitbucket.scan.workspace",
+		"max-pipelines":            "bitbucket.scan.max_pipelines",
+		"public":                   "bitbucket.scan.public",
+		"after":                    "bitbucket.scan.after",
+		"artifacts":                "bitbucket.scan.artifacts",
+		"owned":                    "bitbucket.scan.owned",
+		"threads":                  "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
+	}); err != nil {
+		t.Fatalf("AutoBindFlags failed: %v", err)
+	}
+
+	if got := config.GetString("bitbucket.scan.workspace"); got != "my-workspace" {
+		t.Errorf("Expected bitbucket.scan.workspace=%q, got %q", "my-workspace", got)
+	}
+	if got := config.GetBool("bitbucket.scan.public"); !got {
+		t.Error("Expected bitbucket.scan.public=true")
+	}
+	if got := config.GetBool("bitbucket.scan.artifacts"); !got {
+		t.Error("Expected bitbucket.scan.artifacts=true")
+	}
+	if got := config.GetBool("bitbucket.scan.owned"); !got {
+		t.Error("Expected bitbucket.scan.owned=true")
+	}
+	if got := config.GetString("bitbucket.scan.after"); got != "2025-01-01T00:00:00Z" {
+		t.Errorf("Expected bitbucket.scan.after=%q, got %q", "2025-01-01T00:00:00Z", got)
+	}
+}
+
+func TestBitBucketScanEnvVarBinding(t *testing.T) {
+	t.Setenv("PIPELEEK_NO_CONFIG", "1")
+	t.Setenv("PIPELEEK_BITBUCKET_SCAN_WORKSPACE", "env-workspace")
+	t.Setenv("PIPELEEK_BITBUCKET_SCAN_PUBLIC", "true")
+
+	if err := config.InitializeViper(""); err != nil {
+		t.Fatalf("InitializeViper failed: %v", err)
+	}
+
+	cmd := NewScanCmd()
+
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"workspace": "bitbucket.scan.workspace",
+		"public":    "bitbucket.scan.public",
+	}); err != nil {
+		t.Fatalf("AutoBindFlags failed: %v", err)
+	}
+
+	if got := config.GetString("bitbucket.scan.workspace"); got != "env-workspace" {
+		t.Errorf("Expected bitbucket.scan.workspace=%q from env var, got %q", "env-workspace", got)
+	}
+	if got := config.GetBool("bitbucket.scan.public"); !got {
+		t.Errorf("Expected bitbucket.scan.public=true from env var, got %v", got)
+	}
+}
+
 func TestBitBucketScanOptions(t *testing.T) {
 	opts := BitBucketScanOptions{
 		CommonScanOptions: config.CommonScanOptions{

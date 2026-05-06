@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	jenkinsscan "github.com/CompassSecurity/pipeleek/pkg/jenkins/scan"
@@ -67,6 +70,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		"folder":                   "jenkins.scan.folder",
 		"job":                      "jenkins.scan.job",
 		"max-builds":               "jenkins.scan.max_builds",
+		"artifacts":                "jenkins.scan.artifacts",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -86,10 +90,17 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Folder = config.GetString("jenkins.scan.folder")
 	options.Job = config.GetString("jenkins.scan.job")
 	options.MaxBuilds = config.GetInt("jenkins.scan.max_builds")
+	options.Artifacts = config.GetBool("jenkins.scan.artifacts")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(options.JenkinsURL, "Jenkins URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid Jenkins URL")

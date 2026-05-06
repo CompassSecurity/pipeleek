@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	giteascan "github.com/CompassSecurity/pipeleek/pkg/gitea/scan"
@@ -80,6 +83,12 @@ func Scan(cmd *cobra.Command, args []string) {
 		"gitea":                    "gitea.url",
 		"token":                    "gitea.token",
 		"cookie":                   "gitea.cookie",
+		"organization":             "gitea.scan.organization",
+		"repository":               "gitea.scan.repository",
+		"runs-limit":               "gitea.scan.runs_limit",
+		"start-run-id":             "gitea.scan.start_run_id",
+		"artifacts":                "gitea.scan.artifacts",
+		"owned":                    "gitea.scan.owned",
 		"threads":                  "common.threads",
 		"truffle-hog-verification": "common.trufflehog_verification",
 		"max-artifact-size":        "common.max_artifact_size",
@@ -96,10 +105,22 @@ func Scan(cmd *cobra.Command, args []string) {
 	giteaURL := config.GetString("gitea.url")
 	giteaToken := config.GetString("gitea.token")
 	scanOptions.Cookie = config.GetString("gitea.cookie")
+	scanOptions.Organization = config.GetString("gitea.scan.organization")
+	scanOptions.Repository = config.GetString("gitea.scan.repository")
+	scanOptions.RunsLimit = config.GetInt("gitea.scan.runs_limit")
+	scanOptions.StartRunID = int64(config.GetInt("gitea.scan.start_run_id"))
+	scanOptions.Artifacts = config.GetBool("gitea.scan.artifacts")
+	scanOptions.Owned = config.GetBool("gitea.scan.owned")
 	scanOptions.MaxScanGoRoutines = config.GetInt("common.threads")
 	scanOptions.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	scanOptions.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
+	scanOptions.HitTimeout = hitTimeout
 
 	if scanOptions.StartRunID > 0 && scanOptions.Repository == "" {
 		log.Fatal().Msg("--start-run-id can only be used with --repository flag")
