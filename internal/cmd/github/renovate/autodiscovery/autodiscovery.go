@@ -1,8 +1,6 @@
 package autodiscovery
 
 import (
-	"github.com/rs/zerolog/log"
-
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/autodiscovery"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
@@ -31,13 +29,10 @@ func NewAutodiscoveryCmd() *cobra.Command {
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token").
+				MustBind()
 
 			autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
 			autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")

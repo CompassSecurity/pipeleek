@@ -4,7 +4,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/enum"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -61,13 +60,10 @@ pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --or
 pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token").
+				MustBind()
 
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")

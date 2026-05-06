@@ -30,23 +30,15 @@ func NewSecureFilesCmd() *cobra.Command {
 }
 
 func FetchSecureFiles(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		MustBind()
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
-
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
 
 	runFetchSecureFiles(gitlabUrl, gitlabApiToken)
 }

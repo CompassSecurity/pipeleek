@@ -77,14 +77,17 @@ pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --t
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("jenkins.url", "jenkins.username", "jenkins.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("jenkins.url"), "Jenkins URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("jenkins.username"), "Jenkins Username") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("jenkins.token"), "Jenkins API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("jenkins.url", "jenkins.username", "jenkins.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	options.JenkinsURL = config.GetString("jenkins.url")
 	options.Username = config.GetString("jenkins.username")
 	options.Token = config.GetString("jenkins.token")
@@ -102,19 +105,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 	options.HitTimeout = hitTimeout
-
-	if err := config.ValidateURL(options.JenkinsURL, "Jenkins URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Jenkins URL")
-	}
-	if err := config.ValidateToken(options.Username, "Jenkins Username"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Jenkins Username")
-	}
-	if err := config.ValidateToken(options.Token, "Jenkins API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Jenkins API Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
 
 	scanOpts, err := jenkinsscan.InitializeOptions(
 		options.Username,

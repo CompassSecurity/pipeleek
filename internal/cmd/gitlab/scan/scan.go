@@ -99,14 +99,16 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
 	options.GitlabCookie = config.GetString("gitlab.cookie")
@@ -129,18 +131,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 	options.HitTimeout = hitTimeout
 
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
-
 	detectors.SetGitLabURL(gitlabUrl)
-
 	scanOpts, err := scan.InitializeOptions(
 		gitlabUrl,
 		gitlabApiToken,

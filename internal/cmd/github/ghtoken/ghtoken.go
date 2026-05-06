@@ -30,13 +30,10 @@ func NewGhTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.url", "github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.url", "github.token").
+				MustBind()
 
 			githubApiToken := config.GetString("github.token")
 			if !strings.HasPrefix(githubApiToken, "ghs_") {

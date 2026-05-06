@@ -82,14 +82,16 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 
 func Scan(cmd *cobra.Command, args []string) {
 	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("azure_devops.token", "azure_devops.username").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("azure_devops.url"), "Azure DevOps URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("azure_devops.token"), "Azure DevOps Access Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")
@@ -108,16 +110,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 	options.HitTimeout = hitTimeout
-
-	if err := config.ValidateURL(options.DevOpsURL, "Azure DevOps URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Azure DevOps URL")
-	}
-	if err := config.ValidateToken(options.AccessToken, "Azure DevOps Access Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Azure DevOps Access Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
 
 	scanOpts, err := pkgscan.InitializeOptions(
 		options.Username,

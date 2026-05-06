@@ -60,14 +60,16 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --c
 }
 
 func tfRun(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
 	options.OutputDir = config.GetString("gitlab.tf.output_dir")
@@ -80,16 +82,6 @@ func tfRun(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 	options.HitTimeout = hitTimeout
-
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
 
 	tfOptions := tfpkg.TFOptions{
 		GitlabUrl:              gitlabUrl,

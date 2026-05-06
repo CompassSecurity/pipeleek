@@ -3,7 +3,6 @@ package vuln
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgvuln "github.com/CompassSecurity/pipeleek/pkg/gitea/vuln"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -25,13 +24,10 @@ func NewVulnCmd() *cobra.Command {
 }
 
 func CheckVulns(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitea.url", "gitea.token").
+		MustBind()
 
 	giteaUrl := config.GetString("gitea.url")
 	giteaApiToken := config.GetString("gitea.token")

@@ -30,13 +30,10 @@ func NewJobTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token").
+				MustBind()
 
 			gitlabApiToken := config.GetString("gitlab.token")
 			if !strings.HasPrefix(gitlabApiToken, "glcbt-") {

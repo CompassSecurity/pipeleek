@@ -31,13 +31,10 @@ func NewLabCmd() *cobra.Command {
 pipeleek gh renovate lab --token ghp_xxxxx --github https://api.github.com --repo-name renovate-lab
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token", "github.renovate.lab.repo_name"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token", "github.renovate.lab.repo_name").
+				MustBind()
 
 			// Get github URL and token from config (supports all three methods)
 			githubUrl := config.GetString("github.url")

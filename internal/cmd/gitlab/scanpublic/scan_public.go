@@ -83,13 +83,12 @@ pipeleek gluna scan --gitlab https://gitlab.example.com --namespace mygroup
 }
 
 func ScanPublic(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
 	gitlabURL := config.GetString("gitlab.url")
 	projectSearchQuery := config.GetString("gitlab.scan_public.search")
@@ -108,15 +107,7 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 
-	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateThreadCount(threads); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
-
 	detectors.SetGitLabURL(gitlabURL)
-
 	scanOpts, err := gitlabscan.InitializeOptions(
 		gitlabURL,
 		"",

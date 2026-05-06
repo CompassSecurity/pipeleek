@@ -25,13 +25,10 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitea.url", "gitea.token").
+		MustBind()
 
 	giteaUrl := config.GetString("gitea.url")
 	giteaApiToken := config.GetString("gitea.token")

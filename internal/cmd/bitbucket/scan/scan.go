@@ -84,10 +84,21 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and custom validators
+	// BitBucket allows token-based OR email/cookie auth, so we validate with custom logic
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		AddValidator(func() error {
+			if config.GetString("bitbucket.token") == "" && config.GetString("bitbucket.email") == "" {
+				return fmt.Errorf("either bitbucket token or email must be provided")
+			}
+			return nil
+		}).
+		AddValidator(func() error { return config.ValidateURL(config.GetString("bitbucket.url"), "BitBucket URL") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
+	// Load configuration values
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.token")
 	options.Email = config.GetString("bitbucket.email")
@@ -113,16 +124,10 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.email in config)")
 	}
 
-	if err := config.ValidateURL(options.BitBucketURL, "BitBucket URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid BitBucket URL")
-	}
 	if options.AccessToken != "" {
 		if err := config.ValidateToken(options.AccessToken, "BitBucket API Token"); err != nil {
 			log.Fatal().Err(err).Msg("Invalid BitBucket API Token")
 		}
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
 	}
 
 	scanOpts, err := pkgscan.InitializeOptions(

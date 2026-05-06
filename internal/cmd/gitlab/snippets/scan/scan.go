@@ -71,14 +71,16 @@ pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.exam
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	gitlabURL := config.GetString("gitlab.url")
 	gitlabToken := config.GetString("gitlab.token")
 	project := config.GetString("gitlab.snippets.scan.project")
@@ -97,16 +99,6 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	if project != "" && namespace != "" {
 		log.Fatal().Msg("--project and --namespace are mutually exclusive")
-	}
-
-	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-	if err := config.ValidateThreadCount(threads); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
 	}
 
 	opts, err := snippetscan.InitializeOptions(

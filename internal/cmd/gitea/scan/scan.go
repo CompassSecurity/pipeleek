@@ -95,14 +95,15 @@ pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com 
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitea.url", "gitea.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitea.url"), "Gitea URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitea.token"), "Gitea Access Token") }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
-	}
-
+	// Load configuration values
 	giteaURL := config.GetString("gitea.url")
 	giteaToken := config.GetString("gitea.token")
 	scanOptions.Cookie = config.GetString("gitea.cookie")
@@ -125,13 +126,6 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	if scanOptions.StartRunID > 0 && scanOptions.Repository == "" {
 		log.Fatal().Msg("--start-run-id can only be used with --repository flag")
-	}
-
-	if err := config.ValidateURL(giteaURL, "Gitea URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Gitea URL")
-	}
-	if err := config.ValidateToken(giteaToken, "Gitea Access Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Gitea Access Token")
 	}
 	if err := config.ValidateThreadCount(scanOptions.MaxScanGoRoutines); err != nil {
 		log.Fatal().Err(err).Msg("Invalid thread count")

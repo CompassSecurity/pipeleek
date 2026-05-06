@@ -97,14 +97,16 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Unified command setup with flag binding, required key validation, and validators
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("circle.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("circle.url"), "CircleCI URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("circle.token"), "CircleCI API token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
-	if err := config.RequireConfigKeys("circle.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
-
+	// Load configuration values
 	options.Token = config.GetString("circle.token")
 	options.CircleURL = config.GetString("circle.url")
 	options.Organization = config.GetString("circle.scan.org")
@@ -129,16 +131,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 	options.HitTimeout = hitTimeout
-
-	if err := config.ValidateURL(options.CircleURL, "CircleCI URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid CircleCI URL")
-	}
-	if err := config.ValidateToken(options.Token, "CircleCI API token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid CircleCI API token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
 
 	scanOpts, err := circlescan.InitializeOptions(circlescan.InitializeOptionsInput{
 		Token:                  options.Token,

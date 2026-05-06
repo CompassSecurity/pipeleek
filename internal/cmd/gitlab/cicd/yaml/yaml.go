@@ -22,13 +22,10 @@ func NewYamlCmd() *cobra.Command {
 		Long:    "Dump the CI/CD yaml configuration of a project, useful for analyzing the configuration and identifying potential security issues.",
 		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --project mygroup/myproject`,
 		Run: func(cmd *cobra.Command, args []string) {
-				if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.project"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.project").
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
