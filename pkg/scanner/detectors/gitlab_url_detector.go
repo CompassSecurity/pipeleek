@@ -8,6 +8,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 var (
@@ -16,10 +17,18 @@ var (
 )
 
 type gitlabPattern struct {
-	name       string
-	regex      *regexp.Regexp
-	verifiable bool
+	name     string
+	regex    *regexp.Regexp
+	strategy verificationStrategy
 }
+
+type verificationStrategy uint8
+
+const (
+	verifyNone verificationStrategy = iota
+	verifyUserAPI
+	verifyRunnerAPI
+)
 
 func SetGitLabURL(url string) {
 	gitlabURLMutex.Lock()
@@ -45,20 +54,20 @@ type GitLabURLDetector struct {
 
 func NewGitLabURLDetector() (*GitLabURLDetector, error) {
 	patterns := []gitlabPattern{
-		{name: "Gitlab - Personal Access Token v2", regex: regexp.MustCompile(`glpat-[a-zA-Z0-9\-=_]{20,22}`), verifiable: true},
-		{name: "Gitlab - Personal Access Token v3", regex: regexp.MustCompile(`\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`), verifiable: true},
-		{name: "Gitlab - Pipeline Trigger Token", regex: regexp.MustCompile(`glptt-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Runner Authentication Token", regex: regexp.MustCompile(`glrt-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Runner Registration Token", regex: regexp.MustCompile(`glrtr-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Deploy Token", regex: regexp.MustCompile(`gldt-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - CI Build Token", regex: regexp.MustCompile(`glcbt-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - OAuth Application Secret", regex: regexp.MustCompile(`gloas-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - SCIM/OAuth Access Token", regex: regexp.MustCompile(`glsoat-[a-zA-Z0-9\-=_]{20,}`), verifiable: true},
-		{name: "Gitlab - Feed Token", regex: regexp.MustCompile(`glft-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Incoming Mail Token", regex: regexp.MustCompile(`glimt-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Feature Flags Client Token", regex: regexp.MustCompile(`glffct-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Agent for Kubernetes Token", regex: regexp.MustCompile(`glagent-[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
-		{name: "Gitlab - Runner Token (Legacy)", regex: regexp.MustCompile(`GR1348941[a-zA-Z0-9\-=_]{20,}`), verifiable: false},
+		{name: "Gitlab - Personal Access Token v2", regex: regexp.MustCompile(`glpat-[a-zA-Z0-9\-=_]{20,22}`), strategy: verifyUserAPI},
+		{name: "Gitlab - Personal Access Token v3", regex: regexp.MustCompile(`\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`), strategy: verifyUserAPI},
+		{name: "Gitlab - Pipeline Trigger Token", regex: regexp.MustCompile(`glptt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Runner Authentication Token", regex: regexp.MustCompile(`glrt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyRunnerAPI},
+		{name: "Gitlab - Runner Registration Token", regex: regexp.MustCompile(`glrtr-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Deploy Token", regex: regexp.MustCompile(`gldt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - CI Build Token", regex: regexp.MustCompile(`glcbt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - OAuth Application Secret", regex: regexp.MustCompile(`gloas-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - SCIM/OAuth Access Token", regex: regexp.MustCompile(`glsoat-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyUserAPI},
+		{name: "Gitlab - Feed Token", regex: regexp.MustCompile(`glft-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Incoming Mail Token", regex: regexp.MustCompile(`glimt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Feature Flags Client Token", regex: regexp.MustCompile(`glffct-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Agent for Kubernetes Token", regex: regexp.MustCompile(`glagent-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
+		{name: "Gitlab - Runner Token (Legacy)", regex: regexp.MustCompile(`GR1348941[a-zA-Z0-9\-=_]{20,}`), strategy: verifyRunnerAPI},
 	}
 
 	return &GitLabURLDetector{patterns: patterns}, nil
@@ -79,9 +88,8 @@ func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []by
 				Verified:     false,
 			}
 
-			// Verify only token types that can authenticate against GitLab API.
-			if verify && url != "" && pattern.verifiable {
-				if d.verifyTokenAgainstURL(match, url, pattern.name) {
+			if verify && url != "" && pattern.strategy != verifyNone {
+				if d.verifyTokenAgainstURL(match, url, pattern.name, pattern.strategy) {
 					result.Verified = true
 					result.VerificationFromCache = false
 				} else {
@@ -98,14 +106,21 @@ func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []by
 	return results, nil
 }
 
-func (d *GitLabURLDetector) verifyTokenAgainstURL(token string, gitlabURL string, tokenName string) bool {
+func (d *GitLabURLDetector) verifyTokenAgainstURL(token string, gitlabURL string, tokenName string, strategy verificationStrategy) bool {
 	client, err := util.GetGitlabClient(token, gitlabURL)
 	if err != nil {
 		log.Debug().Err(err).Str("url", gitlabURL).Str("token_type", tokenName).Msg("Failed to create GitLab client for token verification")
 		return false
 	}
 
-	_, _, err = client.Users.CurrentUser()
+	switch strategy {
+	case verifyUserAPI:
+		_, _, err = client.Users.CurrentUser()
+	case verifyRunnerAPI:
+		_, err = client.Runners.VerifyRegisteredRunner(&gitlab.VerifyRegisteredRunnerOptions{Token: gitlab.Ptr(token)})
+	default:
+		return false
+	}
 	if err != nil {
 		log.Debug().Err(err).Str("url", gitlabURL).Str("token_type", tokenName).Msg("Token verification failed against GitLab instance")
 		return false

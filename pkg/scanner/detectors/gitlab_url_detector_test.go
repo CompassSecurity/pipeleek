@@ -14,6 +14,24 @@ func TestNewGitLabURLDetector(t *testing.T) {
 	assert.Len(t, detector.patterns, 14, "Should have 14 GitLab token patterns")
 }
 
+func TestNewGitLabURLDetector_VerificationStrategies(t *testing.T) {
+	detector, err := NewGitLabURLDetector()
+	assert.NoError(t, err)
+
+	strategies := map[string]verificationStrategy{}
+	for _, pattern := range detector.patterns {
+		strategies[pattern.name] = pattern.strategy
+	}
+
+	assert.Equal(t, verifyUserAPI, strategies["Gitlab - Personal Access Token v2"])
+	assert.Equal(t, verifyUserAPI, strategies["Gitlab - Personal Access Token v3"])
+	assert.Equal(t, verifyUserAPI, strategies["Gitlab - SCIM/OAuth Access Token"])
+	assert.Equal(t, verifyRunnerAPI, strategies["Gitlab - Runner Authentication Token"])
+	assert.Equal(t, verifyRunnerAPI, strategies["Gitlab - Runner Token (Legacy)"])
+	assert.Equal(t, verifyNone, strategies["Gitlab - Runner Registration Token"])
+	assert.Equal(t, verifyNone, strategies["Gitlab - Pipeline Trigger Token"])
+}
+
 func TestGitLabURLDetector_Keywords(t *testing.T) {
 	detector, _ := NewGitLabURLDetector()
 	keywords := detector.Keywords()
