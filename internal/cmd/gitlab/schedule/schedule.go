@@ -3,14 +3,8 @@ package schedule
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgschedule "github.com/CompassSecurity/pipeleek/pkg/gitlab/schedule"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
-
-var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
-	"token":  "gitlab.token",
-}
 
 func NewScheduleCmd() *cobra.Command {
 	scheduleCmd := &cobra.Command{
@@ -27,23 +21,21 @@ func NewScheduleCmd() *cobra.Command {
 }
 
 func FetchSchedules(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	// Auto-generate bindings from flag definitions with optional overrides
+	bindings := config.BindingsFromFlags(cmd, "gitlab", "schedule", map[string]string{
+		"gitlab": "gitlab.url",
+		"token":  "gitlab.token",
+	})
 
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(bindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		MustBind()
 
-	gitlabUrl := config.GetString("gitlab.url")
-	gitlabApiToken := config.GetString("gitlab.token")
-
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-
-	pkgschedule.RunFetchSchedules(gitlabUrl, gitlabApiToken)
+	pkgschedule.RunFetchSchedules(
+		config.GetString("gitlab.url"),
+		config.GetString("gitlab.token"),
+	)
 }
