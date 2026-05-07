@@ -157,7 +157,7 @@ func TestGLunaShodan_HTTPModule(t *testing.T) {
 
 	output := stdout + stderr
 	assert.NotNil(t, exitErr, "Command times out")
-	assert.Contains(t, output, "Log level set to")
+	assert.Contains(t, output, "failed unmarshalling jsonl line")
 }
 
 func TestGLunaShodan_MultipleInstances(t *testing.T) {
@@ -175,7 +175,7 @@ func TestGLunaShodan_MultipleInstances(t *testing.T) {
 
 	output := stdout + stderr
 	assert.NotNil(t, exitErr, "Command times out")
-	assert.Contains(t, output, "Log level set to")
+	assert.Contains(t, output, "failed unmarshalling jsonl line")
 }
 
 func TestGLunaShodan_WithHostname(t *testing.T) {
@@ -189,5 +189,5 @@ func TestGLunaShodan_WithHostname(t *testing.T) {
 
 	output := stdout + stderr
 	assert.NotNil(t, exitErr, "Command times out")
-	assert.Contains(t, output, "Log level set to")
+	assert.Contains(t, output, "failed unmarshalling jsonl line")
 }

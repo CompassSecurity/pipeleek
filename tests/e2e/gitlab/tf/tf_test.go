@@ -167,7 +167,7 @@ func TestTFInvalidURL(t *testing.T) {
 	t.Logf("STDERR:\n%s", stderr)
 
 	assert.NotNil(t, exitErr)
-	assert.Contains(t, stdout+stderr, "Invalid GitLab URL")
+	assert.Contains(t, stdout+stderr, "GitLab URL must include a scheme")
 }
 
 // TestTFMissingToken tests the tf command without required token

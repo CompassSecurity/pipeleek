@@ -32,7 +32,8 @@ func TestVerboseFlag_Default(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "Log level set to info (default)", "Default log level should be info")
+	assert.Contains(t, output, "Fetching projects", "Default log level should include info output")
+	assert.NotContains(t, output, "Log level set to debug (-v)", "Default run should not enable debug level")
 }
 
 // TestVerboseFlag_Short sets log level to debug with -v
