@@ -16,12 +16,15 @@ Pipeleek can be configured via config files, environment variables, or CLI flags
 Generate a configuration template with all available options:
 
 ```bash
-# Print to stdout
-pipeleek config gen
-
-# Write to a file
+# Write to config file (recommended)
 pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
+
+# View template in terminal
+pipeleek config gen --output /dev/stdout
 ```
+
+!!! note
+    Use the `--output` flag to write directly to a file. Piping to stdout mixes log output with YAML, breaking the file format.
 
 The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
 
@@ -146,9 +149,57 @@ gitlab:
 pipeleek gl enum --token glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
+## Managing Config Values
+
+### Getting Config Values
+
+Read configuration values from your config file:
+
+```bash
+# Get a specific value
+pipeleek config get gitlab.token
+
+# Get an entire section (returns YAML)
+pipeleek config get gitlab
+
+# Get a nested value
+pipeleek config get gitlab.renovate.enum.fast
+
+# Get all configuration
+pipeleek config get
+```
+
+### Setting Config Values
+
+Write configuration values to your config file:
+
+```bash
+# Set a string value
+pipeleek config set gitlab.token "glpat-xxxxxxxxxxxxxxxxxxxx"
+
+# Set a number
+pipeleek config set common.threads 8
+
+# Set a boolean
+pipeleek config set common.truffle_hog_verification false
+
+# Set a list (YAML format)
+pipeleek config set gitlab.runners.exploit.tags '[\"docker\", \"shared\"]'
+```
+
+!!! info
+    - Values are automatically typed: `true`/`false` → boolean, `123` → integer, `1.5` → float, `[...]` → array
+    - String values are used otherwise
+    - Only leaf configuration keys (actual settings) can be set; intermediate containers are rejected
+    - Config file is created automatically if it doesn't exist
+
 ## Full Example
 
-See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented or run `pipeleek config gen`
+See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented or run:
+
+```bash
+pipeleek config gen --output /dev/stdout
+```
 
 ## Troubleshooting
 
