@@ -12,7 +12,7 @@ func TestNewVariablesCmd(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "variables", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
-	assert.NotNil(t, cmd.Flags().Lookup("gitlab"))
+	assert.NotNil(t, cmd.Flags().Lookup("url"))
 	assert.NotNil(t, cmd.Flags().Lookup("token"))
 }
 

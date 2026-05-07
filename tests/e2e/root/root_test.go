@@ -93,7 +93,7 @@ func TestRootCommand_JSONLogOutput(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test",
 		"--json", // Enable JSON log output
 	}, nil, 10*time.Second)
@@ -123,7 +123,7 @@ func TestRootCommand_LogFile(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test",
 		"--logfile", logFile,
 	}, nil, 10*time.Second)
@@ -171,7 +171,7 @@ func TestRootCommand_Color(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
-				"--gitlab", server.URL,
+				"--url", server.URL,
 				"--token", "test",
 				tt.flag,
 			}, nil, 10*time.Second)
@@ -243,7 +243,7 @@ func TestRootCommand_GlobalFlagInheritance(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"--json", // Global flag before subcommand
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test",
 	}, nil, 10*time.Second)
 
@@ -274,7 +274,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 			name: "gitlab_with_persistent_flags",
 			args: []string{
 				"gl", "scan",
-				"--gitlab", server.URL,
+				"--url", server.URL,
 				"--token", "test",
 				"--logfile", logFile,
 			},
@@ -283,7 +283,7 @@ func TestRootCommand_PersistentFlags(t *testing.T) {
 			name: "gitea_with_persistent_flags",
 			args: []string{
 				"gitea", "scan",
-				"--gitea", server.URL,
+				"--url", server.URL,
 				"--token", "test",
 				"--json",
 			},
@@ -348,7 +348,7 @@ func TestRootCommand_EnvironmentVariables(t *testing.T) {
 	// Test with environment variables
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test",
 	}, []string{
 		"PIPELEEK_DEBUG=true",
@@ -374,7 +374,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 	t.Run("without ignore-proxy flag proxy message appears", func(t *testing.T) {
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"gl", "scan",
-			"--gitlab", server.URL,
+			"--url", server.URL,
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
@@ -392,7 +392,7 @@ func TestRootCommand_IgnoreProxy(t *testing.T) {
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"--ignore-proxy",
 			"gl", "scan",
-			"--gitlab", server.URL,
+			"--url", server.URL,
 			"--token", "test",
 		}, []string{
 			"HTTP_PROXY=http://127.0.0.1:9999",
@@ -429,10 +429,10 @@ func TestRootCommand_MultipleCommands(t *testing.T) {
 	defer cleanup()
 
 	commands := [][]string{
-		{"gl", "enum", "--gitlab", server.URL, "--token", "test"},
-		{"gl", "variables", "--gitlab", server.URL, "--token", "test"},
-		{"gl", "schedule", "--gitlab", server.URL, "--token", "test"},
-		{"gitea", "enum", "--gitea", server.URL, "--token", "test"},
+		{"gl", "enum", "--url", server.URL, "--token", "test"},
+		{"gl", "variables", "--url", server.URL, "--token", "test"},
+		{"gl", "schedule", "--url", server.URL, "--token", "test"},
+		{"gitea", "enum", "--url", server.URL, "--token", "test"},
 	}
 
 	for i, cmd := range commands {

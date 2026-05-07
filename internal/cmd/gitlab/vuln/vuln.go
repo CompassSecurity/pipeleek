@@ -7,8 +7,8 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
-	"token":  "gitlab.token",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
 }
 
 func NewVulnCmd() *cobra.Command {
@@ -16,10 +16,10 @@ func NewVulnCmd() *cobra.Command {
 		Use:     "vuln",
 		Short:   "Check if the installed GitLab version is vulnerable",
 		Long:    "Check the installed GitLab instance version against the NIST vulnerability database to see if it is affected by any vulnerabilities.",
-		Example: `pipeleek gl vuln --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
+		Example: `pipeleek gl vuln --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     CheckVulns,
 	}
-	vulnCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	vulnCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	vulnCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return vulnCmd

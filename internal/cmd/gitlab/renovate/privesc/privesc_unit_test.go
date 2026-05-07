@@ -21,7 +21,7 @@ func TestGLPrivescCmdFlags(t *testing.T) {
 		name     string
 		flagName string
 	}{
-		{"repo-name flag exists", "repo-name"},
+		{"project flag exists", "project"},
 		{"renovate-branches-regex flag exists", "renovate-branches-regex"},
 		{"monitoring-interval flag exists", "monitoring-interval"},
 	}

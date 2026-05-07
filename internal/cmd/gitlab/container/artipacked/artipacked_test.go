@@ -12,11 +12,13 @@ func TestNewArtipackedCmd(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "artipacked", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
-	assert.NotNil(t, cmd.Flags().Lookup("repo"))
-	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
+	assert.NotNil(t, cmd.Flags().Lookup("project"))
+	assert.NotNil(t, cmd.Flags().Lookup("group"))
 	assert.NotNil(t, cmd.Flags().Lookup("search"))
 	assert.NotNil(t, cmd.Flags().Lookup("page"))
 	assert.NotNil(t, cmd.Flags().Lookup("order-by"))
+	assert.Equal(t, "p", cmd.Flags().Lookup("project").Shorthand)
+	assert.Equal(t, "", cmd.Flags().Lookup("page").Shorthand)
 }
 
 func TestArtipackedCmd_AllDefinedFlagsAreBound(t *testing.T) {

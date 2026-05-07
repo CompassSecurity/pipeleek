@@ -25,7 +25,7 @@ var scanOptions = GiteaScanOptions{
 }
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"gitea":                    "gitea.url",
+	"url":                      "gitea.url",
 	"token":                    "gitea.token",
 	"cookie":                   "gitea.cookie",
 	"organization":             "gitea.scan.organization",
@@ -64,22 +64,22 @@ To obtain the cookie:
 `,
 		Example: `
 # Scan all accessible repositories (including public) and their artifacts
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --artifacts --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --artifacts --cookie your_cookie_value
 
 # Scan without downloading artifacts
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --cookie your_cookie_value
 
 # Scan only repositories owned by the user
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --owned --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --owned --cookie your_cookie_value
 
 # Scan all repositories of a specific organization
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --organization my-org --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --organization my-org --cookie your_cookie_value
 
 # Scan a specific repository
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --repository owner/repo-name --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --repository owner/repo-name --cookie your_cookie_value
 
 # Scan a specific repository but limit the number of workflow runs to scan
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --repository owner/repo-name --runs-limit 20 --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --repository owner/repo-name --runs-limit 20 --cookie your_cookie_value
 		`,
 		Run: Scan,
 	}

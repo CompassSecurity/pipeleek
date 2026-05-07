@@ -8,7 +8,7 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitea": "gitea.url",
+	"url":   "gitea.url",
 	"token": "gitea.token",
 }
 
@@ -17,7 +17,7 @@ func NewEnumCmd() *cobra.Command {
 		Use:     "enum",
 		Short:   "Enumerate access of a Gitea token",
 		Long:    "Enumerate access rights of a Gitea access token by retrieving the authenticated user's information, organizations with access levels, and all accessible repositories with permissions.",
-		Example: `pipeleek gitea enum --token [tokenval] --gitea https://gitea.mycompany.com`,
+		Example: `pipeleek gitea enum --token [tokenval] --url https://gitea.mycompany.com`,
 		Run:     Enum,
 	}
 

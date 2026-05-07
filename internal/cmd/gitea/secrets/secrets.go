@@ -8,7 +8,7 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitea": "gitea.url",
+	"url": "gitea.url",
 	"token": "gitea.token",
 }
 

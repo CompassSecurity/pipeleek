@@ -16,6 +16,7 @@ func NewSetCmd() *cobra.Command {
 		Use:          "set <key.id> <value>",
 		Short:        "Set a configuration value",
 		SilenceUsage: true,
+		SilenceErrors: true,
 		Long: `Set a configuration value in the config file by dotted key path.
 The value is parsed as YAML, allowing you to set strings, numbers, booleans, arrays, and objects.
 Intermediate objects in the key path are created automatically if they don't exist.
@@ -45,10 +46,10 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 			key := args[0]
 			valueStr := args[1]
 			if err := common.ValidateKeyPath(key); err != nil {
-				return common.WrapError("set", "validate key path", err)
+				return common.LogAndWrapError("set", "validate key path", err)
 			}
 			if !configgen.IsAllowedConfigPath(cmd.Root(), key) {
-				return common.WrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", key))
+				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", key))
 			}
 
 			// Get the effective config file path
@@ -58,24 +59,24 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 			// Load existing config or start with empty map
 			configData, err := config.LoadConfigFile(configPath)
 			if err != nil {
-				return common.WrapError("set", "load config file", err)
+				return common.LogAndWrapError("set", "load config file", err)
 			}
 
 			// Parse the value as YAML to infer types
 			parsedValue, err := parseYAMLValue(valueStr)
 			if err != nil {
-				return common.WrapError("set", "parse value", err)
+				return common.LogAndWrapError("set", "parse value", err)
 			}
 
 			// Set the value in the config data
 			if err := config.SetByPath(configData, key, parsedValue); err != nil {
-				return common.WrapError("set", "update key", err)
+				return common.LogAndWrapError("set", "update key", err)
 			}
 
 			// Write the config back to file
 			writePath, err := config.WriteConfigFile(configPath, configData)
 			if err != nil {
-				return common.WrapError("set", "write config file", err)
+				return common.LogAndWrapError("set", "write config file", err)
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Configuration updated: %s = %v (written to %s)\n", key, parsedValue, writePath)

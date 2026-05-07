@@ -50,7 +50,7 @@ func TestGLSchedule(t *testing.T) {
 	apiURL := setupMockGitLabScheduleAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "schedule",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 10*time.Second)
 
@@ -62,7 +62,7 @@ func TestGLSchedule(t *testing.T) {
 func TestGLSchedule_MissingToken(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "schedule",
-		"--gitlab", "https://gitlab.com",
+		"--url", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -81,7 +81,7 @@ func TestGLSchedule_Unauthorized(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"gl", "schedule",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 10*time.Second)
 

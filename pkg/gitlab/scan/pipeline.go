@@ -149,11 +149,11 @@ func scanNamespace(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 		return nil
 	})
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed iterating namespace projects")
+		log.Error().Stack().Err(err).Msg("Failed iterating group projects")
 		return
 	}
 
-	log.Info().Msg("Fetched all namespace projects")
+	log.Info().Msg("Fetched all group projects")
 }
 
 func cleanUp() {

@@ -26,7 +26,7 @@ func TestVerboseFlag_Default(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -51,7 +51,7 @@ func TestVerboseFlag_Short(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"-v",
 	}, nil, 10*time.Second)
@@ -77,7 +77,7 @@ func TestVerboseFlag_LongDebug(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--log-level=debug",
 	}, nil, 10*time.Second)
@@ -103,7 +103,7 @@ func TestVerboseFlag_LongWarn(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--log-level=warn",
 	}, nil, 10*time.Second)
@@ -129,7 +129,7 @@ func TestVerboseFlag_LongTrace(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--log-level=trace",
 	}, nil, 10*time.Second)
@@ -155,7 +155,7 @@ func TestVerboseFlag_Invalid(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--log-level=invalid",
 	}, nil, 10*time.Second)
@@ -181,7 +181,7 @@ func TestVerboseFlag_ErrorLevel(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--log-level=error",
 	}, nil, 10*time.Second)

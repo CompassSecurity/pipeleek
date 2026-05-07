@@ -9,8 +9,8 @@ import (
 
 // flagBindings maps CLI flags to configuration keys
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
-	"token":  "gitlab.token",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
 	"level":  "gitlab.enum.level",
 }
 
@@ -19,10 +19,10 @@ func NewEnumCmd() *cobra.Command {
 		Use:     "enum",
 		Short:   "Enumerate access rights of a GitLab access token",
 		Long:    "Enumerate access rights of a GitLab access token by listing projects, groups and users the token has access to.",
-		Example: `pipeleek gl enum --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --level 20`,
+		Example: `pipeleek gl enum --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --level 20`,
 		Run:     Enum,
 	}
-	enumCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	enumCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 	enumCmd.Flags().Int("level", int(gitlab.GuestPermissions), "Minimum repo access level. See https://docs.gitlab.com/api/access_requests/#valid-access-levels for integer values")
 

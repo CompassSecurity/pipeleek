@@ -30,13 +30,13 @@ var options = ScanOptions{
 }
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"gitlab":                   "gitlab.url",
+	"url":                      "gitlab.url",
 	"token":                    "gitlab.token",
 	"cookie":                   "gitlab.cookie",
 	"search":                   "gitlab.scan.search",
 	"member":                   "gitlab.scan.member",
-	"repo":                     "gitlab.scan.repo",
-	"namespace":                "gitlab.scan.namespace",
+	"project":                  "gitlab.scan.project",
+	"group":                    "gitlab.scan.group",
 	"job-limit":                "gitlab.scan.job_limit",
 	"queue":                    "gitlab.scan.queue",
 	"artifacts":                "gitlab.scan.artifacts",
@@ -63,25 +63,25 @@ You can tweak --threads, --max-artifact-size and --job-limit to obtain a customi
 `,
 		Example: `
 # Scan all accessible projects pipelines and their artifacts and dotenv artifacts on gitlab.com
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -a -c [value-of-valid-_gitlab_session]
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com -a -c [value-of-valid-_gitlab_session]
 
 # Scan all projects matching the search query kubernetes
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --search kubernetes
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --search kubernetes
 
 # Scan all pipelines of projects you own
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --owned
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --owned
 
 # Scan all pipelines of projects you are a member of
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --member
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --member
 
 # Scan all accessible projects pipelines but limit the number of jobs scanned per project to 10, only scan artifacts smaller than 200MB and use 8 threads
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --job-limit 10 -a --max-artifact-size 200Mb --threads 8
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --job-limit 10 -a --max-artifact-size 200Mb --threads 8
 
-# Scan a single repository
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --repo mygroup/myproject
+# Scan a single project
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --project mygroup/myproject
 
-# Scan all repositories in a namespace
-pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --namespace mygroup
+# Scan all projects in a group
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --group mygroup
 		`,
 		Run: Scan,
 	}
@@ -90,8 +90,8 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com -
 	scanCmd.Flags().StringVarP(&options.GitlabCookie, "cookie", "c", "", "GitLab Cookie _gitlab_session (must be extracted from your browser, use remember me)")
 	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching projects")
 	scanCmd.Flags().BoolVarP(&options.Member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single repository to scan, format: namespace/repo")
-	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
+	scanCmd.Flags().StringVarP(&options.Repository, "project", "p", "", "Single project to scan, format: group/project")
+	scanCmd.Flags().StringVarP(&options.Namespace, "group", "n", "", "Group to scan (all projects in the group will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
@@ -114,8 +114,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.GitlabCookie = config.GetString("gitlab.cookie")
 	options.ProjectSearchQuery = config.GetString("gitlab.scan.search")
 	options.Member = config.GetBool("gitlab.scan.member")
-	options.Repository = config.GetString("gitlab.scan.repo")
-	options.Namespace = config.GetString("gitlab.scan.namespace")
+	options.Repository = config.GetString("gitlab.scan.project")
+	options.Namespace = config.GetString("gitlab.scan.group")
 	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
 	options.QueueFolder = config.GetString("gitlab.scan.queue")
 	options.Artifacts = config.GetBool("gitlab.scan.artifacts")

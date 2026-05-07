@@ -17,9 +17,9 @@ func TestNewJobTokenRootCmd(t *testing.T) {
 	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
 
 	flags := cmd.PersistentFlags()
-	gitlabFlag := flags.Lookup("gitlab")
-	assert.NotNil(t, gitlabFlag, "'gitlab' persistent flag should be registered")
-	assert.Equal(t, "", gitlabFlag.DefValue, "'gitlab' flag default should be empty")
+	urlFlag := flags.Lookup("url")
+	assert.NotNil(t, urlFlag, "'url' persistent flag should be registered")
+	assert.Equal(t, "", urlFlag.DefValue, "'url' flag default should be empty")
 
 	tokenFlag := flags.Lookup("token")
 	assert.NotNil(t, tokenFlag, "'token' persistent flag should be registered")

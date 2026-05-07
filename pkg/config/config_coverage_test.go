@@ -361,7 +361,7 @@ Configuration Priority Order (highest to lowest):
 
 Example:
   pipeleek gitlab scan \
-    --gitlab https://cli.example.com \              # Priority 1: CLI flag
+    --url https://cli.example.com \              # Priority 1: CLI flag
     --token cli-token                               # Priority 1: CLI flag
 
   With env vars:

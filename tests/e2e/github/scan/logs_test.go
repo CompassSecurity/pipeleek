@@ -87,7 +87,7 @@ func TestGitHubScan_HappyPath(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 	}, nil, 10*time.Second)
@@ -195,7 +195,7 @@ func TestGitHubScan_WithLogs(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 	}, nil, 15*time.Second)

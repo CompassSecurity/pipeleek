@@ -12,7 +12,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
+	"url": "gitlab.url",
 	"token":  "gitlab.token",
 	"term":   "gitlab.renovate.bots.term",
 }

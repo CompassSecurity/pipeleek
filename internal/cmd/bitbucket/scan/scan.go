@@ -28,7 +28,7 @@ var options = BitBucketScanOptions{
 }
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"bitbucket":                "bitbucket.url",
+	"url":                      "bitbucket.url",
 	"token":                    "bitbucket.token",
 	"email":                    "bitbucket.email",
 	"cookie":                   "bitbucket.cookie",
@@ -72,7 +72,7 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 	scanCmd.Flags().StringVarP(&options.AccessToken, "token", "t", "", "Bitbucket API token - https://id.atlassian.com/manage-profile/security/api-tokens")
 	scanCmd.Flags().StringVarP(&options.Email, "email", "e", "", "Bitbucket Email")
 	scanCmd.Flags().StringVarP(&options.BitBucketCookie, "cookie", "c", "", "Bitbucket Cookie [value of cloud.session.token on https://bitbucket.org]")
-	scanCmd.Flags().StringVarP(&options.BitBucketURL, "bitbucket", "b", "https://api.bitbucket.org/2.0", "BitBucket API base URL")
+	scanCmd.Flags().StringVarP(&options.BitBucketURL, "url", "b", "https://api.bitbucket.org/2.0", "BitBucket API base URL")
 	scanCmd.MarkFlagsRequiredTogether("cookie", "artifacts")
 
 	scanCmd.Flags().IntVarP(&options.MaxPipelines, "max-pipelines", "", -1, "Max. number of pipelines to scan per repository")

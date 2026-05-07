@@ -11,8 +11,8 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
-	"token":  "gitlab.token",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
 }
 
 func NewSecureFilesCmd() *cobra.Command {
@@ -20,10 +20,10 @@ func NewSecureFilesCmd() *cobra.Command {
 		Use:     "secureFiles",
 		Short:   "Print CI/CD secure files",
 		Long:    "Fetch and print all CI/CD secure files for projects your token has access to.",
-		Example: `pipeleek gl secureFiles --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
+		Example: `pipeleek gl secureFiles --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchSecureFiles,
 	}
-	secureFilesCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	secureFilesCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	secureFilesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return secureFilesCmd

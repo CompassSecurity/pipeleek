@@ -7,8 +7,8 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
-	"token":  "gitlab.token",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
 }
 
 func NewVariablesCmd() *cobra.Command {
@@ -16,10 +16,10 @@ func NewVariablesCmd() *cobra.Command {
 		Use:     "variables",
 		Short:   "Print configured CI/CD variables",
 		Long:    "Fetch and print all configured CI/CD variables for projects, groups and instance (if admin) your token has access to.",
-		Example: `pipeleek gl variables --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
+		Example: `pipeleek gl variables --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchVariables,
 	}
-	variablesCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	variablesCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	variablesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return variablesCmd

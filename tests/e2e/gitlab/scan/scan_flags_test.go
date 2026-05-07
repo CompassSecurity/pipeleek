@@ -56,7 +56,7 @@ Job complete`
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--confidence", "high,medium",
 		"--job-limit", "1",
@@ -113,7 +113,7 @@ func TestGitLabScan_CookieAuthentication(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--cookie", "test-cookie-value",
 		"--job-limit", "1",
@@ -243,7 +243,7 @@ OAUTH_CLIENT_SECRET=oauth_secret_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--artifacts",
 		"--max-artifact-size", "50Mb", // Only scan artifacts < 50MB
@@ -306,7 +306,7 @@ func TestGitLabScan_QueueFolder(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--queue", customQueueDir,
 		"--job-limit", "1",
@@ -362,7 +362,7 @@ Job complete`
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--truffle-hog-verification=false",
 		"--job-limit", "1",

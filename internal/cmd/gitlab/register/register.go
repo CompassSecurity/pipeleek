@@ -7,7 +7,7 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitlab":   "gitlab.url",
+	"url": "gitlab.url",
 	"username": "gitlab.register.username",
 	"password": "gitlab.register.password",
 	"email":    "gitlab.register.email",
@@ -18,7 +18,7 @@ func NewRegisterCmd() *cobra.Command {
 		Use:     "register",
 		Short:   "Register a new user to a Gitlab instance",
 		Long:    "Register a new user to a Gitlab instance that allows self-registration. This command is best effort and might not work.",
-		Example: `pipeleek gl register --gitlab https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
+		Example: `pipeleek gl register --url https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
 		Run: func(cmd *cobra.Command, args []string) {
 			config.NewCommandSetup(cmd).
 				WithFlagBindings(flagBindings).
@@ -34,7 +34,7 @@ func NewRegisterCmd() *cobra.Command {
 			util.RegisterNewAccount(gitlabUrl, username, password, email)
 		},
 	}
-	registerCmd.Flags().String("gitlab", "", "GitLab instance URL")
+	registerCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	registerCmd.Flags().String("username", "", "Username")
 	registerCmd.Flags().String("password", "", "Password")
 	registerCmd.Flags().String("email", "", "Email Address")

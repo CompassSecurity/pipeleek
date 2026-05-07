@@ -15,7 +15,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"gitlab": "gitlab.url",
+	"url": "gitlab.url",
 	"token":  "gitlab.token",
 }
 
@@ -44,7 +44,7 @@ func NewJobTokenRootCmd() *cobra.Command {
 		},
 	}
 
-	jobTokenCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	jobTokenCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
 	jobTokenCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab CI Job Token")
 
 	jobTokenCmd.AddCommand(exploit.NewExploitCmd())

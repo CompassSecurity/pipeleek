@@ -57,7 +57,7 @@ func TestGLVariables(t *testing.T) {
 	apiURL := setupMockGitLabVariablesAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 10*time.Second)
 
@@ -70,7 +70,7 @@ func TestGLVariables(t *testing.T) {
 func TestGLVariables_MissingToken(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
-		"--gitlab", "https://gitlab.com",
+		"--url", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -89,7 +89,7 @@ func TestGLVariables_Unauthorized(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"gl", "variables",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 10*time.Second)
 

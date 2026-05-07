@@ -61,7 +61,7 @@ func TestGLSecureFiles(t *testing.T) {
 	apiURL := setupMockGitLabSecureFilesAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 10*time.Second)
 
@@ -73,7 +73,7 @@ func TestGLSecureFiles(t *testing.T) {
 func TestGLSecureFiles_MissingToken(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
-		"--gitlab", "https://gitlab.com",
+		"--url", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -103,7 +103,7 @@ func TestGLSecureFiles_Unauthorized(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 10*time.Second)
 

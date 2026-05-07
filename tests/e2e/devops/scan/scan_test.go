@@ -44,7 +44,7 @@ func TestAzureDevOpsScan_HappyPath(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -119,7 +119,7 @@ func TestAzureDevOpsScan_WithLogs(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -215,7 +215,7 @@ GITHUB_TOKEN=ghp_examplePersonalAccessToken123456789
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -282,7 +282,7 @@ func TestAzureDevOpsScan_Pagination(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -325,7 +325,7 @@ func TestAzureDevOpsScan_Project(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",

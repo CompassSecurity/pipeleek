@@ -5,6 +5,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	circleApiToken string
+	circleUrl      string
+)
+
 func NewCircleRootCmd() *cobra.Command {
 	circleCmd := &cobra.Command{
 		Use:     "circle [command]",
@@ -13,6 +18,9 @@ func NewCircleRootCmd() *cobra.Command {
 	}
 
 	circleCmd.AddCommand(scan.NewScanCmd())
+
+	circleCmd.PersistentFlags().StringVarP(&circleUrl, "url", "c", "", "CircleCI instance URL")
+	circleCmd.PersistentFlags().StringVarP(&circleApiToken, "token", "t", "", "CircleCI API Token")
 
 	return circleCmd
 }

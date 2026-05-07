@@ -16,7 +16,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"github":    "github.url",
+	"url": "github.url",
 	"token":     "github.token",
 	"repo-name": "github.renovate.lab.repo_name",
 }
@@ -28,7 +28,7 @@ func NewLabCmd() *cobra.Command {
 		Long:  "Creates a GitHub repository with Renovate Bot autodiscovery configuration enabled.",
 		Example: `
 # Create a Renovate testing lab repository
-pipeleek gh renovate lab --token ghp_xxxxx --github https://api.github.com --repo-name renovate-lab
+pipeleek gh renovate lab --token ghp_xxxxx --url https://api.github.com --repo-name renovate-lab
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			config.NewCommandSetup(cmd).

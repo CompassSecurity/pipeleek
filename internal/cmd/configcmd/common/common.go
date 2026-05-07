@@ -20,6 +20,18 @@ func WrapError(command string, action string, err error) error {
 	return fmt.Errorf("config %s: %s: %w", command, action, err)
 }
 
+// LogAndWrapError logs an error through zerolog and then wraps it for return.
+// This ensures errors go through zerolog's logging infrastructure, preventing terminal state corruption.
+func LogAndWrapError(command string, action string, err error) error {
+	if err == nil {
+		return nil
+	}
+	// Log the error through zerolog first
+	log.Error().Err(err).Str("command", command).Str("action", action).Msg("Command failed")
+	// Return the wrapped error
+	return WrapError(command, action, err)
+}
+
 // ValidateKeyPath validates dotted config keys such as gitlab.token.
 func ValidateKeyPath(path string) error {
 	if strings.TrimSpace(path) == "" {

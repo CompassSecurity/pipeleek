@@ -30,7 +30,7 @@ var options = GitHubScanOptions{
 }
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"github":                   "github.url",
+	"url":                      "github.url",
 	"token":                    "github.token",
 	"org":                      "github.scan.org",
 	"user":                     "github.scan.user",
@@ -82,7 +82,7 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 	scanCmd.Flags().BoolVarP(&options.Public, "public", "p", false, "Scan all public repositories")
 	scanCmd.Flags().StringVarP(&options.SearchQuery, "search", "s", "", "GitHub search query")
 	scanCmd.Flags().StringVarP(&options.Repo, "repo", "r", "", "Scan a single repository in the format owner/repo")
-	scanCmd.Flags().StringVarP(&options.GitHubURL, "github", "g", "https://api.github.com", "GitHub API base URL")
+	scanCmd.Flags().StringVarP(&options.GitHubURL, "url", "g", "https://api.github.com", "GitHub API base URL")
 	scanCmd.MarkFlagsMutuallyExclusive("owned", "org", "user", "public", "search", "repo")
 
 	return scanCmd

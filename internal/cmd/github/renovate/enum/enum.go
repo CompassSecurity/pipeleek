@@ -21,7 +21,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"github":                         "github.url",
+	"url":                            "github.url",
 	"token":                          "github.token",
 	"owned":                          "github.renovate.enum.owned",
 	"member":                         "github.renovate.enum.member",
@@ -42,22 +42,22 @@ func NewEnumCmd() *cobra.Command {
 		Long:  "Enumerate GitHub repositories for Renovate bot configurations. Identifies repositories with Renovate workflows, config files, autodiscovery settings, and self-hosted configurations.",
 		Example: `
 # Enumerate all owned repositories
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --owned
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --owned
 
 # Enumerate all public repositories
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx
 
 # Enumerate specific organization
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --org mycompany
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --org mycompany
 
 # Enumerate with config file dump
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --owned --dump
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --owned --dump
 
 # Fast mode (skip config file detection)
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --org myorg --fast
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --org myorg --fast
 
 # Enumerate specific repository
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --repo owner/repo
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			config.NewCommandSetup(cmd).

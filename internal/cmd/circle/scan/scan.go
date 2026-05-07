@@ -37,7 +37,7 @@ var options = CircleScanOptions{
 
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"circle":                   "circle.url",
+	"url":                      "circle.url",
 	"token":                    "circle.token",
 	"org":                      "circle.scan.org",
 	"project":                  "circle.scan.project",
@@ -79,10 +79,10 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 
 	flags.AddCommonScanFlagsNoOwned(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "CircleCI API token")
-	scanCmd.Flags().StringVarP(&options.CircleURL, "circle", "c", "https://circleci.com", "CircleCI base URL")
+	scanCmd.Flags().StringVarP(&options.CircleURL, "url", "c", "https://circleci.com", "CircleCI base URL")
 	scanCmd.Flags().StringVarP(&options.Organization, "org", "", "", "CircleCI organization slug (used to filter projects)")
 	scanCmd.Flags().StringSliceVarP(&options.Projects, "project", "p", []string{}, "Project selector. Format: org/repo or vcs/org/repo")
-	scanCmd.Flags().StringVarP(&options.VCS, "vcs", "", "github", "VCS provider for project selectors without prefix (github or bitbucket)")
+	scanCmd.Flags().StringVarP(&options.VCS, "vcs", "", "url", "VCS provider for project selectors without prefix (github or bitbucket)")
 	scanCmd.Flags().StringVarP(&options.Branch, "branch", "b", "", "Filter pipelines by branch")
 	scanCmd.Flags().StringSliceVarP(&options.Statuses, "status", "", []string{}, "Filter by pipeline/workflow/job status")
 	scanCmd.Flags().StringSliceVarP(&options.Workflows, "workflow", "", []string{}, "Filter by workflow name")

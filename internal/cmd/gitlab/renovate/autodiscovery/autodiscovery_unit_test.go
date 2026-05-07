@@ -21,7 +21,7 @@ func TestGLAutodiscoveryCmdFlags(t *testing.T) {
 		name     string
 		flagName string
 	}{
-		{"repo-name flag exists", "repo-name"},
+		{"project-name flag exists", "project-name"},
 		{"username flag exists", "username"},
 		{"add-renovate-cicd-for-debugging flag exists", "add-renovate-cicd-for-debugging"},
 	}

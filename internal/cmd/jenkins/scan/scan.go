@@ -29,7 +29,7 @@ var options = JenkinsScanOptions{
 
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"jenkins":                  "jenkins.url",
+	"url":                      "jenkins.url",
 	"username":                 "jenkins.username",
 	"token":                    "jenkins.token",
 	"folder":                   "jenkins.scan.folder",
@@ -50,22 +50,22 @@ func NewScanCmd() *cobra.Command {
 		Long:  `Scan Jenkins job logs, artifacts, job definitions, and exposed environment variables for secrets.`,
 		Example: `
 # Scan all accessible jobs on the Jenkins instance
-pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token token_value
+pipeleek jenkins scan --url https://jenkins.example.com --username admin --token token_value
 
 # Scan only a folder recursively
-pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token token_value --folder team-a
+pipeleek jenkins scan --url https://jenkins.example.com --username admin --token token_value --folder team-a
 
 # Scan one specific job path
-pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token token_value --job team-a/service-a
+pipeleek jenkins scan --url https://jenkins.example.com --username admin --token token_value --job team-a/service-a
 
 # Limit builds per job and include artifacts
-pipeleek jenkins scan --jenkins https://jenkins.example.com --username admin --token token_value --max-builds 20 --artifacts
+pipeleek jenkins scan --url https://jenkins.example.com --username admin --token token_value --max-builds 20 --artifacts
 		`,
 		Run: Scan,
 	}
 
 	flags.AddCommonScanFlagsNoOwned(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
-	scanCmd.Flags().StringVarP(&options.JenkinsURL, "jenkins", "j", "", "Jenkins base URL")
+	scanCmd.Flags().StringVarP(&options.JenkinsURL, "url", "j", "", "Jenkins base URL")
 	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Jenkins username")
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "Jenkins API token")
 	scanCmd.Flags().StringVarP(&options.Folder, "folder", "f", "", "Jenkins folder path to scan recursively (e.g. team-a/platform)")

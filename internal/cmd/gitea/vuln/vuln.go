@@ -7,7 +7,7 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitea": "gitea.url",
+	"url": "gitea.url",
 	"token": "gitea.token",
 }
 
@@ -16,7 +16,7 @@ func NewVulnCmd() *cobra.Command {
 		Use:     "vuln",
 		Short:   "Check if the installed Gitea version is vulnerable",
 		Long:    "Check the installed Gitea instance version against the NIST vulnerability database to see if it is affected by any vulnerabilities.",
-		Example: `pipeleek gitea vuln --token xxxxx --gitea https://gitea.mydomain.com`,
+		Example: `pipeleek gitea vuln --token xxxxx --url https://gitea.mydomain.com`,
 		Run:     CheckVulns,
 	}
 

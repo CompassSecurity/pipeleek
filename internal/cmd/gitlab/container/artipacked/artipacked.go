@@ -19,12 +19,12 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"gitlab":    "gitlab.url",
+	"url":       "gitlab.url",
 	"token":     "gitlab.token",
 	"owned":     "gitlab.container.artipacked.owned",
 	"member":    "gitlab.container.artipacked.member",
-	"repo":      "gitlab.container.artipacked.repo",
-	"namespace": "gitlab.container.artipacked.namespace",
+	"project":   "gitlab.container.artipacked.project",
+	"group":     "gitlab.container.artipacked.group",
 	"search":    "gitlab.container.artipacked.search",
 	"page":      "gitlab.container.artipacked.page",
 	"order-by":  "gitlab.container.artipacked.order_by",
@@ -49,8 +49,8 @@ func NewArtipackedCmd() *cobra.Command {
 
 			owned = config.GetBool("gitlab.container.artipacked.owned")
 			member = config.GetBool("gitlab.container.artipacked.member")
-			repository = config.GetString("gitlab.container.artipacked.repo")
-			namespace = config.GetString("gitlab.container.artipacked.namespace")
+			repository = config.GetString("gitlab.container.artipacked.project")
+			namespace = config.GetString("gitlab.container.artipacked.group")
 			projectSearchQuery = config.GetString("gitlab.container.artipacked.search")
 			page = config.GetInt("gitlab.container.artipacked.page")
 			orderBy = config.GetString("gitlab.container.artipacked.order_by")
@@ -61,10 +61,10 @@ func NewArtipackedCmd() *cobra.Command {
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
 	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
-	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all projects will be scanned)")
-	artipackedCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to scan")
+	artipackedCmd.Flags().StringVarP(&repository, "project", "p", "", "Project to scan (if not set, all projects will be scanned)")
+	artipackedCmd.Flags().StringVarP(&namespace, "group", "n", "", "Group to scan")
 	artipackedCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching projects")
-	artipackedCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
+	artipackedCmd.Flags().IntVar(&page, "page", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
 	artipackedCmd.Flags().StringVar(&orderBy, "order-by", "last_activity_at", "Order projects by: id, name, path, created_at, updated_at, star_count, last_activity_at, or similarity")
 
 	return artipackedCmd

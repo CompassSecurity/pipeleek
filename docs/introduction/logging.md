@@ -108,7 +108,7 @@ Setup a local ELK stack using https://github.com/deviantony/docker-elk.
 Then you can start a scan:
 
 ```bash
-pipeleek gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com  --json | nc -q0 localhost 50000
+pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com  --json | nc -q0 localhost 50000
 ```
 
 Using Kibana you can filter for interesting messages, based on the JSON attributes of the output.

@@ -11,10 +11,10 @@ func NewScheduleCmd() *cobra.Command {
 		Use:     "schedule",
 		Short:   "Enumerate scheduled pipelines and dump their variables",
 		Long:    "Fetch and print all scheduled pipelines and their variables for projects your token has access to.",
-		Example: `pipeleek gl schedule --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
+		Example: `pipeleek gl schedule --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchSchedules,
 	}
-	scheduleCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	scheduleCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	scheduleCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return scheduleCmd
@@ -23,8 +23,8 @@ func NewScheduleCmd() *cobra.Command {
 func FetchSchedules(cmd *cobra.Command, args []string) {
 	// Auto-generate bindings from flag definitions with optional overrides
 	bindings := config.BindingsFromFlags(cmd, "gitlab", "schedule", map[string]string{
-		"gitlab": "gitlab.url",
-		"token":  "gitlab.token",
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
 	})
 
 	config.NewCommandSetup(cmd).

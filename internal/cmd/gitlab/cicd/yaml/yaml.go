@@ -8,7 +8,7 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"gitlab":  "gitlab.url",
+	"url": "gitlab.url",
 	"token":   "gitlab.token",
 	"project": "gitlab.cicd.yaml.project",
 }
@@ -20,7 +20,7 @@ func NewYamlCmd() *cobra.Command {
 		Use:     "yaml",
 		Short:   "Dump the CI/CD yaml configuration of a project",
 		Long:    "Dump the CI/CD yaml configuration of a project, useful for analyzing the configuration and identifying potential security issues.",
-		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --project mygroup/myproject`,
+		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --project mygroup/myproject`,
 		Run: func(cmd *cobra.Command, args []string) {
 			config.NewCommandSetup(cmd).
 				WithFlagBindings(flagBindings).

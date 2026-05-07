@@ -18,13 +18,8 @@ Generate a configuration template with all available options:
 ```bash
 # Write to config file (recommended)
 pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
-
-# View template in terminal
-pipeleek config gen --output /dev/stdout
 ```
 
-!!! note
-    Use the `--output` flag to write directly to a file. Piping to stdout mixes log output with YAML, breaking the file format.
 
 The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
 
@@ -47,7 +42,7 @@ pipeleek gl scan
 
 Configuration sources are resolved in this order (highest to lowest):
 
-1. **CLI flags** - `--gitlab`, `--token`, etc.
+1. **CLI flags** - `--url`, `--token`, etc.
 2. **Environment variables** - `PIPELEEK_GITLAB_TOKEN`
 3. **Config file** - `~/.config/pipeleek/pipeleek.yaml`
 4. **Defaults**
@@ -129,7 +124,7 @@ pipeleek gh scan --owned      # Uses GitHub config
 
 ```bash
 # Use config token but different URL
-pipeleek gl enum --gitlab https://gitlab-dev.company.com
+pipeleek gl enum --url https://gitlab-dev.company.com
 
 # Use config URL/token but different level
 pipeleek gl enum --level minimal
@@ -187,18 +182,12 @@ pipeleek config set common.truffle_hog_verification false
 pipeleek config set gitlab.runners.exploit.tags '[\"docker\", \"shared\"]'
 ```
 
-!!! info
-    - Values are automatically typed: `true`/`false` → boolean, `123` → integer, `1.5` → float, `[...]` → array
-    - String values are used otherwise
-    - Only leaf configuration keys (actual settings) can be set; intermediate containers are rejected
-    - Config file is created automatically if it doesn't exist
-
 ## Full Example
 
 See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented or run:
 
 ```bash
-pipeleek config gen --output /dev/stdout
+pipeleek config gen
 ```
 
 ## Troubleshooting

@@ -68,7 +68,7 @@ func RunEnumerate(opts EnumOptions) {
 }
 
 func scanSingleProject(git *gitlab.Client, projectName string, opts EnumOptions) {
-	log.Info().Str("repository", projectName).Msg("Scanning specific repository for Renovate configuration")
+		log.Info().Str("project", projectName).Msg("Scanning specific project for Renovate configuration")
 	project, resp, err := git.Projects.GetProject(projectName, &gitlab.GetProjectOptions{})
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed fetching project by repository name")
@@ -80,7 +80,7 @@ func scanSingleProject(git *gitlab.Client, projectName string, opts EnumOptions)
 }
 
 func scanNamespace(git *gitlab.Client, namespace string, opts EnumOptions) {
-	log.Info().Str("namespace", namespace).Msg("Scanning specific namespace for Renovate configuration")
+		log.Info().Str("group", namespace).Msg("Scanning specific group for Renovate configuration")
 	group, _, err := git.Groups.GetGroup(namespace, &gitlab.GetGroupOptions{})
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed fetching namespace")
@@ -108,7 +108,7 @@ func scanNamespace(git *gitlab.Client, namespace string, opts EnumOptions) {
 		return
 	}
 
-	log.Info().Msg("Fetched all namespace projects")
+	log.Info().Msg("Fetched all group projects")
 }
 
 func fetchProjects(git *gitlab.Client, opts EnumOptions) {

@@ -16,6 +16,7 @@ func NewGetCmd() *cobra.Command {
 		Use:          "get <key.id>",
 		Short:        "Get a configuration value",
 		SilenceUsage: true,
+		SilenceErrors: true,
 		Long: `Get a configuration value from the current config file by dotted key path.
 If the key is a leaf value (scalar), it will be printed as-is.
 If the key is an object or array, it will be formatted as YAML.
@@ -36,10 +37,10 @@ pipeleek config get`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				if err := common.ValidateKeyPath(args[0]); err != nil {
-					return common.WrapError("get", "validate key path", err)
+					return common.LogAndWrapError("get", "validate key path", err)
 				}
 				if !configgen.IsAllowedReadConfigPath(cmd.Root(), args[0]) {
-					return common.WrapError("get", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
+					return common.LogAndWrapError("get", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 				}
 			}
 
@@ -50,7 +51,7 @@ pipeleek config get`,
 			// Load the raw config as a map
 			configData, err := config.LoadConfigFile(configPath)
 			if err != nil {
-				return common.WrapError("get", "load config file", err)
+				return common.LogAndWrapError("get", "load config file", err)
 			}
 
 			// If no key specified, print entire config
@@ -66,12 +67,12 @@ pipeleek config get`,
 				// If not found in file config, try Viper's values (includes defaults and env vars)
 				value = v.Get(key)
 				if value == nil {
-					return common.WrapError("get", "lookup key", fmt.Errorf("key %q was not found in config file, defaults, or environment", key))
+					return common.LogAndWrapError("get", "lookup key", fmt.Errorf("key %q was not found in config file, defaults, or environment", key))
 				}
 			}
 
 			if err := printConfigValue(cmd, value); err != nil {
-				return common.WrapError("get", "render output", err)
+				return common.LogAndWrapError("get", "render output", err)
 			}
 
 			return nil

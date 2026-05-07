@@ -20,7 +20,7 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitLab Renovate bot configurations.",
 	}
 
-	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	renovateCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
 	renovateCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())

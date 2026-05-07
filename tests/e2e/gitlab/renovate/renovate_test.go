@@ -119,7 +119,7 @@ func TestGLRenovateEnum(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "enum",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Enum command should succeed")
@@ -131,9 +131,9 @@ func TestGLRenovateAutodiscovery(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo",
+		"--project-name", "test-repo",
 		"--username", "test-user",
 		"-v",
 	}, nil, 10*time.Second)
@@ -150,9 +150,9 @@ func TestGLRenovateAutodiscoveryWithCICD(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo-cicd",
+		"--project-name", "test-repo-cicd",
 		"--username", "test-user",
 		"--add-renovate-cicd-for-debugging",
 	}, nil, 10*time.Second)
@@ -169,9 +169,9 @@ func TestGLRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "autodiscovery",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo-no-user",
+		"--project-name", "test-repo-no-user",
 	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Autodiscovery without username should succeed")
 	assert.Contains(t, stdout, "Created project")
@@ -184,9 +184,9 @@ func TestGLRenovatePrivesc(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo",
+		"--project", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Privesc command should succeed")
@@ -198,9 +198,9 @@ func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo",
+		"--project", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "500ms",
 	}, nil, 10*time.Second)
@@ -214,9 +214,9 @@ func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "privesc",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--repo-name", "test-repo",
+		"--project", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "invalid-duration",
 	}, nil, 10*time.Second)
@@ -231,7 +231,7 @@ func TestGLRenovateBots(t *testing.T) {
 	apiURL := setupMockGitLabRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "renovate", "bots",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--term", "renovate",
 	}, nil, 10*time.Second)

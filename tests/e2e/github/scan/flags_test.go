@@ -61,7 +61,7 @@ func TestGitHubScan_SearchQuery(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--search", "kubernetes",
 	}, nil, 15*time.Second)
@@ -126,7 +126,7 @@ func TestGitHubScan_UserRepositories(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--user", "firefart",
 	}, nil, 15*time.Second)
@@ -257,7 +257,7 @@ func TestGitHubScan_PublicRepositories(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--public",
 		"--max-workflows", "1", // Limit workflows to avoid long test runs
@@ -336,7 +336,7 @@ func TestGitHubScan_ThreadsConfiguration(t *testing.T) {
 		t.Run("threads_"+threads, func(t *testing.T) {
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gh", "scan",
-				"--github", server.URL,
+				"--url", server.URL,
 				"--token", "ghp_test_token",
 				"--owned",
 				"--threads", threads,
@@ -386,7 +386,7 @@ func TestGitHubScan_TruffleHogVerificationDisabled(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--truffle-hog-verification=false",
@@ -414,7 +414,7 @@ func TestGitHubScan_MutuallyExclusiveFlags(t *testing.T) {
 	// Test that owned and org flags are mutually exclusive
 	_, _, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--org", "test-org",

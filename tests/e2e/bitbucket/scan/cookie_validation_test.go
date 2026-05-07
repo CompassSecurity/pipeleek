@@ -92,7 +92,7 @@ func TestBitBucketScan_CookieValidationOnlyWithArtifacts(t *testing.T) {
 
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"bb", "scan",
-			"--bitbucket", server.URL,
+			"--url", server.URL,
 			"--email", "testuser",
 			"--token", "testtoken",
 			"--workspace", "test-workspace",
@@ -117,7 +117,7 @@ func TestBitBucketScan_CookieValidationOnlyWithArtifacts(t *testing.T) {
 
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"bb", "scan",
-			"--bitbucket", server.URL,
+			"--url", server.URL,
 			"--email", "testuser",
 			"--token", "testtoken",
 			"--cookie", "test-cookie-value",
@@ -216,7 +216,7 @@ func TestBitBucketScan_CookieValidationOnlyWithArtifacts(t *testing.T) {
 
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"bb", "scan",
-			"--bitbucket", server.URL,
+			"--url", server.URL,
 			"--email", "testuser",
 			"--token", "testtoken",
 			"--cookie", "test-cookie-value",
@@ -260,7 +260,7 @@ func TestBitBucketScan_CookieValidationOnlyWithArtifacts(t *testing.T) {
 
 		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 			"bb", "scan",
-			"--bitbucket", server.URL,
+			"--url", server.URL,
 			"--email", "testuser",
 			"--token", "testtoken",
 			"--cookie", "invalid-cookie-value",

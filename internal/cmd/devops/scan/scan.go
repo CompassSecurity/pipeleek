@@ -26,7 +26,7 @@ var options = DevOpsScanOptions{
 }
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"devops":                   "azure_devops.url",
+	"url":                      "azure_devops.url",
 	"token":                    "azure_devops.token",
 	"username":                 "azure_devops.username",
 	"organization":             "azure_devops.scan.organization",
@@ -75,7 +75,7 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 	scanCmd.Flags().IntVarP(&options.MaxBuilds, "max-builds", "", -1, "Max. number of builds to scan per project")
 	scanCmd.Flags().StringVarP(&options.Organization, "organization", "", "", "Organization name to scan")
 	scanCmd.Flags().StringVarP(&options.Project, "project", "p", "", "Project name to scan - can be combined with organization")
-	scanCmd.Flags().StringVarP(&options.DevOpsURL, "devops", "d", "https://dev.azure.com", "Azure DevOps base URL")
+	scanCmd.Flags().StringVarP(&options.DevOpsURL, "url", "d", "https://dev.azure.com", "Azure DevOps base URL")
 
 	return scanCmd
 }

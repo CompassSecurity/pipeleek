@@ -60,7 +60,7 @@ func TestGiteaEnum(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "enum",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 	}, nil, 10*time.Second)
 

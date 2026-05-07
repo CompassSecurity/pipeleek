@@ -40,7 +40,7 @@ var (
 		Use:     "pipeleek",
 		Short:   "Scan job logs and artifacts for secrets",
 		Long:    "Pipeleek is a tool designed to scan CI/CD job output logs and artifacts for potential secrets.",
-		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com",
+		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.com",
 		Version: getVersion(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if isCompletionCommand(cmd) {

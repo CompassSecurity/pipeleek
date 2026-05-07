@@ -18,7 +18,7 @@ type TFCommandOptions struct {
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
 var flagBindings = map[string]string{
-	"gitlab":                   "gitlab.url",
+	"url": "gitlab.url",
 	"token":                    "gitlab.token",
 	"output-dir":               "gitlab.tf.output_dir",
 	"threads":                  "common.threads",
@@ -40,16 +40,16 @@ for secrets using TruffleHog.
 GitLab stores Terraform state natively when using the Terraform HTTP backend.
 Each project can have multiple named state files.`,
 		Example: `# Scan all Terraform states in projects with maintainer access
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com
 
 # Save state files to custom directory
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --output-dir ./tf-states
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --output-dir ./tf-states
 
 # Use more threads for TruffleHog scanning
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --threads 10
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --threads 10
 
 # Scan with high confidence filter only
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --confidence high`,
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --confidence high`,
 		Run: tfRun,
 	}
 

@@ -92,7 +92,7 @@ func normalizeFlagKey(name string) string {
 //
 //	BindCommandFlags(cmd, "gitlab.scan", map[string]string{"gitlab": "gitlab.url"})
 //	--threads -> gitlab.scan.threads
-//	--gitlab  -> gitlab.url (override)
+//	--url  -> gitlab.url (override)
 func BindCommandFlags(cmd *cobra.Command, baseKey string, overrides map[string]string) error {
 	v := GetViper()
 

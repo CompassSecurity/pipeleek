@@ -15,7 +15,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"github": "github.url",
+	"url": "github.url",
 	"token":  "github.token",
 }
 
@@ -44,7 +44,7 @@ func NewGhTokenRootCmd() *cobra.Command {
 		},
 	}
 
-	ghTokenCmd.PersistentFlags().StringVarP(&githubUrl, "github", "g", "", "GitHub API base URL")
+	ghTokenCmd.PersistentFlags().StringVarP(&githubUrl, "url", "g", "", "GitHub API base URL")
 	ghTokenCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub Actions CI/CD Token (GITHUB_TOKEN)")
 
 	ghTokenCmd.AddCommand(exploit.NewExploitCmd())

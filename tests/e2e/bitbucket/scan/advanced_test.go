@@ -60,7 +60,7 @@ func TestBitBucketScan_MaxPipelines(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -148,7 +148,7 @@ func TestBitBucketScan_Confidence(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -210,7 +210,7 @@ func TestBitBucketScan_Threads(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -244,7 +244,7 @@ func TestBitBucketScan_Verbose(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -327,7 +327,7 @@ func TestBitBucketScan_TruffleHogVerification(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -404,7 +404,7 @@ func TestBitBucketScan_Pagination(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -495,7 +495,7 @@ func TestBitBucketScan_ConfidenceFilter_Multiple(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -537,7 +537,7 @@ func TestBitBucketScan_RateLimit(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
