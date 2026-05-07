@@ -118,3 +118,12 @@ func TestGenerateExampleConfig_CorrectCommonDefaultTypes(t *testing.T) {
 		t.Error("Expected confidence to be represented as an empty list []")
 	}
 }
+
+func TestGenerateExampleConfig_IsDeterministic(t *testing.T) {
+	first := gen.GenerateExampleConfig(testRootCommand())
+	second := gen.GenerateExampleConfig(testRootCommand())
+
+	if first != second {
+		t.Fatal("GenerateExampleConfig output must be deterministic across runs")
+	}
+}

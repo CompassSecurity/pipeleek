@@ -1,13 +1,13 @@
 package gen
 
 import (
-	"fmt"
+	"bytes"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 type configNode struct {
@@ -16,8 +16,8 @@ type configNode struct {
 }
 
 type flagMeta struct {
-	DefaultValue string
-	EnvVar       string
+	Value  *yaml.Node
+	EnvVar string
 }
 
 var commonFlagNames = map[string]struct{}{
@@ -54,39 +54,45 @@ var platformNameByCommand = map[string]string{
 
 // GenerateExampleConfig builds a YAML template from the currently registered CLI commands and flags.
 func GenerateExampleConfig(root *cobra.Command) string {
-	node := &configNode{Children: map[string]*configNode{}, Flags: map[string]flagMeta{}}
+	tree := &configNode{Children: map[string]*configNode{}, Flags: map[string]flagMeta{}}
 	common := map[string]flagMeta{}
 
 	if root != nil {
-		buildTreeFromRoot(root, node, common)
+		buildTreeFromRoot(root, tree, common)
 	}
 
-	var b strings.Builder
-	b.WriteString("# Pipeleek Configuration File (YAML)\n")
-	b.WriteString("# Generated dynamically from currently registered CLI commands and flags.\n\n")
+	rootMap := newMappingNode()
+	rootMap.HeadComment = strings.Join([]string{
+		"Pipeleek Configuration File (YAML)",
+		"Generated dynamically from currently registered CLI commands and flags.",
+	}, "\n")
 
 	if len(common) > 0 {
-		b.WriteString("common:\n")
-		writeFlags(&b, common, 1)
-		b.WriteString("\n")
+		appendMappingPair(rootMap, "common", flagsToMappingNode(common))
 	}
 
-	platformNames := make([]string, 0, len(node.Children))
-	for name := range node.Children {
+	platformNames := make([]string, 0, len(tree.Children))
+	for name := range tree.Children {
 		platformNames = append(platformNames, name)
 	}
 	sort.Strings(platformNames)
 
-	for i, platform := range platformNames {
-		b.WriteString(platform)
-		b.WriteString(":\n")
-		writeNode(&b, node.Children[platform], 1)
-		if i < len(platformNames)-1 {
-			b.WriteString("\n")
-		}
+	for _, platform := range platformNames {
+		appendMappingPair(rootMap, platform, configNodeToYAMLNode(tree.Children[platform]))
 	}
 
-	return b.String()
+	var out bytes.Buffer
+	encoder := yaml.NewEncoder(&out)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(rootMap); err != nil {
+		_ = encoder.Close()
+		return ""
+	}
+	if err := encoder.Close(); err != nil {
+		return ""
+	}
+
+	return out.String()
 }
 
 func buildTreeFromRoot(root *cobra.Command, rootNode *configNode, common map[string]flagMeta) {
@@ -150,12 +156,12 @@ func captureFlags(flagSet *pflag.FlagSet, keyPrefix []string, node *configNode, 
 		}
 
 		flagName := normalizeSegment(flag.Name)
-		defaultValue := yamlValueFromFlag(flag)
+		value := yamlNodeFromFlag(flag)
 
 		if _, isCommon := commonFlagNames[flag.Name]; isCommon {
 			common[flagName] = flagMeta{
-				DefaultValue: defaultValue,
-				EnvVar:       envVarForPath([]string{"common", flagName}),
+				Value:  value,
+				EnvVar: envVarForPath([]string{"common", flagName}),
 			}
 			return
 		}
@@ -164,36 +170,55 @@ func captureFlags(flagSet *pflag.FlagSet, keyPrefix []string, node *configNode, 
 			node.Flags = map[string]flagMeta{}
 		}
 		node.Flags[flagName] = flagMeta{
-			DefaultValue: defaultValue,
-			EnvVar:       envVarForPath(append(keyPrefix, flagName)),
+			Value:  value,
+			EnvVar: envVarForPath(append(keyPrefix, flagName)),
 		}
 	})
 }
 
-func writeNode(b *strings.Builder, node *configNode, indent int) {
+func configNodeToYAMLNode(node *configNode) *yaml.Node {
+	mapping := newMappingNode()
 	if node == nil {
-		return
+		return mapping
 	}
 
 	if len(node.Flags) > 0 {
-		writeFlags(b, node.Flags, indent)
+		flagNames := make([]string, 0, len(node.Flags))
+		for name := range node.Flags {
+			flagNames = append(flagNames, name)
+		}
+		sort.Strings(flagNames)
+
+		for _, name := range flagNames {
+			meta := node.Flags[name]
+			value := cloneYAMLNode(meta.Value)
+			if value == nil {
+				value = quotedStringNode("")
+			}
+			if meta.EnvVar != "" {
+				value.LineComment = meta.EnvVar
+			}
+			appendMappingPair(mapping, name, value)
+		}
 	}
 
-	childNames := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		childNames = append(childNames, name)
-	}
-	sort.Strings(childNames)
+	if len(node.Children) > 0 {
+		childNames := make([]string, 0, len(node.Children))
+		for name := range node.Children {
+			childNames = append(childNames, name)
+		}
+		sort.Strings(childNames)
 
-	for _, child := range childNames {
-		writeIndent(b, indent)
-		b.WriteString(child)
-		b.WriteString(":\n")
-		writeNode(b, node.Children[child], indent+1)
+		for _, name := range childNames {
+			appendMappingPair(mapping, name, configNodeToYAMLNode(node.Children[name]))
+		}
 	}
+
+	return mapping
 }
 
-func writeFlags(b *strings.Builder, flags map[string]flagMeta, indent int) {
+func flagsToMappingNode(flags map[string]flagMeta) *yaml.Node {
+	mapping := newMappingNode()
 	flagNames := make([]string, 0, len(flags))
 	for name := range flags {
 		flagNames = append(flagNames, name)
@@ -202,16 +227,31 @@ func writeFlags(b *strings.Builder, flags map[string]flagMeta, indent int) {
 
 	for _, name := range flagNames {
 		meta := flags[name]
-		writeIndent(b, indent)
-		b.WriteString(name)
-		b.WriteString(": ")
-		b.WriteString(meta.DefaultValue)
-		if meta.EnvVar != "" {
-			b.WriteString(" # ")
-			b.WriteString(meta.EnvVar)
+		value := cloneYAMLNode(meta.Value)
+		if value == nil {
+			value = quotedStringNode("")
 		}
-		b.WriteString("\n")
+		if meta.EnvVar != "" {
+			value.LineComment = meta.EnvVar
+		}
+		appendMappingPair(mapping, name, value)
 	}
+
+	return mapping
+}
+
+func newMappingNode() *yaml.Node {
+	return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+}
+
+func appendMappingPair(mapping *yaml.Node, key string, value *yaml.Node) {
+	if mapping == nil {
+		return
+	}
+	if value == nil {
+		value = quotedStringNode("")
+	}
+	mapping.Content = append(mapping.Content, plainStringNode(key), value)
 }
 
 func ensureChild(node *configNode, name string) *configNode {
@@ -253,70 +293,86 @@ func envVarForPath(path []string) string {
 	return "PIPELEEK_" + strings.Join(filtered, "_")
 }
 
-func yamlValueFromFlag(flag *pflag.Flag) string {
+func yamlNodeFromFlag(flag *pflag.Flag) *yaml.Node {
 	switch flag.Value.Type() {
 	case "bool":
-		if flag.DefValue == "true" {
-			return "true"
-		}
-		return "false"
-	case "int", "int32", "int64", "uint", "uint32", "uint64", "float32", "float64":
-		return flag.DefValue
+		return boolNode(flag.DefValue == "true")
+	case "int", "int32", "int64", "uint", "uint32", "uint64":
+		return plainScalarNode(flag.DefValue, "!!int")
+	case "float32", "float64":
+		return plainScalarNode(flag.DefValue, "!!float")
 	case "stringSlice", "intSlice", "durationSlice":
-		trimmed := strings.TrimSpace(flag.DefValue)
-		if trimmed == "" || trimmed == "[]" {
-			return "[]"
-		}
-		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
-			inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "["), "]"))
-			if inner == "" {
-				return "[]"
-			}
-			parts := strings.Split(inner, ",")
-			vals := make([]string, 0, len(parts))
-			for _, part := range parts {
-				vals = append(vals, quoteYAMLString(strings.TrimSpace(part)))
-			}
-			return "[" + strings.Join(vals, ", ") + "]"
-		}
-		return "[]"
-	case "duration":
-		return quoteYAMLString(flag.DefValue)
-	case "string":
-		return quoteYAMLString(flag.DefValue)
+		return flowSequenceNode(parseSliceDefault(flag.DefValue))
+	case "duration", "string":
+		return quotedStringNode(flag.DefValue)
 	default:
-		if strings.TrimSpace(flag.DefValue) == "" {
-			return `""`
+		trimmed := strings.TrimSpace(flag.DefValue)
+		if trimmed == "" {
+			return quotedStringNode("")
 		}
-		if isLikelyPlainScalar(flag.DefValue) {
-			return flag.DefValue
+		return quotedStringNode(flag.DefValue)
+	}
+}
+
+func parseSliceDefault(def string) []string {
+	trimmed := strings.TrimSpace(def)
+	if trimmed == "" || trimmed == "[]" {
+		return []string{}
+	}
+	if !strings.HasPrefix(trimmed, "[") || !strings.HasSuffix(trimmed, "]") {
+		return []string{}
+	}
+
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "["), "]"))
+	if inner == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(inner, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		values = append(values, strings.TrimSpace(part))
+	}
+	return values
+}
+
+func plainStringNode(value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value}
+}
+
+func quotedStringNode(value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value, Style: yaml.DoubleQuotedStyle}
+}
+
+func plainScalarNode(value string, tag string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
+}
+
+func boolNode(value bool) *yaml.Node {
+	if value {
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}
+	}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "false"}
+}
+
+func flowSequenceNode(values []string) *yaml.Node {
+	sequence := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
+	for _, value := range values {
+		sequence.Content = append(sequence.Content, quotedStringNode(value))
+	}
+	return sequence
+}
+
+func cloneYAMLNode(node *yaml.Node) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	clone := *node
+	if len(node.Content) > 0 {
+		clone.Content = make([]*yaml.Node, 0, len(node.Content))
+		for _, child := range node.Content {
+			clone.Content = append(clone.Content, cloneYAMLNode(child))
 		}
-		return quoteYAMLString(flag.DefValue)
 	}
-}
-
-func isLikelyPlainScalar(value string) bool {
-	if value == "" {
-		return false
-	}
-	if _, err := strconv.Atoi(value); err == nil {
-		return true
-	}
-	if value == "true" || value == "false" {
-		return true
-	}
-	if strings.ContainsAny(value, "#:[]{}\",'\n\t") {
-		return false
-	}
-	return true
-}
-
-func quoteYAMLString(value string) string {
-	return fmt.Sprintf("%q", value)
-}
-
-func writeIndent(b *strings.Builder, indent int) {
-	for i := 0; i < indent; i++ {
-		b.WriteString("  ")
-	}
+	return &clone
 }

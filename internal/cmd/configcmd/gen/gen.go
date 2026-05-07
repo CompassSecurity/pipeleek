@@ -3,6 +3,7 @@ package gen
 import (
 	"fmt"
 
+	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd/common"
 	configgen "github.com/CompassSecurity/pipeleek/pkg/config/gen"
 	"github.com/spf13/cobra"
 )
@@ -13,6 +14,7 @@ func NewGenCmd() *cobra.Command {
 	genCmd := &cobra.Command{
 		Use:   "gen",
 		Short: "Generate an example pipeleek configuration file",
+		SilenceUsage: true,
 		Long: `Generate an example pipeleek.yaml configuration file that documents all
 available settings, their default values, corresponding CLI flags, and
 environment variable names.
@@ -34,10 +36,13 @@ pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
 		`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			content := configgen.GenerateExampleConfig(cmd.Root())
+			if content == "" {
+				return common.WrapError("gen", "generate example config", fmt.Errorf("generator returned empty output"))
+			}
 
 			if outputFile != "" {
 				if err := writeFile(outputFile, content); err != nil {
-					return fmt.Errorf("failed to write config file: %w", err)
+					return common.WrapError("gen", "write output file", err)
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "Example configuration written to %s\n", outputFile)
 				return nil

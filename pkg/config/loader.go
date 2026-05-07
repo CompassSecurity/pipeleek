@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config represents the complete configuration structure for pipeleek.
@@ -185,7 +187,9 @@ func InitializeViper(configFile string) error {
 					return fmt.Errorf("error reading config file %s: %w", configFileUsed, err)
 				}
 			} else {
-				return fmt.Errorf("error reading config file: %w", err)
+				// If no file was used, it's likely a parsing error on a non-YAML file
+				// Treat this as "no config file found" rather than an error
+				log.Debug().Str("error", err.Error()).Msg("Config file parsing failed or not valid YAML; treating as not found")
 			}
 		}
 	} else {
@@ -291,4 +295,235 @@ func RequireConfigKeys(keys ...string) error {
 	}
 
 	return nil
+}
+
+// GetEffectiveConfigPath returns the path to the resolved config file, searching the standard
+// locations if no explicit config file was configured. Returns "" if no config file was found.
+func GetEffectiveConfigPath(explicitPath string) string {
+	if explicitPath != "" {
+		return explicitPath
+	}
+
+	v := GetViper()
+	configFileUsed := v.ConfigFileUsed()
+	if configFileUsed != "" {
+		ext := strings.ToLower(filepath.Ext(configFileUsed))
+		if ext != ".yaml" && ext != ".yml" {
+			configFileUsed = ""
+		}
+	}
+	if configFileUsed != "" {
+		return configFileUsed
+	}
+
+	// If no config file was found yet, resolve the default location
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = os.Getenv("USERPROFILE") // Windows
+	}
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			home = ""
+		}
+	}
+
+	// Prefer ~/.config/pipeleek/pipeleek.yaml as the default write location
+	if home != "" {
+		return filepath.Join(home, ".config", "pipeleek", "pipeleek.yaml")
+	}
+
+	// Fallback to current directory
+	return filepath.Join(".", "pipeleek.yaml")
+}
+
+// LoadConfigFile reads a YAML config file into a mutable map. If the file does not exist
+// or is empty, returns an empty map and no error.
+func LoadConfigFile(path string) (map[string]interface{}, error) {
+	data := make(map[string]interface{})
+
+	// If no path or file doesn't exist, return empty map (not an error)
+	if path == "" {
+		return data, nil
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return data, nil
+		}
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// If content is empty or only whitespace, return empty map
+	contentStr := strings.TrimSpace(string(content))
+	if contentStr == "" {
+		return data, nil
+	}
+
+	// Parse YAML content directly using viper
+	v := viper.New()
+	v.SetConfigType("yaml")
+	if err := v.ReadConfig(strings.NewReader(contentStr)); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Get all settings from viper as a map
+	data = v.AllSettings()
+	return data, nil
+}
+
+// GetByPath retrieves a value from a nested map using dotted key notation.
+// Example: "gitlab.runners.exploit.tags" navigates the nested structure.
+// Returns the value (which may be a map, slice, string, etc.) and true if found.
+// Returns nil and false if the key or any parent does not exist.
+func GetByPath(data map[string]interface{}, path string) (interface{}, bool) {
+	if path == "" {
+		return data, true
+	}
+
+	segments := strings.Split(path, ".")
+	current := interface{}(data)
+
+	for _, segment := range segments {
+		if segment == "" {
+			continue
+		}
+
+		switch v := current.(type) {
+		case map[string]interface{}:
+			val, ok := v[segment]
+			if !ok {
+				return nil, false
+			}
+			current = val
+		default:
+			// Attempting to descend through a non-map (scalar or list)
+			return nil, false
+		}
+	}
+
+	return current, true
+}
+
+// SetByPath sets a value in a nested map using dotted key notation, creating missing parent maps as needed.
+// Example: "gitlab.runners.exploit.tags" creates the intermediate maps gitlab → runners → exploit and sets tags.
+// Returns an error if attempting to descend through a non-map scalar value.
+func SetByPath(data map[string]interface{}, path string, value interface{}) error {
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+
+	segments := strings.Split(path, ".")
+	if len(segments) == 0 {
+		return fmt.Errorf("path has no segments")
+	}
+
+	// Navigate to the parent, creating maps as needed
+	current := data
+	for i := 0; i < len(segments)-1; i++ {
+		segment := segments[i]
+		if segment == "" {
+			continue
+		}
+
+		if val, ok := current[segment]; !ok {
+			// Create a new map for this segment
+			current[segment] = make(map[string]interface{})
+			current = current[segment].(map[string]interface{})
+		} else if m, ok := val.(map[string]interface{}); ok {
+			// Descend into existing map
+			current = m
+		} else {
+			// Attempting to descend through a non-map
+			return fmt.Errorf("cannot set %s: path traversal blocked by non-map value at %s", path, segments[i])
+		}
+	}
+
+	// Set the final key
+	lastSegment := segments[len(segments)-1]
+	if lastSegment != "" {
+		current[lastSegment] = value
+	}
+
+	return nil
+}
+
+// WriteConfigFile writes a config map back to a file as deterministic YAML.
+// It uses the yaml.v3 encoder with sorted key output to ensure consistent file ordering.
+func WriteConfigFile(path string, data map[string]interface{}) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("config file path cannot be empty")
+	}
+
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create parent directory: %w", err)
+	}
+
+	// Use yaml.v3 encoder for deterministic output
+	content, err := marshalConfigToYAML(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return path, nil
+}
+
+// marshalConfigToYAML converts a config map to YAML string with sorted key output for determinism.
+func marshalConfigToYAML(data map[string]interface{}) (string, error) {
+	node, err := toSortedYAMLNode(data)
+	if err != nil {
+		return "", err
+	}
+	var buf strings.Builder
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(node); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// toSortedYAMLNode converts a map to a yaml.Node with alphabetically sorted keys.
+func toSortedYAMLNode(data map[string]interface{}) (*yaml.Node, error) {
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	mapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for _, k := range keys {
+		keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: k}
+		valNode, err := toYAMLNode(data[k])
+		if err != nil {
+			return nil, err
+		}
+		mapping.Content = append(mapping.Content, keyNode, valNode)
+	}
+	return mapping, nil
+}
+
+// toYAMLNode converts any config value to a yaml.Node.
+func toYAMLNode(value interface{}) (*yaml.Node, error) {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		return toSortedYAMLNode(v)
+	default:
+		var node yaml.Node
+		if err := node.Encode(value); err != nil {
+			return nil, err
+		}
+		// Encode wraps in a document node; unwrap it
+		if node.Kind == yaml.DocumentNode && len(node.Content) == 1 {
+			return node.Content[0], nil
+		}
+		return &node, nil
+	}
 }

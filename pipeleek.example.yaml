@@ -1,13 +1,9 @@
-# Pipeleek Configuration File (YAML)
-# Generated dynamically from currently registered CLI commands and flags.
-
 common:
   confidence: [] # PIPELEEK_COMMON_CONFIDENCE
   hit_timeout: "1m0s" # PIPELEEK_COMMON_HIT_TIMEOUT
   max_artifact_size: "500Mb" # PIPELEEK_COMMON_MAX_ARTIFACT_SIZE
   threads: 4 # PIPELEEK_COMMON_THREADS
   truffle_hog_verification: true # PIPELEEK_COMMON_TRUFFLE_HOG_VERIFICATION
-
 azure_devops:
   scan:
     artifacts: false # PIPELEEK_AZURE_DEVOPS_SCAN_ARTIFACTS
@@ -18,7 +14,6 @@ azure_devops:
     project: "" # PIPELEEK_AZURE_DEVOPS_SCAN_PROJECT
     token: "" # PIPELEEK_AZURE_DEVOPS_SCAN_TOKEN
     username: "" # PIPELEEK_AZURE_DEVOPS_SCAN_USERNAME
-
 bitbucket:
   scan:
     after: "" # PIPELEEK_BITBUCKET_SCAN_AFTER
@@ -31,7 +26,6 @@ bitbucket:
     public: false # PIPELEEK_BITBUCKET_SCAN_PUBLIC
     token: "" # PIPELEEK_BITBUCKET_SCAN_TOKEN
     workspace: "" # PIPELEEK_BITBUCKET_SCAN_WORKSPACE
-
 circle:
   scan:
     artifacts: false # PIPELEEK_CIRCLE_SCAN_ARTIFACTS
@@ -49,11 +43,10 @@ circle:
     until: "" # PIPELEEK_CIRCLE_SCAN_UNTIL
     vcs: "github" # PIPELEEK_CIRCLE_SCAN_VCS
     workflow: [] # PIPELEEK_CIRCLE_SCAN_WORKFLOW
-
 gitea:
   gitea: "" # PIPELEEK_GITEA_GITEA
   token: "" # PIPELEEK_GITEA_TOKEN
-  enum:
+  enum: {}
   scan:
     artifacts: false # PIPELEEK_GITEA_SCAN_ARTIFACTS
     cookie: "" # PIPELEEK_GITEA_SCAN_COOKIE
@@ -62,10 +55,9 @@ gitea:
     repository: "" # PIPELEEK_GITEA_SCAN_REPOSITORY
     runs_limit: 0 # PIPELEEK_GITEA_SCAN_RUNS_LIMIT
     start_run_id: 0 # PIPELEEK_GITEA_SCAN_START_RUN_ID
-  secrets:
-  variables:
-  vuln:
-
+  secrets: {}
+  variables: {}
+  vuln: {}
 github:
   container:
     artipacked:
@@ -111,7 +103,6 @@ github:
     search: "" # PIPELEEK_GITHUB_SCAN_SEARCH
     token: "" # PIPELEEK_GITHUB_SCAN_TOKEN
     user: "" # PIPELEEK_GITHUB_SCAN_USER
-
 gitlab:
   gitlab: "" # PIPELEEK_GITLAB_GITLAB
   token: "" # PIPELEEK_GITLAB_TOKEN
@@ -143,7 +134,7 @@ gitlab:
       queue: "" # PIPELEEK_GITLAB_GLUNA_SCAN_QUEUE
       repo: "" # PIPELEEK_GITLAB_GLUNA_SCAN_REPO
       search: "" # PIPELEEK_GITLAB_GLUNA_SCAN_SEARCH
-    shodan:
+    shodan: {}
   jobToken:
     exploit:
       project: "" # PIPELEEK_GITLAB_JOBTOKEN_EXPLOIT_PROJECT
@@ -172,7 +163,7 @@ gitlab:
       age_public_key: "" # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_AGE_PUBLIC_KEY
       repo_name: "pipeleek-runner-test" # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_REPO_NAME
       tags: [] # PIPELEEK_GITLAB_RUNNERS_EXPLOIT_TAGS
-    list:
+    list: {}
   scan:
     artifacts: false # PIPELEEK_GITLAB_SCAN_ARTIFACTS
     cookie: "" # PIPELEEK_GITLAB_SCAN_COOKIE
@@ -204,7 +195,6 @@ gitlab:
   vuln:
     gitlab: "" # PIPELEEK_GITLAB_VULN_GITLAB
     token: "" # PIPELEEK_GITLAB_VULN_TOKEN
-
 jenkins:
   scan:
     artifacts: false # PIPELEEK_JENKINS_SCAN_ARTIFACTS
