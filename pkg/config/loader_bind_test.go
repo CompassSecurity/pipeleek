@@ -40,13 +40,13 @@ func TestBindCommandFlags_Overrides(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "https://example.com", "")
+	cmd.Flags().String("url", "https://example.com", "")
 
-	if err := BindCommandFlags(cmd, "gitlab.scan", map[string]string{"gitlab": "gitlab.url"}); err != nil {
+	if err := BindCommandFlags(cmd, "gitlab.scan", map[string]string{"url": "gitlab.url"}); err != nil {
 		t.Fatalf("bind failed: %v", err)
 	}
 
-	if err := cmd.Flags().Set("gitlab", "https://override.example.com"); err != nil {
+	if err := cmd.Flags().Set("url", "https://override.example.com"); err != nil {
 		t.Fatalf("set flag: %v", err)
 	}
 

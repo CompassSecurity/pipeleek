@@ -40,12 +40,12 @@ gitlab:
 	cmd := &cobra.Command{
 		Use: "enum",
 	}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
+	cmd.Flags().String("url", "", "GitLab URL")
 	cmd.Flags().String("token", "", "GitLab token")
 	cmd.Flags().String("level", "", "Enum level")
 
 	err = BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 		"token":  "gitlab.token",
 	})
 	require.NoError(t, err)

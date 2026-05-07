@@ -39,11 +39,12 @@ gitlab:
 
 	// Create command and set CLI flags
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
 	cmd.Flags().String("token", "", "GitLab token")
 	cmd.Flags().Int("threads", 0, "Thread count")
 
-	err = cmd.Flags().Set("gitlab", "https://gitlab-flag.com")
+	cmd.Flags().String("url", "", "GitLab URL")
+
+	err = cmd.Flags().Set("url", "https://gitlab-flag.com")
 	require.NoError(t, err)
 	err = cmd.Flags().Set("token", "flag-token")
 	require.NoError(t, err)
@@ -52,7 +53,7 @@ gitlab:
 
 	// Bind CLI flags to config keys
 	err = AutoBindFlags(cmd, map[string]string{
-		"gitlab":  "gitlab.url",
+		"url":     "gitlab.url",
 		"token":   "gitlab.token",
 		"threads": "common.threads",
 	})
@@ -90,12 +91,12 @@ gitlab:
 
 	// Create command WITHOUT setting CLI flags
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
+	cmd.Flags().String("url", "", "GitLab URL")
 	cmd.Flags().Int("threads", 0, "Thread count")
 
 	// Bind (but don't set) CLI flags
 	err = AutoBindFlags(cmd, map[string]string{
-		"gitlab":  "gitlab.url",
+		"url":     "gitlab.url",
 		"threads": "common.threads",
 	})
 	require.NoError(t, err)
@@ -131,12 +132,12 @@ gitlab:
 
 	// Create command WITHOUT setting CLI flags or env vars
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
+	cmd.Flags().String("url", "", "GitLab URL")
 	cmd.Flags().Int("threads", 0, "Thread count")
 
 	// Bind (but don't set) CLI flags
 	err = AutoBindFlags(cmd, map[string]string{
-		"gitlab":  "gitlab.url",
+		"url":     "gitlab.url",
 		"threads": "common.threads",
 	})
 	require.NoError(t, err)
@@ -175,18 +176,18 @@ gitlab:
 
 	// Create command and set ONLY SOME CLI flags
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
+	cmd.Flags().String("url", "", "GitLab URL")
 	cmd.Flags().String("token", "", "GitLab token")
 	cmd.Flags().Int("threads", 0, "Thread count")
 
 	// Set flag only for one value
-	err = cmd.Flags().Set("gitlab", "https://gitlab-flag.com")
+	err = cmd.Flags().Set("url", "https://gitlab-flag.com")
 	require.NoError(t, err)
 	// Note: NOT setting token or threads flags
 
 	// Bind all flags
 	err = AutoBindFlags(cmd, map[string]string{
-		"gitlab":  "gitlab.url",
+		"url":     "gitlab.url",
 		"token":   "gitlab.token",
 		"threads": "common.threads",
 	})

@@ -51,8 +51,8 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("cookie") == nil {
 		t.Error("Expected 'cookie' flag to exist")
 	}
-	if flags.Lookup("bitbucket") == nil {
-		t.Error("Expected 'bitbucket' flag to exist")
+		if flags.Lookup("url") == nil {
+			t.Error("Expected 'url' flag to exist")
 	}
 	if flags.Lookup("artifacts") == nil {
 		t.Error("Expected 'artifacts' flag to exist")

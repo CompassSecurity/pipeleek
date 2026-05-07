@@ -348,7 +348,7 @@ func LoadConfigFile(path string) (map[string]interface{}, error) {
 		return data, nil
 	}
 
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) // #nosec G304 -- path is an explicit user-selected config file location
 	if err != nil {
 		if os.IsNotExist(err) {
 			return data, nil
@@ -458,7 +458,7 @@ func WriteConfigFile(path string, data map[string]interface{}) (string, error) {
 	}
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
@@ -468,7 +468,7 @@ func WriteConfigFile(path string, data map[string]interface{}) (string, error) {
 		return "", fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return "", fmt.Errorf("failed to write config file: %w", err)
 	}
 

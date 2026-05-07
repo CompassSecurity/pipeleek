@@ -25,8 +25,8 @@ func TestNewGhTokenRootCmd(t *testing.T) {
 	}
 
 	flags := cmd.PersistentFlags()
-	if flags.Lookup("github") == nil {
-		t.Fatal("expected github flag to exist")
+	if flags.Lookup("url") == nil {
+		t.Fatal("expected url flag to exist")
 	}
 	if flags.Lookup("token") == nil {
 		t.Fatal("expected token flag to exist")
@@ -45,13 +45,13 @@ func TestNewGhTokenRootCmd(t *testing.T) {
 }
 
 func TestGhTokenCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewGhTokenRootCmd()
-cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
+	cmd := NewGhTokenRootCmd()
+	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }

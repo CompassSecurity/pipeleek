@@ -37,7 +37,7 @@ gitlab:
 
 	// Bind flags (simulating what happens when command runs)
 	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 		"token":  "gitlab.token",
 	})
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestEnvironmentVariablesSatisfyRequiredFlags(t *testing.T) {
 
 	// Bind flags
 	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 		"token":  "gitlab.token",
 	})
 	require.NoError(t, err)
@@ -121,14 +121,14 @@ gitlab:
 	cmd := enum.NewEnumCmd()
 
 	// Simulate setting flags manually
-	err = cmd.Flags().Set("gitlab", "https://gitlab.flag.com")
+	err = cmd.Flags().Set("url", "https://gitlab.flag.com")
 	require.NoError(t, err)
 	err = cmd.Flags().Set("token", "flag-token")
 	require.NoError(t, err)
 
 	// Bind flags (flag values should take precedence)
 	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 		"token":  "gitlab.token",
 	})
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestMissingRequiredKeysProducesError(t *testing.T) {
 
 	// Bind flags without setting any values
 	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 		"token":  "gitlab.token",
 	})
 	require.NoError(t, err)

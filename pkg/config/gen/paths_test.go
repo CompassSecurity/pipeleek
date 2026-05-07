@@ -21,7 +21,7 @@ func TestAllowedConfigPaths_IncludesExpectedPaths(t *testing.T) {
 	}
 
 	// Only leaf paths (actual settable config values) should be allowed
-	expected := []string{"common.threads", "gitlab.gitlab", "gitlab.token", "gitlab.scan.search", "github.scan.org"}
+	expected := []string{"common.threads", "gitlab.url", "gitlab.token", "gitlab.scan.search", "github.scan.org"}
 	for _, path := range expected {
 		if !has(path) {
 			t.Fatalf("expected allowed path %q to exist", path)
@@ -70,7 +70,7 @@ func testRootCommandForPaths() *cobra.Command {
 	gl := &cobra.Command{Use: "gl [command]"}
 	var gitlabURL string
 	var gitlabToken string
-	gl.PersistentFlags().StringVarP(&gitlabURL, "gitlab", "g", "https://gitlab.example.com", "GitLab instance URL")
+	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "g", "https://gitlab.example.com", "GitLab instance URL")
 	gl.PersistentFlags().StringVarP(&gitlabToken, "token", "t", "", "GitLab API token")
 
 	scan := &cobra.Command{Use: "scan"}

@@ -27,7 +27,7 @@ var options = DevOpsScanOptions{
 var maxArtifactSize string
 var flagBindings = map[string]string{
 	"url":                      "azure_devops.url",
-	"token":                    "azure_devops.token",
+	"token":                    "azure_devops.token", // #nosec G101 -- "token" is a config key name, not a credential value
 	"username":                 "azure_devops.username",
 	"organization":             "azure_devops.scan.organization",
 	"project":                  "azure_devops.scan.project",
