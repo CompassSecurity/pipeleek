@@ -52,6 +52,7 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 			}
 
 			// Get the effective config file path
+			// Resolve config path only after validation passes
 			configPath := common.ResolveWriteConfigPath()
 
 			// Load existing config or start with empty map

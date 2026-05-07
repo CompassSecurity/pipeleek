@@ -43,8 +43,9 @@ pipeleek config get`,
 				}
 			}
 
-			v := config.GetViper()
-			configPath := common.ResolveReadConfigPath()
+			   // Resolve config path only after validation passes
+			   configPath := common.ResolveReadConfigPath()
+			   v := config.GetViper()
 
 			// Load the raw config as a map
 			configData, err := config.LoadConfigFile(configPath)
