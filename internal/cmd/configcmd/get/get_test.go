@@ -2,6 +2,8 @@ package get_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,6 +47,36 @@ func TestGetCmd_ValidPathFromDefaults(t *testing.T) {
 	}
 	if strings.TrimSpace(out.String()) != "4" {
 		t.Fatalf("expected output 4, got %q", out.String())
+	}
+}
+
+func TestGetCmd_SectionPathFromFile(t *testing.T) {
+	config.ResetViper()
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
+
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "pipeleek.yaml")
+	if err := os.WriteFile(cfgPath, []byte("gitlab:\n  token: test-token\n"), 0o644); err != nil {
+		t.Fatalf("write cfg: %v", err)
+	}
+
+	root := newRootWithConfig()
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		_ = config.InitializeViper(cfgPath)
+	}
+
+	root.SetArgs([]string{"config", "get", "gitlab"})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "token: test-token") {
+		t.Fatalf("expected section output to contain token, got %q", output)
 	}
 }
 

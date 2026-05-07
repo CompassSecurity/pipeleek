@@ -56,6 +56,23 @@ func IsAllowedConfigPath(root *cobra.Command, path string) bool {
 	return false
 }
 
+// IsAllowedReadConfigPath returns true when the path is readable from config schema.
+// Read operations allow both:
+// - Exact leaf keys (e.g., gitlab.token)
+// - Section prefixes that contain allowed leaf keys (e.g., gitlab, gitlab.scan)
+func IsAllowedReadConfigPath(root *cobra.Command, path string) bool {
+	normalized := normalizePath(path)
+	if normalized == "" {
+		return false
+	}
+	for _, p := range AllowedConfigPaths(root) {
+		if p == normalized || strings.HasPrefix(p, normalized+".") {
+			return true
+		}
+	}
+	return false
+}
+
 func collectNodePaths(node *configNode, prefix string, allowed map[string]struct{}) {
 	if node == nil {
 		return

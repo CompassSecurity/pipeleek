@@ -47,6 +47,23 @@ func TestIsAllowedConfigPath(t *testing.T) {
 	}
 }
 
+func TestIsAllowedReadConfigPath(t *testing.T) {
+	root := testRootCommandForPaths()
+
+	if !gen.IsAllowedReadConfigPath(root, "gitlab") {
+		t.Fatal("expected gitlab section to be readable")
+	}
+	if !gen.IsAllowedReadConfigPath(root, "gitlab.scan") {
+		t.Fatal("expected gitlab.scan section to be readable")
+	}
+	if !gen.IsAllowedReadConfigPath(root, "gitlab.scan.search") {
+		t.Fatal("expected gitlab.scan.search leaf to be readable")
+	}
+	if gen.IsAllowedReadConfigPath(root, "gitlab.not_real") {
+		t.Fatal("expected gitlab.not_real to be disallowed")
+	}
+}
+
 func testRootCommandForPaths() *cobra.Command {
 	root := &cobra.Command{Use: "pipeleek"}
 

@@ -38,7 +38,7 @@ pipeleek config get`,
 				if err := common.ValidateKeyPath(args[0]); err != nil {
 					return common.WrapError("get", "validate key path", err)
 				}
-				if !configgen.IsAllowedConfigPath(cmd.Root(), args[0]) {
+				if !configgen.IsAllowedReadConfigPath(cmd.Root(), args[0]) {
 					return common.WrapError("get", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 				}
 			}
