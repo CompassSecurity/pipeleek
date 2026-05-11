@@ -43,11 +43,11 @@ pipeleek config set gitlab.runners.exploit.tags '[docker, linux]'
 pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := common.CanonicalizeKeyPath(args[0])
-			valueStr := args[1]
 			if err := common.ValidateKeyPath(args[0]); err != nil {
 				return common.LogAndWrapError("set", "validate key path", err)
 			}
+			key := common.CanonicalizeKeyPath(args[0])
+			valueStr := args[1]
 			if !configgen.IsAllowedConfigPath(cmd.Root(), key) {
 				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 			}

@@ -40,9 +40,10 @@ func (cs *CommandSetup) WithAutoBindings(overrides map[string]string) *CommandSe
 
 		if override, ok := overrides[flag.Name]; ok {
 			cs.flagBindings[flag.Name] = override
-			return
+		} else {
+			// Auto-derive viper key: replace hyphens with underscores and prefix with "common."
+			cs.flagBindings[flag.Name] = "common." + strings.ReplaceAll(flag.Name, "-", "_")
 		}
-
 	})
 	return cs
 }
