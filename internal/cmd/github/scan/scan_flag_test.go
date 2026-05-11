@@ -88,10 +88,7 @@ func TestGitHubScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"org":    "github.scan.org",
-		"public": "github.scan.public",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

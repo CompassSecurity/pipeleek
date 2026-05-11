@@ -109,10 +109,7 @@ func TestGiteaScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"organization": "gitea.scan.organization",
-		"artifacts":    "gitea.scan.artifacts",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

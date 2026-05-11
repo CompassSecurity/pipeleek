@@ -74,10 +74,7 @@ func TestDevOpsScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"organization": "azure_devops.scan.organization",
-		"project":      "azure_devops.scan.project",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

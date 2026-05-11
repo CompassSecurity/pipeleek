@@ -133,10 +133,7 @@ func TestGitLabScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"search":    "gitlab.scan.search",
-		"artifacts": "gitlab.scan.artifacts",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 

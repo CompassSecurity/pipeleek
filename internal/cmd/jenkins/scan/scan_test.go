@@ -98,10 +98,7 @@ func TestJenkinsScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"artifacts":  "jenkins.scan.artifacts",
-		"max-builds": "jenkins.scan.max_builds",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		t.Fatalf("AutoBindFlags failed: %v", err)
 	}
 
