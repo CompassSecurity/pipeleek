@@ -49,6 +49,17 @@ func ValidateKeyPath(path string) error {
 	return nil
 }
 
+// CanonicalizeKeyPath maps legacy key segments to canonical config key names.
+func CanonicalizeKeyPath(path string) string {
+	parts := strings.Split(path, ".")
+	for i, part := range parts {
+		if part == "truffle_hog_verification" {
+			parts[i] = "trufflehog_verification"
+		}
+	}
+	return strings.Join(parts, ".")
+}
+
 // ResolveReadConfigPath returns the loaded config path and logs a warning if none is loaded.
 func ResolveReadConfigPath() string {
 	v := config.GetViper()

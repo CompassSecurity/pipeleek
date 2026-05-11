@@ -13,9 +13,9 @@ import (
 
 func NewGetCmd() *cobra.Command {
 	getCmd := &cobra.Command{
-		Use:          "get <key.id>",
-		Short:        "Get a configuration value",
-		SilenceUsage: true,
+		Use:           "get <key.id>",
+		Short:         "Get a configuration value",
+		SilenceUsage:  true,
 		SilenceErrors: true,
 		Long: `Get a configuration value from the current config file by dotted key path.
 If the key is a leaf value (scalar), it will be printed as-is.
@@ -39,14 +39,15 @@ pipeleek config get`,
 				if err := common.ValidateKeyPath(args[0]); err != nil {
 					return common.LogAndWrapError("get", "validate key path", err)
 				}
-				if !configgen.IsAllowedReadConfigPath(cmd.Root(), args[0]) {
+				key := common.CanonicalizeKeyPath(args[0])
+				if !configgen.IsAllowedReadConfigPath(cmd.Root(), key) {
 					return common.LogAndWrapError("get", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 				}
 			}
 
-			   // Resolve config path only after validation passes
-			   configPath := common.ResolveReadConfigPath()
-			   v := config.GetViper()
+			// Resolve config path only after validation passes
+			configPath := common.ResolveReadConfigPath()
+			v := config.GetViper()
 
 			// Load the raw config as a map
 			configData, err := config.LoadConfigFile(configPath)
@@ -59,7 +60,7 @@ pipeleek config get`,
 				return printConfigValue(cmd, configData)
 			}
 
-			key := args[0]
+			key := common.CanonicalizeKeyPath(args[0])
 
 			// Get the value by dotted path
 			value, found := config.GetByPath(configData, key)

@@ -13,9 +13,9 @@ import (
 
 func NewSetCmd() *cobra.Command {
 	setCmd := &cobra.Command{
-		Use:          "set <key.id> <value>",
-		Short:        "Set a configuration value",
-		SilenceUsage: true,
+		Use:           "set <key.id> <value>",
+		Short:         "Set a configuration value",
+		SilenceUsage:  true,
 		SilenceErrors: true,
 		Long: `Set a configuration value in the config file by dotted key path.
 The value is parsed as YAML, allowing you to set strings, numbers, booleans, arrays, and objects.
@@ -43,13 +43,13 @@ pipeleek config set gitlab.runners.exploit.tags '[docker, linux]'
 pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := args[0]
+			key := common.CanonicalizeKeyPath(args[0])
 			valueStr := args[1]
-			if err := common.ValidateKeyPath(key); err != nil {
+			if err := common.ValidateKeyPath(args[0]); err != nil {
 				return common.LogAndWrapError("set", "validate key path", err)
 			}
 			if !configgen.IsAllowedConfigPath(cmd.Root(), key) {
-				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", key))
+				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 			}
 
 			// Get the effective config file path

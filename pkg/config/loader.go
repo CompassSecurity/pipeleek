@@ -173,7 +173,7 @@ func InitializeViper(configFile string) error {
 	}
 
 	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok || os.IsNotExist(err) {
 			log.Debug().Msg("No config file found, using defaults and command-line flags")
 		} else {
 			// Check if Viper tried to read a file without proper extension (like the binary)

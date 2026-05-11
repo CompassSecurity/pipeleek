@@ -50,6 +50,25 @@ func TestGetCmd_ValidPathFromDefaults(t *testing.T) {
 	}
 }
 
+func TestGetCmd_LegacyKeyAliasFromDefaults(t *testing.T) {
+	config.ResetViper()
+	t.Setenv("PIPELEEK_NO_CONFIG", "1")
+
+	root := newRootWithConfig()
+	root.SetArgs([]string{"config", "get", "common.truffle_hog_verification"})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+
+	err := root.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.TrimSpace(out.String()) != "true" {
+		t.Fatalf("expected output true, got %q", out.String())
+	}
+}
+
 func TestGetCmd_SectionPathFromFile(t *testing.T) {
 	config.ResetViper()
 	t.Setenv("PIPELEEK_NO_CONFIG", "")
@@ -95,7 +114,9 @@ func newRootWithConfig() *cobra.Command {
 	gl.PersistentFlags().StringVarP(&token, "token", "t", "", "GitLab token")
 	scanCmd := &cobra.Command{Use: "scan"}
 	var threads int
+	var truffleHogVerification bool
 	scanCmd.Flags().IntVar(&threads, "threads", 4, "threads")
+	scanCmd.Flags().BoolVar(&truffleHogVerification, "truffle-hog-verification", true, "trufflehog verification")
 	gl.AddCommand(scanCmd)
 	root.AddCommand(gl)
 

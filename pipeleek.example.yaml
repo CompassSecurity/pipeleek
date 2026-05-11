@@ -3,7 +3,7 @@ common:
   hit_timeout: "1m0s" # PIPELEEK_COMMON_HIT_TIMEOUT
   max_artifact_size: "500Mb" # PIPELEEK_COMMON_MAX_ARTIFACT_SIZE
   threads: 4 # PIPELEEK_COMMON_THREADS
-  truffle_hog_verification: true # PIPELEEK_COMMON_TRUFFLE_HOG_VERIFICATION
+  trufflehog_verification: true # PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION
 azure_devops:
   scan:
     artifacts: false # PIPELEEK_AZURE_DEVOPS_SCAN_ARTIFACTS

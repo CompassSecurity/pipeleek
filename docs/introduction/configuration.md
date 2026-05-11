@@ -176,7 +176,7 @@ pipeleek config set gitlab.token "glpat-xxxxxxxxxxxxxxxxxxxx"
 pipeleek config set common.threads 8
 
 # Set a boolean
-pipeleek config set common.truffle_hog_verification false
+pipeleek config set common.trufflehog_verification false
 
 # Set a list (YAML format)
 pipeleek config set gitlab.runners.exploit.tags '[\"docker\", \"shared\"]'

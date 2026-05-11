@@ -64,6 +64,40 @@ func TestSetCmd_WritesValidPath(t *testing.T) {
 	}
 }
 
+func TestSetCmd_LegacyKeyAliasWritesCanonicalPath(t *testing.T) {
+	config.ResetViper()
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
+
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "pipeleek.yaml")
+	if err := os.WriteFile(cfgPath, []byte("common:\n  trufflehog_verification: true\n"), 0o644); err != nil {
+		t.Fatalf("write cfg: %v", err)
+	}
+
+	root := newRootWithConfig()
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		_ = config.InitializeViper(cfgPath)
+	}
+
+	root.SetArgs([]string{"config", "set", "common.truffle_hog_verification", "false"})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	updated, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read cfg: %v", err)
+	}
+	content := string(updated)
+	if !strings.Contains(content, "trufflehog_verification") || !strings.Contains(content, "false") {
+		t.Fatalf("expected updated config to contain trufflehog_verification=false, got:\n%s", content)
+	}
+}
+
 func newRootWithConfig() *cobra.Command {
 	root := &cobra.Command{Use: "pipeleek"}
 	root.AddGroup(&cobra.Group{ID: "Config", Title: "Config"})
@@ -80,8 +114,10 @@ func newRootWithConfig() *cobra.Command {
 	scan := &cobra.Command{Use: "scan"}
 	var search string
 	var threads int
+	var truffleHogVerification bool
 	scan.Flags().StringVar(&search, "search", "", "search")
 	scan.Flags().IntVar(&threads, "threads", 4, "threads")
+	scan.Flags().BoolVar(&truffleHogVerification, "truffle-hog-verification", true, "trufflehog verification")
 	gl.AddCommand(scan)
 	root.AddCommand(gl)
 

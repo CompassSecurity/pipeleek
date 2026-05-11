@@ -279,7 +279,11 @@ func commandName(cmd *cobra.Command) string {
 
 func normalizeSegment(value string) string {
 	replacer := strings.NewReplacer("-", "_", " ", "_")
-	return replacer.Replace(strings.TrimSpace(value))
+	normalized := replacer.Replace(strings.TrimSpace(value))
+	if normalized == "truffle_hog_verification" {
+		return "trufflehog_verification"
+	}
+	return normalized
 }
 
 func envVarForPath(path []string) string {

@@ -18,7 +18,7 @@ type TFCommandOptions struct {
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
 var flagBindings = map[string]string{
-	"url": "gitlab.url",
+	"url":                      "gitlab.url",
 	"token":                    "gitlab.token",
 	"output-dir":               "gitlab.tf.output_dir",
 	"threads":                  "common.threads",
