@@ -4,21 +4,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/internal/cmd/testutil"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
-	"github.com/spf13/pflag"
 )
 
 func TestGitLabScan_AllDefinedFlagsAreBound(t *testing.T) {
 	cmd := NewScanCmd()
-
-	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		if flag.Name == "help" {
-			return
-		}
-		if _, ok := flagBindings[flag.Name]; !ok {
-			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-		}
-	})
+	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings, "url", "token")
 }
 
 func TestNewScanCmd(t *testing.T) {
@@ -73,10 +65,10 @@ func TestGitLabScanFlagBindings(t *testing.T) {
 
 	// Set flag values
 	flagMap := map[string]string{
-		"search":    "mysearch",
-		"project":   "group/myrepo",
-		"group":     "mygroup",
-		"queue":     "/tmp/queue",
+		"search":  "mysearch",
+		"project": "group/myrepo",
+		"group":   "mygroup",
+		"queue":   "/tmp/queue",
 	}
 	for flag, value := range flagMap {
 		if err := cmd.Flags().Set(flag, value); err != nil {

@@ -3,21 +3,13 @@ package scan
 import (
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/internal/cmd/testutil"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
-	"github.com/spf13/pflag"
 )
 
 func TestBitBucketScan_AllDefinedFlagsAreBound(t *testing.T) {
 	cmd := NewScanCmd()
-
-	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		if flag.Name == "help" {
-			return
-		}
-		if _, ok := flagBindings[flag.Name]; !ok {
-			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-		}
-	})
+	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings)
 }
 
 func TestNewScanCmd(t *testing.T) {
@@ -51,8 +43,8 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("cookie") == nil {
 		t.Error("Expected 'cookie' flag to exist")
 	}
-		if flags.Lookup("url") == nil {
-			t.Error("Expected 'url' flag to exist")
+	if flags.Lookup("url") == nil {
+		t.Error("Expected 'url' flag to exist")
 	}
 	if flags.Lookup("artifacts") == nil {
 		t.Error("Expected 'artifacts' flag to exist")
