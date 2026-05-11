@@ -184,7 +184,7 @@ pipeleek config set gitlab.runners.exploit.tags '[\"docker\", \"shared\"]'
 
 ## Full Example
 
-See [`pipeleek.example.yaml`](https://github.com/CompassSecurity/pipeleek/blob/main/pipeleek.example.yaml) for a complete example with all platforms and commands documented or run:
+Generate a complete example with all platforms and commands documented by running:
 
 ```bash
 pipeleek config gen
