@@ -1,4 +1,4 @@
-.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea build-circle test test-unit test-e2e lint clean coverage coverage-html serve-docs gen-config
+.PHONY: help build build-all build-gitlab build-github build-bitbucket build-devops build-gitea build-circle test test-unit test-e2e lint clean coverage coverage-html serve-docs gen-config release-guard
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "  make coverage         - Generate test coverage report"
 	@echo "  make coverage-html    - Generate and open HTML coverage report"
 	@echo "  make gen-config       - Generate pipeleek.example.yaml from the config gen command"
+	@echo "  make release-guard    - Compare against latest release and run pre-release safety checks"
 	@echo "  make lint             - Run golangci-lint"
 	@echo "  make serve-docs       - Generate and serve CLI documentation"
 	@echo "  make clean            - Remove built artifacts"
@@ -132,6 +133,13 @@ gen-config: build
 	@echo "Generating pipeleek.example.yaml..."
 	./pipeleek config gen --output pipeleek.example.yaml
 	@echo "pipeleek.example.yaml updated"
+
+# Compare current branch against latest release and run release-safety checks
+# Set STRICT_ALLOWLIST=1 to fail if changed files fall outside ALLOWLIST_REGEX.
+# Set FAST_MODE=1 to skip gosec and golangci-lint for faster iteration.
+release-guard:
+	@echo "Running pre-release guard..."
+	./scripts/pre_release_guard.sh
 
 # Run golangci-lint
 lint:
