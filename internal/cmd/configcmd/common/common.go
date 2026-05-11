@@ -26,9 +26,7 @@ func LogAndWrapError(command string, action string, err error) error {
 	if err == nil {
 		return nil
 	}
-	// Log the error through zerolog first
 	log.Error().Err(err).Str("command", command).Str("action", action).Msg("Command failed")
-	// Return the wrapped error
 	return WrapError(command, action, err)
 }
 

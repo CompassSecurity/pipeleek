@@ -77,7 +77,6 @@ pipeleek jenkins scan --url https://jenkins.example.com --username admin --token
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("jenkins.url", "jenkins.username", "jenkins.token").
@@ -87,7 +86,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	options.JenkinsURL = config.GetString("jenkins.url")
 	options.Username = config.GetString("jenkins.username")
 	options.Token = config.GetString("jenkins.token")

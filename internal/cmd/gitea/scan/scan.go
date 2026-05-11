@@ -95,7 +95,6 @@ pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitea.url", "gitea.token").
@@ -103,7 +102,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateToken(config.GetString("gitea.token"), "Gitea Access Token") }).
 		MustBind()
 
-	// Load configuration values
 	giteaURL := config.GetString("gitea.url")
 	giteaToken := config.GetString("gitea.token")
 	scanOptions.Cookie = config.GetString("gitea.cookie")

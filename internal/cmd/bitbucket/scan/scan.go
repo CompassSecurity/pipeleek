@@ -84,7 +84,6 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and custom validators
 	// BitBucket allows token-based OR email/cookie auth, so we validate with custom logic
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
@@ -98,7 +97,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.token")
 	options.Email = config.GetString("bitbucket.email")

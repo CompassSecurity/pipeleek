@@ -11,7 +11,7 @@ import (
 var flagBindings = map[string]string{
 	"url":   "gitlab.url",
 	"token": "gitlab.token",
-	"level":  "gitlab.enum.level",
+	"level": "gitlab.enum.level",
 }
 
 func NewEnumCmd() *cobra.Command {
@@ -30,7 +30,6 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	// Unified command setup: bind flags, validate required keys, run validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitlab.url", "gitlab.token").

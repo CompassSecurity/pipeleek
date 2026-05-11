@@ -99,7 +99,6 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --gr
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitlab.url", "gitlab.token").
@@ -108,7 +107,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
 	options.GitlabCookie = config.GetString("gitlab.cookie")

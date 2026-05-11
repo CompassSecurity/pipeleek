@@ -45,24 +45,20 @@ pipeleek config get`,
 				}
 			}
 
-			// Resolve config path only after validation passes
 			configPath := common.ResolveReadConfigPath()
 			v := config.GetViper()
 
-			// Load the raw config as a map
 			configData, err := config.LoadConfigFile(configPath)
 			if err != nil {
 				return common.LogAndWrapError("get", "load config file", err)
 			}
 
-			// If no key specified, print entire config
 			if len(args) == 0 {
 				return printConfigValue(cmd, configData)
 			}
 
 			key := common.CanonicalizeKeyPath(args[0])
 
-			// Get the value by dotted path
 			value, found := config.GetByPath(configData, key)
 			if !found {
 				// If not found in file config, try Viper's values (includes defaults and env vars)
@@ -87,21 +83,18 @@ pipeleek config get`,
 func printConfigValue(cmd *cobra.Command, value interface{}) error {
 	switch v := value.(type) {
 	case string:
-		// Leaf string value - print directly
 		fmt.Fprint(cmd.OutOrStdout(), v)
 		if !strings.HasSuffix(v, "\n") {
 			fmt.Fprint(cmd.OutOrStdout(), "\n")
 		}
 
 	case float64:
-		// Numbers might be returned as float64 from Viper
 		fmt.Fprintf(cmd.OutOrStdout(), "%v\n", v)
 
 	case bool:
 		fmt.Fprintf(cmd.OutOrStdout(), "%v\n", v)
 
 	case []interface{}:
-		// Array - format as YAML
 		out, err := yaml.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal array: %w", err)
@@ -109,7 +102,6 @@ func printConfigValue(cmd *cobra.Command, value interface{}) error {
 		fmt.Fprint(cmd.OutOrStdout(), string(out))
 
 	case []string:
-		// String slice - format as YAML
 		out, err := yaml.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal list: %w", err)
@@ -117,7 +109,6 @@ func printConfigValue(cmd *cobra.Command, value interface{}) error {
 		fmt.Fprint(cmd.OutOrStdout(), string(out))
 
 	case map[string]interface{}:
-		// Object - format as YAML with sorted keys
 		out, err := yaml.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal object: %w", err)
@@ -125,11 +116,9 @@ func printConfigValue(cmd *cobra.Command, value interface{}) error {
 		fmt.Fprint(cmd.OutOrStdout(), string(out))
 
 	case nil:
-		// Return empty object for nil
 		fmt.Fprint(cmd.OutOrStdout(), "{}\n")
 
 	default:
-		// Fallback: marshal as-is
 		out, err := yaml.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal value: %w", err)

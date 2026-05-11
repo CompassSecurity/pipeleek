@@ -89,14 +89,12 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("github.token").
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	options.GitHubURL = config.GetString("github.url")
 	options.AccessToken = config.GetString("github.token")
 	options.Organization = config.GetString("github.scan.org")

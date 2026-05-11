@@ -38,15 +38,11 @@ func (cs *CommandSetup) WithAutoBindings(overrides map[string]string) *CommandSe
 			return
 		}
 
-		// Check if there's an explicit override first
 		if override, ok := overrides[flag.Name]; ok {
 			cs.flagBindings[flag.Name] = override
 			return
 		}
 
-		// Auto-derive from flag name: flag "foo-bar" -> "foo_bar"
-		// This assumes callers rely on environment pre-binding or explicit mapping
-		// Default: keep it explicit to be safe
 	})
 	return cs
 }
@@ -73,21 +69,18 @@ func (cs *CommandSetup) AddValidator(fn func() error) *CommandSetup {
 // Bind performs all setup: flag binding, required key validation, and custom validators.
 // Returns early on first error.
 func (cs *CommandSetup) Bind() error {
-	// 1. Bind flags
 	if len(cs.flagBindings) > 0 {
 		if err := AutoBindFlags(cs.cmd, cs.flagBindings); err != nil {
 			return fmt.Errorf("failed to bind command flags: %w", err)
 		}
 	}
 
-	// 2. Validate required keys
 	if len(cs.requiredKeys) > 0 {
 		if err := RequireConfigKeys(cs.requiredKeys...); err != nil {
 			return fmt.Errorf("required configuration missing: %w", err)
 		}
 	}
 
-	// 3. Run custom validators
 	for _, validate := range cs.validators {
 		if err := validate(); err != nil {
 			return err
@@ -116,13 +109,11 @@ func BindingsFromFlags(cmd *cobra.Command, platformKey string, commandKey string
 			return
 		}
 
-		// Check for explicit override
 		if override, ok := overrides[flag.Name]; ok {
 			bindings[flag.Name] = override
 			return
 		}
 
-		// Auto-derive: "foo-bar" -> "platform.command.foo_bar"
 		normalized := normalizeFlagKey(flag.Name)
 		if commandKey != "" {
 			bindings[flag.Name] = platformKey + "." + commandKey + "." + normalized

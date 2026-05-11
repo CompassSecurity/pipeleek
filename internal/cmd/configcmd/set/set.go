@@ -52,28 +52,22 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 			}
 
-			// Get the effective config file path
-			// Resolve config path only after validation passes
 			configPath := common.ResolveWriteConfigPath()
 
-			// Load existing config or start with empty map
 			configData, err := config.LoadConfigFile(configPath)
 			if err != nil {
 				return common.LogAndWrapError("set", "load config file", err)
 			}
 
-			// Parse the value as YAML to infer types
 			parsedValue, err := parseYAMLValue(valueStr)
 			if err != nil {
 				return common.LogAndWrapError("set", "parse value", err)
 			}
 
-			// Set the value in the config data
 			if err := config.SetByPath(configData, key, parsedValue); err != nil {
 				return common.LogAndWrapError("set", "update key", err)
 			}
 
-			// Write the config back to file
 			writePath, err := config.WriteConfigFile(configPath, configData)
 			if err != nil {
 				return common.LogAndWrapError("set", "write config file", err)
@@ -91,7 +85,6 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 // If the string looks like YAML syntax (starts with {, [, true, false, or is a number),
 // it's parsed as YAML. Otherwise, it's treated as a quoted string.
 func parseYAMLValue(valueStr string) (interface{}, error) {
-	// If the value looks like YAML (starts with special chars), parse it as YAML
 	if looksLikeYAML(valueStr) {
 		var result interface{}
 		if err := yaml.Unmarshal([]byte(valueStr), &result); err != nil {
@@ -100,7 +93,6 @@ func parseYAMLValue(valueStr string) (interface{}, error) {
 		return result, nil
 	}
 
-	// Check if it's a boolean string
 	if valueStr == "true" {
 		return true, nil
 	}
@@ -108,17 +100,14 @@ func parseYAMLValue(valueStr string) (interface{}, error) {
 		return false, nil
 	}
 
-	// Check if it looks like a number
 	var numVal interface{}
 	if err := yaml.Unmarshal([]byte(valueStr), &numVal); err == nil {
-		// Check what type it parsed as
 		switch numVal.(type) {
 		case int, int64, float64:
 			return numVal, nil
 		}
 	}
 
-	// Otherwise, treat as string
 	return valueStr, nil
 }
 
@@ -130,12 +119,10 @@ func looksLikeYAML(s string) bool {
 	}
 
 	first := s[0]
-	// Check for YAML collection/object starters
 	if first == '[' || first == '{' || first == '|' || first == '>' || first == '-' {
 		return true
 	}
 
-	// Common YAML literals at the start
 	if s == "null" || s == "~" {
 		return true
 	}

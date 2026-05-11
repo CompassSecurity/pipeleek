@@ -60,7 +60,6 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --conf
 }
 
 func tfRun(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitlab.url", "gitlab.token").
@@ -69,7 +68,6 @@ func tfRun(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
 	options.OutputDir = config.GetString("gitlab.tf.output_dir")

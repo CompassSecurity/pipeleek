@@ -82,7 +82,6 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 
 func Scan(cmd *cobra.Command, args []string) {
 	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("azure_devops.token", "azure_devops.username").
@@ -93,7 +92,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")

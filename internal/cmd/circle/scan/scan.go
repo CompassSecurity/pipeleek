@@ -97,7 +97,6 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// Unified command setup with flag binding, required key validation, and validators
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("circle.token").
@@ -106,7 +105,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
-	// Load configuration values
 	options.Token = config.GetString("circle.token")
 	options.CircleURL = config.GetString("circle.url")
 	options.Organization = config.GetString("circle.scan.org")
