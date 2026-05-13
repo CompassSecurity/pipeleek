@@ -28,7 +28,7 @@ func RunEnum(gitlabURL, token string) {
 			}
 
 			totalUsers++
-			log.Warn().
+			log.Info().
 				Int64("id", user.ID).
 				Str("username", user.Username).
 				Str("name", user.Name).
