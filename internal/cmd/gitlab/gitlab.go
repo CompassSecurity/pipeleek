@@ -12,6 +12,7 @@ import (
 	securefiles "github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/secureFiles"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/tf"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/users"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
 	"github.com/spf13/cobra"
@@ -55,6 +56,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(schedule.NewScheduleCmd())
 	glCmd.AddCommand(snippets.NewSnippetsRootCmd())
 	glCmd.AddCommand(tf.NewTFCmd())
+	glCmd.AddCommand(users.NewUsersRootCmd())
 
 	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "u", "", "GitLab instance URL")
 	glCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
