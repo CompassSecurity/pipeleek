@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	atomicgo.dev/keyboard v0.2.9
-	code.gitea.io/sdk/gitea v0.24.1
+	code.gitea.io/sdk/gitea v0.25.0
 	github.com/CircleCI-Public/circleci-cli v0.1.36202
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/bndr/gojenkins v1.2.0
@@ -114,7 +114,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-version v1.8.0 // indirect
+	github.com/hashicorp/go-version v1.9.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/headzoo/ut v0.0.0-20181013193318-a13b5a7a02ca // indirect
 	github.com/icza/bitio v1.1.0 // indirect
