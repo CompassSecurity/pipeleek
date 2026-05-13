@@ -15,7 +15,7 @@ func RunEnum(gitlabURL, token string) {
 	log.Info().Msg("Enumerating GitLab users")
 
 	totalUsers := 0
-	page := 1
+	page := int64(1)
 	for page != -1 {
 		users, nextPage, err := listUsers(git, page)
 		if err != nil {
@@ -49,20 +49,20 @@ func RunEnum(gitlabURL, token string) {
 	log.Info().Int("users", totalUsers).Msg("GitLab user enumeration complete")
 }
 
-func listUsers(git *gitlab.Client, page int) ([]*gitlab.User, int, error) {
+func listUsers(git *gitlab.Client, page int64) ([]*gitlab.User, int64, error) {
 	users, resp, err := git.Users.ListUsers(&gitlab.ListUsersOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
-			Page:    int64(page),
+			Page:    page,
 		},
 	})
 	if err != nil {
 		return nil, -1, err
 	}
 
-	nextPage := -1
+	nextPage := int64(-1)
 	if resp != nil && resp.NextPage > 0 {
-		nextPage = int(resp.NextPage)
+		nextPage = resp.NextPage
 	}
 
 	return users, nextPage, nil
