@@ -8,6 +8,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/scanpublic"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/shodan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/snippets"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/users"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,11 @@ func TestNewGitLabRootCmd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, snippetsCmd)
 	assert.Equal(t, "snippets", snippetsCmd.Name())
+
+	usersCmd, _, err := cmd.Find([]string{"users"})
+	require.NoError(t, err)
+	require.NotNil(t, usersCmd)
+	assert.Equal(t, "users", usersCmd.Name())
 }
 
 func TestNewVulnCmd(t *testing.T) {
@@ -80,6 +86,18 @@ func TestNewRegisterCmd(t *testing.T) {
 	assert.NotNil(t, flags.Lookup("email"), "'email' flag should be registered")
 	assert.NotNil(t, flags.Lookup("password"), "'password' flag should be registered")
 	assert.NotNil(t, flags.Lookup("gitlab"), "'gitlab' flag should be registered")
+}
+
+func TestNewUsersRootCmd(t *testing.T) {
+	cmd := users.NewUsersRootCmd()
+
+	require.NotNil(t, cmd)
+	assert.Equal(t, "users", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+
+	enumCmd, _, err := cmd.Find([]string{"enum"})
+	require.NoError(t, err)
+	assert.NotNil(t, enumCmd)
 }
 
 func TestNewShodanCmd(t *testing.T) {
@@ -126,6 +144,10 @@ func TestNewGitLabRootUnauthenticatedCmd(t *testing.T) {
 	publicScanCmd, _, err := cmd.Find([]string{"scan"})
 	require.NoError(t, err)
 	assert.NotNil(t, publicScanCmd)
+
+	usersCmd, _, err := cmd.Find([]string{"users"})
+	require.NoError(t, err)
+	assert.NotNil(t, usersCmd)
 }
 
 func TestNewScanPublicCmd(t *testing.T) {
