@@ -3,7 +3,7 @@ module github.com/CompassSecurity/pipeleek
 go 1.26
 
 require (
-	atomicgo.dev/keyboard v0.2.9
+	atomicgo.dev/keyboard v0.2.10
 	code.gitea.io/sdk/gitea v0.25.0
 	github.com/CircleCI-Public/circleci-cli v0.1.36202
 	github.com/PuerkitoBio/goquery v1.12.0
@@ -72,7 +72,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
-	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
+	github.com/containerd/console v1.0.5 // indirect
 	github.com/couchbase/gocb/v2 v2.11.0 // indirect
 	github.com/couchbase/gocbcore/v10 v10.8.0 // indirect
 	github.com/couchbase/gocbcoreps v0.1.3 // indirect
@@ -134,7 +134,7 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/marusama/semaphore/v2 v2.5.0 // indirect
-	github.com/mattn/go-runewidth v0.0.21 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/mewkiz/flac v1.0.13 // indirect
 	github.com/mewkiz/pkg v0.0.0-20250417130911-3f050ff8c56d // indirect
