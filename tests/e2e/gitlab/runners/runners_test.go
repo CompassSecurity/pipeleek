@@ -88,7 +88,7 @@ func TestGLRunnersList(t *testing.T) {
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "list",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 10*time.Second)
 
@@ -100,7 +100,7 @@ func TestGLRunnersList(t *testing.T) {
 func TestGLRunnersList_MissingToken(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "list",
-		"--gitlab", "https://gitlab.com",
+		"--url", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -112,7 +112,7 @@ func TestGLRunnersExploit_DryRun(t *testing.T) {
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--tags", "docker,shell",
 		"--dry=true",
@@ -155,10 +155,10 @@ func TestGLRunnersExploit_WithRepoCreation(t *testing.T) {
 	apiURL := setupMockGitLabRunnersAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--tags", "docker",
-		"--repo-name", "test-exploit-repo",
+		"--project-name", "test-exploit-repo",
 		"--dry=false",
 		"--shell=false",
 	}, nil, 15*time.Second)
@@ -179,7 +179,7 @@ func TestGLRunnersExploit_Unauthorized(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "exploit",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 		"--dry=false",
 	}, nil, 10*time.Second)

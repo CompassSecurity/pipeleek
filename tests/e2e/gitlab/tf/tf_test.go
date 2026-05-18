@@ -81,7 +81,7 @@ func TestTFBasic(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "tf",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--output-dir", tmpDir,
 		"--threads", "2",
@@ -136,7 +136,7 @@ func TestTFNoState(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "tf",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--output-dir", tmpDir,
 	}, nil, 10*time.Second)
@@ -158,7 +158,7 @@ func TestTFInvalidURL(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "tf",
-		"--gitlab", "not-a-valid-url",
+		"--url", "not-a-valid-url",
 		"--token", "test-token",
 		"--output-dir", tmpDir,
 	}, nil, 10*time.Second)
@@ -167,7 +167,7 @@ func TestTFInvalidURL(t *testing.T) {
 	t.Logf("STDERR:\n%s", stderr)
 
 	assert.NotNil(t, exitErr)
-	assert.Contains(t, stdout+stderr, "Invalid GitLab URL")
+	assert.Contains(t, stdout+stderr, "GitLab URL must use http or https scheme")
 }
 
 // TestTFMissingToken tests the tf command without required token
@@ -180,7 +180,7 @@ func TestTFMissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "tf",
-		"--gitlab", "https://gitlab.example.com",
+		"--url", "https://gitlab.example.com",
 		"--output-dir", tmpDir,
 	}, nil, 10*time.Second)
 
@@ -223,7 +223,7 @@ func TestTFOutputDir(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "tf",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--output-dir", outputDir,
 	}, nil, 10*time.Second)

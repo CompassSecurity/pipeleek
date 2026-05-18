@@ -65,8 +65,8 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("repo") == nil {
 		t.Error("Expected 'repo' flag to exist")
 	}
-	if flags.Lookup("github") == nil {
-		t.Error("Expected 'github' flag to exist")
+	if flags.Lookup("url") == nil {
+		t.Error("Expected 'url' flag to exist")
 	}
 }
 

@@ -18,8 +18,8 @@ func ValidateURL(urlStr string, fieldName string) error {
 		return fmt.Errorf("invalid %s: %w", fieldName, err)
 	}
 
-	if parsed.Scheme == "" {
-		return fmt.Errorf("%s must include a scheme (http/https)", fieldName)
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%s must use http or https scheme, got %q", fieldName, parsed.Scheme)
 	}
 
 	if parsed.Host == "" {

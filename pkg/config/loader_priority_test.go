@@ -31,13 +31,13 @@ func TestPriorityOrder_FlagsOverEnvVars(t *testing.T) {
 
 	// Create command and set flag
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
-	err = cmd.Flags().Set("gitlab", "https://gitlab.flag.com")
+	cmd.Flags().String("url", "", "GitLab URL")
+	err = cmd.Flags().Set("url", "https://gitlab.flag.com")
 	require.NoError(t, err)
 
 	// Bind flags
 	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 	})
 	require.NoError(t, err)
 
@@ -124,13 +124,13 @@ common:
 
 	// Setup: Create command with gitlab flag
 	cmd := &cobra.Command{Use: "test"}
-	cmd.Flags().String("gitlab", "", "GitLab URL")
-	err = cmd.Flags().Set("gitlab", "https://gitlab.flag.com")
+	cmd.Flags().String("url", "", "GitLab URL")
+	err = cmd.Flags().Set("url", "https://gitlab.flag.com")
 	require.NoError(t, err)
 
 	// Bind flags
 	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
-		"gitlab": "gitlab.url",
+		"url": "gitlab.url",
 	})
 	require.NoError(t, err)
 

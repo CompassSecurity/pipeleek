@@ -34,5 +34,5 @@ As shown, Pipeleek can detect secrets in job logs and build artifacts. Security 
 If you find a repository that looks particularly interesting e.g. `secret-pipelines`, you can scan all its job logs, not just the most recent ones:
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-[redacted] --cookie [redacted] --artifacts --repo mygroup/my-secret-pipelines-project
+pipeleek gl scan -g https://gitlab.com -t glpat-[redacted] --cookie [redacted] --artifacts --project mygroup/my-secret-pipelines-project
 ```

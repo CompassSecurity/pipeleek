@@ -187,7 +187,7 @@ make serve-docs  # Installs dependencies if needed, generates and serves docs
 - Each command should have a corresponding test file
 - Commands are organized by platform (gitlab, github, bitbucket, devops, gitea)
 - Use consistent flag naming across commands
-- **When adding or modifying command flags**: Update both `docs/introduction/configuration.md` and `pipeleek.example.yaml` to reflect the changes
+- **When adding or modifying command flags**: Update `docs/introduction/configuration.md` and ensure `pipeleek config gen` output remains accurate
 
 ### Configuration Loading Pattern (MANDATORY)
 

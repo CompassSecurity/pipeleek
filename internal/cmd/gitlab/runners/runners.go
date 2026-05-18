@@ -18,8 +18,8 @@ func NewRunnersRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitLab runners.",
 	}
 
-	runnersCmd.PersistentFlags().StringVar(&gitlabUrl, "gitlab", "", "GitLab instance URL")
-	runnersCmd.PersistentFlags().StringVar(&gitlabApiToken, "token", "", "GitLab API Token")
+	runnersCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
+	runnersCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	runnersCmd.AddCommand(list.NewRunnersListCmd())
 	runnersCmd.AddCommand(exploit.NewRunnersExploitCmd())
