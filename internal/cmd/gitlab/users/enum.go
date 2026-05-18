@@ -36,6 +36,14 @@ func Enum(cmd *cobra.Command, args []string) {
 	gitlabURL := config.GetString("gitlab.url")
 	gitlabAPIToken := config.GetString("gitlab.token")
 
+	// gluna commands should stay unauthenticated by default even when a token
+	// exists in config/env; only honor token when user explicitly sets --token.
+	if isSubcommandOf(cmd, "gluna") {
+		if flag := cmd.Flags().Lookup("token"); flag == nil || !flag.Changed {
+			gitlabAPIToken = ""
+		}
+	}
+
 	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")
 	}
@@ -46,4 +54,13 @@ func Enum(cmd *cobra.Command, args []string) {
 	}
 
 	pkgusers.RunEnum(gitlabURL, gitlabAPIToken)
+}
+
+func isSubcommandOf(cmd *cobra.Command, rootName string) bool {
+	for current := cmd; current != nil; current = current.Parent() {
+		if current.Name() == rootName {
+			return true
+		}
+	}
+	return false
 }
