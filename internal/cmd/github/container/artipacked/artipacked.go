@@ -4,7 +4,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgcontainer "github.com/CompassSecurity/pipeleek/pkg/github/container/artipacked"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -20,33 +19,32 @@ var (
 	dangerousPatterns  string
 )
 
+var flagBindings = map[string]string{
+	"url":          "github.url",
+	"token":        "github.token",
+	"owned":        "github.container.artipacked.owned",
+	"member":       "github.container.artipacked.member",
+	"public":       "github.container.artipacked.public",
+	"repo":         "github.container.artipacked.repo",
+	"organization": "github.container.artipacked.organization",
+	"search":       "github.container.artipacked.search",
+	"page":         "github.container.artipacked.page",
+	"order-by":     "github.container.artipacked.order_by",
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":       "github.url",
-				"token":        "github.token",
-				"owned":        "github.container.artipacked.owned",
-				"member":       "github.container.artipacked.member",
-				"public":       "github.container.artipacked.public",
-				"repo":         "github.container.artipacked.repo",
-				"organization": "github.container.artipacked.organization",
-				"search":       "github.container.artipacked.search",
-				"page":         "github.container.artipacked.page",
-				"order-by":     "github.container.artipacked.order_by",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.url", "github.token").
+				MustBind()
 
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")
-
-			if err := config.RequireConfigKeys("github.url", "github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
 
 			owned = config.GetBool("github.container.artipacked.owned")
 			member = config.GetBool("github.container.artipacked.member")
@@ -64,7 +62,7 @@ func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
 	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
 	artipackedCmd.PersistentFlags().BoolVar(&public, "public", false, "Scan public repositories only")
-	artipackedCmd.Flags().StringP("github", "g", "", "GitHub instance URL")
+	artipackedCmd.Flags().StringP("url", "g", "", "GitHub instance URL")
 	artipackedCmd.Flags().StringP("token", "t", "", "GitHub API token")
 	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
 	artipackedCmd.Flags().StringVarP(&organization, "organization", "n", "", "Organization to scan")

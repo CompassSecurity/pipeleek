@@ -82,7 +82,7 @@ func TestGiteaScan_HappyPath(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token-123",
 	}, nil, 10*time.Second)
 
@@ -203,7 +203,7 @@ api:
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--artifacts",
 		"--max-artifact-size", "50Mb",
@@ -250,7 +250,7 @@ func TestGiteaScan_Owned(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--owned",
 	}, nil, 10*time.Second)
@@ -286,7 +286,7 @@ func TestGiteaScan_Organization(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--organization", "my-org",
 	}, nil, 10*time.Second)
@@ -334,7 +334,7 @@ func TestGiteaScan_SpecificRepository(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--repository", "owner/repo-name",
 	}, nil, 10*time.Second)
@@ -378,7 +378,7 @@ func TestGiteaScan_WithCookie(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--cookie", "test-cookie-value",
 	}, nil, 10*time.Second)
@@ -424,7 +424,7 @@ func TestGiteaScan_RunsLimit(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--runs-limit", "5",
 	}, nil, 10*time.Second)
@@ -449,7 +449,7 @@ func TestGiteaScan_StartRunID(t *testing.T) {
 	// start-run-id requires --repository flag
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--repository", "owner/repo",
 		"--start-run-id", "100",
@@ -470,7 +470,7 @@ func TestGiteaScan_StartRunID_WithoutRepo(t *testing.T) {
 	// Should fail: start-run-id without --repository
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--start-run-id", "100",
 	}, nil, 5*time.Second)
@@ -502,7 +502,7 @@ func TestGiteaScan_Threads(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--threads", "8",
 	}, nil, 10*time.Second)
@@ -533,7 +533,7 @@ func TestGiteaScan_Verbose(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"-v",
 	}, nil, 10*time.Second)
@@ -569,11 +569,11 @@ func TestGiteaScan_TruffleHogVerification(t *testing.T) {
 	}{
 		{
 			name: "verification_enabled_default",
-			args: []string{"gitea", "scan", "--gitea", server.URL, "--token", "test"},
+			args: []string{"gitea", "scan", "--url", server.URL, "--token", "test"},
 		},
 		{
 			name: "verification_disabled",
-			args: []string{"gitea", "scan", "--gitea", server.URL, "--token", "test", "--truffle-hog-verification=false"},
+			args: []string{"gitea", "scan", "--url", server.URL, "--token", "test", "--truffle-hog-verification=false"},
 		},
 	}
 
@@ -610,7 +610,7 @@ func TestGiteaScan_ConfidenceFilter(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test",
 		"--confidence", "high,medium",
 	}, nil, 10*time.Second)
@@ -670,7 +670,7 @@ func TestGiteaScan_WithArtifacts(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "gitea-token",
 		"--artifacts",
 		"--runs-limit", "1",

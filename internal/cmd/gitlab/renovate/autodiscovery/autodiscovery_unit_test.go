@@ -3,6 +3,7 @@ package autodiscovery
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,7 @@ func TestGLAutodiscoveryCmdFlags(t *testing.T) {
 		name     string
 		flagName string
 	}{
-		{"repo-name flag exists", "repo-name"},
+		{"project-name flag exists", "project-name"},
 		{"username flag exists", "username"},
 		{"add-renovate-cicd-for-debugging flag exists", "add-renovate-cicd-for-debugging"},
 	}
@@ -36,4 +37,16 @@ func TestGLAutodiscoveryCmdFlags(t *testing.T) {
 func TestGLAutodiscoveryCmdHasRun(t *testing.T) {
 	cmd := NewAutodiscoveryCmd()
 	assert.NotNil(t, cmd.Run, "Autodiscovery command should have Run function")
+}
+
+func TestGLAutodiscoveryCmd_AllDefinedFlagsAreBound(t *testing.T) {
+cmd := NewAutodiscoveryCmd()
+cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+if flag.Name == "help" {
+return
+}
+if _, ok := flagBindings[flag.Name]; !ok {
+t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+}
+})
 }

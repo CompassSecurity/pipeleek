@@ -41,7 +41,7 @@ func TestGLCicdYaml(t *testing.T) {
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--project", "test-project",
 	}, nil, 10*time.Second)
@@ -56,7 +56,7 @@ func TestGLCicdYaml_MissingProject(t *testing.T) {
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 5*time.Second)
 
@@ -76,7 +76,7 @@ func TestGLCicdYaml_InvalidProject(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "mock-token",
 		"--project", "nonexistent/project",
 	}, nil, 10*time.Second)
@@ -113,7 +113,7 @@ func TestGLCicdYaml_NoCiCdYaml(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "mock-token",
 		"--project", "test-project",
 	}, nil, 10*time.Second)

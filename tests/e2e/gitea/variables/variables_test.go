@@ -80,7 +80,7 @@ func TestGiteaVariables_Success(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -168,7 +168,7 @@ func TestGiteaVariables_Pagination(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 15*time.Second)
 
@@ -234,7 +234,7 @@ func TestGiteaVariables_EmptyResult(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -251,7 +251,7 @@ func TestGiteaVariables_MissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", "https://gitea.example.com",
+		"--url", "https://gitea.example.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without --token flag")
@@ -264,7 +264,7 @@ func TestGiteaVariables_InvalidURL(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", "not-a-valid-url",
+		"--url", "not-a-valid-url",
 		"--token", "test-token",
 	}, nil, 5*time.Second)
 
@@ -309,7 +309,7 @@ func TestGiteaVariables_UnauthorizedAccess(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 10*time.Second)
 
@@ -377,7 +377,7 @@ func TestGiteaVariables_MultipleOrganizations(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "variables",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 

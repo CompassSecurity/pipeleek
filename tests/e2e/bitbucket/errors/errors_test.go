@@ -27,7 +27,7 @@ func TestBitBucketScan_MissingCredentials(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--owned",              // Need a scan mode
 		"-a",                   // Artifacts flag
 		"-c", "invalid-cookie", // Cookie flag
@@ -58,7 +58,7 @@ func TestBitBucketScan_Owned_Unauthorized(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "baduser",
 		"--token", "badtoken",
 		"--owned",
@@ -85,7 +85,7 @@ func TestBitBucketScan_Owned_NotFound(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--owned",
@@ -118,7 +118,7 @@ func TestBitBucketScan_Workspace_NotFound(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "invalid-workspace",
@@ -145,7 +145,7 @@ func TestBitBucketScan_Public_ServerError(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--public",
@@ -182,7 +182,7 @@ func TestBitBucketScan_InvalidCookie(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--cookie", "invalid-cookie",

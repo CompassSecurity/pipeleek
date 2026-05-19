@@ -34,10 +34,10 @@ func NewGitLabRootCmd() *cobra.Command {
 Since Go binaries aren't compatible with Proxychains, you can set a proxy using the HTTP_PROXY environment variable.
 
 For HTTP proxy (e.g., Burp Suite):
-<code>HTTP_PROXY=http://127.0.0.1:8080 pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com</code>
+<code>HTTP_PROXY=http://127.0.0.1:8080 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.com</code>
 
 For SOCKS5 proxy:
-<code>HTTP_PROXY=socks5://127.0.0.1:8080 pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com</code>
+<code>HTTP_PROXY=socks5://127.0.0.1:8080 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.com</code>
 		`,
 		GroupID: "GitLab",
 	}
@@ -56,7 +56,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(snippets.NewSnippetsRootCmd())
 	glCmd.AddCommand(tf.NewTFCmd())
 
-	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
 	glCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	return glCmd

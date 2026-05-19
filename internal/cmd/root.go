@@ -9,6 +9,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/bitbucket"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/circle"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/devops"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/docs"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitea"
@@ -39,7 +40,7 @@ var (
 		Use:     "pipeleek",
 		Short:   "Scan job logs and artifacts for secrets",
 		Long:    "Pipeleek is a tool designed to scan CI/CD job output logs and artifacts for potential secrets.",
-		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.com",
+		Example: "pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.com",
 		Version: getVersion(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if isCompletionCommand(cmd) {
@@ -82,6 +83,7 @@ func init() {
 	rootCmd.AddCommand(jenkins.NewJenkinsRootCmd())
 	rootCmd.AddCommand(circle.NewCircleRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
+	rootCmd.AddCommand(configcmd.NewConfigRootCmd())
 	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/pipeleek.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
 	rootCmd.PersistentFlags().StringVarP(&LogFile, "logfile", "l", "", "Log output to a file")
@@ -102,6 +104,7 @@ func init() {
 	rootCmd.AddGroup(&cobra.Group{ID: "Gitea", Title: "Gitea Commands"})
 	rootCmd.AddGroup(&cobra.Group{ID: "Jenkins", Title: "Jenkins Commands"})
 	rootCmd.AddGroup(&cobra.Group{ID: "CircleCI", Title: "CircleCI Commands"})
+	rootCmd.AddGroup(&cobra.Group{ID: "Config", Title: "Configuration Commands"})
 }
 
 type CustomWriter struct {
@@ -291,7 +294,6 @@ func setGlobalLogLevel(cmd *cobra.Command) {
 	}
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	log.Info().Msg("Log level set to info (default)")
 }
 
 func loadConfigFile(cmd *cobra.Command) {

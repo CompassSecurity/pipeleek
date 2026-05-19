@@ -74,7 +74,7 @@ func TestCircleScan_ProjectHappyPath(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"circle", "scan",
-		"--circle", server.URL,
+		"--url", server.URL,
 		"--token", "circle-token",
 		"--project", "example-org/example-repo",
 		"--max-pipelines", "1",
@@ -114,7 +114,7 @@ func TestCircleScan_OrgDiscovery(t *testing.T) {
 
 	_, _, exitErr := testutil.RunCLI(t, []string{
 		"circle", "scan",
-		"--circle", server.URL,
+		"--url", server.URL,
 		"--token", "circle-token",
 		"--org", "example-org",
 		"--max-pipelines", "1",

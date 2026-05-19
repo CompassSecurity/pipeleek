@@ -13,7 +13,7 @@ func TestGitHubScan_MissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", "https://api.github.com",
+		"--url", "https://api.github.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -31,7 +31,7 @@ func TestGitHubScan_InvalidToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 10*time.Second)
 

@@ -16,7 +16,7 @@ func NewCiCdCmd() *cobra.Command {
 		Short: "CI/CD related commands",
 	}
 
-	ciCdCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	ciCdCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
 	ciCdCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	ciCdCmd.AddCommand(yaml.NewYamlCmd())

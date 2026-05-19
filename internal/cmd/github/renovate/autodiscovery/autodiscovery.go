@@ -1,8 +1,6 @@
 package autodiscovery
 
 import (
-	"github.com/rs/zerolog/log"
-
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/autodiscovery"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
@@ -14,6 +12,13 @@ var (
 	autodiscoveryUsername string
 )
 
+var flagBindings = map[string]string{
+	"url": "github.url",
+	"token":     "github.token",
+	"repo-name": "github.renovate.autodiscovery.repo_name",
+	"username":  "github.renovate.autodiscovery.username",
+}
+
 func NewAutodiscoveryCmd() *cobra.Command {
 	autodiscoveryCmd := &cobra.Command{
 		Use:   "autodiscovery",
@@ -21,21 +26,13 @@ func NewAutodiscoveryCmd() *cobra.Command {
 		Long:  "Create a repository with a Renovate Bot configuration that will be picked up by an existing Renovate Bot user. The Renovate Bot will execute the malicious Maven wrapper script during dependency updates, which you can customize in exploit.sh. Note: On GitHub, the bot/user account must proactively accept the invite.",
 		Example: `
 # Create a repository and invite the victim Renovate Bot user to it. Uses the Maven wrapper to execute arbitrary code during dependency updates.
-pipeleek gh renovate autodiscovery --token ghp_xxxxx --github https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
+pipeleek gh renovate autodiscovery --token ghp_xxxxx --url https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":    "github.url",
-				"token":     "github.token",
-				"repo-name": "github.renovate.autodiscovery.repo_name",
-				"username":  "github.renovate.autodiscovery.username",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token").
+				MustBind()
 
 			autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
 			autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")

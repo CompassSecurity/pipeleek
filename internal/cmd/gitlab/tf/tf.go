@@ -1,6 +1,9 @@
 package tf
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	tfpkg "github.com/CompassSecurity/pipeleek/pkg/gitlab/tf"
@@ -14,6 +17,15 @@ type TFCommandOptions struct {
 }
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
+var flagBindings = map[string]string{
+	"url":                      "gitlab.url",
+	"token":                    "gitlab.token",
+	"output-dir":               "gitlab.tf.output_dir",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewTFCmd() *cobra.Command {
 	tfCmd := &cobra.Command{
@@ -28,16 +40,16 @@ for secrets using TruffleHog.
 GitLab stores Terraform state natively when using the Terraform HTTP backend.
 Each project can have multiple named state files.`,
 		Example: `# Scan all Terraform states in projects with maintainer access
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com
 
 # Save state files to custom directory
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --output-dir ./tf-states
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --output-dir ./tf-states
 
 # Use more threads for TruffleHog scanning
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --threads 10
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --threads 10
 
 # Scan with high confidence filter only
-pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --confidence high`,
+pipeleek gl tf --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --confidence high`,
 		Run: tfRun,
 	}
 
@@ -48,21 +60,13 @@ pipeleek gl tf --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --c
 }
 
 func tfRun(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"output-dir":               "gitlab.tf.output_dir",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
@@ -70,16 +74,12 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
-
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
+	options.HitTimeout = hitTimeout
 
 	tfOptions := tfpkg.TFOptions{
 		GitlabUrl:              gitlabUrl,

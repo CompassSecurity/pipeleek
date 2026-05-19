@@ -127,7 +127,7 @@ API_KEY=sk_test_abcdefghijklmnopqrstuvwxyz123456
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--artifacts",
@@ -266,7 +266,7 @@ AWS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--artifacts",
 		"--max-artifact-size", "50Mb", // Only scan artifacts < 50MB
@@ -414,7 +414,7 @@ func TestGitHubScan_Artifacts_NestedArchive(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--artifacts",

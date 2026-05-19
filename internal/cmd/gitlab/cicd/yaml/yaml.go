@@ -7,6 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagBindings = map[string]string{
+	"url": "gitlab.url",
+	"token":   "gitlab.token",
+	"project": "gitlab.cicd.yaml.project",
+}
+
 func NewYamlCmd() *cobra.Command {
 	var projectName string
 
@@ -14,19 +20,12 @@ func NewYamlCmd() *cobra.Command {
 		Use:     "yaml",
 		Short:   "Dump the CI/CD yaml configuration of a project",
 		Long:    "Dump the CI/CD yaml configuration of a project, useful for analyzing the configuration and identifying potential security issues.",
-		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com --project mygroup/myproject`,
+		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --project mygroup/myproject`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":  "gitlab.url",
-				"token":   "gitlab.token",
-				"project": "gitlab.cicd.yaml.project",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.project"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.project").
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")

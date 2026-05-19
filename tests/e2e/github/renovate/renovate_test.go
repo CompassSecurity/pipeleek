@@ -224,7 +224,7 @@ func TestGHRenovateEnum(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 	}, nil, 15*time.Second)
@@ -237,7 +237,7 @@ func TestGHRenovateEnumSpecificRepo(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 	}, nil, 15*time.Second)
@@ -252,7 +252,7 @@ func TestGHRenovateEnumOrganization(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--org", "test-org",
 	}, nil, 15*time.Second)
@@ -267,7 +267,7 @@ func TestGHRenovateAutodiscovery(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-exploit-repo",
 		"--username", "test-user",
@@ -287,7 +287,7 @@ func TestGHRenovateAutodiscoveryWithoutUsername(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "autodiscovery",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-repo-no-user",
 	}, nil, 15*time.Second)
@@ -307,7 +307,7 @@ func TestGHRenovatePrivesc(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
@@ -332,7 +332,7 @@ func TestGHRenovateEnumWithSearch(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--search", "renovate in:readme",
 	}, nil, 15*time.Second)
@@ -348,7 +348,7 @@ func TestGHRenovateEnumFastMode(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 		"--fast",
@@ -376,7 +376,7 @@ func TestGHRenovateEnumDumpMode(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 		"--dump",
@@ -403,7 +403,7 @@ func TestGHRenovateEnumMemberRepositories(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--member",
 	}, nil, 15*time.Second)
@@ -419,7 +419,7 @@ func TestGHRenovateEnumDetectsAutodiscovery(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v", // Verbose to see autodiscovery detection logs
@@ -437,7 +437,7 @@ func TestGHRenovateEnumDetectsAutodiscoveryFilters(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v",
@@ -456,7 +456,7 @@ func TestGHRenovateEnumWithPagination(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 		"--page", "1",
@@ -472,7 +472,7 @@ func TestGHRenovateEnumWithOrderBy(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 		"--order-by", "updated",
@@ -488,7 +488,7 @@ func TestGHRenovateEnumMutuallyExclusiveFlags(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--owned",
 		"--member",
@@ -503,7 +503,7 @@ func TestGHRenovateEnumDetectsWorkflowWithGitHubActionsTemplate(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-vv", // Extra verbose to see detailed logs
@@ -521,7 +521,7 @@ func TestGHRenovateEnumDetectsJSONConfigFile(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "enum",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo", "test-owner/test-repo",
 		"-v",
@@ -539,7 +539,7 @@ func TestGHRenovatePrivescWithMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",
@@ -561,7 +561,7 @@ func TestGHRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 	apiURL := setupMockGitHubRenovateAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "renovate", "privesc",
-		"--github", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 		"--repo-name", "test-owner/test-repo",
 		"--renovate-branches-regex", "renovate/.*",

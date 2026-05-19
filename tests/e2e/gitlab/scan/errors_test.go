@@ -20,7 +20,7 @@ func TestGitLabScan_InvalidToken(t *testing.T) {
 
 	stdout, stderr, _ := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, nil, 30*time.Second)
 
@@ -45,7 +45,7 @@ func TestGitLabScan_MissingRequiredFlags(t *testing.T) {
 		},
 		{
 			name: "missing_token_flag",
-			args: []string{"gl", "scan", "--gitlab", "https://gitlab.com"},
+			args: []string{"gl", "scan", "--url", "https://gitlab.com"},
 		},
 		{
 			name: "missing_both_flags",
@@ -80,7 +80,7 @@ func TestGitLabScan_InvalidURL(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", "not-a-valid-url",
+		"--url", "not-a-valid-url",
 		"--token", "test-token",
 	}, nil, 30*time.Second)
 
@@ -136,7 +136,7 @@ func TestGitLab_APIErrorHandling(t *testing.T) {
 
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gl", "scan",
-				"--gitlab", server.URL,
+				"--url", server.URL,
 				"--token", "test-token",
 			}, nil, 10*time.Second)
 
@@ -167,7 +167,7 @@ func TestGitLabScan_Timeout(t *testing.T) {
 	// Use a short timeout to ensure we hit it
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 3*time.Second)
 
@@ -203,7 +203,7 @@ func TestGitLab_ProxySupport(t *testing.T) {
 	// Run with HTTP_PROXY environment variable
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", gitlabServer.URL,
+		"--url", gitlabServer.URL,
 		"--token", "test-token",
 	}, []string{
 		fmt.Sprintf("HTTP_PROXY=%s", proxyServer.URL),

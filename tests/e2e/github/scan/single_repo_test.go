@@ -61,7 +61,7 @@ func TestGitHubScan_SingleRepository_Success(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--repo", repoFullName,
 	}, nil, 15*time.Second)
@@ -114,7 +114,7 @@ func TestGitHubScan_SingleRepository_NotFound(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--repo", repoFullName,
 	}, nil, 10*time.Second)
@@ -156,7 +156,7 @@ func TestGitHubScan_SingleRepository_InvalidFormat(t *testing.T) {
 
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gh", "scan",
-				"--github", server.URL,
+				"--url", server.URL,
 				"--token", "ghp_test_token",
 				"--repo", invalidRepo,
 			}, nil, 10*time.Second)
@@ -234,7 +234,7 @@ func TestGitHubScan_SingleRepository_WithArtifacts(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--repo", repoFullName,
 		"--artifacts",
@@ -272,23 +272,23 @@ func TestGitHubScan_SingleRepository_MutuallyExclusive(t *testing.T) {
 	}{
 		{
 			name: "repo and org",
-			args: []string{"gh", "scan", "--github", server.URL, "--token", "test", "--repo", "owner/repo", "--org", "myorg"},
+			args: []string{"gh", "scan", "--url", server.URL, "--token", "test", "--repo", "owner/repo", "--org", "myorg"},
 		},
 		{
 			name: "repo and user",
-			args: []string{"gh", "scan", "--github", server.URL, "--token", "test", "--repo", "owner/repo", "--user", "myuser"},
+			args: []string{"gh", "scan", "--url", server.URL, "--token", "test", "--repo", "owner/repo", "--user", "myuser"},
 		},
 		{
 			name: "repo and owned",
-			args: []string{"gh", "scan", "--github", server.URL, "--token", "test", "--repo", "owner/repo", "--owned"},
+			args: []string{"gh", "scan", "--url", server.URL, "--token", "test", "--repo", "owner/repo", "--owned"},
 		},
 		{
 			name: "repo and public",
-			args: []string{"gh", "scan", "--github", server.URL, "--token", "test", "--repo", "owner/repo", "--public"},
+			args: []string{"gh", "scan", "--url", server.URL, "--token", "test", "--repo", "owner/repo", "--public"},
 		},
 		{
 			name: "repo and search",
-			args: []string{"gh", "scan", "--github", server.URL, "--token", "test", "--repo", "owner/repo", "--search", "query"},
+			args: []string{"gh", "scan", "--url", server.URL, "--token", "test", "--repo", "owner/repo", "--search", "query"},
 		},
 	}
 

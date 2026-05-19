@@ -3,43 +3,38 @@ package register
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
+
+var flagBindings = map[string]string{
+	"url": "gitlab.url",
+	"username": "gitlab.register.username",
+	"password": "gitlab.register.password",
+	"email":    "gitlab.register.email",
+}
 
 func NewRegisterCmd() *cobra.Command {
 	registerCmd := &cobra.Command{
 		Use:     "register",
 		Short:   "Register a new user to a Gitlab instance",
 		Long:    "Register a new user to a Gitlab instance that allows self-registration. This command is best effort and might not work.",
-		Example: `pipeleek gl register --gitlab https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
+		Example: `pipeleek gl register --url https://gitlab.mydomain.com --username newuser --password newpassword --email newuser@example.com`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":   "gitlab.url",
-				"username": "gitlab.register.username",
-				"password": "gitlab.register.password",
-				"email":    "gitlab.register.email",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.register.username", "gitlab.register.password", "gitlab.register.email").
+				AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			username := config.GetString("gitlab.register.username")
 			password := config.GetString("gitlab.register.password")
 			email := config.GetString("gitlab.register.email")
 
-			if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-				log.Fatal().Err(err).Msg("Invalid GitLab URL")
-			}
-
 			util.RegisterNewAccount(gitlabUrl, username, password, email)
 		},
 	}
-	registerCmd.Flags().String("gitlab", "", "GitLab instance URL")
+	registerCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
 	registerCmd.Flags().String("username", "", "Username")
 	registerCmd.Flags().String("password", "", "Password")
 	registerCmd.Flags().String("email", "", "Email Address")

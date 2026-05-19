@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/devops/scan"
@@ -22,6 +25,21 @@ var options = DevOpsScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"url":                      "azure_devops.url",
+	"token":                    "azure_devops.token", // #nosec G101 -- "token" is a config key name, not a credential value
+	"username":                 "azure_devops.username",
+	"organization":             "azure_devops.scan.organization",
+	"project":                  "azure_devops.scan.project",
+	"max-builds":               "azure_devops.scan.max_builds",
+	"artifacts":                "azure_devops.scan.artifacts",
+	"owned":                    "azure_devops.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -57,47 +75,41 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 	scanCmd.Flags().IntVarP(&options.MaxBuilds, "max-builds", "", -1, "Max. number of builds to scan per project")
 	scanCmd.Flags().StringVarP(&options.Organization, "organization", "", "", "Organization name to scan")
 	scanCmd.Flags().StringVarP(&options.Project, "project", "p", "", "Project name to scan - can be combined with organization")
-	scanCmd.Flags().StringVarP(&options.DevOpsURL, "devops", "d", "https://dev.azure.com", "Azure DevOps base URL")
+	scanCmd.Flags().StringVarP(&options.DevOpsURL, "url", "d", "https://dev.azure.com", "Azure DevOps base URL")
 
 	return scanCmd
 }
 
 func Scan(cmd *cobra.Command, args []string) {
 	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"devops":                   "azure_devops.url",
-		"token":                    "azure_devops.token",
-		"username":                 "azure_devops.username",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("azure_devops.token", "azure_devops.username").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("azure_devops.url"), "Azure DevOps URL") }).
+		AddValidator(func() error {
+			return config.ValidateToken(config.GetString("azure_devops.token"), "Azure DevOps Access Token")
+		}).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")
+	options.Organization = config.GetString("azure_devops.scan.organization")
+	options.Project = config.GetString("azure_devops.scan.project")
+	options.MaxBuilds = config.GetInt("azure_devops.scan.max_builds")
+	options.Artifacts = config.GetBool("azure_devops.scan.artifacts")
+	options.Owned = config.GetBool("azure_devops.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-
-	if err := config.ValidateURL(options.DevOpsURL, "Azure DevOps URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Azure DevOps URL")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
-	if err := config.ValidateToken(options.AccessToken, "Azure DevOps Access Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid Azure DevOps Access Token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
+	options.HitTimeout = hitTimeout
 
 	scanOpts, err := pkgscan.InitializeOptions(
 		options.Username,

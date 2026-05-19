@@ -132,7 +132,7 @@ func TestContainerScanBasic(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--public",
 	}, nil, 10*time.Second)
@@ -232,7 +232,7 @@ func TestContainerScanOwned(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--owned",
 	}, nil, 10*time.Second)
@@ -324,7 +324,7 @@ func TestContainerScanOrganization(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--organization", "my-org",
 	}, nil, 10*time.Second)
@@ -398,7 +398,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--repo", "test-user/test-repo",
 	}, nil, 10*time.Second)
@@ -481,7 +481,7 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--public",
 	}, nil, 10*time.Second)
@@ -508,7 +508,7 @@ func TestContainerScanMissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "container", "artipacked",
-		"--github", server.URL,
+		"--url", server.URL,
 	}, nil, 10*time.Second)
 
 	t.Logf("STDOUT:\n%s", stdout)

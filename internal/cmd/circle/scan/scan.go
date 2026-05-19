@@ -36,6 +36,28 @@ var options = CircleScanOptions{
 }
 
 var maxArtifactSize string
+var flagBindings = map[string]string{
+	"url":                      "circle.url",
+	"token":                    "circle.token",
+	"org":                      "circle.scan.org",
+	"project":                  "circle.scan.project",
+	"vcs":                      "circle.scan.vcs",
+	"branch":                   "circle.scan.branch",
+	"status":                   "circle.scan.status",
+	"workflow":                 "circle.scan.workflow",
+	"job":                      "circle.scan.job",
+	"since":                    "circle.scan.since",
+	"until":                    "circle.scan.until",
+	"max-pipelines":            "circle.scan.max_pipelines",
+	"tests":                    "circle.scan.tests",
+	"insights":                 "circle.scan.insights",
+	"artifacts":                "circle.scan.artifacts",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -57,7 +79,7 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 
 	flags.AddCommonScanFlagsNoOwned(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "CircleCI API token")
-	scanCmd.Flags().StringVarP(&options.CircleURL, "circle", "c", "https://circleci.com", "CircleCI base URL")
+	scanCmd.Flags().StringVarP(&options.CircleURL, "url", "c", "https://circleci.com", "CircleCI base URL")
 	scanCmd.Flags().StringVarP(&options.Organization, "org", "", "", "CircleCI organization slug (used to filter projects)")
 	scanCmd.Flags().StringSliceVarP(&options.Projects, "project", "p", []string{}, "Project selector. Format: org/repo or vcs/org/repo")
 	scanCmd.Flags().StringVarP(&options.VCS, "vcs", "", "github", "VCS provider for project selectors without prefix (github or bitbucket)")
@@ -75,33 +97,13 @@ pipeleek circle scan --token <token> --project org/repo --artifacts --since 2026
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"circle":                   "circle.url",
-		"token":                    "circle.token",
-		"org":                      "circle.scan.org",
-		"project":                  "circle.scan.project",
-		"vcs":                      "circle.scan.vcs",
-		"branch":                   "circle.scan.branch",
-		"status":                   "circle.scan.status",
-		"workflow":                 "circle.scan.workflow",
-		"job":                      "circle.scan.job",
-		"since":                    "circle.scan.since",
-		"until":                    "circle.scan.until",
-		"max-pipelines":            "circle.scan.max_pipelines",
-		"tests":                    "circle.scan.tests",
-		"insights":                 "circle.scan.insights",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("circle.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("circle.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("circle.url"), "CircleCI URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("circle.token"), "CircleCI API token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
 	options.Token = config.GetString("circle.token")
 	options.CircleURL = config.GetString("circle.url")
@@ -117,6 +119,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.MaxPipelines = config.GetInt("circle.scan.max_pipelines")
 	options.IncludeTests = config.GetBool("circle.scan.tests")
 	options.Insights = config.GetBool("circle.scan.insights")
+	options.Artifacts = config.GetBool("circle.scan.artifacts")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
@@ -127,16 +130,6 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 	options.HitTimeout = hitTimeout
-
-	if err := config.ValidateURL(options.CircleURL, "CircleCI URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid CircleCI URL")
-	}
-	if err := config.ValidateToken(options.Token, "CircleCI API token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid CircleCI API token")
-	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
-	}
 
 	scanOpts, err := circlescan.InitializeOptions(circlescan.InitializeOptionsInput{
 		Token:                  options.Token,

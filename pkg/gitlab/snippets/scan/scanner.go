@@ -59,7 +59,7 @@ func InitializeOptions(gitlabURL, gitlabToken, project, namespace, projectSearch
 	}
 
 	if project != "" && namespace != "" {
-		return nil, fmt.Errorf("--project and --namespace are mutually exclusive")
+		return nil, fmt.Errorf("--project and --group are mutually exclusive")
 	}
 
 	return &ScanOptions{
