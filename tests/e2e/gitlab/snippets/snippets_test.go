@@ -43,7 +43,7 @@ func TestGitLabSnippetsScan_PublicSnippets(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--json",
 	}, nil, 45*time.Second)
@@ -104,7 +104,7 @@ func TestGitLabSnippetsScan_MemberFilter(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--member",
 		"--json",
@@ -166,7 +166,7 @@ func TestGitLabSnippetsScan_ProjectFilter(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--project", "group/project",
 		"--json",
@@ -191,7 +191,7 @@ func TestGitLabSnippetsScan_ProjectFilter(t *testing.T) {
 	assert.True(t, snippetsListed, "should list snippets for resolved project")
 }
 
-func TestGitLabSnippetsScan_NamespaceFilter(t *testing.T) {
+func TestGitLabSnippetsScan_GroupFilter(t *testing.T) {
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -230,9 +230,9 @@ func TestGitLabSnippetsScan_NamespaceFilter(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
-		"--namespace", "mygroup",
+		"--group", "mygroup",
 		"--json",
 	}, nil, 20*time.Second)
 
@@ -252,21 +252,21 @@ func TestGitLabSnippetsScan_NamespaceFilter(t *testing.T) {
 			assert.Contains(t, req.RawQuery, "include_subgroups=true")
 		}
 	}
-	assert.True(t, groupFetched, "should resolve namespace to group")
-	assert.True(t, groupProjectsListed, "should list namespace projects")
+	assert.True(t, groupFetched, "should resolve group path")
+	assert.True(t, groupProjectsListed, "should list group projects")
 }
 
-func TestGitLabSnippetsScan_ProjectAndNamespaceExclusive(t *testing.T) {
+func TestGitLabSnippetsScan_ProjectAndGroupExclusive(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", "https://gitlab.example.com",
+		"--url", "https://gitlab.example.com",
 		"--token", "glpat-test-token",
 		"--project", "group/project",
-		"--namespace", "group",
+		"--group", "group",
 	}, nil, 10*time.Second)
 
 	require.Error(t, exitErr)
-	assert.Contains(t, stdout+stderr, "--project and --namespace are mutually exclusive")
+	assert.Contains(t, stdout+stderr, "--project and --group are mutually exclusive")
 }
 
 func TestGitLabSnippetsScan_SearchFlagIsForwarded(t *testing.T) {
@@ -286,7 +286,7 @@ func TestGitLabSnippetsScan_SearchFlagIsForwarded(t *testing.T) {
 
 	_, _, exitErr := testutil.RunCLI(t, []string{
 		"gl", "snippets", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token",
 		"--member",
 		"--search", "needle",

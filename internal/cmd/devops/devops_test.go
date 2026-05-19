@@ -45,10 +45,10 @@ func TestNewScanCmd(t *testing.T) {
 	assert.NotNil(t, projectFlag, "'project' flag should be registered")
 	assert.Equal(t, "", projectFlag.DefValue, "'project' flag default should be empty")
 
-	devopsFlag := flags.Lookup("devops")
-	assert.NotNil(t, devopsFlag, "'devops' flag should be registered")
-	assert.Equal(t, "https://dev.azure.com", devopsFlag.DefValue,
-		"'devops' flag default should be https://dev.azure.com")
+	urlFlag := flags.Lookup("url")
+	assert.NotNil(t, urlFlag, "'url' flag should be registered")
+	assert.Equal(t, "https://dev.azure.com", urlFlag.DefValue,
+		"'url' flag default should be https://dev.azure.com")
 
 	maxBuildsFlag := flags.Lookup("max-builds")
 	assert.NotNil(t, maxBuildsFlag, "'max-builds' flag should be registered")

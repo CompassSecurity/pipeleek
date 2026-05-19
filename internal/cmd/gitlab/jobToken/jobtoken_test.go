@@ -3,6 +3,7 @@ package jobtoken
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,9 +17,9 @@ func TestNewJobTokenRootCmd(t *testing.T) {
 	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
 
 	flags := cmd.PersistentFlags()
-	gitlabFlag := flags.Lookup("gitlab")
-	assert.NotNil(t, gitlabFlag, "'gitlab' persistent flag should be registered")
-	assert.Equal(t, "", gitlabFlag.DefValue, "'gitlab' flag default should be empty")
+	urlFlag := flags.Lookup("url")
+	assert.NotNil(t, urlFlag, "'url' persistent flag should be registered")
+	assert.Equal(t, "", urlFlag.DefValue, "'url' flag default should be empty")
 
 	tokenFlag := flags.Lookup("token")
 	assert.NotNil(t, tokenFlag, "'token' persistent flag should be registered")
@@ -32,4 +33,16 @@ func TestNewJobTokenRootCmd(t *testing.T) {
 		}
 	}
 	assert.True(t, foundExploit, "jobToken command should have 'exploit' subcommand")
+}
+
+func TestJobTokenCmd_AllDefinedFlagsAreBound(t *testing.T) {
+cmd := NewJobTokenRootCmd()
+cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+if flag.Name == "help" {
+return
+}
+if _, ok := flagBindings[flag.Name]; !ok {
+t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+}
+})
 }
