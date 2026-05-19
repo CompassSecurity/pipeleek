@@ -2,6 +2,7 @@ package get_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,18 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/spf13/cobra"
 )
+
+func extractZerologMessage(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		var m map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &m); err == nil {
+			if msg, ok := m["message"].(string); ok {
+				return msg
+			}
+		}
+	}
+	return strings.TrimSpace(out)
+}
 
 func TestGetCmd_InvalidPathReturnsError(t *testing.T) {
 	config.ResetViper()
@@ -64,7 +77,7 @@ func TestGetCmd_LegacyKeyAliasFromDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if strings.TrimSpace(out.String()) != "true" {
+	if extractZerologMessage(out.String()) != "true" {
 		t.Fatalf("expected output true, got %q", out.String())
 	}
 }

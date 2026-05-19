@@ -1,6 +1,7 @@
 package get
 
 import (
+	"github.com/rs/zerolog/log"
 	"fmt"
 	"strings"
 
@@ -89,10 +90,12 @@ func printConfigValue(cmd *cobra.Command, value interface{}) error {
 		}
 
 	case float64:
-		fmt.Fprintf(cmd.OutOrStdout(), "%v\n", v)
+		logger := log.Output(cmd.OutOrStdout())
+		logger.Info().Msgf("%v", v)
 
 	case bool:
-		fmt.Fprintf(cmd.OutOrStdout(), "%v\n", v)
+		logger := log.Output(cmd.OutOrStdout())
+		logger.Info().Msgf("%v", v)
 
 	case []interface{}:
 		out, err := yaml.Marshal(v)

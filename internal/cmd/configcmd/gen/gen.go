@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"github.com/rs/zerolog/log"
 	"fmt"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd/common"
@@ -44,7 +45,8 @@ pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
 				if err := writeFile(outputFile, content); err != nil {
 					return common.WrapError("gen", "write output file", err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Example configuration written to %s\n", outputFile)
+				logger := log.Output(cmd.OutOrStdout())
+				logger.Info().Msgf("Example configuration written to %s", outputFile)
 				return nil
 			}
 

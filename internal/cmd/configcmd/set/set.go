@@ -1,6 +1,7 @@
 package set
 
 import (
+	"github.com/rs/zerolog/log"
 	"fmt"
 	"strings"
 
@@ -73,7 +74,8 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 				return common.LogAndWrapError("set", "write config file", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Configuration updated: %s = %v (written to %s)\n", key, parsedValue, writePath)
+			logger := log.Output(cmd.OutOrStdout())
+			logger.Info().Msgf("Configuration updated: %s = %v (written to %s)", key, parsedValue, writePath)
 			return nil
 		},
 	}
