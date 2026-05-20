@@ -109,7 +109,7 @@ func newRootWithConfig() *cobra.Command {
 	gl := &cobra.Command{Use: "gl [command]"}
 	var gitlabURL string
 	var token string
-	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "g", "https://gitlab.example.com", "GitLab instance URL")
+	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "u", "https://gitlab.example.com", "GitLab instance URL")
 	gl.PersistentFlags().StringVarP(&token, "token", "t", "", "GitLab token")
 	scan := &cobra.Command{Use: "scan"}
 	var search string

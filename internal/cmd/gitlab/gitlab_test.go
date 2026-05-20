@@ -136,7 +136,7 @@ func TestNewScanPublicCmd(t *testing.T) {
 	assert.NotEmpty(t, cmd.Short)
 
 	flags := cmd.Flags()
-	assert.NotNil(t, flags.Lookup("project"), "'project' flag should be registered")
-	assert.NotNil(t, flags.Lookup("group"), "'group' flag should be registered")
+	assert.NotNil(t, flags.Lookup("repo"), "'repo' flag should be registered")
+	assert.NotNil(t, flags.Lookup("namespace"), "'namespace' flag should be registered")
 	assert.NotNil(t, flags.Lookup("search"), "'search' flag should be registered")
 }

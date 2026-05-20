@@ -68,7 +68,7 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 
 	scanCmd.Flags().StringVarP(&options.AccessToken, "token", "t", "", "Azure DevOps Personal Access Token - https://dev.azure.com/{yourUsername}/_usersSettings/tokens")
-	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Username")
+	scanCmd.Flags().StringVarP(&options.Username, "username", "n", "", "Username")
 
 	scanCmd.Flags().IntVarP(&options.MaxBuilds, "max-builds", "", -1, "Max. number of builds to scan per project")
 	scanCmd.Flags().StringVarP(&options.Organization, "organization", "", "", "Organization name to scan")

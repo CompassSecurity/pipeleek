@@ -20,7 +20,7 @@ func NewRenovateRootCmd() *cobra.Command {
 		Long:  "Commands to enumerate and exploit GitHub Renovate bot configurations.",
 	}
 
-	renovateCmd.PersistentFlags().StringVarP(&githubUrl, "url", "g", "https://api.github.com", "GitHub API base URL")
+	renovateCmd.PersistentFlags().StringVarP(&githubUrl, "url", "u", "https://api.github.com", "GitHub API base URL")
 	renovateCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub Personal Access Token")
 
 	renovateCmd.AddCommand(enum.NewEnumCmd())

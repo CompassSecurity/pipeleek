@@ -70,7 +70,7 @@ func testRootCommandForPaths() *cobra.Command {
 	gl := &cobra.Command{Use: "gl [command]"}
 	var gitlabURL string
 	var gitlabToken string
-	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "g", "https://gitlab.example.com", "GitLab instance URL")
+	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "u", "https://gitlab.example.com", "GitLab instance URL")
 	gl.PersistentFlags().StringVarP(&gitlabToken, "token", "t", "", "GitLab API token")
 
 	scan := &cobra.Command{Use: "scan"}

@@ -25,7 +25,7 @@ func NewGitHubRootCmd() *cobra.Command {
 	ghCmd.AddCommand(container.NewContainerScanCmd())
 	ghCmd.AddCommand(ghtoken.NewGhTokenRootCmd())
 
-	ghCmd.PersistentFlags().StringVarP(&githubUrl, "url", "g", "https://api.github.com", "GitHub instance URL")
+	ghCmd.PersistentFlags().StringVarP(&githubUrl, "url", "u", "https://api.github.com", "GitHub instance URL")
 	ghCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub API Token")
 
 	return ghCmd

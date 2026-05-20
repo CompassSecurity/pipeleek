@@ -15,7 +15,7 @@ func testRootCommand() *cobra.Command {
 	gl := &cobra.Command{Use: "gl [command]"}
 	var gitlabURL string
 	var gitlabToken string
-	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "g", "https://gitlab.example.com", "GitLab instance URL")
+	gl.PersistentFlags().StringVarP(&gitlabURL, "url", "u", "https://gitlab.example.com", "GitLab instance URL")
 	gl.PersistentFlags().StringVarP(&gitlabToken, "token", "t", "", "GitLab API token")
 
 	scan := &cobra.Command{Use: "scan"}
@@ -35,7 +35,7 @@ func testRootCommand() *cobra.Command {
 
 	gh := &cobra.Command{Use: "gh [command]"}
 	var githubURL string
-	gh.PersistentFlags().StringVarP(&githubURL, "url", "g", "https://api.github.com", "GitHub API URL")
+	gh.PersistentFlags().StringVarP(&githubURL, "url", "u", "https://api.github.com", "GitHub API URL")
 	ghScan := &cobra.Command{Use: "scan"}
 	var org string
 	ghScan.Flags().StringVarP(&org, "org", "", "", "Organization")

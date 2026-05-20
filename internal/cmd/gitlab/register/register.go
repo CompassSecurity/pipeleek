@@ -34,7 +34,7 @@ func NewRegisterCmd() *cobra.Command {
 			util.RegisterNewAccount(gitlabUrl, username, password, email)
 		},
 	}
-	registerCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
+	registerCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	registerCmd.Flags().String("username", "", "Username")
 	registerCmd.Flags().String("password", "", "Password")
 	registerCmd.Flags().String("email", "", "Email Address")

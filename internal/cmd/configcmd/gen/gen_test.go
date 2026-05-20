@@ -46,7 +46,7 @@ func TestGenCmd_OutputsToStdout(t *testing.T) {
 	glCmd := &cobra.Command{Use: "gl [command]"}
 	var gitlabURL string
 	var token string
-	glCmd.PersistentFlags().StringVarP(&gitlabURL, "url", "g", "https://gitlab.example.com", "GitLab instance URL")
+	glCmd.PersistentFlags().StringVarP(&gitlabURL, "url", "u", "https://gitlab.example.com", "GitLab instance URL")
 	glCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "GitLab token")
 
 	scanCmd := &cobra.Command{Use: "scan"}
