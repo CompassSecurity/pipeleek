@@ -14,7 +14,7 @@ func NewScheduleCmd() *cobra.Command {
 		Example: `pipeleek gl schedule --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchSchedules,
 	}
-	scheduleCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
+	scheduleCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	scheduleCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return scheduleCmd

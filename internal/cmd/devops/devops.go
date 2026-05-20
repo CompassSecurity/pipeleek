@@ -19,7 +19,7 @@ func NewAzureDevOpsRootCmd() *cobra.Command {
 
 	dvoCmd.AddCommand(scan.NewScanCmd())
 
-	dvoCmd.PersistentFlags().StringVarP(&devopsUrl, "url", "d", "", "Azure DevOps instance URL")
+	dvoCmd.PersistentFlags().StringVarP(&devopsUrl, "url", "d", "https://dev.azure.com", "Azure DevOps instance URL")
 	dvoCmd.PersistentFlags().StringVarP(&devopsApiToken, "token", "t", "", "Azure DevOps API Token")
 
 	return dvoCmd

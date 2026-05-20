@@ -19,7 +19,7 @@ func NewVulnCmd() *cobra.Command {
 		Example: `pipeleek gl vuln --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     CheckVulns,
 	}
-	vulnCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
+	vulnCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	vulnCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return vulnCmd

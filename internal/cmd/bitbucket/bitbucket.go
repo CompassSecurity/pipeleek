@@ -19,7 +19,7 @@ func NewBitBucketRootCmd() *cobra.Command {
 
 	bbCmd.AddCommand(scan.NewScanCmd())
 
-	bbCmd.PersistentFlags().StringVarP(&bitbucketUrl, "url", "b", "", "BitBucket instance URL")
+	bbCmd.PersistentFlags().StringVarP(&bitbucketUrl, "url", "b", "https://api.bitbucket.org/2.0", "BitBucket instance URL")
 	bbCmd.PersistentFlags().StringVarP(&bitbucketApiToken, "token", "t", "", "BitBucket API Token")
 
 	return bbCmd

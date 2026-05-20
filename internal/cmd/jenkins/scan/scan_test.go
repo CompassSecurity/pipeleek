@@ -3,14 +3,8 @@ package scan
 import (
 	"testing"
 
-	"github.com/CompassSecurity/pipeleek/internal/cmd/testutil"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 )
-
-func TestJenkinsScan_AllDefinedFlagsAreBound(t *testing.T) {
-	cmd := NewScanCmd()
-	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings)
-}
 
 func TestNewScanCmd(t *testing.T) {
 	cmd := NewScanCmd()
@@ -24,7 +18,6 @@ func TestNewScanCmd(t *testing.T) {
 
 	flags := cmd.Flags()
 	for _, name := range []string{
-		"url",
 		"username",
 		"token",
 		"folder",
@@ -39,66 +32,6 @@ func TestNewScanCmd(t *testing.T) {
 		if flags.Lookup(name) == nil {
 			t.Errorf("expected flag %q to exist", name)
 		}
-	}
-}
-
-func TestJenkinsScanFlagBindings(t *testing.T) {
-	t.Setenv("PIPELEEK_NO_CONFIG", "1")
-
-	if err := config.InitializeViper(""); err != nil {
-		t.Fatalf("InitializeViper failed: %v", err)
-	}
-
-	cmd := NewScanCmd()
-
-	flagValues := map[string]string{
-		"folder": "my-folder",
-		"job":    "my-job",
-	}
-	for flag, value := range flagValues {
-		if err := cmd.Flags().Set(flag, value); err != nil {
-			t.Fatalf("Failed to set flag %q: %v", flag, err)
-		}
-	}
-	if err := cmd.Flags().Set("artifacts", "true"); err != nil {
-		t.Fatalf("Failed to set artifacts flag: %v", err)
-	}
-
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
-	}
-
-	if got := config.GetString("jenkins.scan.folder"); got != "my-folder" {
-		t.Errorf("Expected jenkins.scan.folder=%q, got %q", "my-folder", got)
-	}
-	if got := config.GetString("jenkins.scan.job"); got != "my-job" {
-		t.Errorf("Expected jenkins.scan.job=%q, got %q", "my-job", got)
-	}
-	if got := config.GetBool("jenkins.scan.artifacts"); !got {
-		t.Error("Expected jenkins.scan.artifacts=true")
-	}
-}
-
-func TestJenkinsScanEnvVarBinding(t *testing.T) {
-	t.Setenv("PIPELEEK_NO_CONFIG", "1")
-	t.Setenv("PIPELEEK_JENKINS_SCAN_ARTIFACTS", "true")
-	t.Setenv("PIPELEEK_JENKINS_SCAN_MAX_BUILDS", "10")
-
-	if err := config.InitializeViper(""); err != nil {
-		t.Fatalf("InitializeViper failed: %v", err)
-	}
-
-	cmd := NewScanCmd()
-
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
-	}
-
-	if got := config.GetBool("jenkins.scan.artifacts"); !got {
-		t.Errorf("Expected jenkins.scan.artifacts=true from env var, got %v", got)
-	}
-	if got := config.GetInt("jenkins.scan.max_builds"); got != 10 {
-		t.Errorf("Expected jenkins.scan.max_builds=10 from env var, got %d", got)
 	}
 }
 

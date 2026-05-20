@@ -56,7 +56,7 @@ For SOCKS5 proxy:
 	glCmd.AddCommand(snippets.NewSnippetsRootCmd())
 	glCmd.AddCommand(tf.NewTFCmd())
 
-	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "g", "", "GitLab instance URL")
+	glCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "u", "", "GitLab instance URL")
 	glCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	return glCmd

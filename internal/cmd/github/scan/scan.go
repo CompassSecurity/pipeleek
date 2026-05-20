@@ -1,9 +1,6 @@
 package scan
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
@@ -29,8 +26,9 @@ var options = GitHubScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+
+// flagBindings maps CLI flags to configuration keys for binding and testing
 var flagBindings = map[string]string{
-	"url":                      "github.url",
 	"token":                    "github.token",
 	"org":                      "github.scan.org",
 	"user":                     "github.scan.user",
@@ -82,18 +80,19 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 	scanCmd.Flags().BoolVarP(&options.Public, "public", "p", false, "Scan all public repositories")
 	scanCmd.Flags().StringVarP(&options.SearchQuery, "search", "s", "", "GitHub search query")
 	scanCmd.Flags().StringVarP(&options.Repo, "repo", "r", "", "Scan a single repository in the format owner/repo")
-	scanCmd.Flags().StringVarP(&options.GitHubURL, "url", "g", "https://api.github.com", "GitHub API base URL")
 	scanCmd.MarkFlagsMutuallyExclusive("owned", "org", "user", "public", "search", "repo")
 
 	return scanCmd
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	config.NewCommandSetup(cmd).
-		WithFlagBindings(flagBindings).
-		RequireKeys("github.token").
-		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
-		MustBind()
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	if err := config.RequireConfigKeys("github.token"); err != nil {
+		log.Fatal().Err(err).Msg("Missing required configuration")
+	}
 
 	options.GitHubURL = config.GetString("github.url")
 	options.AccessToken = config.GetString("github.token")
@@ -103,18 +102,10 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Repo = config.GetString("github.scan.repo")
 	options.Public = config.GetBool("github.scan.public")
 	options.MaxWorkflows = config.GetInt("github.scan.max_workflows")
-	options.Artifacts = config.GetBool("github.scan.artifacts")
-	options.Owned = config.GetBool("github.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-	hitTimeoutRaw := config.GetString("common.hit_timeout")
-	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
-	}
-	options.HitTimeout = hitTimeout
 
 	if err := config.ValidateURL(options.GitHubURL, "GitHub URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitHub URL")

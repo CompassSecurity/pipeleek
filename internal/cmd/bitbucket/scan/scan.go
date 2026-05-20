@@ -1,9 +1,6 @@
 package scan
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/bitbucket/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
@@ -27,23 +24,6 @@ var options = BitBucketScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
-var flagBindings = map[string]string{
-	"url":                      "bitbucket.url",
-	"token":                    "bitbucket.token",
-	"email":                    "bitbucket.email",
-	"cookie":                   "bitbucket.cookie",
-	"workspace":                "bitbucket.scan.workspace",
-	"max-pipelines":            "bitbucket.scan.max_pipelines",
-	"public":                   "bitbucket.scan.public",
-	"after":                    "bitbucket.scan.after",
-	"artifacts":                "bitbucket.scan.artifacts",
-	"owned":                    "bitbucket.scan.owned",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
-}
 
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
@@ -72,7 +52,6 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 	scanCmd.Flags().StringVarP(&options.AccessToken, "token", "t", "", "Bitbucket API token - https://id.atlassian.com/manage-profile/security/api-tokens")
 	scanCmd.Flags().StringVarP(&options.Email, "email", "e", "", "Bitbucket Email")
 	scanCmd.Flags().StringVarP(&options.BitBucketCookie, "cookie", "c", "", "Bitbucket Cookie [value of cloud.session.token on https://bitbucket.org]")
-	scanCmd.Flags().StringVarP(&options.BitBucketURL, "url", "b", "https://api.bitbucket.org/2.0", "BitBucket API base URL")
 	scanCmd.MarkFlagsRequiredTogether("cookie", "artifacts")
 
 	scanCmd.Flags().IntVarP(&options.MaxPipelines, "max-pipelines", "", -1, "Max. number of pipelines to scan per repository")
@@ -84,48 +63,43 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// BitBucket allows token-based OR email/cookie auth, so we validate with custom logic
-	config.NewCommandSetup(cmd).
-		WithFlagBindings(flagBindings).
-		AddValidator(func() error {
-			if config.GetString("bitbucket.token") == "" && config.GetString("bitbucket.email") == "" {
-				return fmt.Errorf("either bitbucket token or email must be provided")
-			}
-			return nil
-		}).
-		AddValidator(func() error { return config.ValidateURL(config.GetString("bitbucket.url"), "BitBucket URL") }).
-		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
-		MustBind()
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"url":                      "bitbucket.url",
+		"token":                    "bitbucket.token",
+		"email":                    "bitbucket.email",
+		"cookie":                   "bitbucket.cookie",
+		"threads":                  "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
 
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.token")
 	options.Email = config.GetString("bitbucket.email")
 	options.BitBucketCookie = config.GetString("bitbucket.cookie")
-	options.Workspace = config.GetString("bitbucket.scan.workspace")
-	options.MaxPipelines = config.GetInt("bitbucket.scan.max_pipelines")
-	options.Public = config.GetBool("bitbucket.scan.public")
-	options.After = config.GetString("bitbucket.scan.after")
-	options.Artifacts = config.GetBool("bitbucket.scan.artifacts")
-	options.Owned = config.GetBool("bitbucket.scan.owned")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-	hitTimeoutRaw := config.GetString("common.hit_timeout")
-	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
-	}
-	options.HitTimeout = hitTimeout
 
 	if options.AccessToken != "" && options.Email == "" {
 		log.Fatal().Msg("When using --token you must also provide --email (or bitbucket.email in config)")
 	}
 
+	if err := config.ValidateURL(options.BitBucketURL, "BitBucket URL"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid BitBucket URL")
+	}
 	if options.AccessToken != "" {
 		if err := config.ValidateToken(options.AccessToken, "BitBucket API Token"); err != nil {
 			log.Fatal().Err(err).Msg("Invalid BitBucket API Token")
 		}
+	}
+	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
+		log.Fatal().Err(err).Msg("Invalid thread count")
 	}
 
 	scanOpts, err := pkgscan.InitializeOptions(

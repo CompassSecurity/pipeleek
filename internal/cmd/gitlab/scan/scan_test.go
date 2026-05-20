@@ -36,8 +36,8 @@ func TestNewScanCmd(t *testing.T) {
 		"cookie",
 		"search",
 		"member",
-		"project",
-		"group",
+		"repo",
+		"namespace",
 		"job-limit",
 		"queue",
 		"artifacts",
@@ -65,10 +65,10 @@ func TestGitLabScanFlagBindings(t *testing.T) {
 
 	// Set flag values
 	flagMap := map[string]string{
-		"search":  "mysearch",
-		"project": "group/myrepo",
-		"group":   "mygroup",
-		"queue":   "/tmp/queue",
+		"search":    "mysearch",
+		"repo":      "group/myrepo",
+		"namespace": "mygroup",
+		"queue":     "/tmp/queue",
 	}
 	for flag, value := range flagMap {
 		if err := cmd.Flags().Set(flag, value); err != nil {

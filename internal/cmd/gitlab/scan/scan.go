@@ -1,9 +1,6 @@
 package scan
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
@@ -29,14 +26,16 @@ var options = ScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 var maxArtifactSize string
+
+// flagBindings maps CLI flags to configuration keys for binding and testing
 var flagBindings = map[string]string{
 	"url":                      "gitlab.url",
 	"token":                    "gitlab.token",
 	"cookie":                   "gitlab.cookie",
 	"search":                   "gitlab.scan.search",
 	"member":                   "gitlab.scan.member",
-	"project":                  "gitlab.scan.project",
-	"group":                    "gitlab.scan.group",
+	"repo":                     "gitlab.scan.project",
+	"namespace":                "gitlab.scan.group",
 	"job-limit":                "gitlab.scan.job_limit",
 	"queue":                    "gitlab.scan.queue",
 	"artifacts":                "gitlab.scan.artifacts",
@@ -77,11 +76,11 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --me
 # Scan all accessible projects pipelines but limit the number of jobs scanned per project to 10, only scan artifacts smaller than 200MB and use 8 threads
 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --job-limit 10 -a --max-artifact-size 200Mb --threads 8
 
-# Scan a single project
-pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --project mygroup/myproject
+# Scan a single repository
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --repo mygroup/myproject
 
-# Scan all projects in a group
-pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --group mygroup
+# Scan all repositories in a namespace
+pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
 		Run: Scan,
 	}
@@ -90,8 +89,8 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --gr
 	scanCmd.Flags().StringVarP(&options.GitlabCookie, "cookie", "c", "", "GitLab Cookie _gitlab_session (must be extracted from your browser, use remember me)")
 	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching projects")
 	scanCmd.Flags().BoolVarP(&options.Member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&options.Repository, "project", "p", "", "Single project to scan, format: group/project")
-	scanCmd.Flags().StringVarP(&options.Namespace, "group", "n", "", "Group to scan (all projects in the group will be scanned)")
+	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single repository to scan, format: namespace/repo")
+	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
@@ -99,13 +98,13 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --gr
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	config.NewCommandSetup(cmd).
-		WithFlagBindings(flagBindings).
-		RequireKeys("gitlab.url", "gitlab.token").
-		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
-		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
-		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
-		MustBind()
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
+		log.Fatal().Err(err).Msg("required configuration missing")
+	}
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
@@ -114,22 +113,25 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Member = config.GetBool("gitlab.scan.member")
 	options.Repository = config.GetString("gitlab.scan.project")
 	options.Namespace = config.GetString("gitlab.scan.group")
-	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
 	options.QueueFolder = config.GetString("gitlab.scan.queue")
-	options.Artifacts = config.GetBool("gitlab.scan.artifacts")
-	options.Owned = config.GetBool("gitlab.scan.owned")
+	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-	hitTimeoutRaw := config.GetString("common.hit_timeout")
-	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+
+	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab URL")
 	}
-	options.HitTimeout = hitTimeout
+	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
+	}
+	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
+		log.Fatal().Err(err).Msg("Invalid thread count")
+	}
 
 	detectors.SetGitLabURL(gitlabUrl)
+
 	scanOpts, err := scan.InitializeOptions(
 		gitlabUrl,
 		gitlabApiToken,

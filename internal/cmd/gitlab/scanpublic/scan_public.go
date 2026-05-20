@@ -29,21 +29,6 @@ var options = ScanPublicOptions{
 
 var maxArtifactSize string
 
-var flagBindings = map[string]string{
-	"url":                       "gitlab.url",
-	"search":                   "gitlab.scan_public.search",
-	"project":                  "gitlab.scan_public.project",
-	"group":                    "gitlab.scan_public.group",
-	"job-limit":                "gitlab.scan_public.job_limit",
-	"queue":                    "gitlab.scan_public.queue",
-	"artifacts":                "gitlab.scan_public.artifacts",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
-}
-
 func NewScanPublicCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -59,23 +44,23 @@ pipeleek gluna scan --url https://gitlab.example.com
 # Scan public pipelines with artifacts and tuned performance
 pipeleek gluna scan --url https://gitlab.example.com --artifacts --job-limit 10 --max-artifact-size 200Mb --threads 8
 
-# Scan one public project
-pipeleek gluna scan --url https://gitlab.example.com --project mygroup/myproject
+# Scan one public repository
+pipeleek gluna scan --url https://gitlab.example.com --repo mygroup/myproject
 
-# Scan all public projects in a group
-pipeleek gluna scan --url https://gitlab.example.com --group mygroup
+# Scan all public repositories in a namespace
+pipeleek gluna scan --url https://gitlab.example.com --namespace mygroup
 		`,
 		Run: ScanPublic,
 	}
 
-	scanCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
+	scanCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	flags.AddCommonScanFlagsNoArtifacts(scanCmd, &options.CommonScanOptions)
 	scanCmd.Flags().BoolVarP(&options.Artifacts, "artifacts", "a", false, "Scan artifacts")
 	scanCmd.Flags().StringVarP(&maxArtifactSize, "max-artifact-size", "", "500Mb",
 		"Maximum artifact size to scan. Larger files are skipped. Format: https://pkg.go.dev/github.com/docker/go-units#FromHumanSize")
 	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching public projects")
-	scanCmd.Flags().StringVarP(&options.Repository, "project", "p", "", "Single public project to scan, format: group/project")
-	scanCmd.Flags().StringVarP(&options.Namespace, "group", "n", "", "Group to scan (all public projects in the group will be scanned)")
+	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single public repository to scan, format: namespace/repo")
+	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all public repos in the namespace will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
@@ -83,17 +68,31 @@ pipeleek gluna scan --url https://gitlab.example.com --group mygroup
 }
 
 func ScanPublic(cmd *cobra.Command, args []string) {
-	config.NewCommandSetup(cmd).
-		WithFlagBindings(flagBindings).
-		RequireKeys("gitlab.url").
-		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
-		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
-		MustBind()
+	if err := config.AutoBindFlags(cmd, map[string]string{
+		"url":                      "gitlab.url",
+		"search":                   "gitlab.scan_public.search",
+		"repo":                     "gitlab.scan_public.repo",
+		"namespace":                "gitlab.scan_public.namespace",
+		"job-limit":                "gitlab.scan_public.job_limit",
+		"queue":                    "gitlab.scan_public.queue",
+		"artifacts":                "gitlab.scan_public.artifacts",
+		"threads":                  "common.threads",
+		"truffle-hog-verification": "common.trufflehog_verification",
+		"max-artifact-size":        "common.max_artifact_size",
+		"confidence":               "common.confidence_filter",
+		"hit-timeout":              "common.hit_timeout",
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
+	}
+
+	if err := config.RequireConfigKeys("gitlab.url"); err != nil {
+		log.Fatal().Err(err).Msg("required configuration missing")
+	}
 
 	gitlabURL := config.GetString("gitlab.url")
 	projectSearchQuery := config.GetString("gitlab.scan_public.search")
-	repository := config.GetString("gitlab.scan_public.project")
-	namespace := config.GetString("gitlab.scan_public.group")
+	repository := config.GetString("gitlab.scan_public.repo")
+	namespace := config.GetString("gitlab.scan_public.namespace")
 	jobLimit := config.GetInt("gitlab.scan_public.job_limit")
 	queueFolder := config.GetString("gitlab.scan_public.queue")
 	artifacts := config.GetBool("gitlab.scan_public.artifacts")
@@ -107,7 +106,15 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
 	}
 
+	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
+		log.Fatal().Err(err).Msg("Invalid GitLab URL")
+	}
+	if err := config.ValidateThreadCount(threads); err != nil {
+		log.Fatal().Err(err).Msg("Invalid thread count")
+	}
+
 	detectors.SetGitLabURL(gitlabURL)
+
 	scanOpts, err := gitlabscan.InitializeOptions(
 		gitlabURL,
 		"",

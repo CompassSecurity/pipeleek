@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,8 +19,8 @@ func TestNewScanPublicCmd(t *testing.T) {
 
 	flags := cmd.Flags()
 	assert.NotNil(t, flags.Lookup("search"))
-	assert.NotNil(t, flags.Lookup("project"))
-	assert.NotNil(t, flags.Lookup("group"))
+	assert.NotNil(t, flags.Lookup("repo"))
+	assert.NotNil(t, flags.Lookup("namespace"))
 	assert.NotNil(t, flags.Lookup("job-limit"))
 	assert.NotNil(t, flags.Lookup("queue"))
 	assert.NotNil(t, flags.Lookup("artifacts"))
@@ -31,29 +30,17 @@ func TestNewScanPublicCmd(t *testing.T) {
 	assert.NotNil(t, flags.Lookup("confidence"))
 	assert.NotNil(t, flags.Lookup("hit-timeout"))
 
-	assert.Equal(t, "p", flags.Lookup("project").Shorthand)
-	assert.Equal(t, "n", flags.Lookup("group").Shorthand)
+	assert.Equal(t, "r", flags.Lookup("repo").Shorthand)
+	assert.Equal(t, "n", flags.Lookup("namespace").Shorthand)
 	assert.Equal(t, "s", flags.Lookup("search").Shorthand)
 	assert.Equal(t, "j", flags.Lookup("job-limit").Shorthand)
 	assert.Equal(t, "q", flags.Lookup("queue").Shorthand)
 
 	assert.Equal(t, "0", flags.Lookup("job-limit").DefValue)
-	assert.Equal(t, "", flags.Lookup("project").DefValue)
-	assert.Equal(t, "", flags.Lookup("group").DefValue)
+	assert.Equal(t, "", flags.Lookup("repo").DefValue)
+	assert.Equal(t, "", flags.Lookup("namespace").DefValue)
 	assert.Equal(t, "", flags.Lookup("search").DefValue)
 
 	defaults := config.DefaultCommonScanOptions()
 	assert.Equal(t, defaults.TruffleHogVerification, cmd.Flags().Lookup("truffle-hog-verification").DefValue == "true")
-}
-
-func TestScanPublicCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewScanPublicCmd()
-cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
 }

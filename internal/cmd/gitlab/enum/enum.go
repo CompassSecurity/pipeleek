@@ -22,7 +22,7 @@ func NewEnumCmd() *cobra.Command {
 		Example: `pipeleek gl enum --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --level 20`,
 		Run:     Enum,
 	}
-	enumCmd.Flags().StringP("url", "g", "", "GitLab instance URL")
+	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 	enumCmd.Flags().Int("level", int(gitlab.GuestPermissions), "Minimum repo access level. See https://docs.gitlab.com/api/access_requests/#valid-access-levels for integer values")
 
