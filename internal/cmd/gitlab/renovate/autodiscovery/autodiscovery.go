@@ -10,7 +10,7 @@ import (
 
 var (
 	autodiscoveryProjectName string
-	autodiscoveryUsername string
+	autodiscoveryUsername    string
 	autodiscoveryAddCICD  bool
 )
 
@@ -52,7 +52,7 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --url https://gitla
 		},
 	}
 	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryProjectName, "project-name", "p", "", "The name for the created project")
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "u", "", "The username of the victim Renovate Bot user to invite")
+	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "n", "", "The username of the victim Renovate Bot user to invite")
 	autodiscoveryCmd.Flags().BoolVar(&autodiscoveryAddCICD, "add-renovate-cicd-for-debugging", false, "Creates a .gitlab-ci.yml file in the repo that runs Renovate Bot for local testing")
 
 	return autodiscoveryCmd
