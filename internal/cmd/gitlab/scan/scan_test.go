@@ -94,11 +94,11 @@ func TestGitLabScanFlagBindings(t *testing.T) {
 	if got := config.GetString("gitlab.scan.search"); got != "mysearch" {
 		t.Errorf("Expected gitlab.scan.search=%q, got %q", "mysearch", got)
 	}
-	if got := config.GetString("gitlab.scan.project"); got != "group/myrepo" {
-		t.Errorf("Expected gitlab.scan.project=%q, got %q", "group/myrepo", got)
+	if got := config.GetString("gitlab.scan.repo"); got != "group/myrepo" {
+		t.Errorf("Expected gitlab.scan.repo=%q, got %q", "group/myrepo", got)
 	}
-	if got := config.GetString("gitlab.scan.group"); got != "mygroup" {
-		t.Errorf("Expected gitlab.scan.group=%q, got %q", "mygroup", got)
+	if got := config.GetString("gitlab.scan.namespace"); got != "mygroup" {
+		t.Errorf("Expected gitlab.scan.namespace=%q, got %q", "mygroup", got)
 	}
 	if got := config.GetString("gitlab.scan.queue"); got != "/tmp/queue" {
 		t.Errorf("Expected gitlab.scan.queue=%q, got %q", "/tmp/queue", got)

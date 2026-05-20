@@ -195,7 +195,7 @@ func TestGitLabCICDYaml(t *testing.T) {
 		"gl", "cicd", "yaml",
 		"--url", server.URL,
 		"--token", "glpat-test",
-		"--project", "test/project",
+		"--repo", "test/project",
 	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "CICD yaml command should succeed")
@@ -373,7 +373,6 @@ func TestGitLabVuln(t *testing.T) {
 		"gl", "vuln",
 		"--url", server.URL,
 		"--token", "glpat-test",
-		"--project", "1",
 	}, nil, 10*time.Second)
 
 	// Log output regardless of success/failure

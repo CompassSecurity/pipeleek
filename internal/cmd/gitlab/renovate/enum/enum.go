@@ -26,8 +26,8 @@ var flagBindings = map[string]string{
 	"token":                          "gitlab.token",
 	"owned":                          "gitlab.renovate.enum.owned",
 	"member":                         "gitlab.renovate.enum.member",
-	"project":                        "gitlab.renovate.enum.project",
-	"group":                          "gitlab.renovate.enum.group",
+	"repo":                           "gitlab.renovate.enum.repo",
+	"namespace":                      "gitlab.renovate.enum.namespace",
 	"search":                         "gitlab.renovate.enum.search",
 	"fast":                           "gitlab.renovate.enum.fast",
 	"dump":                           "gitlab.renovate.enum.dump",
@@ -56,8 +56,8 @@ func NewEnumCmd() *cobra.Command {
 			// All flags can come from config, CLI flags, or env vars via Viper
 			owned = config.GetBool("gitlab.renovate.enum.owned")
 			member = config.GetBool("gitlab.renovate.enum.member")
-			repository = config.GetString("gitlab.renovate.enum.project")
-			namespace = config.GetString("gitlab.renovate.enum.group")
+			repository = config.GetString("gitlab.renovate.enum.repo")
+			namespace = config.GetString("gitlab.renovate.enum.namespace")
 			projectSearchQuery = config.GetString("gitlab.renovate.enum.search")
 			fast = config.GetBool("gitlab.renovate.enum.fast")
 			dump = config.GetBool("gitlab.renovate.enum.dump")
@@ -71,8 +71,8 @@ func NewEnumCmd() *cobra.Command {
 
 	enumCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
 	enumCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
-	enumCmd.Flags().StringVarP(&repository, "project", "p", "", "Project to scan for Renovate configuration (if not set, all projects will be scanned)")
-	enumCmd.Flags().StringVarP(&namespace, "group", "n", "", "Group to scan")
+	enumCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan for Renovate configuration (if not set, all repositories will be scanned)")
+	enumCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to scan")
 	enumCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching projects")
 	enumCmd.Flags().BoolVarP(&fast, "fast", "f", false, "Fast mode - skip renovate config file detection, only check CIDC yml for renovate bot job (default false)")
 	enumCmd.Flags().BoolVarP(&dump, "dump", "d", false, "Dump mode - save all config files to renovate-enum-out folder (default false)")

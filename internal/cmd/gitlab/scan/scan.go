@@ -34,8 +34,8 @@ var flagBindings = map[string]string{
 	"cookie":                   "gitlab.cookie",
 	"search":                   "gitlab.scan.search",
 	"member":                   "gitlab.scan.member",
-	"repo":                     "gitlab.scan.project",
-	"namespace":                "gitlab.scan.group",
+	"repo":                     "gitlab.scan.repo",
+	"namespace":                "gitlab.scan.namespace",
 	"job-limit":                "gitlab.scan.job_limit",
 	"queue":                    "gitlab.scan.queue",
 	"artifacts":                "gitlab.scan.artifacts",
@@ -111,8 +111,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.GitlabCookie = config.GetString("gitlab.cookie")
 	options.ProjectSearchQuery = config.GetString("gitlab.scan.search")
 	options.Member = config.GetBool("gitlab.scan.member")
-	options.Repository = config.GetString("gitlab.scan.project")
-	options.Namespace = config.GetString("gitlab.scan.group")
+	options.Repository = config.GetString("gitlab.scan.repo")
+	options.Namespace = config.GetString("gitlab.scan.namespace")
 	options.QueueFolder = config.GetString("gitlab.scan.queue")
 	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")

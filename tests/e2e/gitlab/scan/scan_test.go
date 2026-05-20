@@ -161,7 +161,7 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		// Handle specific project lookup by name (for --project flag)
+		// Handle specific repository lookup by name (for --repo flag)
 		if strings.Contains(r.URL.Path, "/projects/") && strings.Contains(r.URL.RawQuery, "search=") {
 			// When querying projects by name, return a single project object in an array
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
@@ -204,13 +204,13 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:        "with_project_flag",
-			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--project", "group/project"},
+			name:        "with_repo_flag",
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--repo", "group/project"},
 			shouldError: false,
 		},
 		{
-			name:        "with_group_flag",
-			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--group", "mygroup"},
+			name:        "with_namespace_flag",
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--namespace", "mygroup"},
 			shouldError: false,
 		},
 		{

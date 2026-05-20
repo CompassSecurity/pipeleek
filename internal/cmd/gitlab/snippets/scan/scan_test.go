@@ -15,11 +15,11 @@ func TestNewScanCmd(t *testing.T) {
 	assert.Equal(t, "scan", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.Contains(t, cmd.Long, "including public ones")
-	assert.Contains(t, cmd.Example, "--project")
+	assert.Contains(t, cmd.Example, "--repo")
 	assert.Contains(t, cmd.Example, "--namespace")
 
 	flags := cmd.Flags()
-	assert.NotNil(t, flags.Lookup("project"))
+	assert.NotNil(t, flags.Lookup("repo"))
 	assert.NotNil(t, flags.Lookup("namespace"))
 	assert.NotNil(t, flags.Lookup("search"))
 	assert.NotNil(t, flags.Lookup("owned"))
@@ -29,7 +29,7 @@ func TestNewScanCmd(t *testing.T) {
 	assert.NotNil(t, flags.Lookup("confidence"))
 	assert.NotNil(t, flags.Lookup("hit-timeout"))
 
-	assert.Equal(t, "p", flags.Lookup("project").Shorthand)
+	assert.Equal(t, "r", flags.Lookup("repo").Shorthand)
 	assert.Equal(t, "n", flags.Lookup("namespace").Shorthand)
 	assert.Equal(t, "s", flags.Lookup("search").Shorthand)
 	assert.Equal(t, "o", flags.Lookup("owned").Shorthand)
@@ -37,7 +37,7 @@ func TestNewScanCmd(t *testing.T) {
 
 	assert.Equal(t, "false", flags.Lookup("owned").DefValue)
 	assert.Equal(t, "false", flags.Lookup("member").DefValue)
-	assert.Equal(t, "", flags.Lookup("project").DefValue)
+	assert.Equal(t, "", flags.Lookup("repo").DefValue)
 	assert.Equal(t, "", flags.Lookup("namespace").DefValue)
 	assert.Equal(t, "", flags.Lookup("search").DefValue)
 

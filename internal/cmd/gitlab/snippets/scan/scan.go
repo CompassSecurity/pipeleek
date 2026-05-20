@@ -28,8 +28,8 @@ var options = ScanOptions{
 var flagBindings = map[string]string{
 	"url":                      "gitlab.url",
 	"token":                    "gitlab.token",
-	"project":                  "gitlab.snippets.scan.project",
-	"group":                    "gitlab.snippets.scan.group",
+	"repo":                     "gitlab.snippets.scan.repo",
+	"namespace":                "gitlab.snippets.scan.namespace",
 	"search":                   "gitlab.snippets.scan.search",
 	"owned":                    "gitlab.snippets.scan.owned",
 	"member":                   "gitlab.snippets.scan.member",
@@ -46,16 +46,16 @@ func NewScanCmd() *cobra.Command {
 		Long: `Scan snippet contents for secrets.
 
 By default, all snippets visible to the provided token are scanned, including public ones.
-Use --project to limit to a single project or --group to scan projects in a group and its subgroups.`,
+Use --repo to limit to a single repository or --namespace to scan repositories in a namespace.`,
 		Example: `
 # Scan all snippets visible to the token
 pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com
 
-# Scan snippets for one project
-pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --project mygroup/myproject
+# Scan snippets for one repository
+pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --repo mygroup/myproject
 
-# Scan snippets of projects in a group and subgroups
-pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --group mygroup
+# Scan snippets of repositories in a namespace
+pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
 		Run: Scan,
 	}
@@ -63,9 +63,9 @@ pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example
 	flags.AddCommonScanFlagsNoArtifacts(scanCmd, &options.CommonScanOptions)
 	scanCmd.Flags().BoolVarP(&options.Owned, "owned", "o", false, "Scan only user owned repositories")
 	scanCmd.Flags().BoolVarP(&options.Member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching projects")
-	scanCmd.Flags().StringVarP(&options.Project, "project", "p", "", "Single project to scan, format: group/project")
-	scanCmd.Flags().StringVarP(&options.Namespace, "group", "n", "", "Group to scan (all group projects and subgroup projects)")
+	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching repositories")
+	scanCmd.Flags().StringVarP(&options.Project, "repo", "r", "", "Single repository to scan, format: namespace/repo")
+	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all namespace repositories and subgroup repositories)")
 
 	return scanCmd
 }
@@ -81,8 +81,8 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	gitlabURL := config.GetString("gitlab.url")
 	gitlabToken := config.GetString("gitlab.token")
-	project := config.GetString("gitlab.snippets.scan.project")
-	namespace := config.GetString("gitlab.snippets.scan.group")
+	project := config.GetString("gitlab.snippets.scan.repo")
+	namespace := config.GetString("gitlab.snippets.scan.namespace")
 	search := config.GetString("gitlab.snippets.scan.search")
 	owned := config.GetBool("gitlab.snippets.scan.owned")
 	member := config.GetBool("gitlab.snippets.scan.member")
@@ -96,7 +96,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	if project != "" && namespace != "" {
-		log.Fatal().Msg("--project and --group are mutually exclusive")
+		log.Fatal().Msg("--repo and --namespace are mutually exclusive")
 	}
 
 	opts, err := snippetscan.InitializeOptions(

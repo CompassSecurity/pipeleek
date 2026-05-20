@@ -57,7 +57,7 @@ func TestGLunaScanPublic_UsesPipelineJobsAndRawTrace(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "scan",
 		"--url", server.URL + "/gitlab",
-		"--project", "group/project",
+		"--repo", "group/project",
 		"--job-limit", "1",
 	}, nil, 15*time.Second)
 

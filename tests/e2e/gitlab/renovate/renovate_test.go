@@ -186,7 +186,7 @@ func TestGLRenovatePrivesc(t *testing.T) {
 		"gl", "renovate", "privesc",
 		"--url", apiURL,
 		"--token", "mock-token",
-		"--project", "test-repo",
+		"--repo", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 	}, nil, 10*time.Second)
 	assert.Nil(t, exitErr, "Privesc command should succeed")
@@ -200,7 +200,7 @@ func TestGLRenovatePrivescWithMonitoringInterval(t *testing.T) {
 		"gl", "renovate", "privesc",
 		"--url", apiURL,
 		"--token", "mock-token",
-		"--project", "test-repo",
+		"--repo", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "500ms",
 	}, nil, 10*time.Second)
@@ -216,7 +216,7 @@ func TestGLRenovatePrivescWithInvalidMonitoringInterval(t *testing.T) {
 		"gl", "renovate", "privesc",
 		"--url", apiURL,
 		"--token", "mock-token",
-		"--project", "test-repo",
+		"--repo", "test-repo",
 		"--renovate-branches-regex", "renovate/.*",
 		"--monitoring-interval", "invalid-duration",
 	}, nil, 10*time.Second)

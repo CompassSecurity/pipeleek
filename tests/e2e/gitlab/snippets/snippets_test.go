@@ -168,7 +168,7 @@ func TestGitLabSnippetsScan_ProjectFilter(t *testing.T) {
 		"gl", "snippets", "scan",
 		"--url", server.URL,
 		"--token", "glpat-test-token",
-		"--project", "group/project",
+		"--repo", "group/project",
 		"--json",
 	}, nil, 20*time.Second)
 
@@ -232,7 +232,7 @@ func TestGitLabSnippetsScan_GroupFilter(t *testing.T) {
 		"gl", "snippets", "scan",
 		"--url", server.URL,
 		"--token", "glpat-test-token",
-		"--group", "mygroup",
+		"--namespace", "mygroup",
 		"--json",
 	}, nil, 20*time.Second)
 
@@ -261,12 +261,12 @@ func TestGitLabSnippetsScan_ProjectAndGroupExclusive(t *testing.T) {
 		"gl", "snippets", "scan",
 		"--url", "https://gitlab.example.com",
 		"--token", "glpat-test-token",
-		"--project", "group/project",
-		"--group", "group",
+		"--repo", "group/project",
+		"--namespace", "group",
 	}, nil, 10*time.Second)
 
 	require.Error(t, exitErr)
-	assert.Contains(t, stdout+stderr, "--project and --group are mutually exclusive")
+	assert.Contains(t, stdout+stderr, "--repo and --namespace are mutually exclusive")
 }
 
 func TestGitLabSnippetsScan_SearchFlagIsForwarded(t *testing.T) {

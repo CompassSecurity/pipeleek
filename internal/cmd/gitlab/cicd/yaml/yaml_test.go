@@ -12,7 +12,7 @@ func TestNewYamlCmd(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "yaml", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
-	assert.NotNil(t, cmd.Flags().Lookup("project"))
+	assert.NotNil(t, cmd.Flags().Lookup("repo"))
 }
 
 func TestYamlCmd_AllDefinedFlagsAreBound(t *testing.T) {

