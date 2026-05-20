@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	atomicgo.dev/keyboard v0.2.10
-	code.gitea.io/sdk/gitea v0.25.0
+	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.36202
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/bndr/gojenkins v1.2.0
