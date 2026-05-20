@@ -33,7 +33,7 @@ Prefer the authenticated scan over the unauthenticated one whenever possible, as
 
 ```bash
 # Scan all publicly accessible CI/CD logs, including artifacts (breadth-first)
-pipeleek gluna scan -g https://leakycompany.com -a --job-limit 10
+pipeleek gluna scan -u https://leakycompany.com -a --job-limit 10
 ```
 
 ## Authenticated Access
@@ -55,7 +55,7 @@ Make sure to verify manually as well.
 > To create a Personal Access Token visit https://leakycompany.com/-/user_settings/personal_access_tokens
 
 ```bash
-pipeleek gl vuln -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl vuln -u https://leakycompany.com -t glpat-[redacted]
 2024-11-14T14:29:05+01:00 info GitLab version=17.5.1-ee
 2024-11-14T14:29:05+01:00 info Fetching CVEs for this version version=17.5.1-ee
 ```
@@ -68,16 +68,16 @@ Dump all CI/CD variables you have access to, to find more secrets.
 
 ```bash
 # Dump variables defined in the projects settings
-pipeleek gl variables -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl variables -u https://leakycompany.com -t glpat-[redacted]
 
 # Schedules can have separately defined variables
-pipeleek gl schedule -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl schedule -u https://leakycompany.com -t glpat-[redacted]
 
 # Secure files are an alternative to variables and often times contain sensitive info
-pipeleek gl secureFiles -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl secureFiles -u https://leakycompany.com -t glpat-[redacted]
 
 # Terraform states can contain secrets
-pipeleek gl tf --token -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl tf -u https://leakycompany.com -t glpat-[redacted]
 ```
 
 ## Secret Detection in Source Code
@@ -209,7 +209,7 @@ curl --request GET --header "PRIVATE-TOKEN: glpat-[redacted]" https://gitlab.exa
 }
 
 # Verify using Pipeleek
-pipeleek gl enum -g https://gitlab.example.com -t glpat-[redacted]
+pipeleek gl enum -u https://gitlab.example.com -t glpat-[redacted]
 2025-09-29T12:25:51Z info Enumerating User
 2025-09-29T12:25:51Z warn Current user admin=false bot=false email=test@example.com name="Pipe Leak" username=pipeleek_user
 2025-09-29T12:25:51Z info Enumerating Access Token

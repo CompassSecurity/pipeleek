@@ -31,6 +31,10 @@ func TestAutodiscoveryCmdFlags(t *testing.T) {
 			assert.NotNil(t, flag, "Flag %s should exist", tt.flagName)
 		})
 	}
+
+	usernameFlag := cmd.Flags().Lookup("username")
+	assert.NotNil(t, usernameFlag)
+	assert.Equal(t, "n", usernameFlag.Shorthand)
 }
 
 func TestAutodiscoveryCmdHasRun(t *testing.T) {
@@ -39,13 +43,13 @@ func TestAutodiscoveryCmdHasRun(t *testing.T) {
 }
 
 func TestGHAutodiscoveryCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewAutodiscoveryCmd()
-cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
+	cmd := NewAutodiscoveryCmd()
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }

@@ -55,7 +55,7 @@ The JSON format outputs each log entry as a structured JSON object on a single l
 
 ```bash
 # Enable JSON output
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --json
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --json
 ```
 
 ## Log File Output
@@ -64,10 +64,10 @@ You can direct log output to a file using the `--logfile` or `-l` flag. This wor
 
 ```bash
 # Console format to file (colors auto-disabled)
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx -l scan.log
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx -l scan.log
 
 # JSON format to file
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --json -l scan.jsonl
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --json -l scan.jsonl
 ```
 
 ## Controlling Log Levels
@@ -76,13 +76,13 @@ You can control which log messages are displayed using the `--log-level` flag or
 
 ```bash
 # Set specific log level
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --log-level=warn
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --log-level=warn
 
 # Enable debug logging (shortcut)
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --verbose
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --verbose
 
 # Available levels: trace, debug, info, warn, error
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --log-level=trace
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --log-level=trace
 ```
 
 **Important:** The `hit` level is always shown regardless of the `--log-level` setting, as it indicates critical security findings.
@@ -92,7 +92,7 @@ pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --log-level=trace
 You can change interactively between log levels by pressing `t`: Trace, `d`: Debug, `i`: info, `w`: Warn, `e`: Error.
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-[redacted] --truffle-hog-verification=false --verbose
+pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --truffle-hog-verification=false --verbose
 # Human Pressed d on keyboard
 2025-09-30T11:42:58Z info New Log level logLevel=debug
 ```

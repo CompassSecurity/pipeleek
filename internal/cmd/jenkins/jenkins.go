@@ -19,7 +19,7 @@ func NewJenkinsRootCmd() *cobra.Command {
 
 	jenkinsCmd.AddCommand(scan.NewScanCmd())
 
-	jenkinsCmd.PersistentFlags().StringVarP(&jenkinsUrl, "url", "j", "", "Jenkins instance URL")
+	jenkinsCmd.PersistentFlags().StringVarP(&jenkinsUrl, "url", "u", "", "Jenkins instance URL")
 	jenkinsCmd.PersistentFlags().StringVarP(&jenkinsApiToken, "token", "t", "", "Jenkins API Token")
 
 	return jenkinsCmd

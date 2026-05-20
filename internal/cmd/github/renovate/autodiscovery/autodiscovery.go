@@ -13,7 +13,7 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"url": "github.url",
+	"url":       "github.url",
 	"token":     "github.token",
 	"repo-name": "github.renovate.autodiscovery.repo_name",
 	"username":  "github.renovate.autodiscovery.username",
@@ -45,7 +45,7 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --url https://api.github.co
 		},
 	}
 	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryRepoName, "repo-name", "r", "", "The name for the created repository")
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "u", "", "The username of the victim Renovate Bot user to invite")
+	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "n", "", "The username of the victim Renovate Bot user to invite")
 
 	return autodiscoveryCmd
 }

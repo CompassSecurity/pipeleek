@@ -20,7 +20,7 @@ Start by creating a personal access token (`Menu` → `Preferences` → `Access 
 For an initial scan, target all repositories you can access, including public ones. To keep the scan fast and broad, limit it to the latest 15 jobs per project:
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-[redacted] --cookie [redacted] --artifacts --job-limit 15
+pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] --artifacts --job-limit 15
 2025-09-30T09:53:30Z info Gitlab Version Check revision=f0455ea9f90 version=18.5.0-pre
 2025-09-30T09:53:30Z info Fetching projects
 2025-09-30T09:53:30Z info Provided GitLab session cookie is valid

