@@ -29,6 +29,7 @@ var maxArtifactSize string
 
 // flagBindings maps CLI flags to configuration keys for binding and testing
 var flagBindings = map[string]string{
+	"url":                      "github.url",
 	"token":                    "github.token",
 	"org":                      "github.scan.org",
 	"user":                     "github.scan.user",
