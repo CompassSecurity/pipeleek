@@ -54,7 +54,7 @@ func TestGitLabUsersEnum(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "users", "enum",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 30*time.Second)
 
@@ -137,7 +137,7 @@ func TestGitLabUsersEnumUnauthenticatedFallback(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "users", "enum",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 	}, nil, 15*time.Second)
 
 	require.NoError(t, exitErr)
@@ -184,7 +184,7 @@ func TestGitLabUsersEnumUnauthenticatedRejected(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "users", "enum",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 	}, nil, 15*time.Second)
 
 	require.Error(t, exitErr)

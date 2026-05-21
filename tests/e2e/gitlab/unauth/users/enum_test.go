@@ -36,7 +36,7 @@ func TestGitLabUnauthenticatedUsersEnum(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "users", "enum",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 	}, nil, 15*time.Second)
 
 	require.NoError(t, exitErr)

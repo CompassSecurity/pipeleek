@@ -12,10 +12,10 @@ func NewEnumCmd() *cobra.Command {
 		Use:     "enum",
 		Short:   "Enumerate GitLab users",
 		Long:    "Enumerate GitLab users visible via the GitLab users API.",
-		Example: `pipeleek gl users enum --gitlab https://gitlab.example.com --token glpat-xxxxxxxxxxx`,
+		Example: `pipeleek gl users enum --url https://gitlab.example.com --token glpat-xxxxxxxxxxx`,
 		Run:     Enum,
 	}
-	enumCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return enumCmd
@@ -23,7 +23,7 @@ func NewEnumCmd() *cobra.Command {
 
 func Enum(cmd *cobra.Command, args []string) {
 	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab": "gitlab.url",
+		"url":   "gitlab.url",
 		"token":  "gitlab.token",
 	}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")

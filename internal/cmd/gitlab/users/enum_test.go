@@ -36,7 +36,7 @@ func TestEnumCommand_WithToken(t *testing.T) {
 	defer server.Close()
 
 	cmd := NewEnumCmd()
-	cmd.SetArgs([]string{"--gitlab", server.URL, "--token", "glpat-test"})
+	cmd.SetArgs([]string{"--url", server.URL, "--token", "glpat-test"})
 
 	require.NoError(t, cmd.Execute())
 
@@ -69,7 +69,7 @@ func TestEnumCommand_WithoutToken(t *testing.T) {
 	defer server.Close()
 
 	cmd := NewEnumCmd()
-	cmd.SetArgs([]string{"--gitlab", server.URL})
+	cmd.SetArgs([]string{"--url", server.URL})
 
 	require.NoError(t, cmd.Execute())
 
@@ -104,7 +104,7 @@ func TestEnumCommand_GlunaIgnoresConfiguredTokenByDefault(t *testing.T) {
 
 	root := &cobra.Command{Use: "gluna"}
 	root.AddCommand(NewUsersRootCmd())
-	root.SetArgs([]string{"users", "enum", "--gitlab", server.URL})
+	root.SetArgs([]string{"users", "enum", "--url", server.URL})
 
 	require.NoError(t, root.Execute())
 
@@ -139,7 +139,7 @@ func TestEnumCommand_GlunaUsesExplicitTokenFlag(t *testing.T) {
 
 	root := &cobra.Command{Use: "gluna"}
 	root.AddCommand(NewUsersRootCmd())
-	root.SetArgs([]string{"users", "enum", "--gitlab", server.URL, "--token", "glpat-explicit"})
+	root.SetArgs([]string{"users", "enum", "--url", server.URL, "--token", "glpat-explicit"})
 
 	require.NoError(t, root.Execute())
 
