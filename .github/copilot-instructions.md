@@ -191,40 +191,56 @@ make serve-docs  # Installs dependencies if needed, generates and serves docs
 
 ### Configuration Loading Pattern (MANDATORY)
 
-**ALWAYS use `config.AutoBindFlags` for configuration loading in ALL commands:**
+**Use `config.NewCommandSetup` as the canonical command configuration pattern.**
 
 ```go
 func CommandRun(cmd *cobra.Command, args []string) {
-    // 1. Bind flags to config keys
-    if err := config.AutoBindFlags(cmd, map[string]string{
-        "platform-flag": "platform.url",
-        "token":         "platform.token",
-        "threads":       "common.threads",
-    }); err != nil {
-        log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-    }
+    config.NewCommandSetup(cmd).
+        WithFlagBindings(map[string]string{
+            "url":     "platform.url",
+            "token":   "platform.token",
+            "threads": "common.threads",
+        }).
+        RequireKeys("platform.url", "platform.token").
+        AddValidator(func() error { return config.ValidateURL(config.GetString("platform.url"), "Platform URL") }).
+        AddValidator(func() error { return config.ValidateToken(config.GetString("platform.token"), "Platform API Token") }).
+        MustBind()
 
-    // 2. Validate required keys
-    if err := config.RequireConfigKeys("platform.url", "platform.token"); err != nil {
-        log.Fatal().Err(err).Msg("required configuration missing")
-    }
-
-    // 3. Get values from unified config (supports flags/env/file)
+    // Read values from unified config (supports flags/env/file)
     url := config.GetString("platform.url")
     token := config.GetString("platform.token")
     threads := config.GetInt("common.threads")
 }
 ```
 
+**Migration policy (mandatory):**
+- When modifying an existing command, migrate that touched command to `config.NewCommandSetup`.
+- Do not leave mixed setup styles in the same command implementation.
+- `config.AutoBindFlags` is still an internal building block, but command code should use `NewCommandSetup`.
+
 **Key naming convention:**
 - Platform settings: `<platform>.<key>` (e.g., `github.url`, `gitlab.token`)
 - Subcommand settings: `<platform>.<subcommand>.<key>` (e.g., `github.renovate.enum.owned`)
 - Common settings: `common.<key>` (e.g., `common.threads`)
 
+### Command Coverage Policy (MANDATORY)
+
+- When asked to update "all commands" for a platform, enumerate command files recursively under `internal/cmd/<platform>/` before editing.
+- Apply the requested change to scan and non-scan child commands, including nested children.
+- Do not stop after updating only `scan` commands.
+- Include grouped or nested command trees when applicable (for example, runners/list, runners/exploit, cicd/yaml, users/enum).
+
+**Checklist for broad command updates:**
+1. Discover command tree under `internal/cmd/<platform>/` recursively.
+2. Identify every command Run entrypoint impacted by the request.
+3. Apply updates across all applicable child commands (scan + non-scan + nested).
+4. Verify no command directory in scope was skipped.
+5. Confirm touched commands follow `config.NewCommandSetup` migration policy.
+
 **DO NOT:**
 - Read flags directly with `cmd.Flags().GetString()` - always use config system
-- Use `config.BindCommandFlags` - it's deprecated in favor of `AutoBindFlags`
-- Skip `RequireConfigKeys` validation for required flags
+- Use `config.BindCommandFlags` - it's deprecated
+- Skip required key validation for mandatory config values
 
 ### Package Organization
 
