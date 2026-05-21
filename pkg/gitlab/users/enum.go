@@ -788,7 +788,7 @@ func logDiscoveredUser(user *enumeratedUser, source string) {
 
 	knownFromUsersAPI := user.Sources&userSourceUsersAPI != 0
 
-	event := log.Debug().
+	event := log.Info().
 		Int64("id", user.ID).
 		Str("username", user.Username).
 		Str("name", user.Name).
