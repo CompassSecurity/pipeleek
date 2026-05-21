@@ -68,7 +68,7 @@ func TestGitLabUsersEnum(t *testing.T) {
 	assert.Contains(t, requests[1].RawQuery, "page=2")
 
 	assert.Contains(t, stdout, "Enumerating GitLab users")
-	assert.Contains(t, stdout, "User")
+	assert.Contains(t, stdout, "GitLab user")
 	assert.Contains(t, stdout, "alice")
 	assert.Contains(t, stdout, "bob")
 	assert.Contains(t, stdout, "GitLab user enumeration complete")

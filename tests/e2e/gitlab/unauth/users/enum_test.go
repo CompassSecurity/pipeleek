@@ -45,7 +45,7 @@ func TestGitLabUnauthenticatedUsersEnum(t *testing.T) {
 	require.Len(t, requests, 1)
 	assert.Equal(t, "/api/v4/users", requests[0].Path)
 	assert.Empty(t, requests[0].Headers.Get("PRIVATE-TOKEN"))
-	assert.Contains(t, stdout, "User")
+	assert.Contains(t, stdout, "GitLab user")
 	assert.Contains(t, stdout, "public-user")
 
 	t.Logf("STDOUT:\n%s", stdout)
