@@ -48,7 +48,7 @@ pipeleek jenkins scan --url https://jenkins.example.com --username admin --token
 	}
 
 	flags.AddCommonScanFlagsNoOwned(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
-	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Jenkins username")
+	scanCmd.Flags().StringVarP(&options.Username, "username", "n", "", "Jenkins username")
 	scanCmd.Flags().StringVarP(&options.Token, "token", "t", "", "Jenkins API token")
 	scanCmd.Flags().StringVarP(&options.Folder, "folder", "f", "", "Jenkins folder path to scan recursively (e.g. team-a/platform)")
 	scanCmd.Flags().StringVarP(&options.Job, "job", "", "", "Specific Jenkins job path to scan (e.g. team-a/service-a)")

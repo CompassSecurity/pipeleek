@@ -26,6 +26,7 @@ var maxArtifactSize string
 // flagBindings maps CLI flags to configuration keys for binding and testing.
 // #nosec G101 -- Contains configuration key names like "token", not hardcoded secrets.
 var flagBindings = map[string]string{
+	"url":                      "azure_devops.url",
 	"token":                    "azure_devops.token",
 	"username":                 "azure_devops.username",
 	"organization":             "azure_devops.scan.organization",
