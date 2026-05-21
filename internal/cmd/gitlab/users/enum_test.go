@@ -103,7 +103,7 @@ func TestEnumCommand_GlunaIgnoresConfiguredTokenByDefault(t *testing.T) {
 	defer server.Close()
 
 	root := &cobra.Command{Use: "gluna"}
-	root.AddCommand(NewUsersRootCmd())
+	root.AddCommand(NewUnauthenticatedUsersRootCmd())
 	root.SetArgs([]string{"users", "enum", "--url", server.URL})
 
 	require.NoError(t, root.Execute())
@@ -138,8 +138,8 @@ func TestEnumCommand_GlunaDropsExplicitTokenFlag(t *testing.T) {
 	defer server.Close()
 
 	root := &cobra.Command{Use: "gluna"}
-	root.AddCommand(NewUsersRootCmd())
-	root.SetArgs([]string{"users", "enum", "--url", server.URL, "--token", "glpat-explicit"})
+	root.AddCommand(NewUnauthenticatedUsersRootCmd())
+	root.SetArgs([]string{"users", "enum", "--url", server.URL})
 
 	require.NoError(t, root.Execute())
 
@@ -147,4 +147,10 @@ func TestEnumCommand_GlunaDropsExplicitTokenFlag(t *testing.T) {
 	defer mu.Unlock()
 	require.Len(t, requests, 1)
 	assert.Empty(t, requests[0].Header.Get("PRIVATE-TOKEN"))
+}
+
+func TestUnauthenticatedEnumCommand_DoesNotExposeTokenFlag(t *testing.T) {
+	cmd := NewUnauthenticatedEnumCmd()
+
+	assert.Nil(t, cmd.Flags().Lookup("token"))
 }

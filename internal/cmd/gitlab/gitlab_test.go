@@ -98,6 +98,20 @@ func TestNewUsersRootCmd(t *testing.T) {
 	enumCmd, _, err := cmd.Find([]string{"enum"})
 	require.NoError(t, err)
 	assert.NotNil(t, enumCmd)
+	assert.NotNil(t, enumCmd.Flags().Lookup("token"))
+}
+
+func TestNewUnauthenticatedUsersRootCmd(t *testing.T) {
+	cmd := users.NewUnauthenticatedUsersRootCmd()
+
+	require.NotNil(t, cmd)
+	assert.Equal(t, "users", cmd.Use)
+	assert.NotEmpty(t, cmd.Short)
+
+	enumCmd, _, err := cmd.Find([]string{"enum"})
+	require.NoError(t, err)
+	assert.NotNil(t, enumCmd)
+	assert.Nil(t, enumCmd.Flags().Lookup("token"))
 }
 
 func TestNewShodanCmd(t *testing.T) {

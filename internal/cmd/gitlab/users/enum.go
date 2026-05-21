@@ -15,17 +15,35 @@ var flagBindings = map[string]string{
 }
 
 func NewEnumCmd() *cobra.Command {
+	return newEnumCmd(true)
+}
+
+func NewUnauthenticatedEnumCmd() *cobra.Command {
+	return newEnumCmd(false)
+}
+
+func newEnumCmd(includeTokenFlag bool) *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:     "enum",
 		Short:   "Enumerate GitLab users",
 		Long:    "Enumerate GitLab users visible via the GitLab users API.",
-		Example: `pipeleek gl users enum --url https://gitlab.example.com --token glpat-xxxxxxxxxxx`,
+		Example: unauthenticatedEnumExample(includeTokenFlag),
 		Run:     Enum,
 	}
 	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
-	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
+	if includeTokenFlag {
+		enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
+	}
 
 	return enumCmd
+}
+
+func unauthenticatedEnumExample(includeTokenFlag bool) string {
+	if includeTokenFlag {
+		return `pipeleek gl users enum --url https://gitlab.example.com --token glpat-xxxxxxxxxxx`
+	}
+
+	return `pipeleek gluna users enum --url https://gitlab.example.com`
 }
 
 func Enum(cmd *cobra.Command, args []string) {
