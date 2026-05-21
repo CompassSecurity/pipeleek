@@ -279,7 +279,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 		"gl", "container", "artipacked",
 		"--url", server.URL,
 		"--token", "test-token",
-		"--project", "test-user/test-repo",
+		"--repo", "test-user/test-repo",
 	}, nil, 10*time.Second)
 
 	t.Logf("STDOUT:\n%s", stdout)

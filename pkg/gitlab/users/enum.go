@@ -803,7 +803,7 @@ func logDiscoveredUser(user *enumeratedUser, source string) {
 			Bool("privateProfile", user.PrivateProfile)
 	}
 
-	event.Msg("GitLab user discovered")
+	event.Msg("User")
 }
 
 func mergeCommonFields(user *enumeratedUser, name, publicEmail, profile, state string) {
@@ -844,10 +844,6 @@ func nextPage(resp *gitlab.Response) int64 {
 		return resp.NextPage
 	}
 	return -1
-}
-
-func isAnonymousEnumerationUnsupported(err error) bool {
-	return isAnonymousEnumerationUnsupportedWithResponse(err, nil)
 }
 
 func isAllMembersEndpointUnavailable(err error, resp *gitlab.Response) bool {
