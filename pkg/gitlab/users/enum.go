@@ -805,7 +805,7 @@ func logDiscoveredUser(user *enumeratedUser, source string) {
 			Bool("privateProfile", user.PrivateProfile)
 	}
 
-	event.Msg("Discovered GitLab user")
+	event.Msg("User")
 }
 
 func mergeCommonFields(user *enumeratedUser, name, publicEmail, profile, state string) {
