@@ -53,21 +53,21 @@ func TestEnumCmdDoesNotUsePreRunHook(t *testing.T) {
 }
 
 func TestGHRenovateEnumCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewEnumCmd()
-cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
-cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
+	cmd := NewEnumCmd()
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
+	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }

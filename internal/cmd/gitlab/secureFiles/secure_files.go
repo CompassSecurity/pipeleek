@@ -23,7 +23,7 @@ func NewSecureFilesCmd() *cobra.Command {
 		Example: `pipeleek gl secureFiles --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchSecureFiles,
 	}
-		secureFilesCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
+	secureFilesCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	secureFilesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return secureFilesCmd

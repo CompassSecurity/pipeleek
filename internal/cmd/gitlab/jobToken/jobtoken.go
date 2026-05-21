@@ -15,8 +15,8 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"url": "gitlab.url",
-	"token":  "gitlab.token",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
 }
 
 func NewJobTokenRootCmd() *cobra.Command {

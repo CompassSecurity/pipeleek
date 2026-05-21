@@ -12,6 +12,10 @@ import (
 func TestInitializeViper_NoFile(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	err := InitializeViper("")
 	require.NoError(t, err)

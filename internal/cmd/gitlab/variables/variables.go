@@ -19,7 +19,7 @@ func NewVariablesCmd() *cobra.Command {
 		Example: `pipeleek gl variables --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchVariables,
 	}
-		variablesCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
+	variablesCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	variablesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return variablesCmd

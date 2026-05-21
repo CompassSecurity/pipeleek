@@ -141,6 +141,11 @@ func TestAutoBindFlags_MultipleFlags(t *testing.T) {
 }
 
 func TestUnmarshalConfig_Defaults(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
+
 	resetViper(t)
 
 	cfg, err := UnmarshalConfig()

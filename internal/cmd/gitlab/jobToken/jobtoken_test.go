@@ -36,13 +36,13 @@ func TestNewJobTokenRootCmd(t *testing.T) {
 }
 
 func TestJobTokenCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewJobTokenRootCmd()
-cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
+	cmd := NewJobTokenRootCmd()
+	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("persistent flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }

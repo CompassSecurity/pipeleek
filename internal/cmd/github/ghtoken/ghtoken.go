@@ -15,8 +15,8 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"url": "github.url",
-	"token":  "github.token",
+	"url":   "github.url",
+	"token": "github.token",
 }
 
 func NewGhTokenRootCmd() *cobra.Command {

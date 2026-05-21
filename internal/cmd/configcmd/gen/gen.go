@@ -1,8 +1,8 @@
 package gen
 
 import (
-	"github.com/rs/zerolog/log"
 	"fmt"
+	"github.com/rs/zerolog/log"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd/common"
 	configgen "github.com/CompassSecurity/pipeleek/pkg/config/gen"
@@ -13,8 +13,8 @@ func NewGenCmd() *cobra.Command {
 	var outputFile string
 
 	genCmd := &cobra.Command{
-		Use:   "gen",
-		Short: "Generate an example pipeleek configuration file",
+		Use:          "gen",
+		Short:        "Generate an example pipeleek configuration file",
 		SilenceUsage: true,
 		Long: `Generate an example pipeleek.yaml configuration file that documents all
 available settings, their default values, corresponding CLI flags, and

@@ -265,6 +265,9 @@ func AutoBindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
 	for flagName, viperKey := range flagMappings {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil {
+			flag = cmd.PersistentFlags().Lookup(flagName)
+		}
+		if flag == nil {
 			flag = cmd.InheritedFlags().Lookup(flagName)
 		}
 		if flag != nil {

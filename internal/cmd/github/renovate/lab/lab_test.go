@@ -26,13 +26,13 @@ func TestLabCmdFlags(t *testing.T) {
 }
 
 func TestLabCmd_AllDefinedFlagsAreBound(t *testing.T) {
-cmd := NewLabCmd()
-cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-if flag.Name == "help" {
-return
-}
-if _, ok := flagBindings[flag.Name]; !ok {
-t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
-}
-})
+	cmd := NewLabCmd()
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }
