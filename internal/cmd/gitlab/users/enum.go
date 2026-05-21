@@ -1,11 +1,18 @@
 package users
 
 import (
+	"strings"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgusers "github.com/CompassSecurity/pipeleek/pkg/gitlab/users"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
+
+var flagBindings = map[string]string{
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
+}
 
 func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
@@ -22,31 +29,23 @@ func NewEnumCmd() *cobra.Command {
 }
 
 func Enum(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"url":   "gitlab.url",
-		"token":  "gitlab.token",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		MustBind()
 
 	gitlabURL := config.GetString("gitlab.url")
 	gitlabAPIToken := config.GetString("gitlab.token")
 
-	// gluna commands should stay unauthenticated by default even when a token
-	// exists in config/env; only honor token when user explicitly sets --token.
+	// gluna commands are intentionally unauthenticated for users enum.
 	if isSubcommandOf(cmd, "gluna") {
-		if flag := cmd.Flags().Lookup("token"); flag == nil || !flag.Changed {
-			gitlabAPIToken = ""
+		if strings.TrimSpace(gitlabAPIToken) != "" {
+			log.Warn().Msg("Ignoring provided GitLab API token for gluna users enum; command runs unauthenticated")
 		}
+		gitlabAPIToken = ""
 	}
 
-	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
 	if gitlabAPIToken != "" {
 		if err := config.ValidateToken(gitlabAPIToken, "GitLab API Token"); err != nil {
 			log.Fatal().Err(err).Msg("Invalid GitLab API Token")

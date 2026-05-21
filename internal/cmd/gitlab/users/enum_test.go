@@ -114,7 +114,7 @@ func TestEnumCommand_GlunaIgnoresConfiguredTokenByDefault(t *testing.T) {
 	assert.Empty(t, requests[0].Header.Get("PRIVATE-TOKEN"))
 }
 
-func TestEnumCommand_GlunaUsesExplicitTokenFlag(t *testing.T) {
+func TestEnumCommand_GlunaDropsExplicitTokenFlag(t *testing.T) {
 	t.Setenv("PIPELEEK_NO_CONFIG", "1")
 	t.Setenv("PIPELEEK_GITLAB_TOKEN", "glpat-config-token")
 	config.ResetViper()
@@ -146,5 +146,5 @@ func TestEnumCommand_GlunaUsesExplicitTokenFlag(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Len(t, requests, 1)
-	assert.Equal(t, "glpat-explicit", requests[0].Header.Get("PRIVATE-TOKEN"))
+	assert.Empty(t, requests[0].Header.Get("PRIVATE-TOKEN"))
 }

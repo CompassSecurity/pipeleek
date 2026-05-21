@@ -144,19 +144,20 @@ func enumerateUsersViaAPI(git *gitlab.Client) ([]*enumeratedUser, *gitlab.Respon
 func enumerateUsersFromPublicMembership(git *gitlab.Client) ([]*enumeratedUser, publicEnumerationStats, error) {
 	allUsers := newEnumeratedUsers()
 	stats := publicEnumerationStats{}
+	gqlClient, graphqlURL := buildGraphQLClient(git)
 
-	if err := collectPublicGroupMembers(git, allUsers, &stats); err != nil {
+	if err := collectPublicGroupMembers(git, gqlClient, graphqlURL, allUsers, &stats); err != nil {
 		return nil, stats, err
 	}
 
-	if err := collectPublicProjectMembers(git, allUsers, &stats); err != nil {
+	if err := collectPublicProjectMembers(git, gqlClient, graphqlURL, allUsers, &stats); err != nil {
 		return nil, stats, err
 	}
 
 	return allUsers.sorted(), stats, nil
 }
 
-func collectPublicGroupMembers(git *gitlab.Client, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
+func collectPublicGroupMembers(git *gitlab.Client, gqlClient *http.Client, graphqlURL string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	visibility := gitlab.PublicVisibility
 	page := int64(1)
 
@@ -191,10 +192,10 @@ func collectPublicGroupMembers(git *gitlab.Client, allUsers *enumeratedUsers, st
 				Str("groupFullPath", group.FullPath).
 				Int("groupsProcessed", stats.groupsListed).
 				Msg("Enumerating users from public group")
-			if err := collectGroupMembers(git, group.ID, group.FullPath, allUsers, stats); err != nil {
+			if err := collectGroupMembers(git, group.ID, allUsers, stats); err != nil {
 				if errors.Is(err, errAnonymousMembersEndpointUnauthorized) {
 					log.Debug().Str("groupFullPath", group.FullPath).Msg("Anonymous REST access to group members is denied; trying GraphQL fallback")
-					if gqlErr := collectGroupMembersViaGraphQL(git, group.FullPath, allUsers, stats); gqlErr != nil {
+					if gqlErr := collectGroupMembersViaGraphQL(gqlClient, graphqlURL, group.FullPath, allUsers, stats); gqlErr != nil {
 						return gqlErr
 					}
 					continue
@@ -209,8 +210,7 @@ func collectPublicGroupMembers(git *gitlab.Client, allUsers *enumeratedUsers, st
 	return nil
 }
 
-func collectGroupMembers(git *gitlab.Client, groupID int64, groupFullPath string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
-	_ = groupFullPath
+func collectGroupMembers(git *gitlab.Client, groupID int64, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	page := int64(1)
 
 	for page != -1 {
@@ -250,7 +250,7 @@ func collectGroupMembers(git *gitlab.Client, groupID int64, groupFullPath string
 	return nil
 }
 
-func collectPublicProjectMembers(git *gitlab.Client, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
+func collectPublicProjectMembers(git *gitlab.Client, gqlClient *http.Client, graphqlURL string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	visibility := gitlab.PublicVisibility
 	page := int64(1)
 
@@ -286,10 +286,10 @@ func collectPublicProjectMembers(git *gitlab.Client, allUsers *enumeratedUsers, 
 				Str("projectPathWithNamespace", project.PathWithNamespace).
 				Int("projectsProcessed", stats.projectsListed).
 				Msg("Enumerating users from public project")
-			if err := collectProjectMembers(git, project.ID, project.PathWithNamespace, allUsers, stats); err != nil {
+			if err := collectProjectMembers(git, project.ID, allUsers, stats); err != nil {
 				if errors.Is(err, errAnonymousMembersEndpointUnauthorized) {
 					log.Debug().Str("projectPathWithNamespace", project.PathWithNamespace).Msg("Anonymous REST access to project members is denied; trying GraphQL fallback")
-					if gqlErr := collectProjectMembersViaGraphQL(git, project.PathWithNamespace, allUsers, stats); gqlErr != nil {
+					if gqlErr := collectProjectMembersViaGraphQL(gqlClient, graphqlURL, project.PathWithNamespace, allUsers, stats); gqlErr != nil {
 						return gqlErr
 					}
 					continue
@@ -304,8 +304,7 @@ func collectPublicProjectMembers(git *gitlab.Client, allUsers *enumeratedUsers, 
 	return nil
 }
 
-func collectProjectMembers(git *gitlab.Client, projectID int64, projectPathWithNamespace string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
-	_ = projectPathWithNamespace
+func collectProjectMembers(git *gitlab.Client, projectID int64, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	page := int64(1)
 
 	for page != -1 {
@@ -390,7 +389,7 @@ type graphQLPageInfo struct {
 	EndCursor   string `json:"endCursor"`
 }
 
-func collectGroupMembersViaGraphQL(git *gitlab.Client, groupFullPath string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
+func collectGroupMembersViaGraphQL(client *http.Client, graphqlURL, groupFullPath string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	if strings.TrimSpace(groupFullPath) == "" {
 		return nil
 	}
@@ -418,7 +417,7 @@ func collectGroupMembersViaGraphQL(git *gitlab.Client, groupFullPath string, all
 
 	after := ""
 	for {
-		resp, err := doGraphQLRequest(git, query, map[string]any{
+		resp, err := doGraphQLRequest(client, graphqlURL, query, map[string]any{
 			"fullPath": groupFullPath,
 			"first":    100,
 			"after":    nullableCursor(after),
@@ -464,7 +463,7 @@ func collectGroupMembersViaGraphQL(git *gitlab.Client, groupFullPath string, all
 	return nil
 }
 
-func collectProjectMembersViaGraphQL(git *gitlab.Client, projectPathWithNamespace string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
+func collectProjectMembersViaGraphQL(client *http.Client, graphqlURL, projectPathWithNamespace string, allUsers *enumeratedUsers, stats *publicEnumerationStats) error {
 	if strings.TrimSpace(projectPathWithNamespace) == "" {
 		return nil
 	}
@@ -492,7 +491,7 @@ func collectProjectMembersViaGraphQL(git *gitlab.Client, projectPathWithNamespac
 
 	after := ""
 	for {
-		resp, err := doGraphQLRequest(git, query, map[string]any{
+		resp, err := doGraphQLRequest(client, graphqlURL, query, map[string]any{
 			"fullPath": projectPathWithNamespace,
 			"first":    100,
 			"after":    nullableCursor(after),
@@ -538,9 +537,14 @@ func collectProjectMembersViaGraphQL(git *gitlab.Client, projectPathWithNamespac
 	return nil
 }
 
-func doGraphQLRequest(git *gitlab.Client, query string, variables map[string]any) (*graphQLResponse, error) {
+func buildGraphQLClient(git *gitlab.Client) (*http.Client, string) {
 	apiBase := strings.TrimRight(git.BaseURL().String(), "/")
 	graphqlURL := strings.TrimSuffix(apiBase, "/api/v4") + "/api/graphql"
+	client := httpclient.GetPipeleekHTTPClient(apiBase, nil, nil).StandardClient()
+	return client, graphqlURL
+}
+
+func doGraphQLRequest(client *http.Client, graphqlURL, query string, variables map[string]any) (*graphQLResponse, error) {
 
 	body, err := json.Marshal(map[string]any{
 		"query":     query,
@@ -556,8 +560,6 @@ func doGraphQLRequest(git *gitlab.Client, query string, variables map[string]any
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// Use retryable HTTP client with automatic retries for 429 and 5xx errors
-	client := httpclient.GetPipeleekHTTPClient(apiBase, nil, nil).StandardClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -786,7 +788,7 @@ func logDiscoveredUser(user *enumeratedUser, source string) {
 
 	knownFromUsersAPI := user.Sources&userSourceUsersAPI != 0
 
-	event := log.Info().
+	event := log.Debug().
 		Int64("id", user.ID).
 		Str("username", user.Username).
 		Str("name", user.Name).
@@ -803,7 +805,7 @@ func logDiscoveredUser(user *enumeratedUser, source string) {
 			Bool("privateProfile", user.PrivateProfile)
 	}
 
-	event.Msg("User")
+	event.Msg("Discovered GitLab user")
 }
 
 func mergeCommonFields(user *enumeratedUser, name, publicEmail, profile, state string) {
