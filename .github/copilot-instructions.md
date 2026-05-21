@@ -216,7 +216,7 @@ func CommandRun(cmd *cobra.Command, args []string) {
 **Migration policy (mandatory):**
 - When modifying an existing command, migrate that touched command to `config.NewCommandSetup`.
 - Do not leave mixed setup styles in the same command implementation.
-- `config.AutoBindFlags` is still an internal building block, but command code should use `NewCommandSetup`.
+- Use `config.NewCommandSetup` for command binding and validation.
 
 **Key naming convention:**
 - Platform settings: `<platform>.<key>` (e.g., `github.url`, `gitlab.token`)
@@ -239,7 +239,7 @@ func CommandRun(cmd *cobra.Command, args []string) {
 
 **DO NOT:**
 - Read flags directly with `cmd.Flags().GetString()` - always use config system
-- Use `config.BindCommandFlags` - it's deprecated
+- Use legacy binder APIs removed from `pkg/config`
 - Skip required key validation for mandatory config values
 
 ### Package Organization

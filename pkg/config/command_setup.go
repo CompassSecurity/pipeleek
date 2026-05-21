@@ -71,7 +71,7 @@ func (cs *CommandSetup) AddValidator(fn func() error) *CommandSetup {
 // Returns early on first error.
 func (cs *CommandSetup) Bind() error {
 	if len(cs.flagBindings) > 0 {
-		if err := AutoBindFlags(cs.cmd, cs.flagBindings); err != nil {
+		if err := cs.bindFlags(); err != nil {
 			return fmt.Errorf("failed to bind command flags: %w", err)
 		}
 	}
@@ -85,6 +85,29 @@ func (cs *CommandSetup) Bind() error {
 	for _, validate := range cs.validators {
 		if err := validate(); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (cs *CommandSetup) bindFlags() error {
+	v := GetViper()
+
+	for flagName, viperKey := range cs.flagBindings {
+		flag := cs.cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			flag = cs.cmd.PersistentFlags().Lookup(flagName)
+		}
+		if flag == nil {
+			flag = cs.cmd.InheritedFlags().Lookup(flagName)
+		}
+		if flag == nil {
+			continue
+		}
+
+		if err := v.BindPFlag(viperKey, flag); err != nil {
+			return fmt.Errorf("failed to bind flag %s to key %s: %w", flagName, viperKey, err)
 		}
 	}
 

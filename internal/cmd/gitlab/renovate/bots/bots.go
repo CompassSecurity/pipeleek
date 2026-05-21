@@ -3,7 +3,6 @@ package bots
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgbots "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/bots"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -12,9 +11,9 @@ var (
 )
 
 var flagBindings = map[string]string{
-	"url": "gitlab.url",
-	"token":  "gitlab.token",
-	"term":   "gitlab.renovate.bots.term",
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
+	"term":  "gitlab.renovate.bots.term",
 }
 
 func NewBotsCmd() *cobra.Command {
@@ -23,13 +22,10 @@ func NewBotsCmd() *cobra.Command {
 		Short: "Enumerate potential Renovate bot user accounts",
 		Long:  "Search GitLab users by term, inspect their profile visibility and activity, and highlight potential Renovate bot accounts.",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token", "gitlab.renovate.bots.term"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token", "gitlab.renovate.bots.term").
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")

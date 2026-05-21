@@ -37,8 +37,8 @@ func TestTFCmdFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set hit-timeout flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("gitlab.tf.output_dir"); got != "./custom" {
@@ -60,8 +60,8 @@ func TestTFCmdEnvVarBinding(t *testing.T) {
 
 	cmd := NewTFCmd()
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("gitlab.tf.output_dir"); got != "./env-dir" {

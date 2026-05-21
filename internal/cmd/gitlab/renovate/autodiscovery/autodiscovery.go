@@ -1,8 +1,6 @@
 package autodiscovery
 
 import (
-	"github.com/rs/zerolog/log"
-
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/autodiscovery"
 	"github.com/spf13/cobra"
@@ -11,7 +9,7 @@ import (
 var (
 	autodiscoveryProjectName string
 	autodiscoveryUsername    string
-	autodiscoveryAddCICD  bool
+	autodiscoveryAddCICD     bool
 )
 
 var flagBindings = map[string]string{
@@ -35,13 +33,10 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --url https://gitla
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --project-name my-exploit-project --add-renovate-cicd-for-debugging
     `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token").
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")

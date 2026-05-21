@@ -98,13 +98,10 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --na
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		MustBind()
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")

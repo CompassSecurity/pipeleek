@@ -3,7 +3,6 @@ package artipacked
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgcontainer "github.com/CompassSecurity/pipeleek/pkg/gitlab/container/artipacked"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -36,16 +35,13 @@ func NewArtipackedCmd() *cobra.Command {
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token").
+				MustBind()
 
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
 
 			owned = config.GetBool("gitlab.container.artipacked.owned")
 			member = config.GetBool("gitlab.container.artipacked.member")

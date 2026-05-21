@@ -42,8 +42,8 @@ func TestGitHubScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set owned flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("github.scan.org"); got != "my-org" {
@@ -80,8 +80,8 @@ func TestGitHubScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("github.scan.org"); got != "env-org" {

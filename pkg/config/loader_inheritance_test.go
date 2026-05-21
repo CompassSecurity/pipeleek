@@ -44,10 +44,10 @@ gitlab:
 	cmd.Flags().String("token", "", "GitLab token")
 	cmd.Flags().String("level", "", "Enum level")
 
-	err = BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"url": "gitlab.url",
-		"token":  "gitlab.token",
-	})
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify that gitlab.url and gitlab.token are accessible from enum subcommand
@@ -139,7 +139,7 @@ gitlab:
 	cmd := &cobra.Command{Use: "scan"}
 	cmd.Flags().Int("threads", 0, "Threads")
 
-	err = BindCommandFlags(cmd, "gitlab.scan", map[string]string{})
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{"threads": "gitlab.scan.threads"}).Bind()
 	require.NoError(t, err)
 
 	// Simulating that gitlab.scan.threads takes priority over common.threads
@@ -150,7 +150,7 @@ gitlab:
 	err = cmd.Flags().Set("threads", "15")
 	require.NoError(t, err)
 
-	err = BindCommandFlags(cmd, "gitlab.scan", map[string]string{})
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{"threads": "gitlab.scan.threads"}).Bind()
 	require.NoError(t, err)
 
 	// After binding the flag with value 15, it should take precedence

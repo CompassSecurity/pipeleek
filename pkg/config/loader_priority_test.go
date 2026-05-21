@@ -36,9 +36,9 @@ func TestPriorityOrder_FlagsOverEnvVars(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bind flags
-	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url": "gitlab.url",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify flag takes precedence over env var
@@ -129,9 +129,9 @@ common:
 	require.NoError(t, err)
 
 	// Bind flags
-	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url": "gitlab.url",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Test 1: CLI flag should override config file

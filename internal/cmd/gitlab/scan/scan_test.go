@@ -86,8 +86,8 @@ func TestGitLabScanFlagBindings(t *testing.T) {
 	}
 
 	// Bind flags to Viper keys (same mapping as in Scan())
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	// Verify flag values are accessible via Viper keys
@@ -125,8 +125,8 @@ func TestGitLabScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	// Verify env vars are read (flag not set, so env var should win)

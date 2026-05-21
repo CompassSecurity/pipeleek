@@ -25,6 +25,18 @@ var options = BitBucketScanOptions{
 }
 var maxArtifactSize string
 
+var flagBindings = map[string]string{
+	"url":                      "bitbucket.url",
+	"token":                    "bitbucket.token",
+	"email":                    "bitbucket.email",
+	"cookie":                   "bitbucket.cookie",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -63,19 +75,9 @@ pipeleek bb scan --token ATATTxxxxxx --email auser@example.com --public --maxPip
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"url":                      "bitbucket.url",
-		"token":                    "bitbucket.token",
-		"email":                    "bitbucket.email",
-		"cookie":                   "bitbucket.cookie",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		MustBind()
 
 	options.BitBucketURL = config.GetString("bitbucket.url")
 	options.AccessToken = config.GetString("bitbucket.token")

@@ -36,10 +36,10 @@ gitlab:
 	cmd := enum.NewEnumCmd()
 
 	// Bind flags (simulating what happens when command runs)
-	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"url": "gitlab.url",
-		"token":  "gitlab.token",
-	})
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify required keys are satisfied from config file
@@ -79,10 +79,10 @@ func TestEnvironmentVariablesSatisfyRequiredFlags(t *testing.T) {
 	cmd := enum.NewEnumCmd()
 
 	// Bind flags
-	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"url": "gitlab.url",
-		"token":  "gitlab.token",
-	})
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify required keys are satisfied from environment
@@ -127,10 +127,10 @@ gitlab:
 	require.NoError(t, err)
 
 	// Bind flags (flag values should take precedence)
-	err = config.BindCommandFlags(cmd, "gitlab.enum", map[string]string{
-		"url": "gitlab.url",
-		"token":  "gitlab.token",
-	})
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify flag values take priority over config
@@ -162,10 +162,10 @@ func TestMissingRequiredKeysProducesError(t *testing.T) {
 	cmd.Flags().String("token", "", "GitLab token")
 
 	// Bind flags without setting any values
-	err = config.BindCommandFlags(cmd, "gitlab.test", map[string]string{
-		"url": "gitlab.url",
-		"token":  "gitlab.token",
-	})
+	err = config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
+		"url":   "gitlab.url",
+		"token": "gitlab.token",
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify RequireConfigKeys reports missing keys

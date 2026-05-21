@@ -80,14 +80,10 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("azure_devops.token", "azure_devops.username"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("azure_devops.token", "azure_devops.username").
+		MustBind()
 
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
