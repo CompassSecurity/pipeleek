@@ -9,7 +9,7 @@ import (
 
 func TestGitHubScan_AllDefinedFlagsAreBound(t *testing.T) {
 	cmd := NewScanCmd()
-	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings)
+	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings, "url")
 }
 
 func TestGitHubScanFlagBindings(t *testing.T) {

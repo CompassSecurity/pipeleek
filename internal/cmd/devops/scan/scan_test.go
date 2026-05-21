@@ -9,7 +9,7 @@ import (
 
 func TestDevOpsScan_AllDefinedFlagsAreBound(t *testing.T) {
 	cmd := NewScanCmd()
-	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings)
+	testutil.AssertAllFlagsHaveBindings(t, cmd, flagBindings, "url")
 }
 
 func TestDevOpsScanFlagBindings(t *testing.T) {
