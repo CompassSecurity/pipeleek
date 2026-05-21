@@ -3,6 +3,7 @@ package autodiscovery
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,9 +31,25 @@ func TestAutodiscoveryCmdFlags(t *testing.T) {
 			assert.NotNil(t, flag, "Flag %s should exist", tt.flagName)
 		})
 	}
+
+	usernameFlag := cmd.Flags().Lookup("username")
+	assert.NotNil(t, usernameFlag)
+	assert.Equal(t, "n", usernameFlag.Shorthand)
 }
 
 func TestAutodiscoveryCmdHasRun(t *testing.T) {
 	cmd := NewAutodiscoveryCmd()
 	assert.NotNil(t, cmd.Run, "Autodiscovery command should have Run function")
+}
+
+func TestGHAutodiscoveryCmd_AllDefinedFlagsAreBound(t *testing.T) {
+	cmd := NewAutodiscoveryCmd()
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Name == "help" {
+			return
+		}
+		if _, ok := flagBindings[flag.Name]; !ok {
+			t.Errorf("flag %q is defined but missing from flagBindings", flag.Name)
+		}
+	})
 }

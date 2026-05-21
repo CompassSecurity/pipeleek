@@ -126,7 +126,7 @@ func TestBitBucketScan_UnknownArchive_BinaryWithSecrets(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie",
@@ -251,7 +251,7 @@ func TestBitBucketScan_UnknownArchive_ELFBinary(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie",
@@ -377,7 +377,7 @@ func TestBitBucketScan_UnknownArchive_MixedBinaryFormats(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie",

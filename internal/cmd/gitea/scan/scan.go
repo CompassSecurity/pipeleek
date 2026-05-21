@@ -20,6 +20,24 @@ type GiteaScanOptions struct {
 var scanOptions = GiteaScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
+
+var flagBindings = map[string]string{
+	"url":                      "gitea.url",
+	"token":                    "gitea.token",
+	"cookie":                   "gitea.cookie",
+	"organization":             "gitea.scan.organization",
+	"repository":               "gitea.scan.repository",
+	"runs-limit":               "gitea.scan.runs_limit",
+	"start-run-id":             "gitea.scan.start_run_id",
+	"owned":                    "gitea.scan.owned",
+	"artifacts":                "gitea.scan.artifacts",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 var maxArtifactSize string
 
 func NewScanCmd() *cobra.Command {
@@ -45,22 +63,22 @@ To obtain the cookie:
 `,
 		Example: `
 # Scan all accessible repositories (including public) and their artifacts
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --artifacts --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --artifacts --cookie your_cookie_value
 
 # Scan without downloading artifacts
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --cookie your_cookie_value
 
 # Scan only repositories owned by the user
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --owned --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --owned --cookie your_cookie_value
 
 # Scan all repositories of a specific organization
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --organization my-org --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --organization my-org --cookie your_cookie_value
 
 # Scan a specific repository
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --repository owner/repo-name --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --repository owner/repo-name --cookie your_cookie_value
 
 # Scan a specific repository but limit the number of workflow runs to scan
-pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com --repository owner/repo-name --runs-limit 20 --cookie your_cookie_value
+pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --repository owner/repo-name --runs-limit 20 --cookie your_cookie_value
 		`,
 		Run: Scan,
 	}
@@ -76,16 +94,7 @@ pipeleek gitea scan --token gitea_token_xxxxx --gitea https://gitea.example.com 
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitea":                    "gitea.url",
-		"token":                    "gitea.token",
-		"cookie":                   "gitea.cookie",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
@@ -96,6 +105,12 @@ func Scan(cmd *cobra.Command, args []string) {
 	giteaURL := config.GetString("gitea.url")
 	giteaToken := config.GetString("gitea.token")
 	scanOptions.Cookie = config.GetString("gitea.cookie")
+	scanOptions.Organization = config.GetString("gitea.scan.organization")
+	scanOptions.Repository = config.GetString("gitea.scan.repository")
+	scanOptions.RunsLimit = config.GetInt("gitea.scan.runs_limit")
+	scanOptions.StartRunID = int64(config.GetInt("gitea.scan.start_run_id"))
+	scanOptions.Owned = config.GetBool("gitea.scan.owned")
+	scanOptions.Artifacts = config.GetBool("gitea.scan.artifacts")
 	scanOptions.MaxScanGoRoutines = config.GetInt("common.threads")
 	scanOptions.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")

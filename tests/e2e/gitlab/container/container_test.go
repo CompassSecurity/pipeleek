@@ -85,7 +85,7 @@ func TestContainerScanBasic(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -152,7 +152,7 @@ func TestContainerScanOwned(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--owned",
 	}, nil, 10*time.Second)
@@ -165,7 +165,7 @@ func TestContainerScanOwned(t *testing.T) {
 	assert.Contains(t, output, "Identified")
 }
 
-func TestContainerScanNamespace(t *testing.T) {
+func TestContainerScanGroup(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping e2e test in short mode")
 	}
@@ -220,7 +220,7 @@ func TestContainerScanNamespace(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--namespace", "my-group",
 	}, nil, 10*time.Second)
@@ -230,7 +230,7 @@ func TestContainerScanNamespace(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "Scanning specific namespace")
+	assert.Contains(t, output, "Scanning specific group")
 	assert.Contains(t, output, "Identified")
 }
 
@@ -277,7 +277,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--repo", "test-user/test-repo",
 	}, nil, 10*time.Second)
@@ -287,7 +287,7 @@ func TestContainerScanSingleRepo(t *testing.T) {
 
 	assert.Nil(t, exitErr)
 	output := stdout + stderr
-	assert.Contains(t, output, "Scanning specific repository")
+	assert.Contains(t, output, "Scanning specific project")
 	assert.Contains(t, output, "Identified")
 }
 
@@ -328,7 +328,7 @@ func TestContainerScanNoDockerfile(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -348,7 +348,7 @@ func TestContainerScanInvalidURL(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", "https://gitlab.example.com",
+		"--url", "https://gitlab.example.com",
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 
@@ -365,7 +365,7 @@ func TestContainerScanMissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", "https://gitlab.example.com",
+		"--url", "https://gitlab.example.com",
 	}, nil, 10*time.Second)
 
 	t.Logf("STDOUT:\n%s", stdout)
@@ -429,7 +429,7 @@ func TestContainerScanWithSearch(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--search", "app",
 	}, nil, 10*time.Second)
@@ -530,7 +530,7 @@ func TestContainerScanMetadataFieldsCreatedAtFromTagDetail(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "container", "artipacked",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 	}, nil, 10*time.Second)
 

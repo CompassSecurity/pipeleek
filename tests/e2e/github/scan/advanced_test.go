@@ -56,7 +56,7 @@ func TestGitHubScan_Organization(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--org", "test-org",
 	}, nil, 15*time.Second)
@@ -123,7 +123,7 @@ func SkipTestGitHubScan_Pagination(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 	}, nil, 15*time.Second)
@@ -191,7 +191,7 @@ func TestGitHubScan_RateLimit(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 	}, nil, 15*time.Second)
@@ -284,7 +284,7 @@ export POSSIBLE_KEY=maybe_a_secret_12345`
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--confidence", "high,medium",
@@ -387,7 +387,7 @@ func TestGitHubScan_MaxWorkflows(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--max-workflows", "2",

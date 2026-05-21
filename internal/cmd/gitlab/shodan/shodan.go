@@ -3,9 +3,12 @@ package shodan
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/shodan"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
+
+var flagBindings = map[string]string{
+	"json": "gitlab.shodan.json",
+}
 
 func NewShodanCmd() *cobra.Command {
 	shodanCmd := &cobra.Command{
@@ -14,15 +17,10 @@ func NewShodanCmd() *cobra.Command {
 		Long:    "Query Shodan for IPs running GitLab instances",
 		Example: `pipeleek gl shodan --json shodan_data.json`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"json": "gitlab.shodan.json",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.shodan.json"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.shodan.json").
+				MustBind()
 
 			shodanJsonFile := config.GetString("gitlab.shodan.json")
 

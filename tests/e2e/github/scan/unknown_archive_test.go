@@ -130,7 +130,7 @@ func TestGitHubScan_UnknownArchive_BinaryWithSecrets(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gh", "scan",
-		"--github", server.URL,
+		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
 		"--artifacts",

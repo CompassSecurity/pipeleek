@@ -48,7 +48,7 @@ For operational security (OpSec) or simply due to privacy concerns, you should d
 Use the `--truffle-hog-verification=false` flag:
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --truffle-hog-verification=false
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --truffle-hog-verification=false
 ```
 
 ### Confidence Filtering
@@ -56,7 +56,7 @@ pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --truffle-hog-verification
 Results can be filtered by confidence, using the `--confidence` flag.
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-xxxxx --confidence=high-verified,high
+pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --confidence=high-verified,high
 ```
 
 ## Custom Rules
@@ -94,6 +94,6 @@ patterns:
 When you run Pipeleek, you'll see results for your custom rule and any built-in rules:
 
 ```bash
-pipeleek gl scan -g https://gitlab.com -t glpat-[redacted] --truffle-hog-verification=false --verbose
+pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --truffle-hog-verification=false --verbose
 2025-09-30T11:39:08Z hit SECRET confidence=custom-confidence type=log jobName=build-job-hidden ruleName="Pipeleek Custom Rule" url=gitlab.com/testgroup/project/-/jobs/11547853360 value="PIPELEEK_HIT=secret"
 ```

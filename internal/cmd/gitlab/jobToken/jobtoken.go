@@ -14,6 +14,11 @@ var (
 	gitlabUrl      string
 )
 
+var flagBindings = map[string]string{
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
+}
+
 func NewJobTokenRootCmd() *cobra.Command {
 	jobTokenCmd := &cobra.Command{
 		Use:   "jobToken",
@@ -25,16 +30,10 @@ func NewJobTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab": "gitlab.url",
-				"token":  "gitlab.token",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token").
+				MustBind()
 
 			gitlabApiToken := config.GetString("gitlab.token")
 			if !strings.HasPrefix(gitlabApiToken, "glcbt-") {
@@ -45,7 +44,7 @@ func NewJobTokenRootCmd() *cobra.Command {
 		},
 	}
 
-	jobTokenCmd.PersistentFlags().StringVarP(&gitlabUrl, "gitlab", "g", "", "GitLab instance URL")
+	jobTokenCmd.PersistentFlags().StringVarP(&gitlabUrl, "url", "u", "", "GitLab instance URL")
 	jobTokenCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab CI Job Token")
 
 	jobTokenCmd.AddCommand(exploit.NewExploitCmd())

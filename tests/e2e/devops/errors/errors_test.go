@@ -14,7 +14,7 @@ func TestAzureDevOpsScan_MissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", "https://dev.azure.com",
+		"--url", "https://dev.azure.com",
 		"--organization", "myorg",
 	}, nil, 5*time.Second)
 
@@ -41,7 +41,7 @@ func TestAzureDevOpsScan_Unauthorized(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 		"--username", "testuser",
 		"--organization", "myorg",

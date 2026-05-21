@@ -23,6 +23,24 @@ var options = DevOpsScanOptions{
 }
 var maxArtifactSize string
 
+// flagBindings maps CLI flags to configuration keys for binding and testing.
+// #nosec G101 -- Contains configuration key names like "token", not hardcoded secrets.
+var flagBindings = map[string]string{
+	"url":                      "azure_devops.url",
+	"token":                    "azure_devops.token",
+	"username":                 "azure_devops.username",
+	"organization":             "azure_devops.scan.organization",
+	"project":                  "azure_devops.scan.project",
+	"max-builds":               "azure_devops.scan.max_builds",
+	"artifacts":                "azure_devops.scan.artifacts",
+	"owned":                    "azure_devops.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan [no options!]",
@@ -52,28 +70,18 @@ pipeleek ad scan --token <azdo_pat> --username auser --artifacts --organization 
 	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
 
 	scanCmd.Flags().StringVarP(&options.AccessToken, "token", "t", "", "Azure DevOps Personal Access Token - https://dev.azure.com/{yourUsername}/_usersSettings/tokens")
-	scanCmd.Flags().StringVarP(&options.Username, "username", "u", "", "Username")
+	scanCmd.Flags().StringVarP(&options.Username, "username", "n", "", "Username")
 
 	scanCmd.Flags().IntVarP(&options.MaxBuilds, "max-builds", "", -1, "Max. number of builds to scan per project")
 	scanCmd.Flags().StringVarP(&options.Organization, "organization", "", "", "Organization name to scan")
 	scanCmd.Flags().StringVarP(&options.Project, "project", "p", "", "Project name to scan - can be combined with organization")
-	scanCmd.Flags().StringVarP(&options.DevOpsURL, "devops", "d", "https://dev.azure.com", "Azure DevOps base URL")
 
 	return scanCmd
 }
 
 func Scan(cmd *cobra.Command, args []string) {
 	// #nosec G101 -- "token" is a configuration key name, not a hardcoded credential
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"devops":                   "azure_devops.url",
-		"token":                    "azure_devops.token",
-		"username":                 "azure_devops.username",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
@@ -84,6 +92,9 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.DevOpsURL = config.GetString("azure_devops.url")
 	options.AccessToken = config.GetString("azure_devops.token")
 	options.Username = config.GetString("azure_devops.username")
+	options.Organization = config.GetString("azure_devops.scan.organization")
+	options.Project = config.GetString("azure_devops.scan.project")
+	options.MaxBuilds = config.GetInt("azure_devops.scan.max_builds")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")

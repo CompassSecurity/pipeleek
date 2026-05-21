@@ -12,6 +12,10 @@ import (
 func TestInitializeViper_NoFile(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	err := InitializeViper("")
 	require.NoError(t, err)
@@ -101,14 +105,16 @@ common:
 	assert.Equal(t, "120s", GetString("common.hit_timeout"))
 }
 
-func TestInitializeViper_InvalidFile(t *testing.T) {
+func TestInitializeViper_MissingExplicitFileUsesDefaults(t *testing.T) {
 	// Reset global viper
 	globalViper = nil
 	// Ensure config file loading is enabled for this test
 	t.Setenv("PIPELEEK_NO_CONFIG", "")
 
 	err := InitializeViper("/nonexistent/path/to/config.yaml")
-	assert.Error(t, err)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, GetInt("common.threads"))
+	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
 }
 
 func TestInitializeViper_InvalidYAML(t *testing.T) {

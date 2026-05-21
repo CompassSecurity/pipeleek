@@ -15,6 +15,12 @@ var (
 	labRepoName string
 )
 
+var flagBindings = map[string]string{
+	"url": "github.url",
+	"token":     "github.token",
+	"repo-name": "github.renovate.lab.repo_name",
+}
+
 func NewLabCmd() *cobra.Command {
 	labCmd := &cobra.Command{
 		Use:   "lab",
@@ -22,20 +28,13 @@ func NewLabCmd() *cobra.Command {
 		Long:  "Creates a GitHub repository with Renovate Bot autodiscovery configuration enabled.",
 		Example: `
 # Create a Renovate testing lab repository
-pipeleek gh renovate lab --token ghp_xxxxx --github https://api.github.com --repo-name renovate-lab
+pipeleek gh renovate lab --token ghp_xxxxx --url https://api.github.com --repo-name renovate-lab
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":    "github.url",
-				"token":     "github.token",
-				"repo-name": "github.renovate.lab.repo_name",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token", "github.renovate.lab.repo_name"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token", "github.renovate.lab.repo_name").
+				MustBind()
 
 			// Get github URL and token from config (supports all three methods)
 			githubUrl := config.GetString("github.url")

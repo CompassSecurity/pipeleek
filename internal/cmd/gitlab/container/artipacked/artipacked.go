@@ -18,23 +18,25 @@ var (
 	orderBy            string
 )
 
+var flagBindings = map[string]string{
+	"url":       "gitlab.url",
+	"token":     "gitlab.token",
+	"owned":     "gitlab.container.artipacked.owned",
+	"member":    "gitlab.container.artipacked.member",
+	"repo":      "gitlab.container.artipacked.repo",
+	"namespace": "gitlab.container.artipacked.namespace",
+	"search":    "gitlab.container.artipacked.search",
+	"page":      "gitlab.container.artipacked.page",
+	"order-by":  "gitlab.container.artipacked.order_by",
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"gitlab":    "gitlab.url",
-				"token":     "gitlab.token",
-				"owned":     "gitlab.container.artipacked.owned",
-				"member":    "gitlab.container.artipacked.member",
-				"repo":      "gitlab.container.artipacked.repo",
-				"namespace": "gitlab.container.artipacked.namespace",
-				"search":    "gitlab.container.artipacked.search",
-				"page":      "gitlab.container.artipacked.page",
-				"order-by":  "gitlab.container.artipacked.order_by",
-			}); err != nil {
+			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 			}
 
@@ -59,10 +61,10 @@ func NewArtipackedCmd() *cobra.Command {
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
 	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
-	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all projects will be scanned)")
+	artipackedCmd.Flags().StringVarP(&repository, "repo", "r", "", "Repository to scan (if not set, all repositories will be scanned)")
 	artipackedCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to scan")
 	artipackedCmd.Flags().StringVarP(&projectSearchQuery, "search", "s", "", "Query string for searching projects")
-	artipackedCmd.Flags().IntVarP(&page, "page", "p", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
+	artipackedCmd.Flags().IntVar(&page, "page", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
 	artipackedCmd.Flags().StringVar(&orderBy, "order-by", "last_activity_at", "Order projects by: id, name, path, created_at, updated_at, star_count, last_activity_at, or similarity")
 
 	return artipackedCmd

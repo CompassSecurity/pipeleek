@@ -64,7 +64,7 @@ func TestJenkinsScan_HappyPath(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"jenkins", "scan",
-		"--jenkins", server.URL,
+		"--url", server.URL,
 		"--username", "admin",
 		"--token", "apitoken",
 		"--max-builds", "1",

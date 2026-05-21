@@ -85,7 +85,7 @@ func TestGiteaVuln(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
-		"--gitea", giteaURL,
+		"--url", giteaURL,
 		"--token", "mock-token",
 	}, env, 15*time.Second)
 
@@ -100,7 +100,7 @@ func TestGiteaVuln(t *testing.T) {
 func TestGiteaVuln_MissingToken(t *testing.T) {
 	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
-		"--gitea", "https://gitea.com",
+		"--url", "https://gitea.com",
 		// Token is now validated via RequireConfigKeys, not MarkFlagRequired
 	}, nil, 5*time.Second)
 
@@ -113,7 +113,7 @@ func TestGiteaVuln_MissingGitea(t *testing.T) {
 	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
 		"--token", "mock-token",
-		"--gitea", "", // Explicitly set to empty to trigger validation
+		"--url", "", // Explicitly set to empty to trigger validation
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without gitea URL")
@@ -136,7 +136,7 @@ func TestGiteaVuln_Unauthorized(t *testing.T) {
 
 	stdout, _, _ := testutil.RunCLI(t, []string{
 		"gitea", "vuln",
-		"--gitea", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, env, 10*time.Second)
 

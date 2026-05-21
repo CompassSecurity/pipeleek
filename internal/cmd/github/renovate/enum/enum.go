@@ -4,7 +4,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/github/renovate/enum"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +20,21 @@ var (
 	extendRenovateConfigService string
 )
 
+var flagBindings = map[string]string{
+	"url":                            "github.url",
+	"token":                          "github.token",
+	"owned":                          "github.renovate.enum.owned",
+	"member":                         "github.renovate.enum.member",
+	"repo":                           "github.renovate.enum.repo",
+	"org":                            "github.renovate.enum.org",
+	"search":                         "github.renovate.enum.search",
+	"fast":                           "github.renovate.enum.fast",
+	"dump":                           "github.renovate.enum.dump",
+	"page":                           "github.renovate.enum.page",
+	"order-by":                       "github.renovate.enum.order_by",
+	"extend-renovate-config-service": "github.renovate.enum.extend_renovate_config_service",
+}
+
 func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:   "enum [no options!]",
@@ -28,44 +42,28 @@ func NewEnumCmd() *cobra.Command {
 		Long:  "Enumerate GitHub repositories for Renovate bot configurations. Identifies repositories with Renovate workflows, config files, autodiscovery settings, and self-hosted configurations.",
 		Example: `
 # Enumerate all owned repositories
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --owned
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --owned
 
 # Enumerate all public repositories
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx
 
 # Enumerate specific organization
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --org mycompany
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --org mycompany
 
 # Enumerate with config file dump
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --owned --dump
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --owned --dump
 
 # Fast mode (skip config file detection)
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --org myorg --fast
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --org myorg --fast
 
 # Enumerate specific repository
-pipeleek gh renovate enum --github https://api.github.com --token ghp_xxxxx --repo owner/repo
+pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github":                         "github.url",
-				"token":                          "github.token",
-				"owned":                          "github.renovate.enum.owned",
-				"member":                         "github.renovate.enum.member",
-				"repo":                           "github.renovate.enum.repo",
-				"org":                            "github.renovate.enum.org",
-				"search":                         "github.renovate.enum.search",
-				"fast":                           "github.renovate.enum.fast",
-				"dump":                           "github.renovate.enum.dump",
-				"page":                           "github.renovate.enum.page",
-				"order-by":                       "github.renovate.enum.order_by",
-				"extend-renovate-config-service": "github.renovate.enum.extend_renovate_config_service",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.token").
+				MustBind()
 
 			githubUrl := config.GetString("github.url")
 			githubApiToken := config.GetString("github.token")

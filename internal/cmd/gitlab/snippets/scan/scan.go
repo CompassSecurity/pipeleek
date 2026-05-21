@@ -25,6 +25,20 @@ var options = ScanOptions{
 	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 
+var flagBindings = map[string]string{
+	"url":                      "gitlab.url",
+	"token":                    "gitlab.token",
+	"repo":                     "gitlab.snippets.scan.repo",
+	"namespace":                "gitlab.snippets.scan.namespace",
+	"search":                   "gitlab.snippets.scan.search",
+	"owned":                    "gitlab.snippets.scan.owned",
+	"member":                   "gitlab.snippets.scan.member",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -32,16 +46,16 @@ func NewScanCmd() *cobra.Command {
 		Long: `Scan snippet contents for secrets.
 
 By default, all snippets visible to the provided token are scanned, including public ones.
-Use --project to limit to a single project or --namespace to scan projects in a group and its subgroups.`,
+Use --repo to limit to a single repository or --namespace to scan repositories in a namespace.`,
 		Example: `
 # Scan all snippets visible to the token
-pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com
+pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com
 
-# Scan snippets for one project
-pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --project mygroup/myproject
+# Scan snippets for one repository
+pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --repo mygroup/myproject
 
-# Scan snippets of projects in a group and subgroups
-pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.example.com --namespace mygroup
+# Scan snippets of repositories in a namespace
+pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
 		Run: Scan,
 	}
@@ -49,37 +63,25 @@ pipeleek gl snippets scan --token glpat-xxxxxxxxxxx --gitlab https://gitlab.exam
 	flags.AddCommonScanFlagsNoArtifacts(scanCmd, &options.CommonScanOptions)
 	scanCmd.Flags().BoolVarP(&options.Owned, "owned", "o", false, "Scan only user owned repositories")
 	scanCmd.Flags().BoolVarP(&options.Member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching projects")
-	scanCmd.Flags().StringVarP(&options.Project, "project", "p", "", "Single project to scan, format: namespace/project")
-	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all group projects and subgroup projects)")
+	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching repositories")
+	scanCmd.Flags().StringVarP(&options.Project, "repo", "r", "", "Single repository to scan, format: namespace/repo")
+	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all namespace repositories and subgroup repositories)")
 
 	return scanCmd
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab":                   "gitlab.url",
-		"token":                    "gitlab.token",
-		"project":                  "gitlab.snippets.scan.project",
-		"namespace":                "gitlab.snippets.scan.namespace",
-		"search":                   "gitlab.snippets.scan.search",
-		"owned":                    "gitlab.snippets.scan.owned",
-		"member":                   "gitlab.snippets.scan.member",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
+		MustBind()
 
 	gitlabURL := config.GetString("gitlab.url")
 	gitlabToken := config.GetString("gitlab.token")
-	project := config.GetString("gitlab.snippets.scan.project")
+	project := config.GetString("gitlab.snippets.scan.repo")
 	namespace := config.GetString("gitlab.snippets.scan.namespace")
 	search := config.GetString("gitlab.snippets.scan.search")
 	owned := config.GetBool("gitlab.snippets.scan.owned")
@@ -94,17 +96,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 
 	if project != "" && namespace != "" {
-		log.Fatal().Msg("--project and --namespace are mutually exclusive")
-	}
-
-	if err := config.ValidateURL(gitlabURL, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
-	if err := config.ValidateThreadCount(threads); err != nil {
-		log.Fatal().Err(err).Msg("Invalid thread count")
+		log.Fatal().Msg("--repo and --namespace are mutually exclusive")
 	}
 
 	opts, err := snippetscan.InitializeOptions(

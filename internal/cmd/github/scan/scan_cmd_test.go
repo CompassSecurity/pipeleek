@@ -65,9 +65,11 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("repo") == nil {
 		t.Error("Expected 'repo' flag to exist")
 	}
-	if flags.Lookup("github") == nil {
-		t.Error("Expected 'github' flag to exist")
-	}
+}
+
+func TestGitHubScanCmd_PersistentFlags(t *testing.T) {
+	// Note: 'url' and 'token' are persistent flags on the parent github command,
+	// not on the scan subcommand itself, so they're not in cmd.Flags()
 }
 
 func TestGitHubScanOptions(t *testing.T) {

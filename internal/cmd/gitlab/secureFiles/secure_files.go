@@ -10,41 +10,35 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+var flagBindings = map[string]string{
+	"url":   "gitlab.url",
+	"token": "gitlab.token",
+}
+
 func NewSecureFilesCmd() *cobra.Command {
 	secureFilesCmd := &cobra.Command{
 		Use:     "secureFiles",
 		Short:   "Print CI/CD secure files",
 		Long:    "Fetch and print all CI/CD secure files for projects your token has access to.",
-		Example: `pipeleek gl secureFiles --token glpat-xxxxxxxxxxx --gitlab https://gitlab.mydomain.com`,
+		Example: `pipeleek gl secureFiles --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com`,
 		Run:     FetchSecureFiles,
 	}
-	secureFilesCmd.Flags().StringP("gitlab", "g", "", "GitLab instance URL")
+	secureFilesCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	secureFilesCmd.Flags().StringP("token", "t", "", "GitLab API Token")
 
 	return secureFilesCmd
 }
 
 func FetchSecureFiles(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"gitlab": "gitlab.url",
-		"token":  "gitlab.token",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
+		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
+		MustBind()
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
-
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab URL")
-	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
-		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
-	}
 
 	runFetchSecureFiles(gitlabUrl, gitlabApiToken)
 }

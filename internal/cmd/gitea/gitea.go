@@ -28,7 +28,7 @@ func NewGiteaRootCmd() *cobra.Command {
 	giteaCmd.AddCommand(variables.NewVariablesCommand())
 	giteaCmd.AddCommand(vuln.NewVulnCmd())
 
-	giteaCmd.PersistentFlags().StringVarP(&giteaUrl, "gitea", "g", "", "Gitea instance URL")
+	giteaCmd.PersistentFlags().StringVarP(&giteaUrl, "url", "u", "", "Gitea instance URL")
 	giteaCmd.PersistentFlags().StringVarP(&giteaApiToken, "token", "t", "", "Gitea API Token")
 
 	return giteaCmd

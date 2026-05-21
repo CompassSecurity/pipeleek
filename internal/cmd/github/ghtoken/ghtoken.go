@@ -14,6 +14,11 @@ var (
 	githubUrl      string
 )
 
+var flagBindings = map[string]string{
+	"url":   "github.url",
+	"token": "github.token",
+}
+
 func NewGhTokenRootCmd() *cobra.Command {
 	ghTokenCmd := &cobra.Command{
 		Use:   "ghtoken",
@@ -25,16 +30,10 @@ func NewGhTokenRootCmd() *cobra.Command {
 				rootCmd.PersistentPreRun(rootCmd, args)
 			}
 
-			if err := config.AutoBindFlags(cmd, map[string]string{
-				"github": "github.url",
-				"token":  "github.token",
-			}); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
-
-			if err := config.RequireConfigKeys("github.url", "github.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("github.url", "github.token").
+				MustBind()
 
 			githubApiToken := config.GetString("github.token")
 			if !strings.HasPrefix(githubApiToken, "ghs_") {
@@ -45,7 +44,7 @@ func NewGhTokenRootCmd() *cobra.Command {
 		},
 	}
 
-	ghTokenCmd.PersistentFlags().StringVarP(&githubUrl, "github", "g", "", "GitHub API base URL")
+	ghTokenCmd.PersistentFlags().StringVarP(&githubUrl, "url", "u", "", "GitHub API base URL")
 	ghTokenCmd.PersistentFlags().StringVarP(&githubApiToken, "token", "t", "", "GitHub Actions CI/CD Token (GITHUB_TOKEN)")
 
 	ghTokenCmd.AddCommand(exploit.NewExploitCmd())

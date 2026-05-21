@@ -41,9 +41,9 @@ func TestGLCicdYaml(t *testing.T) {
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
-		"--project", "test-project",
+		"--repo", "test-project",
 	}, nil, 10*time.Second)
 
 	assert.Nil(t, exitErr, "CI/CD yaml command should succeed")
@@ -56,13 +56,13 @@ func TestGLCicdYaml_MissingProject(t *testing.T) {
 	apiURL := setupMockGitLabCicdAPI(t)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", apiURL,
+		"--url", apiURL,
 		"--token", "mock-token",
 	}, nil, 5*time.Second)
 
-	assert.NotNil(t, exitErr, "Should fail without project flag")
+	assert.NotNil(t, exitErr, "Should fail without repo flag")
 	output := stdout + stderr
-	assert.Contains(t, output, "gitlab.cicd.yaml.project", "Should mention missing required project config key")
+	assert.Contains(t, output, "gitlab.cicd.yaml.repo", "Should mention missing required repo config key")
 }
 
 func TestGLCicdYaml_InvalidProject(t *testing.T) {
@@ -76,9 +76,9 @@ func TestGLCicdYaml_InvalidProject(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "mock-token",
-		"--project", "nonexistent/project",
+		"--repo", "nonexistent/project",
 	}, nil, 10*time.Second)
 
 	// Should report a not found error and exit non-zero
@@ -113,9 +113,9 @@ func TestGLCicdYaml_NoCiCdYaml(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "mock-token",
-		"--project", "test-project",
+		"--repo", "test-project",
 	}, nil, 10*time.Second)
 
 	// Should report an error indicating no CI/CD yaml file exists

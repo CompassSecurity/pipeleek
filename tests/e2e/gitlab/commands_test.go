@@ -67,7 +67,7 @@ func TestGitLabVariables(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "variables",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 30*time.Second)
 
@@ -141,7 +141,7 @@ func TestGitLabRunnersList(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "runners", "list",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 30*time.Second)
 
@@ -193,9 +193,9 @@ func TestGitLabCICDYaml(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "cicd", "yaml",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
-		"--project", "test/project",
+		"--repo", "test/project",
 	}, nil, 30*time.Second)
 
 	assert.Nil(t, exitErr, "CICD yaml command should succeed")
@@ -242,7 +242,7 @@ func TestGitLabSchedule(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "schedule",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 10*time.Second)
 
@@ -289,7 +289,7 @@ func TestGitLabSecureFiles(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "secureFiles",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 10*time.Second)
 
@@ -323,7 +323,7 @@ func TestGitLabUnauthenticatedRegister(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "register",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "registration-token",
 		"--executor", "shell",
 		"--description", "test-runner",
@@ -371,9 +371,8 @@ func TestGitLabVuln(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
-		"--project", "1",
 	}, nil, 10*time.Second)
 
 	// Log output regardless of success/failure

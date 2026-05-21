@@ -13,7 +13,7 @@ func TestGiteaScan_InvalidURL(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", "not-a-valid-url",
+		"--url", "not-a-valid-url",
 		"--token", "gitea-token",
 	}, nil, 5*time.Second)
 
@@ -29,7 +29,7 @@ func TestGiteaScan_MissingToken(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "scan",
-		"--gitea", "https://gitea.example.com",
+		"--url", "https://gitea.example.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without --token flag")
@@ -78,7 +78,7 @@ func TestGitea_APIErrors(t *testing.T) {
 
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"gitea", "scan",
-				"--gitea", server.URL,
+				"--url", server.URL,
 				"--token", "test-token",
 			}, nil, 10*time.Second)
 

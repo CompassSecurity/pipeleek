@@ -39,7 +39,7 @@ func TestGitLabEnum(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "enum",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 	}, nil, 10*time.Second)
 

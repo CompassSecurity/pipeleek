@@ -41,7 +41,7 @@ func TestLogging_FileOutputDisablesColorsAutomatically(t *testing.T) {
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test.log")
 
-	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
+	args := []string{"gl", "enum", "--url", "https://invalid.local", "--token", "test", "--logfile", logFile}
 	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
@@ -66,7 +66,7 @@ func TestLogging_FileOutputWithExplicitColorEnabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test_color.log")
 
-	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=true"}
+	args := []string{"gl", "enum", "--url", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=true"}
 	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
@@ -91,7 +91,7 @@ func TestLogging_FileOutputWithExplicitColorDisabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test_nocolor.log")
 
-	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=false"}
+	args := []string{"gl", "enum", "--url", "https://invalid.local", "--token", "test", "--logfile", logFile, "--color=false"}
 	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	content, err := os.ReadFile(logFile)
@@ -134,7 +134,7 @@ func TestLogging_LogFileCreatedSuccessfully(t *testing.T) {
 	_, err := os.Stat(logFile)
 	assert.True(t, os.IsNotExist(err), "Log file should not exist before command")
 
-	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
+	args := []string{"gl", "enum", "--url", "https://invalid.local", "--token", "test", "--logfile", logFile}
 	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 
 	stat, err := os.Stat(logFile)
@@ -153,7 +153,7 @@ func TestLogging_LogFileAppendMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "append.log")
 
-	args := []string{"gl", "enum", "--gitlab", "https://invalid.local", "--token", "test", "--logfile", logFile}
+	args := []string{"gl", "enum", "--url", "https://invalid.local", "--token", "test", "--logfile", logFile}
 
 	_, _, _ = testutil.RunCLI(t, args, nil, 30*time.Second)
 

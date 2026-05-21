@@ -27,6 +27,25 @@ var options = GitHubScanOptions{
 }
 var maxArtifactSize string
 
+// flagBindings maps CLI flags to configuration keys for binding and testing
+var flagBindings = map[string]string{
+	"url":                      "github.url",
+	"token":                    "github.token",
+	"org":                      "github.scan.org",
+	"user":                     "github.scan.user",
+	"search":                   "github.scan.search",
+	"repo":                     "github.scan.repo",
+	"public":                   "github.scan.public",
+	"max-workflows":            "github.scan.max_workflows",
+	"artifacts":                "github.scan.artifacts",
+	"owned":                    "github.scan.owned",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan [no options!]",
@@ -62,22 +81,13 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 	scanCmd.Flags().BoolVarP(&options.Public, "public", "p", false, "Scan all public repositories")
 	scanCmd.Flags().StringVarP(&options.SearchQuery, "search", "s", "", "GitHub search query")
 	scanCmd.Flags().StringVarP(&options.Repo, "repo", "r", "", "Scan a single repository in the format owner/repo")
-	scanCmd.Flags().StringVarP(&options.GitHubURL, "github", "g", "https://api.github.com", "GitHub API base URL")
 	scanCmd.MarkFlagsMutuallyExclusive("owned", "org", "user", "public", "search", "repo")
 
 	return scanCmd
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"github":                   "github.url",
-		"token":                    "github.token",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
+	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
 		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
 	}
 
@@ -87,6 +97,12 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	options.GitHubURL = config.GetString("github.url")
 	options.AccessToken = config.GetString("github.token")
+	options.Organization = config.GetString("github.scan.org")
+	options.User = config.GetString("github.scan.user")
+	options.SearchQuery = config.GetString("github.scan.search")
+	options.Repo = config.GetString("github.scan.repo")
+	options.Public = config.GetBool("github.scan.public")
+	options.MaxWorkflows = config.GetInt("github.scan.max_workflows")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")

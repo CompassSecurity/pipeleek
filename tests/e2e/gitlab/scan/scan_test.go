@@ -66,7 +66,7 @@ func TestGitLabScan_HappyPath(t *testing.T) {
 	// Run scan command
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test-token-123",
 	}, nil, 10*time.Second)
 
@@ -129,7 +129,7 @@ func TestGitLabScan_WithArtifacts(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "scan",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "glpat-test",
 		"--artifacts",      // Enable artifact scanning
 		"--job-limit", "1", // Limit to 1 job for faster test
@@ -161,7 +161,7 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		// Handle specific project lookup by name (for --repo flag)
+		// Handle specific repository lookup by name (for --repo flag)
 		if strings.Contains(r.URL.Path, "/projects/") && strings.Contains(r.URL.RawQuery, "search=") {
 			// When querying projects by name, return a single project object in an array
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
@@ -190,42 +190,42 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 	}{
 		{
 			name:        "with_search_query",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--search", "kubernetes"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--search", "kubernetes"},
 			shouldError: false,
 		},
 		{
 			name:        "with_owned_flag",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--owned"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--owned"},
 			shouldError: false,
 		},
 		{
 			name:        "with_member_flag",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--member"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--member"},
 			shouldError: false,
 		},
 		{
 			name:        "with_repo_flag",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--repo", "group/project"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--repo", "group/project"},
 			shouldError: false,
 		},
 		{
 			name:        "with_namespace_flag",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--namespace", "mygroup"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--namespace", "mygroup"},
 			shouldError: false,
 		},
 		{
 			name:        "with_job_limit",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--job-limit", "10"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--job-limit", "10"},
 			shouldError: false,
 		},
 		{
 			name:        "with_threads",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "--threads", "2"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "--threads", "2"},
 			shouldError: false,
 		},
 		{
 			name:        "with_verbose",
-			args:        []string{"gl", "scan", "--gitlab", server.URL, "--token", "test", "-v"},
+			args:        []string{"gl", "scan", "--url", server.URL, "--token", "test", "-v"},
 			shouldError: false,
 		},
 	}

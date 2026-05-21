@@ -17,8 +17,13 @@ func TestNewAzureDevOpsRootCmd(t *testing.T) {
 	assert.Equal(t, "AzureDevOps", cmd.GroupID)
 	assert.GreaterOrEqual(t, len(cmd.Commands()), 1, "should have at least 1 subcommand")
 
+	urlFlag := cmd.PersistentFlags().Lookup("url")
+	require.NotNil(t, urlFlag, "'url' persistent flag should be registered")
+	assert.Equal(t, "u", urlFlag.Shorthand, "'url' persistent flag shorthand should be 'u'")
+
 	scanCmd := cmd.Commands()[0]
 	assert.Equal(t, "scan [no options!]", scanCmd.Use)
+	assert.NotNil(t, scanCmd.InheritedFlags().Lookup("url"), "'url' flag should be inherited by scan command")
 }
 
 func TestNewScanCmd(t *testing.T) {
@@ -44,11 +49,6 @@ func TestNewScanCmd(t *testing.T) {
 	projectFlag := flags.Lookup("project")
 	assert.NotNil(t, projectFlag, "'project' flag should be registered")
 	assert.Equal(t, "", projectFlag.DefValue, "'project' flag default should be empty")
-
-	devopsFlag := flags.Lookup("devops")
-	assert.NotNil(t, devopsFlag, "'devops' flag should be registered")
-	assert.Equal(t, "https://dev.azure.com", devopsFlag.DefValue,
-		"'devops' flag default should be https://dev.azure.com")
 
 	maxBuildsFlag := flags.Lookup("max-builds")
 	assert.NotNil(t, maxBuildsFlag, "'max-builds' flag should be registered")

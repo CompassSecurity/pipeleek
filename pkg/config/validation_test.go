@@ -38,7 +38,21 @@ func TestValidateURL(t *testing.T) {
 			url:       "gitlab.com",
 			fieldName: "GitLab URL",
 			wantError: true,
-			errMsg:    "must include a scheme",
+			errMsg:    "must use http or https scheme",
+		},
+		{
+			name:      "non-http scheme rejected",
+			url:       "ftp://files.example.com",
+			fieldName: "API URL",
+			wantError: true,
+			errMsg:    "must use http or https scheme",
+		},
+		{
+			name:      "file scheme rejected",
+			url:       "file:///etc/passwd",
+			fieldName: "API URL",
+			wantError: true,
+			errMsg:    "must use http or https scheme",
 		},
 		{
 			name:      "invalid url",

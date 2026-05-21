@@ -90,7 +90,7 @@ func TestGLVuln(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
-		"--gitlab", gitlabURL,
+		"--url", gitlabURL,
 		"--token", "mock-token",
 	}, env, 15*time.Second)
 
@@ -105,7 +105,7 @@ func TestGLVuln(t *testing.T) {
 func TestGLVuln_MissingToken(t *testing.T) {
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gl", "vuln",
-		"--gitlab", "https://gitlab.com",
+		"--url", "https://gitlab.com",
 	}, nil, 5*time.Second)
 
 	assert.NotNil(t, exitErr, "Should fail without token")
@@ -140,7 +140,7 @@ func TestGLVuln_Unauthorized(t *testing.T) {
 
 	stdout, _, _ := testutil.RunCLI(t, []string{
 		"gl", "vuln",
-		"--gitlab", server.URL,
+		"--url", server.URL,
 		"--token", "invalid-token",
 	}, env, 10*time.Second)
 

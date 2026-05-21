@@ -70,7 +70,7 @@ Build complete`
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -197,7 +197,7 @@ DATABASE_URL=postgresql://admin:SuperSecretP@ss@db.local:5432/prod
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--username", "testuser",
 		"--organization", "TestOrg",
@@ -283,7 +283,7 @@ func TestAzureDevOpsScan_ThreadsConfiguration(t *testing.T) {
 		t.Run("threads_"+threads, func(t *testing.T) {
 			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 				"ad", "scan",
-				"--devops", server.URL,
+				"--url", server.URL,
 				"--token", "azure-pat-token",
 				"--username", "testuser",
 				"--organization", "testorg",
@@ -375,7 +375,7 @@ func TestAzureDevOpsScan_MaxBuilds(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -439,7 +439,7 @@ func TestAzureDevOpsScan_VerboseLogging(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
@@ -534,7 +534,7 @@ Build complete`
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"ad", "scan",
-		"--devops", server.URL,
+		"--url", server.URL,
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",

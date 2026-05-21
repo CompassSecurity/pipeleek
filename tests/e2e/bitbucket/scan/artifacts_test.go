@@ -24,7 +24,7 @@ func TestBitBucketScan_Artifacts_MissingCookie(t *testing.T) {
 	// Try to use --artifacts without --cookie (should fail due to cobra validation)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
@@ -134,7 +134,7 @@ SENDGRID_API_KEY=SG.1234567890abcdefghijklmnopqrstuvwxyz
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--token", "test-token",
 		"--email", "test@example.com",
 		"--cookie", "test-cookie",
@@ -272,7 +272,7 @@ GITHUB_TOKEN=ghp_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie-value",
@@ -417,7 +417,7 @@ ADMIN_PASSWORD=SuperSecretAdminPass123!
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie-value",
@@ -574,7 +574,7 @@ ENCRYPTION_KEY=abc123def456ghi789jkl012mno345pqr
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie-value",
@@ -615,7 +615,7 @@ func TestBitBucketScan_Cookie_WithoutArtifacts(t *testing.T) {
 	// Try to use --cookie without --artifacts (should fail due to cobra validation)
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--cookie", "test-cookie-value",
@@ -748,7 +748,7 @@ func TestBitBucketScan_DownloadArtifacts(t *testing.T) {
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"bb", "scan",
-		"--bitbucket", server.URL,
+		"--url", server.URL,
 		"--email", "testuser",
 		"--token", "testpass",
 		"--cookie", "test-cookie-value",
