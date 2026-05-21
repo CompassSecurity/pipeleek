@@ -222,7 +222,7 @@ func TestContainerScanGroup(t *testing.T) {
 		"gl", "container", "artipacked",
 		"--url", server.URL,
 		"--token", "test-token",
-		"--group", "my-group",
+		"--namespace", "my-group",
 	}, nil, 10*time.Second)
 
 	t.Logf("STDOUT:\n%s", stdout)
