@@ -129,9 +129,9 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 	}
 }
 
-// TestAutoBindFlagsRejectsBadMappings verifies that AutoBindFlags properly
+// TestFlagBindingsRejectBadMappings verifies that command setup binding properly
 // handles edge cases like invalid flag names and unknown keys.
-func TestAutoBindFlagsRejectsBadMappings(t *testing.T) {
+func TestFlagBindingsRejectBadMappings(t *testing.T) {
 	t.Run("NonexistentFlagIsIgnored", func(t *testing.T) {
 		globalViper = nil
 		err := InitializeViper("")
@@ -141,11 +141,11 @@ func TestAutoBindFlagsRejectsBadMappings(t *testing.T) {
 		cmd.Flags().String("existing-flag", "", "")
 
 		// Map a flag that doesn't exist - should not error
-		err = AutoBindFlags(cmd, map[string]string{
+		err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 			"nonexistent-flag": "some.key",
 			"existing-flag":    "some.other.key",
-		})
-		assert.NoError(t, err, "AutoBindFlags should not error on nonexistent flags")
+		}).Bind()
+		assert.NoError(t, err, "Bind should not error on nonexistent flags")
 	})
 
 	t.Run("EmptyMappingIsValid", func(t *testing.T) {
@@ -154,8 +154,8 @@ func TestAutoBindFlagsRejectsBadMappings(t *testing.T) {
 		require.NoError(t, err)
 
 		cmd := &cobra.Command{Use: "test"}
-		err = AutoBindFlags(cmd, map[string]string{})
-		assert.NoError(t, err, "AutoBindFlags should accept empty mapping")
+		err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{}).Bind()
+		assert.NoError(t, err, "Bind should accept empty mapping")
 	})
 
 	t.Run("DashesInFlagsConvertedToUnderscores", func(t *testing.T) {
@@ -166,9 +166,9 @@ func TestAutoBindFlagsRejectsBadMappings(t *testing.T) {
 		cmd := &cobra.Command{Use: "test"}
 		cmd.Flags().String("my-flag-name", "default", "")
 
-		err = AutoBindFlags(cmd, map[string]string{
+		err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 			"my-flag-name": "config.my_flag_name",
-		})
+		}).Bind()
 		require.NoError(t, err)
 
 		err = cmd.Flags().Set("my-flag-name", "value")
@@ -180,7 +180,7 @@ func TestAutoBindFlagsRejectsBadMappings(t *testing.T) {
 	})
 }
 
-// TestBindFlagsWithSubcommands verifies that AutoBindFlags works correctly
+// TestBindFlagsWithSubcommands verifies that command setup binding works correctly
 // with parent/child command hierarchies (inherited flags).
 func TestBindFlagsWithSubcommands(t *testing.T) {
 	t.Run("InheritedFlagsFromParent", func(t *testing.T) {
@@ -199,10 +199,10 @@ func TestBindFlagsWithSubcommands(t *testing.T) {
 		child.Flags().String("search", "", "Search query")
 
 		// Bind both parent (inherited) and child flags
-		err = AutoBindFlags(child, map[string]string{
+		err = NewCommandSetup(child).WithFlagBindings(map[string]string{
 			"token":  "api.token",
 			"search": "scan.search",
-		})
+		}).Bind()
 		require.NoError(t, err)
 
 		// Set parent flag and child flag
@@ -228,10 +228,10 @@ func TestBoolFlagBinding(t *testing.T) {
 	cmd.Flags().Bool("artifacts", false, "Include artifacts")
 	cmd.Flags().Bool("owned", false, "Only owned")
 
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"artifacts": "scan.artifacts",
 		"owned":     "scan.owned",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Test true values
@@ -252,10 +252,10 @@ func TestBoolFlagBinding(t *testing.T) {
 	cmd2.Flags().Bool("artifacts", false, "")
 	cmd2.Flags().Bool("owned", false, "")
 
-	err = AutoBindFlags(cmd2, map[string]string{
+	err = NewCommandSetup(cmd2).WithFlagBindings(map[string]string{
 		"artifacts": "scan.artifacts",
 		"owned":     "scan.owned",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Don't set any flags - should use defaults
@@ -273,10 +273,10 @@ func TestIntFlagBinding(t *testing.T) {
 	cmd.Flags().Int("threads", 4, "Thread count")
 	cmd.Flags().Int("max-builds", 0, "Max builds")
 
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"threads":    "common.threads",
 		"max-builds": "scan.max_builds",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	err = cmd.Flags().Set("threads", "10")
@@ -297,9 +297,9 @@ func TestStringSliceFlagBinding(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().StringSlice("confidence", []string{}, "Confidence levels")
 
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"confidence": "common.confidence_filter",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Set multiple values
@@ -322,10 +322,10 @@ func TestRequireConfigKeysWithBoundFlags(t *testing.T) {
 	cmd.Flags().String("url", "", "")
 	cmd.Flags().String("token", "", "")
 
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":   "gitlab.url",
 		"token": "gitlab.token",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Both flags unset - should fail
@@ -390,7 +390,7 @@ Key Naming Convention:
 Testing Each Command:
   For each scan command, verify:
   1. All flags are defined (cmd.Flags().StringVar, BoolVar, etc.)
-  2. All flags are bound (AutoBindFlags mapping)
+	2. All flags are bound (NewCommandSetup + WithFlagBindings mapping)
   3. All flags are read (config.GetString, GetBool, GetInt, etc.)
   4. Critical flags require values (RequireConfigKeys)
 `

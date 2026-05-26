@@ -26,6 +26,20 @@ var options = JenkinsScanOptions{
 
 var maxArtifactSize string
 
+var flagBindings = map[string]string{
+	"url":                      "jenkins.url",
+	"username":                 "jenkins.username",
+	"token":                    "jenkins.token",
+	"folder":                   "jenkins.scan.folder",
+	"job":                      "jenkins.scan.job",
+	"max-builds":               "jenkins.scan.max_builds",
+	"threads":                  "common.threads",
+	"truffle-hog-verification": "common.trufflehog_verification",
+	"max-artifact-size":        "common.max_artifact_size",
+	"confidence":               "common.confidence_filter",
+	"hit-timeout":              "common.hit_timeout",
+}
+
 func NewScanCmd() *cobra.Command {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
@@ -59,25 +73,10 @@ pipeleek jenkins scan --url https://jenkins.example.com --username admin --token
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, map[string]string{
-		"url":                      "jenkins.url",
-		"username":                 "jenkins.username",
-		"token":                    "jenkins.token",
-		"folder":                   "jenkins.scan.folder",
-		"job":                      "jenkins.scan.job",
-		"max-builds":               "jenkins.scan.max_builds",
-		"threads":                  "common.threads",
-		"truffle-hog-verification": "common.trufflehog_verification",
-		"max-artifact-size":        "common.max_artifact_size",
-		"confidence":               "common.confidence_filter",
-		"hit-timeout":              "common.hit_timeout",
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("jenkins.url", "jenkins.username", "jenkins.token"); err != nil {
-		log.Fatal().Err(err).Msg("required configuration missing")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("jenkins.url", "jenkins.username", "jenkins.token").
+		MustBind()
 
 	options.JenkinsURL = config.GetString("jenkins.url")
 	options.Username = config.GetString("jenkins.username")

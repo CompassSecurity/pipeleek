@@ -17,13 +17,13 @@ func resetViper(t *testing.T) {
 	}
 }
 
-func TestBindCommandFlags_LocalFlags(t *testing.T) {
+func TestCommandSetupBind_LocalFlags(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("my-flag", "default", "")
 
-	if err := BindCommandFlags(cmd, "gitlab.scan", nil); err != nil {
+	if err := NewCommandSetup(cmd).WithFlagBindings(map[string]string{"my-flag": "gitlab.scan.my_flag"}).Bind(); err != nil {
 		t.Fatalf("bind failed: %v", err)
 	}
 
@@ -36,13 +36,13 @@ func TestBindCommandFlags_LocalFlags(t *testing.T) {
 	}
 }
 
-func TestBindCommandFlags_Overrides(t *testing.T) {
+func TestCommandSetupBind_Overrides(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("url", "https://example.com", "")
 
-	if err := BindCommandFlags(cmd, "gitlab.scan", map[string]string{"url": "gitlab.url"}); err != nil {
+	if err := NewCommandSetup(cmd).WithFlagBindings(map[string]string{"url": "gitlab.url"}).Bind(); err != nil {
 		t.Fatalf("bind failed: %v", err)
 	}
 
@@ -55,7 +55,7 @@ func TestBindCommandFlags_Overrides(t *testing.T) {
 	}
 }
 
-func TestBindCommandFlags_InheritedFlags(t *testing.T) {
+func TestCommandSetupBind_InheritedFlags(t *testing.T) {
 	resetViper(t)
 
 	root := &cobra.Command{Use: "root"}
@@ -64,7 +64,7 @@ func TestBindCommandFlags_InheritedFlags(t *testing.T) {
 	child := &cobra.Command{Use: "child"}
 	root.AddCommand(child)
 
-	if err := BindCommandFlags(child, "gitlab.enum", map[string]string{"token": "gitlab.token"}); err != nil {
+	if err := NewCommandSetup(child).WithFlagBindings(map[string]string{"token": "gitlab.token"}).Bind(); err != nil {
 		t.Fatalf("bind failed: %v", err)
 	}
 
@@ -77,20 +77,20 @@ func TestBindCommandFlags_InheritedFlags(t *testing.T) {
 	}
 }
 
-func TestAutoBindFlags_LocalFlag(t *testing.T) {
+func TestCommandSetupBind_LocalFlag(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("token", "", "API token")
 
-	err := AutoBindFlags(cmd, map[string]string{"token": "gitlab.token"})
+	err := NewCommandSetup(cmd).WithFlagBindings(map[string]string{"token": "gitlab.token"}).Bind()
 	require.NoError(t, err)
 
 	require.NoError(t, cmd.Flags().Set("token", "my-token"))
 	assert.Equal(t, "my-token", GetString("gitlab.token"))
 }
 
-func TestAutoBindFlags_InheritedFlag(t *testing.T) {
+func TestCommandSetupBind_InheritedFlag(t *testing.T) {
 	resetViper(t)
 
 	root := &cobra.Command{Use: "root"}
@@ -99,24 +99,24 @@ func TestAutoBindFlags_InheritedFlag(t *testing.T) {
 	child := &cobra.Command{Use: "child"}
 	root.AddCommand(child)
 
-	err := AutoBindFlags(child, map[string]string{"url": "gitlab.url"})
+	err := NewCommandSetup(child).WithFlagBindings(map[string]string{"url": "gitlab.url"}).Bind()
 	require.NoError(t, err)
 
 	require.NoError(t, root.PersistentFlags().Set("url", "https://gitlab.example.com"))
 	assert.Equal(t, "https://gitlab.example.com", GetString("gitlab.url"))
 }
 
-func TestAutoBindFlags_UnknownFlagIsIgnored(t *testing.T) {
+func TestCommandSetupBind_UnknownFlagIsIgnored(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
 
 	// A flag that doesn't exist should be silently ignored, not error
-	err := AutoBindFlags(cmd, map[string]string{"nonexistent-flag": "some.key"})
+	err := NewCommandSetup(cmd).WithFlagBindings(map[string]string{"nonexistent-flag": "some.key"}).Bind()
 	assert.NoError(t, err)
 }
 
-func TestAutoBindFlags_MultipleFlags(t *testing.T) {
+func TestCommandSetupBind_MultipleFlags(t *testing.T) {
 	resetViper(t)
 
 	cmd := &cobra.Command{Use: "test"}
@@ -124,11 +124,11 @@ func TestAutoBindFlags_MultipleFlags(t *testing.T) {
 	cmd.Flags().String("url", "", "URL")
 	cmd.Flags().Int("threads", 4, "Thread count")
 
-	err := AutoBindFlags(cmd, map[string]string{
+	err := NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"token":   "gitlab.token",
 		"url":     "gitlab.url",
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	require.NoError(t, cmd.Flags().Set("token", "abc123"))

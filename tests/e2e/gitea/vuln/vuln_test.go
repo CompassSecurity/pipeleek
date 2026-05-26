@@ -104,7 +104,7 @@ func TestGiteaVuln_MissingToken(t *testing.T) {
 		// Token is now validated via RequireConfigKeys, not MarkFlagRequired
 	}, nil, 5*time.Second)
 
-	// With AutoBindFlags + RequireConfigKeys, missing token results in fatal log
+	// With command setup + RequireConfigKeys, missing token results in fatal log
 	assert.NotNil(t, exitErr, "Should fail without token")
 	assert.Contains(t, stdout, "required configuration missing", "Should mention missing required configuration")
 }

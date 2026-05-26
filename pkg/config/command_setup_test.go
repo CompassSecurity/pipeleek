@@ -60,34 +60,3 @@ func TestBindingsFromFlags_WithOverrides(t *testing.T) {
 	assert.Equal(t, bindings["token"], "gitlab.scan.token")
 	assert.Equal(t, bindings["threads"], "common.threads")
 }
-
-func TestParseBool(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         string
-		defaultValue  bool
-		expectedValue bool
-	}{
-		{"true string", "true", false, true},
-		{"1 string", "1", false, true},
-		{"yes string", "yes", false, true},
-		{"false string", "false", true, false},
-		{"empty uses default true", "", true, true},
-		{"empty uses default false", "", false, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// For this test, we'd need to set Viper keys, so we'll just test the logic
-			// In real usage, this would read from config.GetString()
-			val := tt.input
-			result := false
-			if val != "" {
-				result = val == "true" || val == "1" || val == "yes"
-			} else {
-				result = tt.defaultValue
-			}
-			assert.Equal(t, tt.expectedValue, result)
-		})
-	}
-}

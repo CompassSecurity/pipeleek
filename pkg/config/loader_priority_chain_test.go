@@ -52,11 +52,11 @@ gitlab:
 	require.NoError(t, err)
 
 	// Bind CLI flags to config keys
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":     "gitlab.url",
 		"token":   "gitlab.token",
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify CLI flags win over env vars, config file, and defaults
@@ -95,10 +95,10 @@ gitlab:
 	cmd.Flags().Int("threads", 0, "Thread count")
 
 	// Bind (but don't set) CLI flags
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":     "gitlab.url",
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify env vars override config file
@@ -136,10 +136,10 @@ gitlab:
 	cmd.Flags().Int("threads", 0, "Thread count")
 
 	// Bind (but don't set) CLI flags
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":     "gitlab.url",
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify config file values are used
@@ -186,11 +186,11 @@ gitlab:
 	// Note: NOT setting token or threads flags
 
 	// Bind all flags
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":     "gitlab.url",
 		"token":   "gitlab.token",
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify selective override behavior
@@ -228,9 +228,9 @@ common:
 	require.NoError(t, err)
 
 	// Bind CLI flag
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"threads": "common.threads",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify precedence: flag (5) > env var (3) > config file (2) > default (1)
@@ -261,9 +261,9 @@ gitlab:
 	cmd.Flags().String("token", "", "Token (empty default)")
 
 	// Bind flag
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"token": "gitlab.token",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify empty flag does NOT override config file value
@@ -303,11 +303,11 @@ gitlab:
 	err = cmd.Flags().Set("token", "flag-token")
 	require.NoError(t, err)
 
-	err = AutoBindFlags(cmd, map[string]string{
+	err = NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"url":   "gitlab.url",
 		"token": "gitlab.token",
 		"email": "gitlab.email",
-	})
+	}).Bind()
 	require.NoError(t, err)
 
 	// Verify independent precedence per key:

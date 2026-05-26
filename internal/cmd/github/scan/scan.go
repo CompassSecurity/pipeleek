@@ -87,13 +87,10 @@ pipeleek gh scan --token github_pat_xxxxxxxxxxx --artifacts --repo owner/repo
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("github.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("github.token").
+		MustBind()
 
 	options.GitHubURL = config.GetString("github.url")
 	options.AccessToken = config.GetString("github.token")

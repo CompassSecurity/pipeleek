@@ -94,13 +94,10 @@ pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --
 }
 
 func Scan(cmd *cobra.Command, args []string) {
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-	}
-
-	if err := config.RequireConfigKeys("gitea.url", "gitea.token"); err != nil {
-		log.Fatal().Err(err).Msg("Missing required configuration")
-	}
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitea.url", "gitea.token").
+		MustBind()
 
 	giteaURL := config.GetString("gitea.url")
 	giteaToken := config.GetString("gitea.token")

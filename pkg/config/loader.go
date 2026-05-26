@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
@@ -79,51 +77,6 @@ var globalViper *viper.Viper
 // Example: "max-artifact-size" -> "max_artifact_size".
 func normalizeFlagKey(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
-}
-
-// Deprecated: BindCommandFlags is deprecated. Use AutoBindFlags instead, which provides
-// explicit flag-to-key mappings without relying on baseKey concatenation.
-//
-// BindCommandFlags binds a command's flags (including inherited ones) to Viper keys.
-// Keys are derived from the provided baseKey plus the normalized flag name, unless
-// an override is provided in the overrides map (flag name -> viper key).
-//
-// Example:
-//
-//	BindCommandFlags(cmd, "gitlab.scan", map[string]string{"gitlab": "gitlab.url"})
-//	--threads -> gitlab.scan.threads
-//	--url  -> gitlab.url (override)
-func BindCommandFlags(cmd *cobra.Command, baseKey string, overrides map[string]string) error {
-	v := GetViper()
-
-	seen := make(map[string]struct{})
-	flagSets := []*pflag.FlagSet{cmd.Flags(), cmd.InheritedFlags(), cmd.PersistentFlags()}
-
-	for _, fs := range flagSets {
-		if fs == nil {
-			continue
-		}
-		fs.VisitAll(func(flag *pflag.Flag) {
-			if flag == nil {
-				return
-			}
-			if _, ok := seen[flag.Name]; ok {
-				return
-			}
-			seen[flag.Name] = struct{}{}
-
-			key := baseKey + "." + normalizeFlagKey(flag.Name)
-			if override, ok := overrides[flag.Name]; ok {
-				key = override
-			}
-
-			if err := v.BindPFlag(key, flag); err != nil {
-				log.Fatal().Err(err).Str("flag", flag.Name).Str("key", key).Msg("Failed to bind flag")
-			}
-		})
-	}
-
-	return nil
 }
 
 func InitializeViper(configFile string) error {
@@ -258,30 +211,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("azure_devops.url", "https://dev.azure.com")
 }
 
-// AutoBindFlags automatically binds all flags from a command to Viper using the provided key mappings.
-func AutoBindFlags(cmd *cobra.Command, flagMappings map[string]string) error {
-	v := GetViper()
-
-	for flagName, viperKey := range flagMappings {
-		flag := cmd.Flags().Lookup(flagName)
-		if flag == nil {
-			flag = cmd.PersistentFlags().Lookup(flagName)
-		}
-		if flag == nil {
-			flag = cmd.InheritedFlags().Lookup(flagName)
-		}
-		if flag != nil {
-			if err := v.BindPFlag(viperKey, flag); err != nil {
-				return fmt.Errorf("failed to bind flag %s to key %s: %w", flagName, viperKey, err)
-			}
-		}
-	}
-	return nil
-}
-
 // RequireConfigKeys validates that all required configuration keys have non-empty values.
 // This allows flags to be satisfied by either CLI flags or config file values.
-// Call this after AutoBindFlags to validate required values from any source.
 func RequireConfigKeys(keys ...string) error {
 	v := GetViper()
 	var missing []string

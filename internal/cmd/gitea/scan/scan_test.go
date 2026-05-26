@@ -72,8 +72,8 @@ func TestGiteaScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set owned flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("gitea.scan.organization"); got != "my-org" {
@@ -101,8 +101,8 @@ func TestGiteaScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("gitea.scan.organization"); got != "env-org" {

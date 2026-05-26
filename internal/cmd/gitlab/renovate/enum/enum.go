@@ -3,7 +3,6 @@ package enum
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/enum"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -41,17 +40,13 @@ func NewEnumCmd() *cobra.Command {
 		Use:   "enum [no options!]",
 		Short: "Enumerate Renovate configurations",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-				log.Fatal().Err(err).Msg("Failed to bind command flags to configuration keys")
-			}
+			config.NewCommandSetup(cmd).
+				WithFlagBindings(flagBindings).
+				RequireKeys("gitlab.url", "gitlab.token").
+				MustBind()
 
-			// Get gitlab URL and token from config (supports all three methods)
 			gitlabUrl := config.GetString("gitlab.url")
 			gitlabApiToken := config.GetString("gitlab.token")
-
-			if err := config.RequireConfigKeys("gitlab.url", "gitlab.token"); err != nil {
-				log.Fatal().Err(err).Msg("required configuration missing")
-			}
 
 			// All flags can come from config, CLI flags, or env vars via Viper
 			owned = config.GetBool("gitlab.renovate.enum.owned")

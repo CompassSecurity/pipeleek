@@ -69,8 +69,8 @@ func TestCircleScanFlagBindings(t *testing.T) {
 		t.Fatalf("Failed to set artifacts flag: %v", err)
 	}
 
-	if err := config.AutoBindFlags(cmd, flagBindings); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("circle.scan.org"); got != "my-org" {
@@ -95,11 +95,11 @@ func TestCircleScanEnvVarBinding(t *testing.T) {
 
 	cmd := NewScanCmd()
 
-	if err := config.AutoBindFlags(cmd, map[string]string{
+	if err := config.NewCommandSetup(cmd).WithFlagBindings(map[string]string{
 		"org":       "circle.scan.org",
 		"artifacts": "circle.scan.artifacts",
-	}); err != nil {
-		t.Fatalf("AutoBindFlags failed: %v", err)
+	}).Bind(); err != nil {
+		t.Fatalf("Bind failed: %v", err)
 	}
 
 	if got := config.GetString("circle.scan.org"); got != "env-org" {
