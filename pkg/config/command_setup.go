@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -27,25 +26,6 @@ func NewCommandSetup(cmd *cobra.Command) *CommandSetup {
 		requiredKeys: []string{},
 		validators:   []func() error{},
 	}
-}
-
-// WithAutoBindings automatically generates flag bindings from Cobra flag definitions.
-// It derives viper keys from flag names, with optional overrides for specific flags.
-// Example: flag "max-artifact-size" -> key "common.max_artifact_size" (or override with map)
-func (cs *CommandSetup) WithAutoBindings(overrides map[string]string) *CommandSetup {
-	cs.cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		if flag.Name == "help" {
-			return
-		}
-
-		if override, ok := overrides[flag.Name]; ok {
-			cs.flagBindings[flag.Name] = override
-		} else {
-			// Auto-derive viper key: replace hyphens with underscores and prefix with "common."
-			cs.flagBindings[flag.Name] = "common." + strings.ReplaceAll(flag.Name, "-", "_")
-		}
-	})
-	return cs
 }
 
 // WithFlagBindings sets explicit flag-to-config-key mappings, replacing any auto-derived bindings.
@@ -147,13 +127,4 @@ func BindingsFromFlags(cmd *cobra.Command, platformKey string, commandKey string
 	})
 
 	return bindings
-}
-
-// ParseBool is a convenience for reading boolean config values with a fallback default.
-func ParseBool(key string, defaultValue bool) bool {
-	val := GetString(key)
-	if val == "" {
-		return defaultValue
-	}
-	return strings.EqualFold(val, "true") || strings.EqualFold(val, "1") || strings.EqualFold(val, "yes")
 }
