@@ -78,7 +78,7 @@ func (cs *CommandSetup) Bind() error {
 
 	if len(cs.requiredKeys) > 0 {
 		if err := RequireConfigKeys(cs.requiredKeys...); err != nil {
-			return fmt.Errorf("required configuration missing: %w", err)
+			return err
 		}
 	}
 
