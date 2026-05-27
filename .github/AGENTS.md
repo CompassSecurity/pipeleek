@@ -6,7 +6,7 @@ This document defines maintainer-oriented execution modes for Copilot work in th
 
 ### When to use
 
-Use when implementing or modifying a command and you need the repository-standard command structure.
+Use when implementing or modifying an existing command and you need the repository-standard command structure.
 
 ### Inputs required
 
@@ -80,7 +80,8 @@ Use when flags, config keys, or command semantics are updated.
 
 ### When to use
 
-Use when adding a new CLI command or subcommand, including its config bindings, docs, and tests.
+Use when adding a new CLI command or subcommand.
+Apply the `command-implementation` mode as the baseline, then add the creation-specific work in this mode.
 
 ### Inputs required
 
@@ -92,15 +93,17 @@ Use when adding a new CLI command or subcommand, including its config bindings, 
 
 - New command added with Cobra wiring and consistent flag naming.
 - Command uses `config.NewCommandSetup` with bindings, required keys, and validators.
-- Tests added or updated for command behavior.
+- Unit tests and e2e tests added or updated for command behavior.
+- Each flag defined on the new command is covered by at least one useful e2e test that asserts behavior.
 - Documentation updated for flags/config keys and usage examples.
 
 ### Validation checklist
 
 1. Confirm command is registered in the correct parent command tree.
 2. Confirm config bindings, required keys, and validators are complete.
-3. Confirm tests for the new command path pass.
-4. Confirm docs and configuration references are synchronized.
+3. Confirm unit tests and e2e tests for the new command path pass.
+4. Confirm each flag defined on the new command has at least one behavior-asserting e2e test.
+5. Confirm docs and configuration references are synchronized.
 
 ## pr-review-fixes
 

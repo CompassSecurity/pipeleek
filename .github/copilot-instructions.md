@@ -198,6 +198,8 @@ make serve-docs  # Installs dependencies if needed, generates and serves docs
 
 - Commands follow the Cobra pattern with `NewXCommand()` functions
 - Each command should have a corresponding test file
+- New commands must include unit tests and e2e tests.
+- Each flag defined on a new command must have at least one useful e2e test that asserts behavior.
 - Commands are organized by platform (gitlab, github, bitbucket, devops, gitea)
 - Use consistent flag naming across commands
 - **When adding or modifying command flags**: Update `docs/introduction/configuration.md` and ensure `pipeleek config gen` output remains accurate
