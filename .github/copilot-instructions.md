@@ -229,9 +229,7 @@ func CommandRun(cmd *cobra.Command, args []string) {
 ```
 
 **Implementation policy (mandatory):**
-- Use `config.NewCommandSetup` with complete `WithFlagBindings` coverage for consumed flags.
-- Do not leave mixed setup styles in the same command implementation.
-- Use `config.NewCommandSetup` for command binding and validation.
+- For every new command, and whenever modifying an existing command, use `config.NewCommandSetup` for command binding and validation with complete `WithFlagBindings` coverage for all consumed flags; do not leave or introduce legacy or mixed setup styles in the touched command.
 
 **Key naming convention:**
 - Platform settings: `<platform>.<key>` (e.g., `github.url`, `gitlab.token`)
