@@ -1,5 +1,18 @@
 # GitHub Copilot Instructions for Pipeleek
 
+## Maintainer Quick Index
+
+- Canonical policy and constraints: this file
+- Maintainer quick-start router: `.instructions.md`
+- Agent mode definitions: `.github/AGENTS.md`
+- Reusable task skills:
+    - `.github/SKILLS/command-implementation.md`
+    - `.github/SKILLS/command-coverage.md`
+    - `.github/SKILLS/docs-sync.md`
+    - `.github/SKILLS/new-command.md`
+    - `.github/SKILLS/pr-review-fixes.md`
+    - `.github/SKILLS/pr-actions-failures-debug.md`
+
 ## Project Overview
 
 Pipeleek is a CLI tool designed to scan CI/CD logs and artifacts for secrets across multiple platforms including GitLab, GitHub, BitBucket, Azure DevOps, and Gitea. The tool uses TruffleHog for secret detection and provides additional helper commands for exploitation workflows.
@@ -213,8 +226,8 @@ func CommandRun(cmd *cobra.Command, args []string) {
 }
 ```
 
-**Migration policy (mandatory):**
-- When modifying an existing command, migrate that touched command to `config.NewCommandSetup`.
+**Implementation policy (mandatory):**
+- Use `config.NewCommandSetup` with complete `WithFlagBindings` coverage for consumed flags.
 - Do not leave mixed setup styles in the same command implementation.
 - Use `config.NewCommandSetup` for command binding and validation.
 
@@ -235,12 +248,83 @@ func CommandRun(cmd *cobra.Command, args []string) {
 2. Identify every command Run entrypoint impacted by the request.
 3. Apply updates across all applicable child commands (scan + non-scan + nested).
 4. Verify no command directory in scope was skipped.
-5. Confirm touched commands follow `config.NewCommandSetup` migration policy.
+5. Confirm touched commands follow the `config.NewCommandSetup` implementation policy.
 
 **DO NOT:**
 - Read flags directly with `cmd.Flags().GetString()` - always use config system
 - Use legacy binder APIs removed from `pkg/config`
 - Skip required key validation for mandatory config values
+
+## Copilot Maintainer Workflow (MANDATORY)
+
+Before implementing broad or risky changes:
+
+1. State the exact scope (single command, command tree, or platform-wide).
+2. Identify files to update and validate command-tree coverage recursively when scope is broad.
+3. Define acceptance criteria (behavior, config keys, docs updates, and tests).
+
+Task intake template (use this structure in the first implementation update):
+
+1. Scope: single command, command tree, or platform-wide.
+2. In-scope files: explicit paths to be changed.
+3. Out-of-scope files: explicit exclusions.
+4. Acceptance criteria: behavior parity/change intent, docs sync, and test targets.
+
+During implementation:
+
+1. Preserve behavior unless the user requested behavior changes.
+2. Ensure touched command files use `config.NewCommandSetup` with complete `WithFlagBindings` mappings.
+3. Keep config key naming aligned with `<platform>.<key>`, `<platform>.<subcommand>.<key>`, and `common.<key>`.
+
+Before completion:
+
+1. Run focused tests for touched packages first, then broader checks as needed.
+2. If flags/keys changed, update `docs/introduction/configuration.md` and verify `pipeleek config gen` expectations.
+3. Report covered command groups and any explicit non-applicable areas.
+
+Completion checklist (must be satisfied before finalizing):
+
+1. Scope coverage reported with concrete command groups.
+2. Behavior impact stated (preserved or changed by request).
+3. Validation commands listed with outcomes.
+4. Docs sync status stated for configuration/flag changes.
+
+## Debugging Playbook for Copilot Changes
+
+When changes fail tests or behave unexpectedly:
+
+1. Reproduce with the smallest failing test target.
+2. Check config binding chain first (flag bindings, required keys, validators, and getter usage).
+3. Verify command-tree completeness for platform-wide requests to avoid partial updates.
+4. Validate user-facing examples in docs against current command syntax.
+5. Escalate only after recording what was tested and what remained inconclusive.
+
+Common failure modes and first checks:
+
+1. Missing required key at runtime:
+    - Check `RequireKeys` bindings and key naming alignment.
+2. Flag appears ignored:
+    - Check `WithFlagBindings` mapping for that flag and key.
+3. Platform-wide request partially applied:
+    - Re-run recursive command-tree enumeration under `internal/cmd/<platform>/`.
+4. Docs and command syntax mismatch:
+    - Compare changed command flags with `docs/introduction/configuration.md` and guide examples.
+
+## Security and Data Handling for Copilot Sessions
+
+1. Never log raw secrets or tokens in examples beyond redacted placeholders.
+2. Keep command examples safe for copy/paste by using redacted values (`[redacted]`).
+3. Avoid introducing docs guidance that encourages disabling verification in production workflows.
+4. Preserve and follow existing security policies in `SECURITY.md` and repository workflows.
+
+## Maintenance Cadence
+
+Update Copilot docs when one of the following changes occurs:
+
+1. Command configuration APIs in `pkg/config` change.
+2. Platform command tree structure changes.
+3. Flag or config key semantics change.
+4. Test strategy or CI validation gates change.
 
 ### Package Organization
 
