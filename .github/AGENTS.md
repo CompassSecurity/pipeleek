@@ -130,7 +130,7 @@ Use when a pull request has review comments that require code changes and thread
 3. Run focused tests for touched areas.
 4. Confirm each addressed thread has a clear resolution note.
 
-## pr-actions-debug-fixes
+## pr-actions-failures-debug
 
 ### When to use
 
