@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestHeaderRoundTripper_RoundTrip(t *testing.T) {
@@ -235,6 +236,135 @@ func TestSetIgnoreProxy(t *testing.T) {
 		// When ignoreProxy is false and HTTP_PROXY is set, Proxy should be set
 		if tr.Proxy == nil {
 			t.Error("Expected Proxy to be set when ignoreProxy is false and HTTP_PROXY is set")
+		}
+	})
+}
+
+// saveAndRestoreConfig saves the current global config and returns a cleanup function.
+func saveAndRestoreConfig(t *testing.T) func() {
+	t.Helper()
+	configMu.RLock()
+	saved := globalConfig
+	configMu.RUnlock()
+	return func() {
+		configMu.Lock()
+		globalConfig = saved
+		configMu.Unlock()
+	}
+}
+
+func TestSetInsecureSkipVerify(t *testing.T) {
+	restore := saveAndRestoreConfig(t)
+	defer restore()
+
+	t.Run("default is true (skip verification)", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetInsecureSkipVerify(true)
+		client := GetPipeleekHTTPClient("", nil, nil)
+		hrt := client.HTTPClient.Transport.(*HeaderRoundTripper)
+		tr := hrt.Next.(*http.Transport)
+		if !tr.TLSClientConfig.InsecureSkipVerify {
+			t.Error("Expected InsecureSkipVerify to be true")
+		}
+	})
+
+	t.Run("can be disabled to enforce TLS verification", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetInsecureSkipVerify(false)
+		client := GetPipeleekHTTPClient("", nil, nil)
+		hrt := client.HTTPClient.Transport.(*HeaderRoundTripper)
+		tr := hrt.Next.(*http.Transport)
+		if tr.TLSClientConfig.InsecureSkipVerify {
+			t.Error("Expected InsecureSkipVerify to be false")
+		}
+	})
+
+	t.Run("GetPipeleekTransport reflects the setting", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetInsecureSkipVerify(false)
+		tr := GetPipeleekTransport()
+		if tr.TLSClientConfig.InsecureSkipVerify {
+			t.Error("Expected GetPipeleekTransport InsecureSkipVerify to be false")
+		}
+	})
+}
+
+func TestSetHTTPTimeout(t *testing.T) {
+	restore := saveAndRestoreConfig(t)
+	defer restore()
+
+	t.Run("zero timeout means no timeout", func(t *testing.T) {
+		SetHTTPTimeout(0)
+		client := GetPipeleekHTTPClient("", nil, nil)
+		if client.HTTPClient.Timeout != 0 {
+			t.Errorf("Expected zero timeout, got %v", client.HTTPClient.Timeout)
+		}
+	})
+
+	t.Run("non-zero timeout is set on the underlying client", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		want := 30 * time.Second
+		SetHTTPTimeout(want)
+		client := GetPipeleekHTTPClient("", nil, nil)
+		if client.HTTPClient.Timeout != want {
+			t.Errorf("Expected timeout %v, got %v", want, client.HTTPClient.Timeout)
+		}
+	})
+}
+
+func TestSetSOCKSProxy(t *testing.T) {
+	restore := saveAndRestoreConfig(t)
+	defer restore()
+
+	t.Run("valid SOCKS5 proxy sets a dial function on the transport", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetSOCKSProxy("socks5://127.0.0.1:1080")
+		tr := GetPipeleekTransport()
+		if tr.DialContext == nil && tr.Dial == nil { //nolint:staticcheck
+			t.Error("Expected DialContext or Dial to be set for SOCKS proxy")
+		}
+	})
+
+	t.Run("empty SOCKS proxy clears the setting", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetSOCKSProxy("")
+		// With no SOCKS proxy, transport should have no dialer set and use HTTP_PROXY if any
+		tr := GetPipeleekTransport()
+		if tr.DialContext != nil {
+			t.Error("Expected DialContext to be nil when no SOCKS proxy is configured")
+		}
+	})
+}
+
+func TestGetPipeleekTransport(t *testing.T) {
+	restore := saveAndRestoreConfig(t)
+	defer restore()
+
+	t.Run("returns non-nil transport", func(t *testing.T) {
+		tr := GetPipeleekTransport()
+		if tr == nil {
+			t.Fatal("Expected non-nil transport")
+		}
+	})
+
+	t.Run("transport TLS config matches InsecureSkipVerify setting", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetInsecureSkipVerify(true)
+		tr := GetPipeleekTransport()
+		if !tr.TLSClientConfig.InsecureSkipVerify {
+			t.Error("Expected InsecureSkipVerify true on transport")
+		}
+		SetInsecureSkipVerify(false)
+		tr = GetPipeleekTransport()
+		if tr.TLSClientConfig.InsecureSkipVerify {
+			t.Error("Expected InsecureSkipVerify false on transport")
 		}
 	})
 }

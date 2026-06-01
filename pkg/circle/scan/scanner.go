@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/logline"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/result"
@@ -567,7 +568,7 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 		return ScanOptions{}, err
 	}
 
-	httpClient := &http.Client{Timeout: 45 * time.Second}
+	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
 	apiClient := newCircleAPIClient(baseURL, input.Token, httpClient)
 
 	if len(projects) == 0 {

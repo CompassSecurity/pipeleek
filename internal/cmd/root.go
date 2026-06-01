@@ -50,16 +50,22 @@ var (
 			setGlobalLogLevel(cmd)
 			loadConfigFile(cmd)
 			httpclient.SetIgnoreProxy(IgnoreProxy)
+			httpclient.SetInsecureSkipVerify(InsecureSkipVerify)
+			httpclient.SetSOCKSProxy(SocksProxy)
+			httpclient.SetHTTPTimeout(HTTPTimeout)
 			go logging.ShortcutListeners(nil)
 		},
 	}
-	JsonLogoutput bool
-	LogFile       string
-	LogColor      bool
-	LogDebug      bool
-	LogLevel      string
-	IgnoreProxy   bool
-	ConfigFile    string
+	JsonLogoutput      bool
+	LogFile            string
+	LogColor           bool
+	LogDebug           bool
+	LogLevel           string
+	IgnoreProxy        bool
+	ConfigFile         string
+	InsecureSkipVerify bool
+	SocksProxy         string
+	HTTPTimeout        time.Duration
 	// runLogFileHandle holds the file handle when logging to a file is enabled
 	runLogFileHandle *os.File
 )
@@ -91,6 +97,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "", "Set log level globally (debug, info, warn, error). Example: --log-level=warn")
 	rootCmd.PersistentFlags().BoolVar(&LogColor, "color", true, "Enable colored log output (auto-disabled when using --logfile)")
 	rootCmd.PersistentFlags().BoolVar(&IgnoreProxy, "ignore-proxy", false, "Ignore HTTP_PROXY environment variable")
+	rootCmd.PersistentFlags().BoolVar(&InsecureSkipVerify, "insecure-skip-verify", true, "Skip TLS certificate verification (default true; set to false to enforce certificate validation)")
+	rootCmd.PersistentFlags().StringVar(&SocksProxy, "socks-proxy", "", "SOCKS proxy URL, e.g. socks5://127.0.0.1:1080 (takes precedence over HTTP_PROXY)")
+	rootCmd.PersistentFlags().DurationVar(&HTTPTimeout, "http-timeout", 0, "HTTP request timeout, e.g. 30s or 2m (default: no timeout)")
 
 	// Set custom version template to show detailed version info
 	rootCmd.SetVersionTemplate(`{{.Version}}

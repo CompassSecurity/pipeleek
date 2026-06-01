@@ -5,6 +5,7 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/rs/zerolog/log"
 
 	"resty.dev/v3"
@@ -22,7 +23,7 @@ func NewClient(username string, password string, baseURL string) AzureDevOpsApiC
 		baseURL = "https://dev.azure.com"
 	}
 	bbClient := AzureDevOpsApiClient{
-		Client:   *resty.New().SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)),
+		Client:   *resty.New().SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)).SetTransport(httpclient.GetPipeleekTransport()),
 		BaseURL:  baseURL,
 		VsspsURL: "https://app.vssps.visualstudio.com",
 	}
