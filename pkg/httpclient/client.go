@@ -118,7 +118,13 @@ func buildTransport(cfg httpClientConfig) *http.Transport {
 		if err != nil {
 			log.Fatal().Err(err).Str("socks_proxy", cfg.socksProxyURL).Msg("Invalid SOCKS proxy URL")
 		}
-		dialer, err := proxy.FromURL(u, &net.Dialer{})
+		// Use the configured timeout for the dialer so that unreachable SOCKS proxies
+		// do not cause indefinite hangs. Fall back to 30 s when no timeout is set.
+		dialTimeout := cfg.timeout
+		if dialTimeout <= 0 {
+			dialTimeout = 30 * time.Second
+		}
+		dialer, err := proxy.FromURL(u, &net.Dialer{Timeout: dialTimeout})
 		if err != nil {
 			log.Fatal().Err(err).Str("socks_proxy", cfg.socksProxyURL).Msg("Failed creating SOCKS proxy dialer")
 		}

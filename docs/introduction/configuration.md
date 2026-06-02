@@ -208,7 +208,10 @@ Pipeleek uses a single shared HTTP client across all platforms. The following gl
 | `--socks-proxy <url>` | _(none)_ | SOCKS proxy URL (e.g. `socks5://127.0.0.1:1080`). Takes precedence over `HTTP_PROXY`. |
 | `--http-timeout <duration>` | _(no timeout)_ | Per-request HTTP timeout (e.g. `30s`, `2m`). |
 
-These flags apply to all platform commands and all internal HTTP requests (GitLab, Gitea, Jenkins, Bitbucket, Azure DevOps, CircleCI, NIST, rule downloads, etc.).
+These flags apply to all platform commands. The scope of each flag differs slightly by platform:
+
+- `--insecure-skip-verify`, `--socks-proxy`, and `--ignore-proxy` apply to **all** platforms (GitLab, Gitea, Jenkins, Bitbucket, Azure DevOps, CircleCI, NIST, rule downloads, etc.) via the shared transport.
+- `--http-timeout` applies to platforms that use the **retryable HTTP client** (GitLab, Gitea, Jenkins, CircleCI, NIST, and rule downloads). Bitbucket and Azure DevOps use Resty with a transport-only injection and are unaffected by this flag; configure their timeouts via Resty's own settings if needed.
 
 > **Note:** The GitHub SDK client uses a dedicated rate-limit transport (`go-github-ratelimit`) that cannot be replaced. TLS and proxy settings from `--insecure-skip-verify` / `--socks-proxy` are applied to all other platforms only.
 
