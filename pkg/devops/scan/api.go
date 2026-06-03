@@ -23,7 +23,7 @@ func NewClient(username string, password string, baseURL string) AzureDevOpsApiC
 		baseURL = "https://dev.azure.com"
 	}
 	bbClient := AzureDevOpsApiClient{
-		Client:   *resty.New().SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)).SetTransport(httpclient.GetPipeleekTransport()),
+		Client:   *httpclient.GetPipeleekHTTPClient("", nil, nil).SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)),
 		BaseURL:  baseURL,
 		VsspsURL: "https://app.vssps.visualstudio.com",
 	}

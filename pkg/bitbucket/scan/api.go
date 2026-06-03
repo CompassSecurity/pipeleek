@@ -39,7 +39,7 @@ func NewClient(username string, password string, bitBucketCookie string, baseURL
 	}
 	internalBase := parsedBase.Scheme + "://" + internalHost + "/!api"
 
-	client := *resty.New().SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)).SetTransport(httpclient.GetPipeleekTransport())
+	client := *httpclient.GetPipeleekHTTPClient("", nil, nil).SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5))
 	if len(bitBucketCookie) > 0 {
 		jar, _ := cookiejar.New(nil)
 		// set cookie on the internal host root so requests to internal endpoints include it
