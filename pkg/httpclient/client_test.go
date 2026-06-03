@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"resty.dev/v3"
 )
 
 func TestHeaderRoundTripper_RoundTrip(t *testing.T) {
@@ -122,44 +121,15 @@ func TestGetPipeleekHTTPClient(t *testing.T) {
 
 	t.Run("check retry conditions", func(t *testing.T) {
 		client := GetPipeleekHTTPClient("", nil, nil)
-		conditions := client.RetryConditions()
-		if len(conditions) == 0 {
-			t.Fatal("Expected at least one retry condition")
-		}
-		cond := conditions[0]
 
-		// Should retry on 429
-		r429 := &resty.Response{RawResponse: &http.Response{StatusCode: 429}}
-		if !cond(r429, nil) {
-			t.Error("Expected to retry on 429 status")
+		// Resty built-in defaults are enabled instead of a custom condition
+		if !client.IsRetryDefaultConditions() {
+			t.Error("Expected Resty default retry conditions to be enabled")
 		}
 
-		// Should retry on 500
-		r500 := &resty.Response{RawResponse: &http.Response{StatusCode: 500}}
-		if !cond(r500, nil) {
-			t.Error("Expected to retry on 500 status")
-		}
-
-		// Should NOT retry on 501
-		r501 := &resty.Response{RawResponse: &http.Response{StatusCode: 501}}
-		if cond(r501, nil) {
-			t.Error("Expected NOT to retry on 501 status")
-		}
-
-		// Should NOT retry on 200
-		r200 := &resty.Response{RawResponse: &http.Response{StatusCode: 200}}
-		if cond(r200, nil) {
-			t.Error("Expected NOT to retry on 200 status")
-		}
-
-		// nil response, nil error → should NOT retry
-		if cond(nil, nil) {
-			t.Error("Expected NOT to retry with nil response and nil error")
-		}
-
-		// Should retry on error
-		if !cond(nil, http.ErrServerClosed) {
-			t.Error("Expected to retry on error")
+		// No custom retry conditions should be registered
+		if len(client.RetryConditions()) != 0 {
+			t.Error("Expected no custom retry conditions — defaults handle 429/5xx/errors")
 		}
 	})
 }

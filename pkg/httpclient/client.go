@@ -171,7 +171,7 @@ func GetPipeleekTransport() *http.Transport {
 // It supports:
 //   - Cookie jar configuration for session management
 //   - Custom default headers
-//   - Automatic retry logic for 429 and 5xx errors (except 501)
+//   - Automatic retry logic for 429 and 5xx errors (except 501), and transient network errors
 //   - HTTP proxy support via HTTP_PROXY environment variable (unless SetIgnoreProxy(true) is called)
 //   - Proxy support via SetProxy (HTTP and SOCKS5; takes precedence over HTTP_PROXY)
 //   - Configurable TLS certificate verification (SetInsecureSkipVerify; defaults to true)
@@ -214,23 +214,20 @@ func GetPipeleekHTTPClient(cookieUrl string, cookies []*http.Cookie, defaultHead
 	client.SetRetryCount(4)
 	client.SetRetryWaitTime(1 * time.Second)
 	client.SetRetryMaxWaitTime(30 * time.Second)
-	client.AddRetryConditions(func(r *resty.Response, err error) bool {
+	client.EnableRetryDefaultConditions()
+	client.AddRetryHooks(func(r *resty.Response, err error) {
 		if err != nil {
 			log.Error().Err(err).Msg("Retrying HTTP request, error occurred")
-			return true
+			return
 		}
 		if r == nil {
-			return false
+			return
 		}
-		if r.StatusCode() == 429 || (r.StatusCode() >= 500 && r.StatusCode() != 501) {
-			reqURL := ""
-			if r.RawResponse != nil && r.RawResponse.Request != nil && r.RawResponse.Request.URL != nil {
-				reqURL = r.RawResponse.Request.URL.String()
-			}
-			log.Trace().Str("url", reqURL).Int("statusCode", r.StatusCode()).Msg("Retrying HTTP request")
-			return true
+		reqURL := ""
+		if r.RawResponse != nil && r.RawResponse.Request != nil && r.RawResponse.Request.URL != nil {
+			reqURL = r.RawResponse.Request.URL.String()
 		}
-		return false
+		log.Trace().Str("url", reqURL).Int("statusCode", r.StatusCode()).Msg("Retrying HTTP request")
 	})
 
 	return client
