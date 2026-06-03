@@ -2,7 +2,6 @@ package scan
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -19,9 +18,9 @@ import (
 	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit/github_primary_ratelimit"
 	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit/github_secondary_ratelimit"
 	"github.com/google/go-github/v69/github"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 // ScanOptions contains configuration options for GitHub scanning operations.
@@ -43,7 +42,7 @@ type ScanOptions struct {
 	HitTimeout             time.Duration
 	Context                context.Context
 	Client                 *github.Client
-	HttpClient             *retryablehttp.Client
+	HttpClient             *resty.Client
 }
 
 type Scanner interface {
@@ -418,19 +417,15 @@ func (s *scanner) downloadWorkflowRunLog(repo *github.Repository, workflowRun *g
 }
 
 func (s *scanner) downloadRunLogZIP(url string) []byte {
-	res, err := s.options.HttpClient.Get(url)
+	res, err := s.options.HttpClient.R().Get(url)
 	logLines := make([]byte, 0)
 
 	if err != nil {
 		return logLines
 	}
 
-	if res.StatusCode == 200 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Err(err).Msg("Failed reading response log body")
-			return logLines
-		}
+	if res.StatusCode() == 200 {
+		body := res.Bytes()
 
 		zipResult, err := logline.ExtractLogsFromZip(body)
 		if err != nil {
@@ -532,19 +527,15 @@ func (s *scanner) analyzeArtifact(workflowRun *github.WorkflowRun, artifact *git
 		return
 	}
 
-	res, err := s.options.HttpClient.Get(url.String())
+	res, err := s.options.HttpClient.R().Get(url.String())
 
 	if err != nil {
 		log.Err(err).Str("workflow", url.String()).Msg("Failed downloading artifacts zip")
 		return
 	}
 
-	if res.StatusCode == 200 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Err(err).Msg("Failed reading response log body")
-			return
-		}
+	if res.StatusCode() == 200 {
+		body := res.Bytes()
 
 		_, err = artifactproc.ProcessZipArtifact(body, artifactproc.ProcessOptions{
 			MaxGoRoutines:     s.options.MaxScanGoRoutines,

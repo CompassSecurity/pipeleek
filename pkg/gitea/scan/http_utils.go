@@ -1,10 +1,7 @@
 package gitea
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 
 	"code.gitea.io/sdk/gitea"
@@ -22,7 +19,7 @@ func makeHTTPGetRequest(url string) (*httpResponse, error) {
 		return nil, fmt.Errorf("HTTP client is not initialized")
 	}
 
-	resp, err := scanOptions.HttpClient.Get(url)
+	resp, err := scanOptions.HttpClient.R().Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -31,23 +28,10 @@ func makeHTTPGetRequest(url string) (*httpResponse, error) {
 		return nil, fmt.Errorf("HTTP response is nil")
 	}
 
-	contentLength := resp.ContentLength
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Debug().Err(err).Msg("Failed to close HTTP response body")
-		}
-	}()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	return &httpResponse{
-		Body:          body,
-		StatusCode:    resp.StatusCode,
-		ContentLength: contentLength,
+		Body:          resp.Bytes(),
+		StatusCode:    resp.StatusCode(),
+		ContentLength: resp.RawResponse.ContentLength,
 	}, nil
 }
 
@@ -56,26 +40,10 @@ func makeHTTPPostRequest(urlStr string, body []byte, headers map[string]string) 
 		return nil, fmt.Errorf("HTTP client is not initialized")
 	}
 
-	client := scanOptions.HttpClient.StandardClient()
-	if client == nil {
-		return nil, fmt.Errorf("standard HTTP client is not initialized")
-	}
-
-	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
-	}
-
-	req, err := http.NewRequest("POST", urlStr, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := client.Do(req)
+	resp, err := scanOptions.HttpClient.R().
+		SetBody(body).
+		SetHeaders(headers).
+		Post(urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP POST request failed: %w", err)
 	}
@@ -84,20 +52,9 @@ func makeHTTPPostRequest(urlStr string, body []byte, headers map[string]string) 
 		return nil, fmt.Errorf("HTTP response is nil")
 	}
 
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Debug().Err(err).Msg("Failed to close HTTP POST response body")
-		}
-	}()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	return &httpResponse{
-		Body:       respBody,
-		StatusCode: resp.StatusCode,
+		Body:       resp.Bytes(),
+		StatusCode: resp.StatusCode(),
 	}, nil
 }
 

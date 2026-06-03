@@ -246,7 +246,7 @@ func getJobTraceViaWeb(jobWebUrl string, options *ScanOptions) []byte {
 		return nil
 	}
 
-	client := httpclient.GetPipeleekHTTPClient(options.GitlabUrl, nil, nil).StandardClient()
+	client := httpclient.GetPipeleekHTTPClient(options.GitlabUrl, nil, nil).Client()
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		log.Debug().Err(err).Str("url", rawURL).Msg("Failed building request for web trace")
@@ -352,14 +352,13 @@ func DownloadEnvArtifact(cookieVal string, gitlabUrl string, prjectPath string, 
 
 	// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 	client := httpclient.GetPipeleekHTTPClient(gitlabUrl, []*http.Cookie{{Name: "_gitlab_session", Value: cookieVal}}, nil)
-	resp, err := client.Get(dotenvUrl)
+	resp, err := client.R().Get(dotenvUrl)
 	if err != nil {
 		log.Debug().Stack().Err(err).Msg("Failed requesting dotenv artifact")
 		return []byte{}
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	statCode := resp.StatusCode
+	statCode := resp.StatusCode()
 
 	// means no dotenv exists
 	if statCode == 404 {
@@ -371,11 +370,7 @@ func DownloadEnvArtifact(cookieVal string, gitlabUrl string, prjectPath string, 
 		return []byte{}
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Debug().Err(err).Msg("Failed reading dotenv response body")
-		return []byte{}
-	}
+	body := resp.Bytes()
 
 	kind, err := filetype.Match(body)
 	if err != nil {

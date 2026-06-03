@@ -419,7 +419,7 @@ func TestFetchCurrentSelfHostedOptions_ParsesResponse(t *testing.T) {
 	defer srv.Close()
 
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.HTTPClient.Transport = &redirectTransport{targetURL: srv.URL}
+	client.SetTransport(&redirectTransport{targetURL: srv.URL})
 
 	result := FetchCurrentSelfHostedOptions([]string{}, client)
 	assert.NotEmpty(t, result)
@@ -429,13 +429,13 @@ func TestFetchCurrentSelfHostedOptions_ParsesResponse(t *testing.T) {
 // when the server responds with a non-200 status.
 func TestFetchCurrentSelfHostedOptions_Non200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Use 404: the retryablehttp client does not retry 4xx client errors by default
+		// Use 404: Resty does not retry 4xx client errors by default
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.HTTPClient.Transport = &redirectTransport{targetURL: srv.URL}
+	client.SetTransport(&redirectTransport{targetURL: srv.URL})
 
 	result := FetchCurrentSelfHostedOptions([]string{}, client)
 	assert.Empty(t, result)
@@ -466,7 +466,7 @@ func TestExtendRenovateConfig_BadURL(t *testing.T) {
 // TestExtendRenovateConfig_RequestError verifies that the original config is returned on error.
 func TestExtendRenovateConfig_RequestError(t *testing.T) {
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.RetryMax = 0
+	client.SetRetryCount(0)
 	orig := `{"extends":["config:base"]}`
 	result := ExtendRenovateConfig(orig, "http://127.0.0.1:0", "https://project.example.com", client)
 	assert.Equal(t, orig, result)
@@ -488,7 +488,7 @@ func TestValidateRenovateConfigService_Success(t *testing.T) {
 // TestValidateRenovateConfigService_Non200 verifies that a non-200 response returns an error.
 func TestValidateRenovateConfigService_Non200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Use 404: the retryablehttp client does not retry 4xx client errors by default
+		// Use 404: Resty does not retry 4xx client errors by default
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
@@ -508,7 +508,7 @@ func TestValidateRenovateConfigService_BadURL(t *testing.T) {
 // TestValidateRenovateConfigService_Unreachable verifies that an unreachable host returns an error.
 func TestValidateRenovateConfigService_Unreachable(t *testing.T) {
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.RetryMax = 0
+	client.SetRetryCount(0)
 	err := ValidateRenovateConfigService("http://127.0.0.1:0", client)
 	assert.Error(t, err)
 }

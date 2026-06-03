@@ -199,31 +199,4 @@ pipeleek --log-level=trace gl enum
 
 ## HTTP Client Settings
 
-Pipeleek uses a single shared HTTP client across all platforms. The following global flags control its behaviour:
-
-| Flag | Default | Description |
-|---|---|---|
-| `--insecure-skip-verify` | `true` | Skip TLS certificate verification. Set to `false` to enforce certificate validation (e.g. in production environments). |
-| `--ignore-proxy` | `false` | Ignore the `HTTP_PROXY` environment variable. |
-| `--socks-proxy <url>` | _(none)_ | SOCKS proxy URL (e.g. `socks5://127.0.0.1:1080`). Takes precedence over `HTTP_PROXY`. |
-| `--http-timeout <duration>` | _(no timeout)_ | Per-request HTTP timeout (e.g. `30s`, `2m`). |
-
-These flags apply to all platform commands. The scope of each flag differs slightly by platform:
-
-- `--insecure-skip-verify`, `--socks-proxy`, and `--ignore-proxy` apply to **all** platforms (GitLab, Gitea, Jenkins, Bitbucket, Azure DevOps, CircleCI, NIST, rule downloads, etc.) via the shared transport.
-- `--http-timeout` applies to platforms that use the **retryable HTTP client** (GitLab, Gitea, Jenkins, CircleCI, NIST, and rule downloads). Bitbucket and Azure DevOps use Resty with a transport-only injection and are unaffected by this flag; configure their timeouts via Resty's own settings if needed.
-
-> **Note:** The GitHub SDK client uses a dedicated rate-limit transport (`go-github-ratelimit`) that cannot be replaced. TLS and proxy settings from `--insecure-skip-verify` / `--socks-proxy` are applied to all other platforms only.
-
-### Examples
-
-```bash
-# Enforce TLS certificate validation
-pipeleek --insecure-skip-verify=false gl scan --token glpat-xxx --url https://gitlab.example.com
-
-# Route all traffic through a SOCKS5 proxy
-pipeleek --socks-proxy socks5://127.0.0.1:1080 gl scan --token glpat-xxx --url https://gitlab.example.com
-
-# Ignore HTTP_PROXY and use a 30-second per-request timeout
-pipeleek --ignore-proxy --http-timeout 30s gl scan --token glpat-xxx --url https://gitlab.example.com
-```
+See [Using Pipeleek with Proxies](proxying.md) for proxy, TLS, and timeout configuration flags.

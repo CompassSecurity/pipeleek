@@ -4,7 +4,6 @@
 package httpclient
 
 import (
-	"context"
 	"crypto/tls"
 	"net"
 	"net/http"
@@ -15,9 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/proxy"
+	"resty.dev/v3"
 )
 
 // ignoreProxy controls whether the HTTP_PROXY environment variable should be ignored.
@@ -35,7 +34,7 @@ func SetIgnoreProxy(ignore bool) {
 // All fields are safe to read after the mutex is acquired.
 type httpClientConfig struct {
 	insecureSkipVerify bool
-	socksProxyURL      string
+	proxyURL           string
 	timeout            time.Duration
 }
 
@@ -57,12 +56,13 @@ func SetInsecureSkipVerify(skip bool) {
 	globalConfig.insecureSkipVerify = skip
 }
 
-// SetSOCKSProxy sets a SOCKS proxy URL (e.g. "socks5://127.0.0.1:1080") for all
-// Pipeleek-managed HTTP clients. When non-empty, it takes precedence over HTTP_PROXY.
-func SetSOCKSProxy(socksURL string) {
+// SetProxy sets a proxy URL for all Pipeleek-managed HTTP clients. Accepts both
+// HTTP ("http://host:port") and SOCKS5 ("socks5://host:port") URLs. When non-empty,
+// it takes precedence over the HTTP_PROXY environment variable.
+func SetProxy(proxyURL string) {
 	configMu.Lock()
 	defer configMu.Unlock()
-	globalConfig.socksProxyURL = socksURL
+	globalConfig.proxyURL = proxyURL
 }
 
 // SetHTTPTimeout sets the per-request timeout applied to all Pipeleek-managed HTTP clients.
@@ -113,28 +113,34 @@ func buildTransport(cfg httpClientConfig) *http.Transport {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.insecureSkipVerify},
 	}
 
-	if cfg.socksProxyURL != "" {
-		u, err := url.Parse(cfg.socksProxyURL)
+	if cfg.proxyURL != "" {
+		u, err := url.Parse(cfg.proxyURL)
 		if err != nil {
-			log.Fatal().Err(err).Str("socks_proxy", cfg.socksProxyURL).Msg("Invalid SOCKS proxy URL")
+			log.Fatal().Err(err).Str("proxy", cfg.proxyURL).Msg("Invalid proxy URL")
 		}
-		// Use the configured timeout for the dialer so that unreachable SOCKS proxies
-		// do not cause indefinite hangs. Fall back to 30 s when no timeout is set.
-		dialTimeout := cfg.timeout
-		if dialTimeout <= 0 {
-			dialTimeout = 30 * time.Second
+		switch u.Scheme {
+		case "socks5", "socks5h":
+			// Use the configured timeout for the dialer so that unreachable SOCKS proxies
+			// do not cause indefinite hangs. Fall back to 30 s when no timeout is set.
+			dialTimeout := cfg.timeout
+			if dialTimeout <= 0 {
+				dialTimeout = 30 * time.Second
+			}
+			dialer, err := proxy.FromURL(u, &net.Dialer{Timeout: dialTimeout})
+			if err != nil {
+				log.Fatal().Err(err).Str("proxy", cfg.proxyURL).Msg("Failed creating SOCKS proxy dialer")
+			}
+			if cd, ok := dialer.(proxy.ContextDialer); ok {
+				tr.DialContext = cd.DialContext
+			} else {
+				//nolint:staticcheck
+				tr.Dial = dialer.Dial
+			}
+			log.Info().Str("proxy", cfg.proxyURL).Msg("Using SOCKS proxy")
+		default:
+			tr.Proxy = http.ProxyURL(u)
+			log.Info().Str("proxy", cfg.proxyURL).Msg("Using HTTP proxy")
 		}
-		dialer, err := proxy.FromURL(u, &net.Dialer{Timeout: dialTimeout})
-		if err != nil {
-			log.Fatal().Err(err).Str("socks_proxy", cfg.socksProxyURL).Msg("Failed creating SOCKS proxy dialer")
-		}
-		if cd, ok := dialer.(proxy.ContextDialer); ok {
-			tr.DialContext = cd.DialContext
-		} else {
-			//nolint:staticcheck
-			tr.Dial = dialer.Dial
-		}
-		log.Info().Str("socks_proxy", cfg.socksProxyURL).Msg("Using SOCKS proxy")
 		return tr
 	}
 
@@ -161,13 +167,13 @@ func GetPipeleekTransport() *http.Transport {
 	return buildTransport(readGlobalConfig())
 }
 
-// GetPipeleekHTTPClient creates and configures a retryable HTTP client for pipeleek operations.
+// GetPipeleekHTTPClient creates and configures a Resty HTTP client for pipeleek operations.
 // It supports:
 //   - Cookie jar configuration for session management
 //   - Custom default headers
 //   - Automatic retry logic for 429 and 5xx errors (except 501)
 //   - HTTP proxy support via HTTP_PROXY environment variable (unless SetIgnoreProxy(true) is called)
-//   - SOCKS proxy support via SetSOCKSProxy (takes precedence over HTTP_PROXY)
+//   - Proxy support via SetProxy (HTTP and SOCKS5; takes precedence over HTTP_PROXY)
 //   - Configurable TLS certificate verification (SetInsecureSkipVerify; defaults to true)
 //   - Configurable per-request timeout (SetHTTPTimeout; defaults to no timeout)
 //
@@ -176,59 +182,56 @@ func GetPipeleekTransport() *http.Transport {
 //   - cookies: Optional cookies to add to the jar
 //   - defaultHeaders: Optional headers to add to all requests
 //
-// Returns a configured *retryablehttp.Client ready for use.
-func GetPipeleekHTTPClient(cookieUrl string, cookies []*http.Cookie, defaultHeaders map[string]string) *retryablehttp.Client {
+// Returns a configured *resty.Client ready for use.
+func GetPipeleekHTTPClient(cookieUrl string, cookies []*http.Cookie, defaultHeaders map[string]string) *resty.Client {
 	cfg := readGlobalConfig()
 
-	var jar http.CookieJar
+	client := resty.New()
 
 	if len(cookies) > 0 {
-		var err error
-		jar, err = cookiejar.New(nil)
+		jar, err := cookiejar.New(nil)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed creating cookie jar")
 		}
-
 		urlParsed, err := url.Parse(cookieUrl)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed parsing URL for cookie jar")
 		}
-
 		jar.SetCookies(urlParsed, cookies)
+		client.SetCookieJar(jar)
 	}
 
-	client := retryablehttp.NewClient()
-	client.Logger = nil
-	client.HTTPClient.Jar = jar
+	if len(defaultHeaders) > 0 {
+		client.SetHeaders(defaultHeaders)
+	}
 
 	if cfg.timeout > 0 {
-		client.HTTPClient.Timeout = cfg.timeout
+		client.SetTimeout(cfg.timeout)
 	}
 
-	client.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	client.SetTransport(buildTransport(cfg))
+
+	client.SetRetryCount(4)
+	client.SetRetryWaitTime(1 * time.Second)
+	client.SetRetryMaxWaitTime(30 * time.Second)
+	client.AddRetryConditions(func(r *resty.Response, err error) bool {
 		if err != nil {
 			log.Error().Err(err).Msg("Retrying HTTP request, error occurred")
-			return true, nil
+			return true
 		}
-
-		if resp == nil {
-			log.Error().Msg("Retrying HTTP request, no response")
-			return false, nil
+		if r == nil {
+			return false
 		}
-
-		if resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode != 501) {
-			url := ""
-			if resp.Request != nil && resp.Request.URL != nil {
-				url = resp.Request.URL.String()
+		if r.StatusCode() == 429 || (r.StatusCode() >= 500 && r.StatusCode() != 501) {
+			reqURL := ""
+			if r.RawResponse != nil && r.RawResponse.Request != nil && r.RawResponse.Request.URL != nil {
+				reqURL = r.RawResponse.Request.URL.String()
 			}
-			log.Trace().Str("url", url).Int("statusCode", resp.StatusCode).Msg("Retrying HTTP request")
-			return true, nil
+			log.Trace().Str("url", reqURL).Int("statusCode", r.StatusCode()).Msg("Retrying HTTP request")
+			return true
 		}
+		return false
+	})
 
-		return false, nil
-	}
-
-	tr := buildTransport(cfg)
-	client.HTTPClient.Transport = &HeaderRoundTripper{Headers: defaultHeaders, Next: tr}
 	return client
 }

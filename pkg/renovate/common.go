@@ -3,15 +3,14 @@ package renovate
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
+	"resty.dev/v3"
 )
 
 // DetectCiCdConfig checks if the CI/CD configuration contains Renovate bot references.
@@ -114,31 +113,25 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 }
 
 // FetchCurrentSelfHostedOptions retrieves the list of self-hosted Renovate configuration options.
-// Accepts a retryable HTTP client to allow injection for testing.
-func FetchCurrentSelfHostedOptions(cachedOptions []string, client *retryablehttp.Client) []string {
+// Accepts a Resty client to allow injection for testing.
+func FetchCurrentSelfHostedOptions(cachedOptions []string, client *resty.Client) []string {
 	if len(cachedOptions) > 0 {
 		return cachedOptions
 	}
 
 	log.Debug().Msg("Fetching current self-hosted configuration from GitHub")
 
-	res, err := client.Get("https://raw.githubusercontent.com/renovatebot/renovate/refs/heads/main/docs/usage/self-hosted-configuration.md")
+	res, err := client.R().Get("https://raw.githubusercontent.com/renovatebot/renovate/refs/heads/main/docs/usage/self-hosted-configuration.md")
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed fetching self-hosted configuration documentation")
 		return []string{}
 	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode != 200 {
-		log.Error().Int("status", res.StatusCode).Msg("Failed fetching self-hosted configuration documentation")
-		return []string{}
-	}
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed reading self-hosted configuration documentation")
+	if res.StatusCode() != 200 {
+		log.Error().Int("status", res.StatusCode()).Msg("Failed fetching self-hosted configuration documentation")
 		return []string{}
 	}
 
-	return ExtractSelfHostedOptions(data)
+	return ExtractSelfHostedOptions(res.Bytes())
 }
 
 // ExtractSelfHostedOptions parses self-hosted options from documentation content.
@@ -166,8 +159,8 @@ func IsSelfHostedConfig(config string, selfHostedOptions []string) bool {
 
 // ExtendRenovateConfig extends a Renovate configuration by sending it to a resolver service.
 // The config is normalized to valid JSON before sending (removes JSON5 comments/trailing commas).
-// Accepts a retryable HTTP client to allow injection for testing.
-func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL string, client *retryablehttp.Client) string {
+// Accepts a Resty client to allow injection for testing.
+func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL string, client *resty.Client) string {
 	u, err := url.Parse(serviceURL)
 	if err != nil {
 		log.Error().Stack().Err(err).Str("project", projectURL).Msg("Failed to parse renovate config service URL")
@@ -177,23 +170,20 @@ func ExtendRenovateConfig(renovateConfig string, serviceURL string, projectURL s
 
 	normalizedConfig := normalizeRenovateConfig(renovateConfig)
 
-	resp, err := client.Post(u.String(), "application/json", strings.NewReader(normalizedConfig))
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(normalizedConfig).
+		Post(u.String())
 
 	if err != nil {
 		log.Error().Stack().Err(err).Str("project", projectURL).Msg("Failed to extend renovate config")
 		return renovateConfig
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	bodyBytes := resp.Bytes()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Stack().Err(err).Str("project", projectURL).Msg("Failed to read response body of renovate config expansion")
-		return renovateConfig
-	}
-
-	if resp.StatusCode != 200 {
-		log.Debug().Int("status", resp.StatusCode).Str("msg", string(bodyBytes)).Str("project", projectURL).Msg("Failed to extend renovate config")
+	if resp.StatusCode() != 200 {
+		log.Debug().Int("status", resp.StatusCode()).Str("msg", string(bodyBytes)).Str("project", projectURL).Msg("Failed to extend renovate config")
 		return renovateConfig
 	}
 
@@ -228,8 +218,8 @@ func normalizeRenovateConfig(config string) string {
 }
 
 // ValidateRenovateConfigService checks if the Renovate config resolver service is available.
-// Accepts a retryable HTTP client to allow injection for testing.
-func ValidateRenovateConfigService(serviceUrl string, client *retryablehttp.Client) error {
+// Accepts a Resty client to allow injection for testing.
+func ValidateRenovateConfigService(serviceUrl string, client *resty.Client) error {
 	u, err := url.Parse(serviceUrl)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed to parse renovate config service URL")
@@ -237,16 +227,16 @@ func ValidateRenovateConfigService(serviceUrl string, client *retryablehttp.Clie
 	}
 	u = u.JoinPath("health")
 
-	resp, err := client.Get(u.String())
+	resp, err := client.R().Get(u.String())
 
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Renovate config service healthcheck failed")
 		return err
 	}
 
-	if resp.StatusCode != 200 {
-		log.Error().Int("status", resp.StatusCode).Str("endpoint", u.String()).Msg("Renovate config service healthcheck failed")
-		return fmt.Errorf("renovate config service healthcheck failed: %d", resp.StatusCode)
+	if resp.StatusCode() != 200 {
+		log.Error().Int("status", resp.StatusCode()).Str("endpoint", u.String()).Msg("Renovate config service healthcheck failed")
+		return fmt.Errorf("renovate config service healthcheck failed: %d", resp.StatusCode())
 	}
 
 	return nil

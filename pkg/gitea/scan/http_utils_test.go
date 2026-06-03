@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"code.gitea.io/sdk/gitea"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
+	"resty.dev/v3"
 )
 
 func TestBuildGiteaURL(t *testing.T) {
@@ -249,7 +249,7 @@ func TestMakeHTTPGetRequest(t *testing.T) {
 					_, _ = w.Write([]byte("server error"))
 				}))
 			},
-			expectError:    true,
+			expectError:    false,
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "server error",
 		},
@@ -260,9 +260,7 @@ func TestMakeHTTPGetRequest(t *testing.T) {
 			server := tt.setupServer()
 			defer server.Close()
 
-			retryClient := retryablehttp.NewClient()
-			retryClient.RetryMax = 0
-			scanOptions.HttpClient = retryClient
+scanOptions.HttpClient = resty.New().SetRetryCount(0)
 
 			resp, err := makeHTTPGetRequest(server.URL)
 
@@ -344,9 +342,7 @@ func TestMakeHTTPPostRequest(t *testing.T) {
 			server := tt.setupServer()
 			defer server.Close()
 
-			retryClient := retryablehttp.NewClient()
-			retryClient.RetryMax = 0
-			scanOptions.HttpClient = retryClient
+scanOptions.HttpClient = resty.New().SetRetryCount(0)
 
 			resp, err := makeHTTPPostRequest(server.URL, tt.requestBody, tt.headers)
 
@@ -502,9 +498,8 @@ func setupTestScanOptions() {
 		StartRunID:             0,
 		Context:                context.Background(),
 		Client:                 nil,
-		HttpClient:             retryablehttp.NewClient(),
+		HttpClient:             resty.New().SetRetryCount(0),
 	}
-	scanOptions.HttpClient.RetryMax = 0
 }
 
 func TestMain(m *testing.M) {

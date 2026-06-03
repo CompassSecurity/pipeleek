@@ -3,7 +3,6 @@ package variables
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -199,21 +198,16 @@ func listRepoActionVariables(ctx *clientContext, owner, repo string, page, pageS
 	authHeaders := map[string]string{"Authorization": "token " + ctx.token}
 	httpClient := httpclient.GetPipeleekHTTPClient("", nil, authHeaders)
 
-	resp, err := httpClient.Get(url)
+	resp, err := httpClient.R().Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode(), string(resp.Bytes()))
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
+	body := resp.Bytes()
 
 	var variables []*gitea.RepoActionVariable
 	if err := json.Unmarshal(body, &variables); err != nil {

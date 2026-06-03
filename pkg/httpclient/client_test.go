@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"resty.dev/v3"
 )
 
 func TestHeaderRoundTripper_RoundTrip(t *testing.T) {
@@ -87,10 +89,6 @@ func TestGetPipeleekHTTPClient(t *testing.T) {
 		client := GetPipeleekHTTPClient("", nil, nil)
 		if client == nil {
 			t.Fatal("Expected non-nil client")
-			return
-		}
-		if client.Logger != nil {
-			t.Error("Expected logger to be nil")
 		}
 	})
 
@@ -103,14 +101,8 @@ func TestGetPipeleekHTTPClient(t *testing.T) {
 			t.Fatal("Expected non-nil client")
 			return
 		}
-
-		hrt, ok := client.HTTPClient.Transport.(*HeaderRoundTripper)
-		if !ok {
-			t.Fatal("Expected HeaderRoundTripper transport")
-		}
-
-		if hrt.Headers["User-Agent"] != "test-agent" {
-			t.Errorf("Expected User-Agent header to be 'test-agent', got %q", hrt.Headers["User-Agent"])
+		if client.Header().Get("User-Agent") != "test-agent" {
+			t.Errorf("Expected User-Agent header to be 'test-agent', got %q", client.Header().Get("User-Agent"))
 		}
 	})
 
@@ -123,41 +115,50 @@ func TestGetPipeleekHTTPClient(t *testing.T) {
 			t.Fatal("Expected non-nil client")
 			return
 		}
-		if client.HTTPClient.Jar == nil {
+		if client.CookieJar() == nil {
 			t.Error("Expected cookie jar to be set")
 		}
 	})
 
-	t.Run("check retry function", func(t *testing.T) {
+	t.Run("check retry conditions", func(t *testing.T) {
 		client := GetPipeleekHTTPClient("", nil, nil)
+		conditions := client.RetryConditions()
+		if len(conditions) == 0 {
+			t.Fatal("Expected at least one retry condition")
+		}
+		cond := conditions[0]
 
-		shouldRetry, _ := client.CheckRetry(nil, &http.Response{StatusCode: 429}, nil)
-		if !shouldRetry {
+		// Should retry on 429
+		r429 := &resty.Response{RawResponse: &http.Response{StatusCode: 429}}
+		if !cond(r429, nil) {
 			t.Error("Expected to retry on 429 status")
 		}
 
-		shouldRetry, _ = client.CheckRetry(nil, &http.Response{StatusCode: 500}, nil)
-		if !shouldRetry {
+		// Should retry on 500
+		r500 := &resty.Response{RawResponse: &http.Response{StatusCode: 500}}
+		if !cond(r500, nil) {
 			t.Error("Expected to retry on 500 status")
 		}
 
-		shouldRetry, _ = client.CheckRetry(nil, &http.Response{StatusCode: 501}, nil)
-		if shouldRetry {
+		// Should NOT retry on 501
+		r501 := &resty.Response{RawResponse: &http.Response{StatusCode: 501}}
+		if cond(r501, nil) {
 			t.Error("Expected NOT to retry on 501 status")
 		}
 
-		shouldRetry, _ = client.CheckRetry(nil, &http.Response{StatusCode: 200}, nil)
-		if shouldRetry {
+		// Should NOT retry on 200
+		r200 := &resty.Response{RawResponse: &http.Response{StatusCode: 200}}
+		if cond(r200, nil) {
 			t.Error("Expected NOT to retry on 200 status")
 		}
 
-		shouldRetry, _ = client.CheckRetry(nil, nil, nil)
-		if shouldRetry {
-			t.Error("Expected NOT to retry with nil response")
+		// nil response, nil error → should NOT retry
+		if cond(nil, nil) {
+			t.Error("Expected NOT to retry with nil response and nil error")
 		}
 
-		shouldRetry, _ = client.CheckRetry(nil, nil, http.ErrServerClosed)
-		if !shouldRetry {
+		// Should retry on error
+		if !cond(nil, http.ErrServerClosed) {
 			t.Error("Expected to retry on error")
 		}
 	})
@@ -182,10 +183,7 @@ func TestSetIgnoreProxy(t *testing.T) {
 	})
 
 	t.Run("proxy is ignored when SetIgnoreProxy is true", func(t *testing.T) {
-		// Set HTTP_PROXY using t.Setenv for automatic cleanup
 		t.Setenv("HTTP_PROXY", "http://127.0.0.1:8888")
-
-		// Set ignoreProxy to true
 		SetIgnoreProxy(true)
 
 		client := GetPipeleekHTTPClient("", nil, nil)
@@ -193,28 +191,18 @@ func TestSetIgnoreProxy(t *testing.T) {
 			t.Fatal("Expected non-nil client")
 		}
 
-		// Get the transport
-		hrt, ok := client.HTTPClient.Transport.(*HeaderRoundTripper)
-		if !ok {
-			t.Fatal("Expected HeaderRoundTripper transport")
+		tr, err := client.HTTPTransport()
+		if err != nil {
+			t.Fatalf("Expected *http.Transport, got error: %v", err)
 		}
 
-		tr, ok := hrt.Next.(*http.Transport)
-		if !ok {
-			t.Fatal("Expected http.Transport as next transport")
-		}
-
-		// When ignoreProxy is true, Proxy should not be set
 		if tr.Proxy != nil {
 			t.Error("Expected Proxy to be nil when ignoreProxy is true")
 		}
 	})
 
 	t.Run("proxy is used when SetIgnoreProxy is false", func(t *testing.T) {
-		// Set HTTP_PROXY using t.Setenv for automatic cleanup
 		t.Setenv("HTTP_PROXY", "http://127.0.0.1:8888")
-
-		// Set ignoreProxy to false
 		SetIgnoreProxy(false)
 
 		client := GetPipeleekHTTPClient("", nil, nil)
@@ -222,18 +210,11 @@ func TestSetIgnoreProxy(t *testing.T) {
 			t.Fatal("Expected non-nil client")
 		}
 
-		// Get the transport
-		hrt, ok := client.HTTPClient.Transport.(*HeaderRoundTripper)
-		if !ok {
-			t.Fatal("Expected HeaderRoundTripper transport")
+		tr, err := client.HTTPTransport()
+		if err != nil {
+			t.Fatalf("Expected *http.Transport, got error: %v", err)
 		}
 
-		tr, ok := hrt.Next.(*http.Transport)
-		if !ok {
-			t.Fatal("Expected http.Transport as next transport")
-		}
-
-		// When ignoreProxy is false and HTTP_PROXY is set, Proxy should be set
 		if tr.Proxy == nil {
 			t.Error("Expected Proxy to be set when ignoreProxy is false and HTTP_PROXY is set")
 		}
@@ -262,8 +243,10 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 		defer restore2()
 		SetInsecureSkipVerify(true)
 		client := GetPipeleekHTTPClient("", nil, nil)
-		hrt := client.HTTPClient.Transport.(*HeaderRoundTripper)
-		tr := hrt.Next.(*http.Transport)
+		tr, err := client.HTTPTransport()
+		if err != nil {
+			t.Fatalf("Expected *http.Transport, got error: %v", err)
+		}
 		if !tr.TLSClientConfig.InsecureSkipVerify {
 			t.Error("Expected InsecureSkipVerify to be true")
 		}
@@ -274,8 +257,10 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 		defer restore2()
 		SetInsecureSkipVerify(false)
 		client := GetPipeleekHTTPClient("", nil, nil)
-		hrt := client.HTTPClient.Transport.(*HeaderRoundTripper)
-		tr := hrt.Next.(*http.Transport)
+		tr, err := client.HTTPTransport()
+		if err != nil {
+			t.Fatalf("Expected *http.Transport, got error: %v", err)
+		}
 		if tr.TLSClientConfig.InsecureSkipVerify {
 			t.Error("Expected InsecureSkipVerify to be false")
 		}
@@ -299,45 +284,55 @@ func TestSetHTTPTimeout(t *testing.T) {
 	t.Run("zero timeout means no timeout", func(t *testing.T) {
 		SetHTTPTimeout(0)
 		client := GetPipeleekHTTPClient("", nil, nil)
-		if client.HTTPClient.Timeout != 0 {
-			t.Errorf("Expected zero timeout, got %v", client.HTTPClient.Timeout)
+		if client.Timeout() != 0 {
+			t.Errorf("Expected zero timeout, got %v", client.Timeout())
 		}
 	})
 
-	t.Run("non-zero timeout is set on the underlying client", func(t *testing.T) {
+	t.Run("non-zero timeout is set on the client", func(t *testing.T) {
 		restore2 := saveAndRestoreConfig(t)
 		defer restore2()
 		want := 30 * time.Second
 		SetHTTPTimeout(want)
 		client := GetPipeleekHTTPClient("", nil, nil)
-		if client.HTTPClient.Timeout != want {
-			t.Errorf("Expected timeout %v, got %v", want, client.HTTPClient.Timeout)
+		if client.Timeout() != want {
+			t.Errorf("Expected timeout %v, got %v", want, client.Timeout())
 		}
 	})
 }
 
-func TestSetSOCKSProxy(t *testing.T) {
+func TestSetProxy(t *testing.T) {
 	restore := saveAndRestoreConfig(t)
 	defer restore()
 
 	t.Run("valid SOCKS5 proxy sets a dial function on the transport", func(t *testing.T) {
 		restore2 := saveAndRestoreConfig(t)
 		defer restore2()
-		SetSOCKSProxy("socks5://127.0.0.1:1080")
+		SetProxy("socks5://127.0.0.1:1080")
 		tr := GetPipeleekTransport()
 		if tr.DialContext == nil && tr.Dial == nil { //nolint:staticcheck
-			t.Error("Expected DialContext or Dial to be set for SOCKS proxy")
+			t.Error("Expected DialContext or Dial to be set for SOCKS5 proxy")
 		}
 	})
 
-	t.Run("empty SOCKS proxy clears the setting", func(t *testing.T) {
+	t.Run("valid HTTP proxy sets Proxy on the transport", func(t *testing.T) {
 		restore2 := saveAndRestoreConfig(t)
 		defer restore2()
-		SetSOCKSProxy("")
-		// With no SOCKS proxy, transport should have no dialer set and use HTTP_PROXY if any
+		SetProxy("http://127.0.0.1:8080")
+		tr := GetPipeleekTransport()
+		if tr.Proxy == nil {
+			t.Error("Expected Proxy to be set for HTTP proxy")
+		}
+	})
+
+	t.Run("empty proxy clears the setting", func(t *testing.T) {
+		restore2 := saveAndRestoreConfig(t)
+		defer restore2()
+		SetProxy("")
+		// With no proxy, transport should have no dialer and no Proxy func set
 		tr := GetPipeleekTransport()
 		if tr.DialContext != nil {
-			t.Error("Expected DialContext to be nil when no SOCKS proxy is configured")
+			t.Error("Expected DialContext to be nil when no proxy is configured")
 		}
 	})
 }

@@ -2,7 +2,6 @@ package scan
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -141,22 +140,16 @@ func (s *snippetsScanner) fetchFileContent(apiURL string) ([]byte, error) {
 		"PRIVATE-TOKEN": s.options.GitlabToken,
 	})
 
-	resp, err := client.Get(apiURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-
-	content, err := io.ReadAll(resp.Body)
+	resp, err := client.R().Get(apiURL)
 	if err != nil {
 		return nil, err
 	}
 
-	return content, nil
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode())
+	}
+
+	return resp.Bytes(), nil
 }
 
 func (s *snippetsScanner) scanProjectByPath(git *gitlab.Client, projectPath string) error {

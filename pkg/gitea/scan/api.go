@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"code.gitea.io/sdk/gitea"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 type GiteaScanOptions struct {
@@ -32,7 +31,7 @@ type GiteaScanOptions struct {
 	HitTimeout             time.Duration
 	Context                context.Context
 	Client                 *gitea.Client
-	HttpClient             *retryablehttp.Client
+	HttpClient             *resty.Client
 }
 
 type AuthTransport struct {
@@ -132,32 +131,20 @@ func listWorkflowRuns(client *gitea.Client, repo *gitea.Repository) ([]ActionWor
 		q.Set("limit", strconv.Itoa(limit))
 		link.RawQuery = q.Encode()
 
-		resp, err := scanOptions.HttpClient.Get(link.String())
+		resp, err := scanOptions.HttpClient.R().Get(link.String())
 		if err != nil {
 			return nil, err
 		}
 
-		if resp.StatusCode == 404 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
+		if resp.StatusCode() == 404 {
 			return allRuns, nil
 		}
 
-		if resp.StatusCode != 200 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
-			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		if resp.StatusCode() != 200 {
+			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 		}
 
-		body, err := io.ReadAll(resp.Body)
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			log.Debug().Err(closeErr).Msg("Failed to close response body")
-		}
-		if err != nil {
-			return nil, err
-		}
+		body := resp.Bytes()
 
 		var runsResp ActionWorkflowRunsResponse
 		if err := json.Unmarshal(body, &runsResp); err != nil {
@@ -242,32 +229,20 @@ func listWorkflowJobs(client *gitea.Client, repo *gitea.Repository, run ActionWo
 		q.Set("limit", strconv.Itoa(limit))
 		link.RawQuery = q.Encode()
 
-		resp, err := scanOptions.HttpClient.Get(link.String())
+		resp, err := scanOptions.HttpClient.R().Get(link.String())
 		if err != nil {
 			return nil, err
 		}
 
-		if resp.StatusCode == 404 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
+		if resp.StatusCode() == 404 {
 			return allJobs, nil
 		}
 
-		if resp.StatusCode != 200 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
-			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		if resp.StatusCode() != 200 {
+			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 		}
 
-		body, err := io.ReadAll(resp.Body)
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			log.Debug().Err(closeErr).Msg("Failed to close response body")
-		}
-		if err != nil {
-			return nil, err
-		}
+		body := resp.Bytes()
 
 		var jobsResp ActionJobsResponse
 		if err := json.Unmarshal(body, &jobsResp); err != nil {
@@ -380,32 +355,20 @@ func listArtifacts(repo *gitea.Repository, run ActionWorkflowRun) ([]ActionArtif
 		q.Set("limit", strconv.Itoa(limit))
 		link.RawQuery = q.Encode()
 
-		resp, err := scanOptions.HttpClient.Get(link.String())
+		resp, err := scanOptions.HttpClient.R().Get(link.String())
 		if err != nil {
 			return nil, err
 		}
 
-		if resp.StatusCode == 404 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
+		if resp.StatusCode() == 404 {
 			return allArtifacts, nil
 		}
 
-		if resp.StatusCode != 200 {
-			if err := resp.Body.Close(); err != nil {
-				log.Debug().Err(err).Msg("Failed to close response body")
-			}
-			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		if resp.StatusCode() != 200 {
+			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 		}
 
-		body, err := io.ReadAll(resp.Body)
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			log.Debug().Err(closeErr).Msg("Failed to close response body")
-		}
-		if err != nil {
-			return nil, err
-		}
+		body := resp.Bytes()
 
 		var artifactsResp ActionArtifactsResponse
 		if err := json.Unmarshal(body, &artifactsResp); err != nil {

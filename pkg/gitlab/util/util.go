@@ -3,7 +3,6 @@ package util
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -12,10 +11,10 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/headzoo/surf"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
+	"resty.dev/v3"
 )
 
 // AccessLevelName returns the human-readable name for a GitLab access level value.
@@ -98,7 +97,7 @@ func IterateGroupProjects(client *gitlab.Client, groupID interface{}, opts *gitl
 }
 
 func GetGitlabClient(token string, url string) (*gitlab.Client, error) {
-	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()))
+	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekHTTPClient("", nil, nil).Client()))
 }
 
 func CookieSessionValid(gitlabUrl string, cookieVal string) {
@@ -106,13 +105,12 @@ func CookieSessionValid(gitlabUrl string, cookieVal string) {
 
 	// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 	client := httpclient.GetPipeleekHTTPClient(gitlabUrl, []*http.Cookie{{Name: "_gitlab_session", Value: cookieVal}}, nil)
-	resp, err := client.Get(gitlabSessionsUrl)
+	resp, err := client.R().Get(gitlabSessionsUrl)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed GitLab session test")
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	statCode := resp.StatusCode
+	statCode := resp.StatusCode()
 
 	if statCode != 200 {
 		log.Fatal().Int("http", statCode).Str("testUrl", gitlabSessionsUrl).Msg("Invalid _gitlab_session, not auhthorized to access user sessions page for session validation")
@@ -140,8 +138,8 @@ func DetermineVersion(gitlabUrl string, apiToken string) *gitlab.Metadata {
 }
 
 // fetchVersionFromHTML fetches the GitLab version by scraping the /help page HTML.
-// Accepts a retryable HTTP client to allow injection for testing.
-func fetchVersionFromHTML(gitlabUrl string, client *retryablehttp.Client) *gitlab.Metadata {
+// Accepts a Resty client to allow injection for testing.
+func fetchVersionFromHTML(gitlabUrl string, client *resty.Client) *gitlab.Metadata {
 	u, err := url.Parse(gitlabUrl)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
@@ -149,18 +147,14 @@ func fetchVersionFromHTML(gitlabUrl string, client *retryablehttp.Client) *gitla
 	}
 	u.Path = path.Join(u.Path, "/help")
 
-	response, err := client.Get(u.String())
+	response, err := client.R().Get(u.String())
 
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
 		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
 	}
 
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed determining GitLab version via Website")
-		return &gitlab.Metadata{Version: "none", Revision: "none", Enterprise: false}
-	}
+	responseData := response.Bytes()
 
 	extractLineR := regexp.MustCompile(`instance_version":"\d*.\d*.\d*"`)
 	fullLine := extractLineR.Find(responseData)

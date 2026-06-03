@@ -12,8 +12,8 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/runner"
 	pkgscanner "github.com/CompassSecurity/pipeleek/pkg/scanner"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 // ScanOptions is an alias for GiteaScanOptions for interface consistency with other providers.
@@ -266,7 +266,7 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 
 	authHeaders := map[string]string{"Authorization": "token " + token}
 
-	var httpClient *retryablehttp.Client
+	var httpClient *resty.Client
 	if cookie != "" {
 		// #nosec G124 - Cookie attributes (Secure/HttpOnly/SameSite) are server-side browser directives; not applicable for client HTTP requests
 		httpClient = httpclient.GetPipeleekHTTPClient(
@@ -290,7 +290,7 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 	// Inject the Pipeleek standard client into the Gitea SDK so it shares the same
 	// TLS/proxy/SOCKS settings. Auth is handled by gitea.SetToken; no auth headers
 	// are passed here to avoid duplication.
-	baseStandardClient := httpclient.GetPipeleekHTTPClient("", nil, nil).StandardClient()
+	baseStandardClient := httpclient.GetPipeleekHTTPClient("", nil, nil).Client()
 	client, err := gitea.NewClient(giteaURL, gitea.SetToken(token), gitea.SetHTTPClient(baseStandardClient))
 	if err != nil {
 		return ScanOptions{}, err
