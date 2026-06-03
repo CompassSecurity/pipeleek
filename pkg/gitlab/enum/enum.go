@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -32,7 +33,7 @@ func RunEnum(gitlabUrl, gitlabApiToken string, minAccessLevel int) {
 	log.Debug().Interface("full_user", user).Msg("Full User details")
 
 	log.Info().Msg("Enumerating Access Token")
-	client := *resty.New().SetRedirectPolicy(resty.FlexibleRedirectPolicy(5))
+	client := *httpclient.GetPipeleekHTTPClient("", nil, nil).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5))
 	enumCurrentToken(client, gitlabUrl, gitlabApiToken)
 
 	log.Info().Msg("Enumerating Projects and Groups")

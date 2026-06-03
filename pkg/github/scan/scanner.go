@@ -67,7 +67,7 @@ func SetupClient(accessToken string, baseURL string) *github.Client {
 	if baseURL == "" {
 		baseURL = "https://api.github.com/"
 	}
-	rateLimiter := github_ratelimit.New(nil,
+	rateLimiter := github_ratelimit.New(httpclient.GetPipeleekTransport(),
 		github_primary_ratelimit.WithLimitDetectedCallback(func(ctx *github_primary_ratelimit.CallbackContext) {
 			resetTime := ctx.ResetTime.Add(time.Duration(time.Second * 30))
 			log.Info().Str("category", string(ctx.Category)).Time("reset", resetTime).Msg("Primary rate limit detected, will resume automatically")
