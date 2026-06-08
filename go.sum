@@ -546,8 +546,8 @@ github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+F
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
 github.com/trufflesecurity/ldap-verify v0.0.0-20260401205135-1cad02b26426 h1:vCSA2SQHtO1k6F6IIwHisjgkegy78w6w10QsPbdXppo=
 github.com/trufflesecurity/ldap-verify v0.0.0-20260401205135-1cad02b26426/go.mod h1:ziPWHgmsF3s1VmgP0eTrR0i7fHxlSOqch60dfjHUxHw=
-github.com/trufflesecurity/trufflehog/v3 v3.95.3 h1:5Bn/shz6Ff35M1Ci2KQRwgeEbE5OCEGhITJztsFa9Is=
-github.com/trufflesecurity/trufflehog/v3 v3.95.3/go.mod h1:wogqxyFytNtCyL9M+XZgrb7rRnwzbaXXZvhSjZloD8Y=
+github.com/trufflesecurity/trufflehog/v3 v3.95.5 h1:xT6RAHgDYpRdeHW33+FzAcKFvnLjI68cBNBKnXa8u/U=
+github.com/trufflesecurity/trufflehog/v3 v3.95.5/go.mod h1:03wu1ntxalmXX6XclK+30I9ShwKUqhAx3FQQJoDWne4=
 github.com/ugorji/go/codec v1.2.7 h1:YPXUKf7fYbp/y8xloBqZOw2qaVggbfwMlI8WM3wZUJ0=
 github.com/ugorji/go/codec v1.2.7/go.mod h1:WGN1fab3R1fzQlVQTkfxVtIBhWDRqOviHU95kRgeqEY=
 github.com/ulikunitz/xz v0.5.15 h1:9DNdB5s+SgV3bQ2ApL10xRc35ck0DuIX/isZvIk+ubY=
@@ -631,8 +631,8 @@ golang.org/x/crypto v0.13.0/go.mod h1:y6Z2r+Rw4iayiXXAIxJIDAJ1zMW4yaTpebo8fPOliY
 golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
 golang.org/x/crypto v0.23.0/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
 golang.org/x/crypto v0.31.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
-golang.org/x/crypto v0.51.0 h1:IBPXwPfKxY7cWQZ38ZCIRPI50YLeevDLlLnyC5wRGTI=
-golang.org/x/crypto v0.51.0/go.mod h1:8AdwkbraGNABw2kOX6YFPs3WM22XqI4EXEd8g+x7Oc8=
+golang.org/x/crypto v0.52.0 h1:RMs7fP2rXdep0CftQlK8Uf+kibLm7qkCcradZWYz988=
+golang.org/x/crypto v0.52.0/go.mod h1:1QgfPxDqh0T2M/elOJtp9RvuR95kVjir0e6/BvEmGbc=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
 golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
