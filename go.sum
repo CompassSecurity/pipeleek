@@ -46,8 +46,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v1.3.2/go.mod h1:wP83
 github.com/BobuSumisu/aho-corasick v1.0.3 h1:uuf+JHwU9CHP2Vx+wAy6jcksJThhJS9ehR8a+4nPE9g=
 github.com/BobuSumisu/aho-corasick v1.0.3/go.mod h1:hm4jLcvZKI2vRF2WDU1N4p/jpWtpOzp3nLmi9AzX/XE=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/CircleCI-Public/circleci-cli v0.1.36202 h1:aCQkP+eTFkQFqaG9Qhr9vy+TUqURFFH/dGgTTsUghho=
-github.com/CircleCI-Public/circleci-cli v0.1.36202/go.mod h1:2GzQb7ziN62guqeV6wiC5ad/kt3oo2ToQGdAvjLn5yg=
+github.com/CircleCI-Public/circleci-cli v0.1.38646 h1:kymjys07c2Vk3y/BnHpMz24sU0zhpGlwJm5n76KdJrs=
+github.com/CircleCI-Public/circleci-cli v0.1.38646/go.mod h1:XeQQRIYyT7CYNMCI3BAkURiUxgzZZ1EKWqPkO9pTHNs=
 github.com/MarvinJWendt/testza v0.5.2 h1:53KDo64C1z/h/d/stCYCPY69bt/OSwjq5KpFNwi+zB4=
 github.com/MarvinJWendt/testza v0.5.2/go.mod h1:xu53QFE5sCdjtMCKk8YMQ2MnymimEctc4n3EjyIYvEY=
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
