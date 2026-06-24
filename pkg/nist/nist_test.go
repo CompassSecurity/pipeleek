@@ -70,7 +70,7 @@ func TestFetchVulns_NoPagination(t *testing.T) {
 
 	// Create a properly configured retryable client
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -94,7 +94,7 @@ func TestFetchVulns_WithPagination(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -129,7 +129,7 @@ func TestFetchVulns_EmptyResponse(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:99.99.99:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -152,7 +152,7 @@ func TestFetchVulns_HTTPError(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	client.SetRetryCount(0) // Disable retries for faster test
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
@@ -171,7 +171,7 @@ func TestFetchVulns_InvalidJSON(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
@@ -186,7 +186,7 @@ func TestFetchVulns_LargePagination(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -216,7 +216,7 @@ func TestFetchVulns_ExactPageBoundary(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -237,7 +237,7 @@ func TestFetchVulns_MultiplePagesExactBoundary(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	client := resty.New()
-	
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 

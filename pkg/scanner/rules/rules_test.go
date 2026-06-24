@@ -300,7 +300,7 @@ func TestDownloadFile_HTTPError(t *testing.T) {
 	destFile := filepath.Join(tmpDir, "rules.yml")
 
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.RetryMax = 0
+	client.SetRetryCount(0)
 
 	err := downloadFile("http://127.0.0.1:0", destFile, client)
 	assert.Error(t, err)

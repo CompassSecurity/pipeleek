@@ -260,7 +260,7 @@ func TestMakeHTTPGetRequest(t *testing.T) {
 			server := tt.setupServer()
 			defer server.Close()
 
-scanOptions.HttpClient = resty.New().SetRetryCount(0)
+			scanOptions.HttpClient = resty.New().SetRetryCount(0)
 
 			resp, err := makeHTTPGetRequest(server.URL)
 
@@ -342,7 +342,7 @@ func TestMakeHTTPPostRequest(t *testing.T) {
 			server := tt.setupServer()
 			defer server.Close()
 
-scanOptions.HttpClient = resty.New().SetRetryCount(0)
+			scanOptions.HttpClient = resty.New().SetRetryCount(0)
 
 			resp, err := makeHTTPPostRequest(server.URL, tt.requestBody, tt.headers)
 

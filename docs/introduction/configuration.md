@@ -20,7 +20,6 @@ Generate a configuration template with all available options:
 pipeleek config gen --output ~/.config/pipeleek/pipeleek.yaml
 ```
 
-
 The generated template documents all settings, their defaults, CLI flags, and environment variable names for quick reference.
 
 Then configure your needed object keys, for example:

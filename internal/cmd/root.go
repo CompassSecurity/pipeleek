@@ -56,11 +56,11 @@ var (
 			go logging.ShortcutListeners(nil)
 		},
 	}
-	JsonLogoutput      bool
-	LogFile            string
-	LogColor           bool
-	LogDebug           bool
-	LogLevel           string
+	JsonLogoutput   bool
+	LogFile         string
+	LogColor        bool
+	LogDebug        bool
+	LogLevel        string
 	IgnoreProxy     bool
 	ConfigFile      string
 	TLSVerification bool

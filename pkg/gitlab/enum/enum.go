@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
