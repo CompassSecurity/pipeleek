@@ -71,8 +71,7 @@ func scanNamespace(git *gitlab.Client, namespace string, patterns []sharedcontai
 		return nil
 	})
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed iterating group projects")
-		return
+		log.Fatal().Stack().Err(err).Msg("Failed iterating group projects")
 	}
 
 	log.Info().Msg("Fetched all group projects")

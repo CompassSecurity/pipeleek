@@ -569,6 +569,9 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 	}
 
 	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil).Client()
+	if httpClient.Timeout == 0 {
+		httpClient.Timeout = 45 * time.Second
+	}
 	apiClient := newCircleAPIClient(baseURL, input.Token, httpClient)
 
 	if len(projects) == 0 {

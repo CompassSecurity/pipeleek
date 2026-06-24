@@ -96,6 +96,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&LogDebug, "verbose", "v", false, "Enable debug logging (shortcut for --log-level=debug)")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "", "Set log level globally (debug, info, warn, error). Example: --log-level=warn")
 	rootCmd.PersistentFlags().BoolVar(&LogColor, "color", true, "Enable colored log output (auto-disabled when using --logfile)")
+	rootCmd.PersistentFlags().BoolVar(&TLSVerification, "tls-verification", false, "Enable TLS certificate verification (by default verification is skipped to support self-signed certificates)")
 	rootCmd.PersistentFlags().BoolVar(&IgnoreProxy, "ignore-proxy", false, "Ignore HTTP_PROXY environment variable")
 	rootCmd.PersistentFlags().StringVar(&Proxy, "proxy", "", "Proxy URL, e.g. http://127.0.0.1:8080 or socks5://127.0.0.1:1080 (takes precedence over HTTP_PROXY)")
 	rootCmd.PersistentFlags().DurationVar(&HTTPTimeout, "http-timeout", 0, "HTTP request timeout, e.g. 30s or 2m (default: no timeout)")
