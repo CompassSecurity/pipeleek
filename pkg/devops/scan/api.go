@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"crypto/tls"
 	"net/url"
 	"path"
 	"strconv"
@@ -22,8 +23,13 @@ func NewClient(username string, password string, baseURL string) AzureDevOpsApiC
 	if baseURL == "" {
 		baseURL = "https://dev.azure.com"
 	}
+	// Azure DevOps is a cloud-only service (dev.azure.com) with a valid TLS certificate;
+	// always enforce certificate verification regardless of the global --tls-verification flag.
 	bbClient := AzureDevOpsApiClient{
-		Client:   *httpclient.GetPipeleekHTTPClient("", nil, nil).SetBasicAuth(username, password).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)),
+		Client: *httpclient.GetPipeleekHTTPClient("", nil, nil).
+			SetTLSClientConfig(&tls.Config{MinVersion: tls.VersionTLS12}).
+			SetBasicAuth(username, password).
+			SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)),
 		BaseURL:  baseURL,
 		VsspsURL: "https://app.vssps.visualstudio.com",
 	}

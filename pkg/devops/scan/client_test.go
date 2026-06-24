@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -39,17 +40,13 @@ func TestAzureDevOpsNewClient_VsspsURLIsFixed(t *testing.T) {
 	}
 }
 
-func TestAzureDevOpsNewClient_TLSReflectsGlobalConfig(t *testing.T) {
-	tests := []struct {
-		name               string
-		insecureSkipVerify bool
-	}{
-		{"skip=true", true},
-		{"skip=false", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			httpclient.SetInsecureSkipVerify(tt.insecureSkipVerify)
+func TestAzureDevOpsNewClient_TLSAlwaysVerified(t *testing.T) {
+	// Azure DevOps is cloud-only (dev.azure.com) and always has a valid TLS
+	// certificate. The client must enforce certificate verification regardless
+	// of the global --tls-verification flag.
+	for _, globalSkip := range []bool{true, false} {
+		t.Run(fmt.Sprintf("globalSkip=%v", globalSkip), func(t *testing.T) {
+			httpclient.SetInsecureSkipVerify(globalSkip)
 			t.Cleanup(func() { httpclient.SetInsecureSkipVerify(true) })
 
 			c := NewClient("u", "p", "")
@@ -57,9 +54,8 @@ func TestAzureDevOpsNewClient_TLSReflectsGlobalConfig(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected *http.Transport, got %T", c.Client.Transport())
 			}
-			got := rawTr.TLSClientConfig.InsecureSkipVerify
-			if got != tt.insecureSkipVerify {
-				t.Errorf("InsecureSkipVerify: want %v, got %v", tt.insecureSkipVerify, got)
+			if rawTr.TLSClientConfig.InsecureSkipVerify {
+				t.Error("InsecureSkipVerify must always be false for Azure DevOps (cloud-only service)")
 			}
 		})
 	}
