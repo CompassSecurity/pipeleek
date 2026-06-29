@@ -752,8 +752,8 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golift.io/udf v0.0.1 h1:kEcJVzqqR+IEWGMuPjuVPT9DzXRDukEgsizKAKn1LF8=
 golift.io/udf v0.0.1/go.mod h1:ndK7AlWOh+u+nW9tNsQR95dfHsfASG5Y3dMyzVqmPjw=
-golift.io/xtractr v0.3.2 h1:WquFJg9Gdj8aRMrJsBPrVYtI0Cp9Qw7zkIW9EJZXhBY=
-golift.io/xtractr v0.3.2/go.mod h1:QAkQVMeXn+IJ0iZWFhXEFqu4A+d5N1UGcPB2ZrqCA7U=
+golift.io/xtractr v0.4.0 h1:xfBDJOGkQmcgCYfgg/r/dZnumkNOqPjZDHUziJ8B8SE=
+golift.io/xtractr v0.4.0/go.mod h1:QAkQVMeXn+IJ0iZWFhXEFqu4A+d5N1UGcPB2ZrqCA7U=
 gonum.org/v1/gonum v0.16.0 h1:5+ul4Swaf3ESvrOnidPp4GZbzf0mxVQpDCYUQE7OJfk=
 gonum.org/v1/gonum v0.16.0/go.mod h1:fef3am4MQ93R2HHpKnLk4/Tbh/s0+wqD5nfa6Pnwy4E=
 google.golang.org/api v0.259.0 h1:90TaGVIxScrh1Vn/XI2426kRpBqHwWIzVBzJsVZ5XrQ=
