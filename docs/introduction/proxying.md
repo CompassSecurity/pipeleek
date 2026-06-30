@@ -20,7 +20,7 @@ Pipeleek supports routing all HTTP/HTTPS traffic through a proxy server. This is
 
 ## Proxy Configuration
 
-Pipeleek uses the standard `HTTP_PROXY` environment variable for proxy configuration.
+Pipeleek uses standard proxy environment variables for proxy configuration: `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`.
 
 ```bash
 HTTP_PROXY=http://127.0.0.1:8080 pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx
@@ -70,7 +70,7 @@ pipeleek --http-timeout 30s gl scan --token glpat-xxx --url https://gitlab.examp
 
 Accepts any Go duration string: `30s`, `2m`, `90s`, etc. The default is no timeout.
 
-> **Note:** `--http-timeout` applies to all platforms using `GetPipeleekHTTPClient` (GitLab, Gitea, Bitbucket, Azure DevOps, Jenkins, CircleCI, NIST, and rule downloads). The exception is the GitHub API SDK, which wraps the shared transport in its own rate-limit client and is not subject to this flag; GitHub artifact downloads (which use Resty directly) are affected.
+> **Note:** `--http-timeout` applies to all Pipeleek-managed HTTP clients. For GitHub API SDK calls, Pipeleek's shared transport is still used, so transport-level timeouts (for example response-header timeout) apply. GitHub artifact downloads (which use Resty directly) are fully affected.
 
 ## Platform Scope
 
@@ -81,6 +81,6 @@ All proxy and TLS flags share a single HTTP transport injected into every platfo
 | `--tls-verification`        | `false`        | All platforms                                                             |
 | `--ignore-proxy`            | `false`        | All platforms                                                             |
 | `--proxy <url>`             | _(none)_       | All platforms                                                             |
-| `--http-timeout <duration>` | _(no timeout)_ | All platforms (GitHub SDK API calls not affected; artifact downloads are) |
+| `--http-timeout <duration>` | _(no timeout)_ | All platforms (GitHub SDK calls get transport-level timeout behavior; artifact downloads are fully affected) |
 
 > **Note:** The GitHub SDK uses a dedicated rate-limit transport (`go-github-ratelimit`) that cannot be replaced. TLS and proxy settings still apply to GitHub via the shared transport layer.
