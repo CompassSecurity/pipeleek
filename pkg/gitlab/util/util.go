@@ -97,7 +97,7 @@ func IterateGroupProjects(client *gitlab.Client, groupID interface{}, opts *gitl
 }
 
 func GetGitlabClient(token string, url string) (*gitlab.Client, error) {
-	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekHTTPClient("", nil, nil).Client()))
+	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
 }
 
 func CookieSessionValid(gitlabUrl string, cookieVal string) {

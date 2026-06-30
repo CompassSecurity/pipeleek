@@ -289,7 +289,7 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 	// Inject the Pipeleek standard client into the Gitea SDK so it shares the same
 	// TLS/proxy/SOCKS settings. Auth is handled by gitea.SetToken; no auth headers
 	// are passed here to avoid duplication.
-	baseStandardClient := httpclient.GetPipeleekHTTPClient("", nil, nil).Client()
+	baseStandardClient := httpclient.GetPipeleekStandardHTTPClient()
 	client, err := gitea.NewClient(giteaURL, gitea.SetToken(token), gitea.SetHTTPClient(baseStandardClient))
 	if err != nil {
 		return ScanOptions{}, err

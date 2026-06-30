@@ -568,7 +568,7 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 		return ScanOptions{}, err
 	}
 
-	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil).Client()
+	httpClient := httpclient.GetPipeleekStandardHTTPClient()
 	if httpClient.Timeout == 0 {
 		httpClient.Timeout = 45 * time.Second
 	}

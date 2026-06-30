@@ -26,7 +26,7 @@ type goJenkinsClient struct {
 
 func NewClient(serverURL, username, token string) JenkinsClient {
 	base := normalizeBaseURL(serverURL)
-	jenkins := gojenkins.CreateJenkins(httpclient.GetPipeleekHTTPClient("", nil, nil).Client(), base, username, token)
+	jenkins := gojenkins.CreateJenkins(httpclient.GetPipeleekStandardHTTPClient(), base, username, token)
 	return &goJenkinsClient{jenkins: jenkins}
 }
 

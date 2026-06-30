@@ -222,11 +222,11 @@ func TestSetProxy(t *testing.T) {
 		restore2 := saveAndRestoreConfig(t)
 		defer restore2()
 		SetProxy("")
-		// With no explicit proxy configured, the HTTP Proxy field must be nil.
-		// DialContext may be the default dialer inherited from http.DefaultTransport.
+		SetIgnoreProxy(false)
+		// With no explicit proxy configured and ignoreProxy=false, stdlib env proxy resolution is used.
 		tr := GetPipeleekTransport()
-		if tr.Proxy != nil {
-			t.Error("Expected Proxy to be nil when no proxy is configured")
+		if tr.Proxy == nil {
+			t.Error("Expected Proxy resolver to be configured when no explicit proxy is set")
 		}
 	})
 }

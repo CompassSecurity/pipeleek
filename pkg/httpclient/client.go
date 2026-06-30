@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -118,15 +117,7 @@ func buildTransport(cfg httpClientConfig) *http.Transport {
 	}
 
 	if !ignoreProxy.Load() {
-		proxyServer, useHttpProxy := os.LookupEnv("HTTP_PROXY")
-		if useHttpProxy {
-			proxyUrl, err := url.Parse(proxyServer)
-			if err != nil {
-				log.Fatal().Err(err).Str("HTTP_PROXY", proxyServer).Msg("Invalid Proxy URL in HTTP_PROXY environment variable")
-			}
-			log.Info().Str("proxy", proxyUrl.String()).Msg("Using HTTP_PROXY")
-			tr.Proxy = http.ProxyURL(proxyUrl)
-		}
+		tr.Proxy = http.ProxyFromEnvironment
 	}
 
 	return tr
@@ -138,6 +129,11 @@ func buildTransport(cfg httpClientConfig) *http.Transport {
 // request lifecycle but should still share the same network configuration.
 func GetPipeleekTransport() *http.Transport {
 	return buildTransport(readGlobalConfig())
+}
+
+// GetPipeleekStandardHTTPClient creates a standard-library HTTP client with Pipeleek's transport settings.
+func GetPipeleekStandardHTTPClient() *http.Client {
+	return GetPipeleekHTTPClient("", nil, nil).Client()
 }
 
 // GetPipeleekHTTPClient creates a Resty HTTP client applying the global TLS, proxy, retry, and timeout settings.
