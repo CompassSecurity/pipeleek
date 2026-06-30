@@ -29,7 +29,7 @@ func NewClient(username string, password string, baseURL string) AzureDevOpsApiC
 		Client: *httpclient.GetPipeleekHTTPClient("", nil, nil).
 			SetTLSClientConfig(&tls.Config{MinVersion: tls.VersionTLS12}).
 			SetBasicAuth(username, password).
-			SetRedirectPolicy(resty.FlexibleRedirectPolicy(5)),
+			SetRedirectPolicy(resty.RedirectFlexiblePolicy(5)),
 		BaseURL:  baseURL,
 		VsspsURL: "https://app.vssps.visualstudio.com",
 	}

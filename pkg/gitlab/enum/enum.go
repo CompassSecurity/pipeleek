@@ -33,7 +33,7 @@ func RunEnum(gitlabUrl, gitlabApiToken string, minAccessLevel int) {
 	log.Debug().Interface("full_user", user).Msg("Full User details")
 
 	log.Info().Msg("Enumerating Access Token")
-	client := *httpclient.GetPipeleekHTTPClient("", nil, nil).SetRedirectPolicy(resty.FlexibleRedirectPolicy(5))
+	client := *httpclient.GetPipeleekHTTPClient("", nil, nil).SetRedirectPolicy(resty.RedirectFlexiblePolicy(5))
 	enumCurrentToken(client, gitlabUrl, gitlabApiToken)
 
 	log.Info().Msg("Enumerating Projects and Groups")
