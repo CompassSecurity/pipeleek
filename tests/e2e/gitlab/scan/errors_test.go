@@ -166,6 +166,7 @@ func TestGitLabScan_Timeout(t *testing.T) {
 
 	// Use a short timeout to ensure we hit it
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"--http-timeout", "500ms",
 		"gl", "scan",
 		"--url", server.URL,
 		"--token", "test-token",

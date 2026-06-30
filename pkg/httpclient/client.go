@@ -120,6 +120,10 @@ func buildTransport(cfg httpClientConfig) *http.Transport {
 		tr.Proxy = http.ProxyFromEnvironment
 	}
 
+	if cfg.timeout > 0 {
+		tr.ResponseHeaderTimeout = cfg.timeout
+	}
+
 	return tr
 }
 
@@ -133,7 +137,12 @@ func GetPipeleekTransport() *http.Transport {
 
 // GetPipeleekStandardHTTPClient creates a standard-library HTTP client with Pipeleek's transport settings.
 func GetPipeleekStandardHTTPClient() *http.Client {
-	return GetPipeleekHTTPClient("", nil, nil).Client()
+	cfg := readGlobalConfig()
+	client := &http.Client{Transport: buildTransport(cfg)}
+	if cfg.timeout > 0 {
+		client.Timeout = cfg.timeout
+	}
+	return client
 }
 
 // GetPipeleekHTTPClient creates a Resty HTTP client applying the global TLS, proxy, retry, and timeout settings.
@@ -161,6 +170,7 @@ func GetPipeleekHTTPClient(cookieUrl string, cookies []*http.Cookie, defaultHead
 
 	if cfg.timeout > 0 {
 		client.SetTimeout(cfg.timeout)
+		client.Client().Timeout = cfg.timeout
 	}
 
 	client.SetTransport(buildTransport(cfg))
