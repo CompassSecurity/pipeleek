@@ -168,7 +168,7 @@ func GetPipeleekHTTPClient(cookieUrl string, cookies []*http.Cookie, defaultHead
 	client.SetRetryCount(4)
 	client.SetRetryWaitTime(1 * time.Second)
 	client.SetRetryMaxWaitTime(30 * time.Second)
-	client.EnableRetryDefaultConditions()
+	client.SetRetryDefaultConditions(true)
 	client.AddRetryHooks(func(r *resty.Response, err error) {
 		if err != nil {
 			log.Error().Err(err).Msg("Retrying HTTP request, error occurred")
