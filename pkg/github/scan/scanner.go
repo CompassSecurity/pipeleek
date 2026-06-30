@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"sort"
 	"strings"
@@ -67,7 +68,17 @@ func SetupClient(accessToken string, baseURL string) *github.Client {
 	if baseURL == "" {
 		baseURL = "https://api.github.com/"
 	}
-	rateLimiter := github_ratelimit.New(httpclient.GetPipeleekTransport(),
+	transport := httpclient.GetPipeleekTransport()
+	if baseURL == "https://api.github.com/" {
+		// Public GitHub.com always presents a valid TLS certificate. Force
+		// verification to prevent credential exposure via MITM, regardless of
+		// the global --tls-verification flag. For GHES with self-signed certs,
+		// the shared transport (user-controlled) is used as-is.
+		t := transport.Clone()
+		t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		transport = t
+	}
+	rateLimiter := github_ratelimit.New(transport,
 		github_primary_ratelimit.WithLimitDetectedCallback(func(ctx *github_primary_ratelimit.CallbackContext) {
 			resetTime := ctx.ResetTime.Add(time.Duration(time.Second * 30))
 			log.Info().Str("category", string(ctx.Category)).Time("reset", resetTime).Msg("Primary rate limit detected, will resume automatically")

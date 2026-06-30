@@ -76,11 +76,11 @@ Accepts any Go duration string: `30s`, `2m`, `90s`, etc. The default is no timeo
 
 All proxy and TLS flags share a single HTTP transport injected into every platform client:
 
-| Flag                        | Default        | Applies to                                                    |
-| --------------------------- | -------------- | ------------------------------------------------------------- |
-| `--tls-verification`        | `false`        | All platforms                                                 |
-| `--ignore-proxy`            | `false`        | All platforms                                                 |
-| `--proxy <url>`             | _(none)_       | All platforms                                                 |
+| Flag                        | Default        | Applies to                                                                |
+| --------------------------- | -------------- | ------------------------------------------------------------------------- |
+| `--tls-verification`        | `false`        | All platforms                                                             |
+| `--ignore-proxy`            | `false`        | All platforms                                                             |
+| `--proxy <url>`             | _(none)_       | All platforms                                                             |
 | `--http-timeout <duration>` | _(no timeout)_ | All platforms (GitHub SDK API calls not affected; artifact downloads are) |
 
 > **Note:** The GitHub SDK uses a dedicated rate-limit transport (`go-github-ratelimit`) that cannot be replaced. TLS and proxy settings still apply to GitHub via the shared transport layer.

@@ -283,7 +283,6 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 		)
 	} else {
 		// Auth header passed as defaultHeaders; Resty sets them on every request.
-		// The Pipeleek transport (TLS, proxy, SOCKS) is preserved.
 		httpClient = httpclient.GetPipeleekHTTPClient("", nil, authHeaders)
 	}
 

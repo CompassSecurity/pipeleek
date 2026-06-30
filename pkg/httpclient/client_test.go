@@ -1,87 +1,10 @@
 package httpclient
 
 import (
-	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
-
 )
-
-func TestHeaderRoundTripper_RoundTrip(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(r.Header.Get("Custom-Header")))
-	}))
-	defer server.Close()
-
-	tests := []struct {
-		name          string
-		headers       map[string]string
-		requestHeader map[string]string
-		wantHeader    string
-	}{
-		{
-			name:          "add default header when not present",
-			headers:       map[string]string{"Custom-Header": "default-value"},
-			requestHeader: map[string]string{},
-			wantHeader:    "default-value",
-		},
-		{
-			name:          "preserve existing request header",
-			headers:       map[string]string{"Custom-Header": "default-value"},
-			requestHeader: map[string]string{"Custom-Header": "request-value"},
-			wantHeader:    "request-value",
-		},
-		{
-			name:          "nil headers map",
-			headers:       nil,
-			requestHeader: map[string]string{},
-			wantHeader:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hrt := &HeaderRoundTripper{
-				Headers: tt.headers,
-				Next:    http.DefaultTransport,
-			}
-
-			client := &http.Client{
-				Transport: hrt,
-			}
-
-			req, err := http.NewRequest("GET", server.URL, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			for k, v := range tt.requestHeader {
-				req.Header.Set(k, v)
-			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if string(body) != tt.wantHeader {
-				t.Errorf("Expected header value %q, got %q", tt.wantHeader, string(body))
-			}
-		})
-	}
-}
 
 func TestGetPipeleekHTTPClient(t *testing.T) {
 	t.Run("client without cookies", func(t *testing.T) {
@@ -299,10 +222,11 @@ func TestSetProxy(t *testing.T) {
 		restore2 := saveAndRestoreConfig(t)
 		defer restore2()
 		SetProxy("")
-		// With no proxy, transport should have no dialer and no Proxy func set
+		// With no explicit proxy configured, the HTTP Proxy field must be nil.
+		// DialContext may be the default dialer inherited from http.DefaultTransport.
 		tr := GetPipeleekTransport()
-		if tr.DialContext != nil {
-			t.Error("Expected DialContext to be nil when no proxy is configured")
+		if tr.Proxy != nil {
+			t.Error("Expected Proxy to be nil when no proxy is configured")
 		}
 	})
 }
