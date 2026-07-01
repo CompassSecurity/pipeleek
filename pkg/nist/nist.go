@@ -4,11 +4,10 @@ package nist
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 const resultsPerPage = 100
@@ -27,9 +26,9 @@ var PIPELEEK_NIST_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
 // FetchVulns retrieves all CVE vulnerabilities for a specific CPE name from the NIST NVD API.
 // It automatically handles pagination if the total results exceed the page size.
-// Accepts a retryablehttp client, base URL, and full CPE name to allow dependency injection for testing.
+// Accepts a resty client, base URL, and full CPE name to allow dependency injection for testing.
 // CPE name should be in format: cpe:2.3:a:vendor:product:version:*:*:*:edition:*:*:*
-func FetchVulns(client *retryablehttp.Client, cpeName string) (string, error) {
+func FetchVulns(client *resty.Client, cpeName string) (string, error) {
 
 	baseURL := PIPELEEK_NIST_BASE_URL
 	// Allow overriding NIST base URL via environment variable (primarily for testing)
@@ -82,23 +81,18 @@ func FetchVulns(client *retryablehttp.Client, cpeName string) (string, error) {
 	return string(jsonData), nil
 }
 
-func fetchPage(client *retryablehttp.Client, url string) (*nvdResponse, error) {
-	res, err := client.Get(url)
+func fetchPage(client *resty.Client, url string) (*nvdResponse, error) {
+	res, err := client.R().Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = res.Body.Close() }()
 
-	if res.StatusCode != 200 {
-		log.Error().Int("http", res.StatusCode).Str("url", url).Msg("failed fetching vulnerabilities")
-		return nil, fmt.Errorf("HTTP %d", res.StatusCode)
+	if res.StatusCode() != 200 {
+		log.Error().Int("http", res.StatusCode()).Str("url", url).Msg("failed fetching vulnerabilities")
+		return nil, fmt.Errorf("HTTP %d", res.StatusCode())
 	}
 
-	resData, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Error().Int("http", res.StatusCode).Msg("unable to read HTTP response body")
-		return nil, err
-	}
+	resData := res.Bytes()
 
 	var nvdResp nvdResponse
 	if err := json.Unmarshal(resData, &nvdResp); err != nil {

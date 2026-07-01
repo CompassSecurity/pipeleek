@@ -48,13 +48,13 @@ type enumeratedUsers struct {
 }
 
 type publicEnumerationStats struct {
-	groupsListed       int
-	projectsListed     int
-	groupMemberHits    int
-	projectMemberHits  int
-	groupsAccessible   bool
-	projectsAccessible bool
-	groupMembersAccess bool
+	groupsListed         int
+	projectsListed       int
+	groupMemberHits      int
+	projectMemberHits    int
+	groupsAccessible     bool
+	projectsAccessible   bool
+	groupMembersAccess   bool
 	projectMembersAccess bool
 }
 
@@ -540,7 +540,7 @@ func collectProjectMembersViaGraphQL(client *http.Client, graphqlURL, projectPat
 func buildGraphQLClient(git *gitlab.Client) (*http.Client, string) {
 	apiBase := strings.TrimRight(git.BaseURL().String(), "/")
 	graphqlURL := strings.TrimSuffix(apiBase, "/api/v4") + "/api/graphql"
-	client := httpclient.GetPipeleekHTTPClient(apiBase, nil, nil).StandardClient()
+	client := httpclient.GetPipeleekHTTPClient(apiBase, nil, nil).Client()
 	return client, graphqlURL
 }
 

@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"resty.dev/v3"
 )
 
 // mockNVDServer creates a test HTTP server that simulates the NVD API
@@ -69,8 +69,8 @@ func TestFetchVulns_NoPagination(t *testing.T) {
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
 	// Create a properly configured retryable client
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -93,8 +93,8 @@ func TestFetchVulns_WithPagination(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -128,8 +128,8 @@ func TestFetchVulns_EmptyResponse(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:99.99.99:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -151,9 +151,9 @@ func TestFetchVulns_HTTPError(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
-	client.RetryMax = 0 // Disable retries for faster test
+	client := resty.New()
+
+	client.SetRetryCount(0) // Disable retries for faster test
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
@@ -170,8 +170,8 @@ func TestFetchVulns_InvalidJSON(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	assert.Error(t, err)
 	assert.Equal(t, "{}", result)
@@ -185,8 +185,8 @@ func TestFetchVulns_LargePagination(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -215,8 +215,8 @@ func TestFetchVulns_ExactPageBoundary(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 
@@ -236,8 +236,8 @@ func TestFetchVulns_MultiplePagesExactBoundary(t *testing.T) {
 	// Set the environment variable for the test
 	t.Setenv("PIPELEEK_NIST_BASE_URL", server.URL)
 
-	client := retryablehttp.NewClient()
-	client.HTTPClient = server.Client()
+	client := resty.New()
+
 	result, err := FetchVulns(client, "cpe:2.3:a:example:product:1.0.0:*:*:*:*:*:*:*")
 	require.NoError(t, err)
 

@@ -104,17 +104,14 @@ func isRegistrationEnabled(base string) (bool, error) {
 	s := u.String()
 
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	res, err := client.Get(s)
+	res, err := client.R().Get(s)
 
 	if err != nil {
 		return false, err
 	}
 
-	if res.StatusCode == 200 {
-		resData, err := io.ReadAll(res.Body)
-		if err != nil {
-			return false, err
-		}
+	if res.StatusCode() == 200 {
+		resData := res.Bytes()
 
 		// sanity check to avoid false positives
 		if strings.Contains(string(resData), "{\"exists\":false}") {
@@ -124,7 +121,7 @@ func isRegistrationEnabled(base string) (bool, error) {
 		log.Debug().Msg("Missed sanity check")
 		return false, err
 	} else {
-		log.Debug().Int("http", res.StatusCode).Msg("Registration username test request")
+		log.Debug().Int("http", res.StatusCode()).Msg("Registration username test request")
 		return false, nil
 	}
 }
@@ -138,16 +135,13 @@ func checkNrPublicRepos(base string) (int, error) {
 	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
 	u.Path = "/api/v4/projects"
 	s := u.String()
-	res, err := client.Get(s + "?per_page=100")
+	res, err := client.R().Get(s + "?per_page=100")
 	if err != nil {
 		return 0, err
 	}
 
-	if res.StatusCode == 200 {
-		resData, err := io.ReadAll(res.Body)
-		if err != nil {
-			return 0, err
-		}
+	if res.StatusCode() == 200 {
+		resData := res.Bytes()
 		var val []map[string]interface{}
 		if err := json.Unmarshal(resData, &val); err != nil {
 			return 0, err

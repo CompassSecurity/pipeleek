@@ -179,8 +179,10 @@ func TestGLunaShodan_MultipleInstances(t *testing.T) {
 }
 
 func TestGLunaShodan_WithHostname(t *testing.T) {
-	// Test with hostname instead of IP
-	jsonFile := createShodanJSONFile(t, []string{"example.invalid"}, []string{"192.0.2.5"}, []int{443}, []string{"https"})
+	// Test with hostname instead of IP — use an unreachable IP string as hostname
+	// so the command uses the Hostnames field (not ip_str) and hangs on connect
+	// rather than failing fast on DNS (NXDOMAIN is not retried).
+	jsonFile := createShodanJSONFile(t, []string{"192.0.2.5"}, []string{"192.0.2.5"}, []int{443}, []string{"https"})
 
 	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
 		"gluna", "shodan",

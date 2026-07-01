@@ -98,8 +98,7 @@ func fetchProjects(git *gitlab.Client, patterns []sharedcontainer.Pattern, opts 
 		return nil
 	})
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed iterating projects")
-		return
+		log.Fatal().Stack().Err(err).Msg("Failed iterating projects")
 	}
 
 	log.Info().Msg("Fetched all projects")

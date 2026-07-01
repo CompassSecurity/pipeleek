@@ -2,18 +2,18 @@ package rules
 
 import (
 	"errors"
-	"io"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/engine/defaults"
 	"gopkg.in/yaml.v3"
+	"resty.dev/v3"
 )
 
 var ruleFile = "https://raw.githubusercontent.com/mazen160/secrets-patterns-db/master/db/rules-stable.yml"
@@ -33,26 +33,18 @@ func DownloadRules() {
 	}
 }
 
-func downloadFile(url string, filepath string, client *retryablehttp.Client) error {
-	// #nosec G304 - Creating file for rules download at controlled internal temp path
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	_, err = io.Copy(out, resp.Body)
+func downloadFile(url string, filepath string, client *resty.Client) error {
+	resp, err := client.R().Get(url)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("unexpected status %d downloading rules file", resp.StatusCode())
+	}
+
+	// #nosec G304 - Writing rules download at controlled internal temp path
+	return os.WriteFile(filepath, resp.Bytes(), 0600)
 }
 
 func InitRules(confidenceFilter []string) {

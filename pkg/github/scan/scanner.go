@@ -2,7 +2,7 @@ package scan
 
 import (
 	"context"
-	"io"
+	"crypto/tls"
 	"net/http"
 	"sort"
 	"strings"
@@ -19,9 +19,9 @@ import (
 	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit/github_primary_ratelimit"
 	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit/github_secondary_ratelimit"
 	"github.com/google/go-github/v69/github"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 // ScanOptions contains configuration options for GitHub scanning operations.
@@ -43,7 +43,7 @@ type ScanOptions struct {
 	HitTimeout             time.Duration
 	Context                context.Context
 	Client                 *github.Client
-	HttpClient             *retryablehttp.Client
+	HttpClient             *resty.Client
 }
 
 type Scanner interface {
@@ -68,7 +68,17 @@ func SetupClient(accessToken string, baseURL string) *github.Client {
 	if baseURL == "" {
 		baseURL = "https://api.github.com/"
 	}
-	rateLimiter := github_ratelimit.New(nil,
+	transport := httpclient.GetPipeleekTransport()
+	if baseURL == "https://api.github.com/" {
+		// Public GitHub.com always presents a valid TLS certificate. Force
+		// verification to prevent credential exposure via MITM, regardless of
+		// the global --tls-verification flag. For GHES with self-signed certs,
+		// the shared transport (user-controlled) is used as-is.
+		t := transport.Clone()
+		t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		transport = t
+	}
+	rateLimiter := github_ratelimit.New(transport,
 		github_primary_ratelimit.WithLimitDetectedCallback(func(ctx *github_primary_ratelimit.CallbackContext) {
 			resetTime := ctx.ResetTime.Add(time.Duration(time.Second * 30))
 			log.Info().Str("category", string(ctx.Category)).Time("reset", resetTime).Msg("Primary rate limit detected, will resume automatically")
@@ -418,19 +428,15 @@ func (s *scanner) downloadWorkflowRunLog(repo *github.Repository, workflowRun *g
 }
 
 func (s *scanner) downloadRunLogZIP(url string) []byte {
-	res, err := s.options.HttpClient.Get(url)
+	res, err := s.options.HttpClient.R().Get(url)
 	logLines := make([]byte, 0)
 
 	if err != nil {
 		return logLines
 	}
 
-	if res.StatusCode == 200 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Err(err).Msg("Failed reading response log body")
-			return logLines
-		}
+	if res.StatusCode() == 200 {
+		body := res.Bytes()
 
 		zipResult, err := logline.ExtractLogsFromZip(body)
 		if err != nil {
@@ -532,19 +538,15 @@ func (s *scanner) analyzeArtifact(workflowRun *github.WorkflowRun, artifact *git
 		return
 	}
 
-	res, err := s.options.HttpClient.Get(url.String())
+	res, err := s.options.HttpClient.R().Get(url.String())
 
 	if err != nil {
 		log.Err(err).Str("workflow", url.String()).Msg("Failed downloading artifacts zip")
 		return
 	}
 
-	if res.StatusCode == 200 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Err(err).Msg("Failed reading response log body")
-			return
-		}
+	if res.StatusCode() == 200 {
+		body := res.Bytes()
 
 		_, err = artifactproc.ProcessZipArtifact(body, artifactproc.ProcessOptions{
 			MaxGoRoutines:     s.options.MaxScanGoRoutines,
