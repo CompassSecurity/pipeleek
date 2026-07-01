@@ -1,6 +1,7 @@
 package enum
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -21,6 +22,7 @@ func TestNewGLRenovateEnumCmd(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("extend-renovate-config-service"))
 	assert.Equal(t, "r", cmd.Flags().Lookup("repo").Shorthand)
 	assert.Equal(t, "", cmd.Flags().Lookup("page").Shorthand)
+	assert.Equal(t, reflect.ValueOf(RunEnumerate).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestGLRenovateEnumCmd_AllDefinedFlagsAreBound(t *testing.T) {

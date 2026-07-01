@@ -13,30 +13,31 @@ var flagBindings = map[string]string{
 	"repo":  "gitlab.cicd.yaml.repo",
 }
 
-func NewYamlCmd() *cobra.Command {
-	var projectName string
+// RunYamlCommand handles the yaml command execution
+func RunYamlCommand(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.repo").
+		MustBind()
 
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+	projectName := config.GetString("gitlab.cicd.yaml.repo")
+
+	pkgcicd.DumpCICDYaml(gitlabUrl, gitlabApiToken, projectName)
+	log.Info().Msg("Done, Bye Bye 🏳️‍🌈🔥")
+}
+
+func NewYamlCmd() *cobra.Command {
 	yamlCmd := &cobra.Command{
 		Use:     "yaml",
 		Short:   "Dump the CI/CD yaml configuration of a project",
 		Long:    "Dump the CI/CD yaml configuration of a project, useful for analyzing the configuration and identifying potential security issues.",
 		Example: `pipeleek gl cicd yaml --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --repo mygroup/myproject`,
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitlab.url", "gitlab.token", "gitlab.cicd.yaml.repo").
-				MustBind()
-
-			gitlabUrl := config.GetString("gitlab.url")
-			gitlabApiToken := config.GetString("gitlab.token")
-			projectName = config.GetString("gitlab.cicd.yaml.repo")
-
-			pkgcicd.DumpCICDYaml(gitlabUrl, gitlabApiToken, projectName)
-			log.Info().Msg("Done, Bye Bye 🏳️‍🌈🔥")
-		},
+		Run:     RunYamlCommand,
 	}
 
-	yamlCmd.Flags().StringVarP(&projectName, "repo", "r", "", "Repository name")
+	yamlCmd.Flags().String("repo", "", "Repository name")
 
 	return yamlCmd
 }

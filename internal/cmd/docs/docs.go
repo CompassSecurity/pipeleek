@@ -5,9 +5,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type docsCommand struct {
+	root        *cobra.Command
+	serve       *bool
+	githubPages *bool
+}
+
+func (d docsCommand) Run(_ *cobra.Command, _ []string) {
+	runDocs(d.root, *d.serve, *d.githubPages)
+}
+
+func runDocs(root *cobra.Command, serve bool, githubPages bool) {
+	pkgdocs.Generate(pkgdocs.GenerateOptions{
+		RootCmd:     root,
+		Serve:       serve,
+		GithubPages: githubPages,
+	})
+}
+
 func NewDocsCmd(root *cobra.Command) *cobra.Command {
 	var serve bool
 	var githubPages bool
+	runner := docsCommand{root: root, serve: &serve, githubPages: &githubPages}
 
 	cmd := &cobra.Command{
 		Use:   "docs",
@@ -17,13 +36,7 @@ func NewDocsCmd(root *cobra.Command) *cobra.Command {
 # Generate docs and serve them at http://localhost:8000
 pipeleek docs --serve
 		`,
-		Run: func(cmd *cobra.Command, args []string) {
-			pkgdocs.Generate(pkgdocs.GenerateOptions{
-				RootCmd:     root,
-				Serve:       serve,
-				GithubPages: githubPages,
-			})
-		},
+		Run: runner.Run,
 	}
 
 	cmd.Flags().BoolVarP(&serve, "serve", "s", false, "Serve documentation after building")

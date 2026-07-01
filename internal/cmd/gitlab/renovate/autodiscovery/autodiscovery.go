@@ -6,18 +6,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	autodiscoveryProjectName string
-	autodiscoveryUsername    string
-	autodiscoveryAddCICD     bool
-)
-
 var flagBindings = map[string]string{
 	"url":                             "gitlab.url",
 	"token":                           "gitlab.token",
 	"project-name":                    "gitlab.renovate.autodiscovery.project_name",
 	"username":                        "gitlab.renovate.autodiscovery.username",
 	"add-renovate-cicd-for-debugging": "gitlab.renovate.autodiscovery.add_renovate_cicd_for_debugging",
+}
+
+// RunAutodiscovery handles the autodiscovery command execution
+func RunAutodiscovery(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		MustBind()
+
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+	autodiscoveryProjectName := config.GetString("gitlab.renovate.autodiscovery.project_name")
+	autodiscoveryUsername := config.GetString("gitlab.renovate.autodiscovery.username")
+	autodiscoveryAddCICD := config.GetBool("gitlab.renovate.autodiscovery.add_renovate_cicd_for_debugging")
+	pkgrenovate.RunGenerate(gitlabUrl, gitlabApiToken, autodiscoveryProjectName, autodiscoveryUsername, autodiscoveryAddCICD)
 }
 
 func NewAutodiscoveryCmd() *cobra.Command {
@@ -32,20 +41,13 @@ pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --url https://gitla
 # Create a project with a CI/CD pipeline for local testing (requires setting RENOVATE_TOKEN as CI/CD variable)
 pipeleek gl renovate autodiscovery --token glpat-xxxxxxxxxxx --url https://gitlab.mydomain.com --project-name my-exploit-project --add-renovate-cicd-for-debugging
     `,
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitlab.url", "gitlab.token").
-				MustBind()
-
-			gitlabUrl := config.GetString("gitlab.url")
-			gitlabApiToken := config.GetString("gitlab.token")
-			autodiscoveryProjectName = config.GetString("gitlab.renovate.autodiscovery.project_name")
-			autodiscoveryUsername = config.GetString("gitlab.renovate.autodiscovery.username")
-			autodiscoveryAddCICD = config.GetBool("gitlab.renovate.autodiscovery.add_renovate_cicd_for_debugging")
-			pkgrenovate.RunGenerate(gitlabUrl, gitlabApiToken, autodiscoveryProjectName, autodiscoveryUsername, autodiscoveryAddCICD)
-		},
+		Run: RunAutodiscovery,
 	}
+
+	var autodiscoveryProjectName string
+	var autodiscoveryUsername string
+	var autodiscoveryAddCICD bool
+
 	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryProjectName, "project-name", "p", "", "The name for the created project")
 	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "n", "", "The username of the victim Renovate Bot user to invite")
 	autodiscoveryCmd.Flags().BoolVar(&autodiscoveryAddCICD, "add-renovate-cicd-for-debugging", false, "Creates a .gitlab-ci.yml file in the repo that runs Renovate Bot for local testing")

@@ -32,31 +32,33 @@ var flagBindings = map[string]string{
 	"order-by":     "github.container.artipacked.order_by",
 }
 
+func RunArtipacked(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("github.url", "github.token").
+		MustBind()
+
+	githubURL := config.GetString("github.url")
+	githubAPIToken := config.GetString("github.token")
+
+	owned = config.GetBool("github.container.artipacked.owned")
+	member = config.GetBool("github.container.artipacked.member")
+	public = config.GetBool("github.container.artipacked.public")
+	repository = config.GetString("github.container.artipacked.repo")
+	organization = config.GetString("github.container.artipacked.organization")
+	projectSearchQuery = config.GetString("github.container.artipacked.search")
+	page = config.GetInt("github.container.artipacked.page")
+	orderBy = config.GetString("github.container.artipacked.order_by")
+
+	Scan(githubURL, githubAPIToken)
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("github.url", "github.token").
-				MustBind()
-
-			githubUrl := config.GetString("github.url")
-			githubApiToken := config.GetString("github.token")
-
-			owned = config.GetBool("github.container.artipacked.owned")
-			member = config.GetBool("github.container.artipacked.member")
-			public = config.GetBool("github.container.artipacked.public")
-			repository = config.GetString("github.container.artipacked.repo")
-			organization = config.GetString("github.container.artipacked.organization")
-			projectSearchQuery = config.GetString("github.container.artipacked.search")
-			page = config.GetInt("github.container.artipacked.page")
-			orderBy = config.GetString("github.container.artipacked.order_by")
-
-			Scan(githubUrl, githubApiToken)
-		},
+		Run:   RunArtipacked,
 	}
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")

@@ -8,8 +8,27 @@ import (
 )
 
 var flagBindings = map[string]string{
-	"url": "gitea.url",
+	"url":   "gitea.url",
 	"token": "gitea.token",
+}
+
+func RunSecrets(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitea.url", "gitea.token").
+		MustBind()
+
+	url := config.GetString("gitea.url")
+	token := config.GetString("gitea.token")
+
+	cfg := secrets.Config{
+		URL:   url,
+		Token: token,
+	}
+
+	if err := secrets.ListAllSecrets(cfg); err != nil {
+		log.Fatal().Err(err).Msg("Failed to list secrets")
+	}
 }
 
 func NewSecretsCommand() *cobra.Command {
@@ -17,24 +36,7 @@ func NewSecretsCommand() *cobra.Command {
 		Use:   "secrets",
 		Short: "List all Gitea Actions secrets from groups and repositories",
 		Long:  `Fetches and logs all Actions secrets from organizations and their repositories in Gitea.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitea.url", "gitea.token").
-				MustBind()
-
-			url := config.GetString("gitea.url")
-			token := config.GetString("gitea.token")
-
-			cfg := secrets.Config{
-				URL:   url,
-				Token: token,
-			}
-
-			if err := secrets.ListAllSecrets(cfg); err != nil {
-				log.Fatal().Err(err).Msg("Failed to list secrets")
-			}
-		},
+		Run:   RunSecrets,
 	}
 
 	return cmd

@@ -1,6 +1,7 @@
 package enum
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -45,6 +46,7 @@ func TestEnumCmdFlags(t *testing.T) {
 func TestEnumCmdHasRun(t *testing.T) {
 	cmd := NewEnumCmd()
 	assert.NotNil(t, cmd.Run, "Enum command should have Run function")
+	assert.Equal(t, reflect.ValueOf(RunEnumerate).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestEnumCmdDoesNotUsePreRunHook(t *testing.T) {

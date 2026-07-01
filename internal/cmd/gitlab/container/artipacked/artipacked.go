@@ -29,30 +29,33 @@ var flagBindings = map[string]string{
 	"order-by":  "gitlab.container.artipacked.order_by",
 }
 
+// RunArtipacked handles the artipacked command execution
+func RunArtipacked(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		MustBind()
+
+	gitlabUrl := config.GetString("gitlab.url")
+	gitlabApiToken := config.GetString("gitlab.token")
+
+	owned = config.GetBool("gitlab.container.artipacked.owned")
+	member = config.GetBool("gitlab.container.artipacked.member")
+	repository = config.GetString("gitlab.container.artipacked.repo")
+	namespace = config.GetString("gitlab.container.artipacked.namespace")
+	projectSearchQuery = config.GetString("gitlab.container.artipacked.search")
+	page = config.GetInt("gitlab.container.artipacked.page")
+	orderBy = config.GetString("gitlab.container.artipacked.order_by")
+
+	Scan(gitlabUrl, gitlabApiToken)
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitlab.url", "gitlab.token").
-				MustBind()
-
-			gitlabUrl := config.GetString("gitlab.url")
-			gitlabApiToken := config.GetString("gitlab.token")
-
-			owned = config.GetBool("gitlab.container.artipacked.owned")
-			member = config.GetBool("gitlab.container.artipacked.member")
-			repository = config.GetString("gitlab.container.artipacked.repo")
-			namespace = config.GetString("gitlab.container.artipacked.namespace")
-			projectSearchQuery = config.GetString("gitlab.container.artipacked.search")
-			page = config.GetInt("gitlab.container.artipacked.page")
-			orderBy = config.GetString("gitlab.container.artipacked.order_by")
-
-			Scan(gitlabUrl, gitlabApiToken)
-		},
+		Run:   RunArtipacked,
 	}
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
