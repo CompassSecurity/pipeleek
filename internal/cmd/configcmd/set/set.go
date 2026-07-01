@@ -74,8 +74,7 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 				return common.LogAndWrapError("set", "write config file", err)
 			}
 
-			logger := log.Output(cmd.OutOrStdout())
-			logger.Info().Msgf("Configuration updated: %s = %v (written to %s)", key, parsedValue, writePath)
+			log.Info().Str("key", key).Interface("value", parsedValue).Str("write_path", writePath).Msg("Configuration updated")
 			return nil
 		},
 	}
