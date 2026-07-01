@@ -37,7 +37,7 @@ func NewYamlCmd() *cobra.Command {
 		Run:     RunYamlCommand,
 	}
 
-	yamlCmd.Flags().String("repo", "", "Repository name")
+	yamlCmd.Flags().StringP("repo", "r", "", "Repository name")
 
 	return yamlCmd
 }

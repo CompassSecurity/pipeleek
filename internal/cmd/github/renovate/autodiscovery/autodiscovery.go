@@ -7,11 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	autodiscoveryRepoName string
-	autodiscoveryUsername string
-)
-
 var flagBindings = map[string]string{
 	"url":       "github.url",
 	"token":     "github.token",
@@ -25,14 +20,13 @@ func RunAutodiscovery(cmd *cobra.Command, args []string) {
 		RequireKeys("github.token").
 		MustBind()
 
-	autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
-	autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
-
 	githubURL := config.GetString("github.url")
 	githubAPIToken := config.GetString("github.token")
+	repoName := config.GetString("github.renovate.autodiscovery.repo_name")
+	username := config.GetString("github.renovate.autodiscovery.username")
 
 	client := pkgscan.SetupClient(githubAPIToken, githubURL)
-	pkgrenovate.RunGenerate(client, autodiscoveryRepoName, autodiscoveryUsername)
+	pkgrenovate.RunGenerate(client, repoName, username)
 }
 
 func NewAutodiscoveryCmd() *cobra.Command {
@@ -46,8 +40,9 @@ pipeleek gh renovate autodiscovery --token ghp_xxxxx --url https://api.github.co
 		`,
 		Run: RunAutodiscovery,
 	}
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryRepoName, "repo-name", "r", "", "The name for the created repository")
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "n", "", "The username of the victim Renovate Bot user to invite")
+	var repoName, username string
+	autodiscoveryCmd.Flags().StringVarP(&repoName, "repo-name", "r", "", "The name for the created repository")
+	autodiscoveryCmd.Flags().StringVarP(&username, "username", "n", "", "The username of the victim Renovate Bot user to invite")
 
 	return autodiscoveryCmd
 }

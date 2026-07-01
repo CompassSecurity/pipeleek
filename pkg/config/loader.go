@@ -22,7 +22,11 @@ func resolveHomeDir() string {
 	if h := os.Getenv("USERPROFILE"); h != "" {
 		return h
 	}
-	h, _ := os.UserHomeDir()
+	h, err := os.UserHomeDir()
+	if err != nil {
+		log.Debug().Err(err).Msg("Could not determine home directory; skipping home-based config paths")
+		return ""
+	}
 	return h
 }
 
