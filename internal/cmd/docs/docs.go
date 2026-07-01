@@ -34,8 +34,8 @@ pipeleek docs --serve
 		Run: RunDocs,
 	}
 
-	cmd.Flags().BoolVarP(new(bool), "serve", "s", false, "Serve documentation after building")
-	cmd.Flags().BoolVarP(new(bool), "github-pages", "g", false, "Build for GitHub Pages")
+	cmd.Flags().BoolP("serve", "s", false, "Serve documentation after building")
+	cmd.Flags().BoolP("github-pages", "g", false, "Build for GitHub Pages")
 
 	return cmd
 }

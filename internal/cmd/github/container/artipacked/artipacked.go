@@ -18,7 +18,6 @@ type artipackedOptions struct {
 	ProjectSearchQuery string
 	Page               int
 	OrderBy            string
-	DangerousPatterns  string
 }
 
 var flagBindings = map[string]string{
@@ -96,6 +95,5 @@ func scan(opts artipackedOptions) {
 		Repository:         opts.Repository,
 		Organization:       opts.Organization,
 		OrderBy:            opts.OrderBy,
-		DangerousPatterns:  opts.DangerousPatterns,
 	}, client)
 }
