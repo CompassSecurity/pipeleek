@@ -13,9 +13,11 @@ It supports the following platforms:
 
 - GitLab
 - GitHub
-- BitBucket
+- Bitbucket
 - Azure DevOps
 - Gitea
+- CircleCI
+- Jenkins
 
 Once secrets are discovered, further exploitation often requires additional tooling. Pipeleek provides several helper commands to assist with this process.
 
