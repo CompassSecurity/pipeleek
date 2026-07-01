@@ -1,6 +1,7 @@
 package yaml
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -13,6 +14,7 @@ func TestNewYamlCmd(t *testing.T) {
 	assert.Equal(t, "yaml", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.NotNil(t, cmd.Flags().Lookup("repo"))
+	assert.Equal(t, reflect.ValueOf(RunYamlCommand).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestYamlCmd_AllDefinedFlagsAreBound(t *testing.T) {

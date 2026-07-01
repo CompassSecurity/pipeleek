@@ -7,17 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	owned              bool
-	member             bool
-	public             bool
-	projectSearchQuery string
-	page               int
-	repository         string
-	organization       string
-	orderBy            string
-	dangerousPatterns  string
-)
+type artipackedOptions struct {
+	URL                string
+	Token              string
+	Owned              bool
+	Member             bool
+	Public             bool
+	Repository         string
+	Organization       string
+	ProjectSearchQuery string
+	Page               int
+	OrderBy            string
+}
 
 var flagBindings = map[string]string{
 	"url":          "github.url",
@@ -32,32 +33,39 @@ var flagBindings = map[string]string{
 	"order-by":     "github.container.artipacked.order_by",
 }
 
+func RunArtipacked(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("github.url", "github.token").
+		MustBind()
+
+	opts := artipackedOptions{
+		URL:                config.GetString("github.url"),
+		Token:              config.GetString("github.token"),
+		Owned:              config.GetBool("github.container.artipacked.owned"),
+		Member:             config.GetBool("github.container.artipacked.member"),
+		Public:             config.GetBool("github.container.artipacked.public"),
+		Repository:         config.GetString("github.container.artipacked.repo"),
+		Organization:       config.GetString("github.container.artipacked.organization"),
+		ProjectSearchQuery: config.GetString("github.container.artipacked.search"),
+		Page:               config.GetInt("github.container.artipacked.page"),
+		OrderBy:            config.GetString("github.container.artipacked.order_by"),
+	}
+
+	scan(opts)
+}
+
 func NewArtipackedCmd() *cobra.Command {
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("github.url", "github.token").
-				MustBind()
-
-			githubUrl := config.GetString("github.url")
-			githubApiToken := config.GetString("github.token")
-
-			owned = config.GetBool("github.container.artipacked.owned")
-			member = config.GetBool("github.container.artipacked.member")
-			public = config.GetBool("github.container.artipacked.public")
-			repository = config.GetString("github.container.artipacked.repo")
-			organization = config.GetString("github.container.artipacked.organization")
-			projectSearchQuery = config.GetString("github.container.artipacked.search")
-			page = config.GetInt("github.container.artipacked.page")
-			orderBy = config.GetString("github.container.artipacked.order_by")
-
-			Scan(githubUrl, githubApiToken)
-		},
+		Run:   RunArtipacked,
 	}
+
+	var owned, member, public bool
+	var repository, organization, projectSearchQuery, orderBy string
+	var page int
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
 	artipackedCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
@@ -73,22 +81,19 @@ func NewArtipackedCmd() *cobra.Command {
 	return artipackedCmd
 }
 
-func Scan(githubUrl, githubApiToken string) {
-	client := pkgscan.SetupClient(githubApiToken, githubUrl)
+func scan(opts artipackedOptions) {
+	client := pkgscan.SetupClient(opts.Token, opts.URL)
 
-	opts := pkgcontainer.ScanOptions{
-		GitHubUrl:          githubUrl,
-		GitHubApiToken:     githubApiToken,
-		Owned:              owned,
-		Member:             member,
-		Public:             public,
-		ProjectSearchQuery: projectSearchQuery,
-		Page:               page,
-		Repository:         repository,
-		Organization:       organization,
-		OrderBy:            orderBy,
-		DangerousPatterns:  dangerousPatterns,
-	}
-
-	pkgcontainer.RunScan(opts, client)
+	pkgcontainer.RunScan(pkgcontainer.ScanOptions{
+		GitHubUrl:          opts.URL,
+		GitHubApiToken:     opts.Token,
+		Owned:              opts.Owned,
+		Member:             opts.Member,
+		Public:             opts.Public,
+		ProjectSearchQuery: opts.ProjectSearchQuery,
+		Page:               opts.Page,
+		Repository:         opts.Repository,
+		Organization:       opts.Organization,
+		OrderBy:            opts.OrderBy,
+	}, client)
 }

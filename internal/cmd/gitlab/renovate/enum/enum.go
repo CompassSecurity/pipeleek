@@ -7,18 +7,21 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
-var (
-	owned                       bool
-	member                      bool
-	projectSearchQuery          string
-	fast                        bool
-	dump                        bool
-	page                        int
-	repository                  string
-	namespace                   string
-	orderBy                     string
-	extendRenovateConfigService string
-)
+// EnumOptions represents all configuration options for the enum command
+type EnumOptions struct {
+	URL                         string
+	Token                       string
+	Owned                       bool
+	Member                      bool
+	Repository                  string
+	Namespace                   string
+	SearchQuery                 string
+	Fast                        bool
+	Dump                        bool
+	Page                        int
+	OrderBy                     string
+	ExtendRenovateConfigService string
+}
 
 var flagBindings = map[string]string{
 	"url":                            "gitlab.url",
@@ -35,34 +38,41 @@ var flagBindings = map[string]string{
 	"extend-renovate-config-service": "gitlab.renovate.enum.extend_renovate_config_service",
 }
 
+// RunEnumerate handles the enum command execution
+func RunEnumerate(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		MustBind()
+
+	opts := EnumOptions{
+		URL:                         config.GetString("gitlab.url"),
+		Token:                       config.GetString("gitlab.token"),
+		Owned:                       config.GetBool("gitlab.renovate.enum.owned"),
+		Member:                      config.GetBool("gitlab.renovate.enum.member"),
+		Repository:                  config.GetString("gitlab.renovate.enum.repo"),
+		Namespace:                   config.GetString("gitlab.renovate.enum.namespace"),
+		SearchQuery:                 config.GetString("gitlab.renovate.enum.search"),
+		Fast:                        config.GetBool("gitlab.renovate.enum.fast"),
+		Dump:                        config.GetBool("gitlab.renovate.enum.dump"),
+		Page:                        config.GetInt("gitlab.renovate.enum.page"),
+		OrderBy:                     config.GetString("gitlab.renovate.enum.order_by"),
+		ExtendRenovateConfigService: config.GetString("gitlab.renovate.enum.extend_renovate_config_service"),
+	}
+
+	enumerate(opts)
+}
+
 func NewEnumCmd() *cobra.Command {
 	enumCmd := &cobra.Command{
 		Use:   "enum [no options!]",
 		Short: "Enumerate Renovate configurations",
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitlab.url", "gitlab.token").
-				MustBind()
-
-			gitlabUrl := config.GetString("gitlab.url")
-			gitlabApiToken := config.GetString("gitlab.token")
-
-			// All flags can come from config, CLI flags, or env vars via Viper
-			owned = config.GetBool("gitlab.renovate.enum.owned")
-			member = config.GetBool("gitlab.renovate.enum.member")
-			repository = config.GetString("gitlab.renovate.enum.repo")
-			namespace = config.GetString("gitlab.renovate.enum.namespace")
-			projectSearchQuery = config.GetString("gitlab.renovate.enum.search")
-			fast = config.GetBool("gitlab.renovate.enum.fast")
-			dump = config.GetBool("gitlab.renovate.enum.dump")
-			page = config.GetInt("gitlab.renovate.enum.page")
-			orderBy = config.GetString("gitlab.renovate.enum.order_by")
-			extendRenovateConfigService = config.GetString("gitlab.renovate.enum.extend_renovate_config_service")
-
-			Enumerate(gitlabUrl, gitlabApiToken)
-		},
+		Run:   RunEnumerate,
 	}
+
+	var owned, member, fast, dump bool
+	var projectSearchQuery, repository, namespace, orderBy, extendRenovateConfigService string
+	var page int
 
 	enumCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
 	enumCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan projects the user is member of")
@@ -78,22 +88,23 @@ func NewEnumCmd() *cobra.Command {
 	return enumCmd
 }
 
-func Enumerate(gitlabUrl, gitlabApiToken string) {
-	opts := pkgrenovate.EnumOptions{
-		GitlabUrl:                   gitlabUrl,
-		GitlabApiToken:              gitlabApiToken,
-		Owned:                       owned,
-		Member:                      member,
-		ProjectSearchQuery:          projectSearchQuery,
-		Fast:                        fast,
-		Dump:                        dump,
-		Page:                        page,
-		Repository:                  repository,
-		Namespace:                   namespace,
-		OrderBy:                     orderBy,
-		ExtendRenovateConfigService: extendRenovateConfigService,
+// enumerate contains the business logic and is now testable in isolation
+func enumerate(opts EnumOptions) {
+	pkgOpts := pkgrenovate.EnumOptions{
+		GitlabUrl:                   opts.URL,
+		GitlabApiToken:              opts.Token,
+		Owned:                       opts.Owned,
+		Member:                      opts.Member,
+		ProjectSearchQuery:          opts.SearchQuery,
+		Fast:                        opts.Fast,
+		Dump:                        opts.Dump,
+		Page:                        opts.Page,
+		Repository:                  opts.Repository,
+		Namespace:                   opts.Namespace,
+		OrderBy:                     opts.OrderBy,
+		ExtendRenovateConfigService: opts.ExtendRenovateConfigService,
 		MinAccessLevel:              int(gitlab.GuestPermissions),
 	}
 
-	pkgrenovate.RunEnumerate(opts)
+	pkgrenovate.RunEnumerate(pkgOpts)
 }

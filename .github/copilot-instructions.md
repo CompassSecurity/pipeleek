@@ -204,6 +204,65 @@ make serve-docs  # Installs dependencies if needed, generates and serves docs
 - Use consistent flag naming across commands
 - **When adding or modifying command flags**: Update `docs/introduction/configuration.md` and ensure `pipeleek config gen` output remains accurate
 
+#### Named Run Handler Pattern (MANDATORY)
+
+**All commands must use a named `Run` handler function — never an anonymous inline `func`.**
+
+The `NewXCommand()` factory wires flags and returns the command. The named handler function performs config binding and calls into `pkg/`. Multi-field commands must collect config values into a local options struct inside the handler rather than assigning to package-level global variables.
+
+```go
+// ✅ CORRECT: named handler, local options struct
+func RunMyCommand(cmd *cobra.Command, args []string) {
+    config.NewCommandSetup(cmd).
+        WithFlagBindings(flagBindings).
+        RequireKeys("platform.url", "platform.token").
+        MustBind()
+
+    opts := MyOptions{
+        URL:   config.GetString("platform.url"),
+        Token: config.GetString("platform.token"),
+        Foo:   config.GetString("platform.mycommand.foo"),
+    }
+    runMyCommand(opts)
+}
+
+func NewMyCommand() *cobra.Command {
+    cmd := &cobra.Command{
+        Use:   "mycommand",
+        Short: "...",
+        Run:   RunMyCommand,   // ← named reference, not inline func
+    }
+    cmd.Flags().String("foo", "", "...")
+    return cmd
+}
+
+// separate pure function — testable without Cobra
+func runMyCommand(opts MyOptions) {
+    pkg.DoWork(opts.URL, opts.Token, opts.Foo)
+}
+```
+
+```go
+// ❌ WRONG: inline anonymous function
+func NewMyCommand() *cobra.Command {
+    return &cobra.Command{
+        Run: func(cmd *cobra.Command, args []string) { /* ... */ },
+    }
+}
+
+// ❌ WRONG: package-level global variables for flag values
+var foo string
+func RunMyCommand(cmd *cobra.Command, args []string) {
+    foo = config.GetString("platform.mycommand.foo")  // mutation of global
+    doWork()
+}
+```
+
+**Why:** Named handlers are directly referable in tests (`reflect.ValueOf(RunMyCommand)`), eliminate shared mutable state between runs, and make the config-binding/business-logic boundary visible at a glance.
+
+**Known intentional exception — `internal/cmd/docs`:**
+The `docs` command needs the Cobra root command reference to generate documentation. Because Cobra's root is only available at construction time (not via config), `internal/cmd/docs/docs.go` uses a package-level `docsRoot *cobra.Command` variable that is set once by `NewDocsCmd(root)` and never mutated afterwards. This is not a flag-value global and does not introduce shared state between runs. Do not apply the local-options-struct rule to this variable.
+
 ### Configuration Loading Pattern (MANDATORY)
 
 **Use `config.NewCommandSetup` as the canonical command configuration pattern.**
@@ -249,11 +308,15 @@ func CommandRun(cmd *cobra.Command, args []string) {
 3. Apply updates across all applicable child commands (scan + non-scan + nested).
 4. Verify no command directory in scope was skipped.
 5. Confirm touched commands follow the `config.NewCommandSetup` implementation policy.
+6. Confirm `Run:` field references a named handler function — **never** an inline `func(cmd, args)`.
+7. Confirm no package-level global variables are used to carry flag values between `NewXCommand()` and the handler.
 
 **DO NOT:**
 - Read flags directly with `cmd.Flags().GetString()` - always use config system
 - Use legacy binder APIs removed from `pkg/config`
 - Skip required key validation for mandatory config values
+- Use `Run: func(cmd *cobra.Command, args []string) { ... }` inline anonymous functions
+- Declare package-level global variables to hold flag values (use a local options struct inside the handler instead)
 
 ## Copilot Maintainer Workflow (MANDATORY)
 

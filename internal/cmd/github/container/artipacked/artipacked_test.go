@@ -1,6 +1,7 @@
 package artipacked
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -17,6 +18,7 @@ func TestNewGHArtipackedCmd(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("search"))
 	assert.NotNil(t, cmd.Flags().Lookup("page"))
 	assert.NotNil(t, cmd.Flags().Lookup("order-by"))
+	assert.Equal(t, reflect.ValueOf(RunArtipacked).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestGHArtipackedCmd_AllDefinedFlagsAreBound(t *testing.T) {

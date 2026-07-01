@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -15,6 +16,7 @@ func TestNewLabCmd(t *testing.T) {
 	assert.NotEmpty(t, cmd.Short)
 	assert.NotEmpty(t, cmd.Long)
 	assert.NotEmpty(t, cmd.Example)
+	assert.Equal(t, reflect.ValueOf(RunLabSetupCommand).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestLabCmdFlags(t *testing.T) {

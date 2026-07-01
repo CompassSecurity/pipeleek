@@ -7,16 +7,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	autodiscoveryRepoName string
-	autodiscoveryUsername string
-)
-
 var flagBindings = map[string]string{
 	"url":       "github.url",
 	"token":     "github.token",
 	"repo-name": "github.renovate.autodiscovery.repo_name",
 	"username":  "github.renovate.autodiscovery.username",
+}
+
+func RunAutodiscovery(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("github.token").
+		MustBind()
+
+	githubURL := config.GetString("github.url")
+	githubAPIToken := config.GetString("github.token")
+	repoName := config.GetString("github.renovate.autodiscovery.repo_name")
+	username := config.GetString("github.renovate.autodiscovery.username")
+
+	client := pkgscan.SetupClient(githubAPIToken, githubURL)
+	pkgrenovate.RunGenerate(client, repoName, username)
 }
 
 func NewAutodiscoveryCmd() *cobra.Command {
@@ -28,24 +38,11 @@ func NewAutodiscoveryCmd() *cobra.Command {
 # Create a repository and invite the victim Renovate Bot user to it. Uses the Maven wrapper to execute arbitrary code during dependency updates.
 pipeleek gh renovate autodiscovery --token ghp_xxxxx --url https://api.github.com --repo-name my-exploit-repo --username renovate-bot-user
 		`,
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("github.token").
-				MustBind()
-
-			autodiscoveryRepoName = config.GetString("github.renovate.autodiscovery.repo_name")
-			autodiscoveryUsername = config.GetString("github.renovate.autodiscovery.username")
-
-			githubUrl := config.GetString("github.url")
-			githubApiToken := config.GetString("github.token")
-
-			client := pkgscan.SetupClient(githubApiToken, githubUrl)
-			pkgrenovate.RunGenerate(client, autodiscoveryRepoName, autodiscoveryUsername)
-		},
+		Run: RunAutodiscovery,
 	}
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryRepoName, "repo-name", "r", "", "The name for the created repository")
-	autodiscoveryCmd.Flags().StringVarP(&autodiscoveryUsername, "username", "n", "", "The username of the victim Renovate Bot user to invite")
+	var repoName, username string
+	autodiscoveryCmd.Flags().StringVarP(&repoName, "repo-name", "r", "", "The name for the created repository")
+	autodiscoveryCmd.Flags().StringVarP(&username, "username", "n", "", "The username of the victim Renovate Bot user to invite")
 
 	return autodiscoveryCmd
 }

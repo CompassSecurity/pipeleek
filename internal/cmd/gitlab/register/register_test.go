@@ -1,6 +1,7 @@
 package register
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -16,6 +17,7 @@ func TestNewRegisterCmd(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("username"))
 	assert.NotNil(t, cmd.Flags().Lookup("password"))
 	assert.NotNil(t, cmd.Flags().Lookup("email"))
+	assert.Equal(t, reflect.ValueOf(RunRegister).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestRegisterCmd_AllDefinedFlagsAreBound(t *testing.T) {

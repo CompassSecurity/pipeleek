@@ -7,15 +7,17 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
-var (
-	owned              bool
-	member             bool
-	projectSearchQuery string
-	page               int
-	repository         string
-	namespace          string
-	orderBy            string
-)
+type artipackedOptions struct {
+	URL                string
+	Token              string
+	Owned              bool
+	Member             bool
+	Repository         string
+	Namespace          string
+	ProjectSearchQuery string
+	Page               int
+	OrderBy            string
+}
 
 var flagBindings = map[string]string{
 	"url":       "gitlab.url",
@@ -29,30 +31,38 @@ var flagBindings = map[string]string{
 	"order-by":  "gitlab.container.artipacked.order_by",
 }
 
+// RunArtipacked handles the artipacked command execution
+func RunArtipacked(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("gitlab.url", "gitlab.token").
+		MustBind()
+
+	opts := artipackedOptions{
+		URL:                config.GetString("gitlab.url"),
+		Token:              config.GetString("gitlab.token"),
+		Owned:              config.GetBool("gitlab.container.artipacked.owned"),
+		Member:             config.GetBool("gitlab.container.artipacked.member"),
+		Repository:         config.GetString("gitlab.container.artipacked.repo"),
+		Namespace:          config.GetString("gitlab.container.artipacked.namespace"),
+		ProjectSearchQuery: config.GetString("gitlab.container.artipacked.search"),
+		Page:               config.GetInt("gitlab.container.artipacked.page"),
+		OrderBy:            config.GetString("gitlab.container.artipacked.order_by"),
+	}
+
+	scan(opts)
+}
+
 func NewArtipackedCmd() *cobra.Command {
+	var owned, member bool
+	var repository, namespace, projectSearchQuery, orderBy string
+	var page int
+
 	artipackedCmd := &cobra.Command{
 		Use:   "artipacked",
 		Short: "Audit for artipacked misconfiguration (secrets in container images)",
 		Long:  "Scan for dangerous container build patterns that leak secrets like COPY . /path without .dockerignore",
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("gitlab.url", "gitlab.token").
-				MustBind()
-
-			gitlabUrl := config.GetString("gitlab.url")
-			gitlabApiToken := config.GetString("gitlab.token")
-
-			owned = config.GetBool("gitlab.container.artipacked.owned")
-			member = config.GetBool("gitlab.container.artipacked.member")
-			repository = config.GetString("gitlab.container.artipacked.repo")
-			namespace = config.GetString("gitlab.container.artipacked.namespace")
-			projectSearchQuery = config.GetString("gitlab.container.artipacked.search")
-			page = config.GetInt("gitlab.container.artipacked.page")
-			orderBy = config.GetString("gitlab.container.artipacked.order_by")
-
-			Scan(gitlabUrl, gitlabApiToken)
-		},
+		Run:   RunArtipacked,
 	}
 
 	artipackedCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned projects only")
@@ -66,19 +76,17 @@ func NewArtipackedCmd() *cobra.Command {
 	return artipackedCmd
 }
 
-func Scan(gitlabUrl, gitlabApiToken string) {
-	opts := pkgcontainer.ScanOptions{
-		GitlabUrl:          gitlabUrl,
-		GitlabApiToken:     gitlabApiToken,
-		Owned:              owned,
-		Member:             member,
-		ProjectSearchQuery: projectSearchQuery,
-		Page:               page,
-		Repository:         repository,
-		Namespace:          namespace,
-		OrderBy:            orderBy,
+func scan(opts artipackedOptions) {
+	pkgcontainer.RunScan(pkgcontainer.ScanOptions{
+		GitlabUrl:          opts.URL,
+		GitlabApiToken:     opts.Token,
+		Owned:              opts.Owned,
+		Member:             opts.Member,
+		ProjectSearchQuery: opts.ProjectSearchQuery,
+		Page:               opts.Page,
+		Repository:         opts.Repository,
+		Namespace:          opts.Namespace,
+		OrderBy:            opts.OrderBy,
 		MinAccessLevel:     int(gitlab.GuestPermissions),
-	}
-
-	pkgcontainer.RunScan(opts)
+	})
 }

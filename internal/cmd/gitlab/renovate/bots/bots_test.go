@@ -1,6 +1,7 @@
 package bots
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -13,6 +14,7 @@ func TestNewBotsCmd(t *testing.T) {
 	assert.Equal(t, "bots", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.NotNil(t, cmd.Flags().Lookup("term"))
+	assert.Equal(t, reflect.ValueOf(RunBots).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestBotsCmd_AllDefinedFlagsAreBound(t *testing.T) {

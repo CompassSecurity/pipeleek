@@ -7,18 +7,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	owned                       bool
-	member                      bool
-	searchQuery                 string
-	fast                        bool
-	dump                        bool
-	page                        int
-	repository                  string
-	organization                string
-	orderBy                     string
-	extendRenovateConfigService string
-)
+// EnumOptions represents all configuration options for the enum command
+type EnumOptions struct {
+	URL                         string
+	Token                       string
+	Owned                       bool
+	Member                      bool
+	SearchQuery                 string
+	Fast                        bool
+	Dump                        bool
+	Page                        int
+	Repository                  string
+	Organization                string
+	OrderBy                     string
+	ExtendRenovateConfigService string
+}
 
 var flagBindings = map[string]string{
 	"url":                            "github.url",
@@ -33,6 +36,31 @@ var flagBindings = map[string]string{
 	"page":                           "github.renovate.enum.page",
 	"order-by":                       "github.renovate.enum.order_by",
 	"extend-renovate-config-service": "github.renovate.enum.extend_renovate_config_service",
+}
+
+// RunEnumerate handles the enum command execution
+func RunEnumerate(cmd *cobra.Command, args []string) {
+	config.NewCommandSetup(cmd).
+		WithFlagBindings(flagBindings).
+		RequireKeys("github.token").
+		MustBind()
+
+	opts := EnumOptions{
+		URL:                         config.GetString("github.url"),
+		Token:                       config.GetString("github.token"),
+		Owned:                       config.GetBool("github.renovate.enum.owned"),
+		Member:                      config.GetBool("github.renovate.enum.member"),
+		Repository:                  config.GetString("github.renovate.enum.repo"),
+		Organization:                config.GetString("github.renovate.enum.org"),
+		SearchQuery:                 config.GetString("github.renovate.enum.search"),
+		Fast:                        config.GetBool("github.renovate.enum.fast"),
+		Dump:                        config.GetBool("github.renovate.enum.dump"),
+		Page:                        config.GetInt("github.renovate.enum.page"),
+		OrderBy:                     config.GetString("github.renovate.enum.order_by"),
+		ExtendRenovateConfigService: config.GetString("github.renovate.enum.extend_renovate_config_service"),
+	}
+
+	enumerate(opts)
 }
 
 func NewEnumCmd() *cobra.Command {
@@ -59,28 +87,12 @@ pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --org m
 # Enumerate specific repository
 pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --repo owner/repo
 `,
-		Run: func(cmd *cobra.Command, args []string) {
-			config.NewCommandSetup(cmd).
-				WithFlagBindings(flagBindings).
-				RequireKeys("github.token").
-				MustBind()
-
-			githubUrl := config.GetString("github.url")
-			githubApiToken := config.GetString("github.token")
-			owned = config.GetBool("github.renovate.enum.owned")
-			member = config.GetBool("github.renovate.enum.member")
-			repository = config.GetString("github.renovate.enum.repo")
-			organization = config.GetString("github.renovate.enum.org")
-			searchQuery = config.GetString("github.renovate.enum.search")
-			fast = config.GetBool("github.renovate.enum.fast")
-			dump = config.GetBool("github.renovate.enum.dump")
-			page = config.GetInt("github.renovate.enum.page")
-			orderBy = config.GetString("github.renovate.enum.order_by")
-			extendRenovateConfigService = config.GetString("github.renovate.enum.extend_renovate_config_service")
-
-			Enumerate(githubUrl, githubApiToken)
-		},
+		Run: RunEnumerate,
 	}
+
+	var owned, member, fast, dump bool
+	var searchQuery, repository, organization, orderBy, extendRenovateConfigService string
+	var page int
 
 	enumCmd.PersistentFlags().BoolVarP(&owned, "owned", "o", false, "Scan user owned repositories only")
 	enumCmd.PersistentFlags().BoolVarP(&member, "member", "m", false, "Scan repositories the user is member of")
@@ -98,23 +110,24 @@ pipeleek gh renovate enum --url https://api.github.com --token ghp_xxxxx --repo 
 	return enumCmd
 }
 
-func Enumerate(githubUrl, githubApiToken string) {
-	client := pkgscan.SetupClient(githubApiToken, githubUrl)
+// enumerate contains the business logic and is now testable in isolation
+func enumerate(opts EnumOptions) {
+	client := pkgscan.SetupClient(opts.Token, opts.URL)
 
-	opts := pkgrenovate.EnumOptions{
-		GitHubURL:                   githubUrl,
-		GitHubToken:                 githubApiToken,
-		Owned:                       owned,
-		Member:                      member,
-		SearchQuery:                 searchQuery,
-		Fast:                        fast,
-		Dump:                        dump,
-		Page:                        page,
-		Repository:                  repository,
-		Organization:                organization,
-		OrderBy:                     orderBy,
-		ExtendRenovateConfigService: extendRenovateConfigService,
+	pkgOpts := pkgrenovate.EnumOptions{
+		GitHubURL:                   opts.URL,
+		GitHubToken:                 opts.Token,
+		Owned:                       opts.Owned,
+		Member:                      opts.Member,
+		SearchQuery:                 opts.SearchQuery,
+		Fast:                        opts.Fast,
+		Dump:                        opts.Dump,
+		Page:                        opts.Page,
+		Repository:                  opts.Repository,
+		Organization:                opts.Organization,
+		OrderBy:                     opts.OrderBy,
+		ExtendRenovateConfigService: opts.ExtendRenovateConfigService,
 	}
 
-	pkgrenovate.RunEnumerate(client, opts)
+	pkgrenovate.RunEnumerate(client, pkgOpts)
 }

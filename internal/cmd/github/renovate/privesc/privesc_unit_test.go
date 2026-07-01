@@ -1,6 +1,7 @@
 package privesc
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -45,7 +46,7 @@ func TestPrivescCmdMonitoringIntervalFlagDefaults(t *testing.T) {
 
 func TestPrivescCmdHasRun(t *testing.T) {
 	cmd := NewPrivescCmd()
-	assert.NotNil(t, cmd.Run, "Privesc command should have Run function")
+	assert.Equal(t, reflect.ValueOf(RunPrivesc).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestGHPrivescCmd_AllDefinedFlagsAreBound(t *testing.T) {
