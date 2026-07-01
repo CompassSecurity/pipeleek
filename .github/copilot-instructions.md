@@ -260,6 +260,9 @@ func RunMyCommand(cmd *cobra.Command, args []string) {
 
 **Why:** Named handlers are directly referable in tests (`reflect.ValueOf(RunMyCommand)`), eliminate shared mutable state between runs, and make the config-binding/business-logic boundary visible at a glance.
 
+**Known intentional exception — `internal/cmd/docs`:**
+The `docs` command needs the Cobra root command reference to generate documentation. Because Cobra's root is only available at construction time (not via config), `internal/cmd/docs/docs.go` uses a package-level `docsRoot *cobra.Command` variable that is set once by `NewDocsCmd(root)` and never mutated afterwards. This is not a flag-value global and does not introduce shared state between runs. Do not apply the local-options-struct rule to this variable.
+
 ### Configuration Loading Pattern (MANDATORY)
 
 **Use `config.NewCommandSetup` as the canonical command configuration pattern.**
