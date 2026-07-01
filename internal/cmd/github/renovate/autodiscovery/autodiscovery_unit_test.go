@@ -1,6 +1,7 @@
 package autodiscovery
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -39,7 +40,7 @@ func TestAutodiscoveryCmdFlags(t *testing.T) {
 
 func TestAutodiscoveryCmdHasRun(t *testing.T) {
 	cmd := NewAutodiscoveryCmd()
-	assert.NotNil(t, cmd.Run, "Autodiscovery command should have Run function")
+	assert.Equal(t, reflect.ValueOf(RunAutodiscovery).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestGHAutodiscoveryCmd_AllDefinedFlagsAreBound(t *testing.T) {

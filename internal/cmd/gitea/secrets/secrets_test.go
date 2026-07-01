@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -25,4 +26,9 @@ func TestNewSecretsCommand(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "secrets", cmd.Use)
 	assert.Contains(t, cmd.Short, "Actions secrets")
+}
+
+func TestSecretsCmd_RunHandlerIsNamed(t *testing.T) {
+	cmd := NewSecretsCommand()
+	assert.Equal(t, reflect.ValueOf(RunSecrets).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }

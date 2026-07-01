@@ -12,6 +12,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// resolveHomeDir returns the current user's home directory.
+// It tries the HOME env var first (useful in tests and CI), then USERPROFILE
+// (Windows), and finally os.UserHomeDir() as the canonical fallback.
+func resolveHomeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	if h := os.Getenv("USERPROFILE"); h != "" {
+		return h
+	}
+	h, _ := os.UserHomeDir()
+	return h
+}
+
 // Config represents the complete configuration structure for pipeleek.
 // It supports configuration for all platforms and common settings.
 type Config struct {
@@ -102,19 +116,7 @@ func InitializeViper(configFile string) error {
 		v.SetConfigName("pipeleek")
 		v.SetConfigType("yaml")
 
-		// Get home directory: try HOME/USERPROFILE env vars first (for testing), then os.UserHomeDir()
-		home := os.Getenv("HOME")
-		if home == "" {
-			home = os.Getenv("USERPROFILE") // Windows
-		}
-		if home == "" {
-			var err error
-			home, err = os.UserHomeDir()
-			if err != nil {
-				home = ""
-			}
-		}
-
+		home := resolveHomeDir()
 		if home != "" {
 			v.AddConfigPath(filepath.Join(home, ".config", "pipeleek"))
 			v.AddConfigPath(home)
@@ -251,17 +253,7 @@ func GetEffectiveConfigPath(explicitPath string) string {
 	}
 
 	// If no config file was found yet, resolve the default location
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = os.Getenv("USERPROFILE") // Windows
-	}
-	if home == "" {
-		var err error
-		home, err = os.UserHomeDir()
-		if err != nil {
-			home = ""
-		}
-	}
+	home := resolveHomeDir()
 
 	// Prefer ~/.config/pipeleek/pipeleek.yaml as the default write location
 	if home != "" {

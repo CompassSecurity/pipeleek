@@ -1,6 +1,7 @@
 package shodan
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -13,6 +14,7 @@ func TestNewShodanCmd(t *testing.T) {
 	assert.Equal(t, "shodan", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.NotNil(t, cmd.Flags().Lookup("json"))
+	assert.Equal(t, reflect.ValueOf(RunShodan).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestShodanCmd_AllDefinedFlagsAreBound(t *testing.T) {

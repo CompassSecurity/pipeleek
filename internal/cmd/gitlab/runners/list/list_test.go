@@ -1,6 +1,7 @@
 package list
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -12,6 +13,7 @@ func TestNewRunnersListCmd(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "list", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
+	assert.Equal(t, reflect.ValueOf(RunListRunners).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestRunnersListCmd_AllDefinedFlagsAreBound(t *testing.T) {

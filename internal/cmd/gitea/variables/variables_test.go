@@ -1,6 +1,7 @@
 package variables
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -13,6 +14,11 @@ func TestNewVariablesCommand(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "variables", cmd.Use)
 	assert.Contains(t, cmd.Short, "Actions variables")
+}
+
+func TestVariablesCmd_RunHandlerIsNamed(t *testing.T) {
+	cmd := NewVariablesCommand()
+	assert.Equal(t, reflect.ValueOf(RunVariables).Pointer(), reflect.ValueOf(cmd.Run).Pointer())
 }
 
 func TestVariablesCommand_AllDefinedFlagsAreBound(t *testing.T) {
