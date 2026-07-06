@@ -15,6 +15,15 @@ import (
 	"resty.dev/v3"
 )
 
+func effectiveProjectAccessLevels(groupAccessLevel int, projectAccessLevel int) (effective int, inherited bool) {
+	effective = projectAccessLevel
+	if groupAccessLevel > effective {
+		effective = groupAccessLevel
+	}
+
+	return effective, projectAccessLevel < effective
+}
+
 // RunEnum performs the enumeration of GitLab access rights
 func RunEnum(gitlabUrl, gitlabApiToken string, minAccessLevel int) {
 	git, err := util.GetGitlabClient(gitlabApiToken, gitlabUrl)
@@ -164,7 +173,15 @@ func listTokenAssociations(client resty.Client, baseUrl string, pat string, acce
 	}
 
 	for _, project := range resp.Projects {
-		log.Warn().Str("project", project.WebURL).Str("name", project.NameWithNamespace).Str("groupAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.GroupAccessLevel))).Str("projectAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.ProjectAccessLevel))).Msg("Project")
+		effective, inherited := effectiveProjectAccessLevels(project.AccessLevels.GroupAccessLevel, project.AccessLevels.ProjectAccessLevel)
+		log.Warn().
+			Str("project", project.WebURL).
+			Str("name", project.NameWithNamespace).
+			Str("groupAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.GroupAccessLevel))).
+			Str("projectAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(project.AccessLevels.ProjectAccessLevel))).
+			Str("effectiveAccessLevel", util.AccessLevelName(gitlab.AccessLevelValue(effective))).
+			Bool("accessInheritedFromGroup", inherited).
+			Msg("Project")
 		log.Debug().Interface("full_project", project).Msg("Full Project details")
 	}
 
