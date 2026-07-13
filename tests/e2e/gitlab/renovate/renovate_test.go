@@ -271,6 +271,10 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		t.Skipf("Skipping contract test because docker is not available: %v", err)
 	}
 
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skipf("Skipping contract test because git is not available: %v", err)
+	}
+
 	dockerInfoCtx, dockerInfoCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer dockerInfoCancel()
 	if err := exec.CommandContext(dockerInfoCtx, "docker", "info").Run(); err != nil {
@@ -404,7 +408,7 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		_ = exec.CommandContext(cleanupCtx, "docker", "rm", "-f", containerName).Run()
 	})
 
-	createCmd := exec.CommandContext(renovateCtx, "docker", "create", "--name", containerName, "--user", "0:0", "renovate/renovate:latest", "sleep", "300")
+	createCmd := exec.CommandContext(renovateCtx, "docker", "create", "--name", containerName, "--user", "0:0", "--entrypoint", "sleep", "renovate/renovate:latest", "300")
 	if createOutput, createErr := createCmd.CombinedOutput(); createErr != nil {
 		t.Fatalf("failed to create renovate container: %v\n%s", createErr, string(createOutput))
 	}
@@ -452,8 +456,11 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		"--ignore-scripts=false",
 	}
 	renovateCmd := exec.CommandContext(renovateCtx, "docker", execArgs...)
-	renovateOutput, _ := renovateCmd.CombinedOutput()
+	renovateOutput, renovateErr := renovateCmd.CombinedOutput()
 	renovateOutputStr := string(renovateOutput)
+	if renovateErr != nil {
+		t.Fatalf("renovate command failed: %v\n%s", renovateErr, renovateOutputStr)
+	}
 	assert.Contains(t, renovateOutputStr, "Matched 2 file(s) for manager maven-wrapper", "Renovate latest should pick up maven-wrapper files")
 	assert.Contains(t, renovateOutputStr, "maven-wrapper-3.x", "Renovate latest should compute maven-wrapper update branch")
 
