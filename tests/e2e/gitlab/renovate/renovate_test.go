@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -260,6 +261,10 @@ func TestGLRenovateBots(t *testing.T) {
 func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping docker-backed renovate contract test in short mode")
+	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping docker-backed renovate contract test on Windows: renovate/renovate:latest does not provide a Windows container image")
 	}
 
 	if _, err := exec.LookPath("docker"); err != nil {
