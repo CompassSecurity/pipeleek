@@ -61,7 +61,7 @@ func TestMvnwScript(t *testing.T) {
 	})
 
 	t.Run("executes exploit.sh", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.MvnwScript, "sh exploit.sh")
+		assert.Contains(t, pkgrenovate.MvnwScript, "sh \"$SCRIPT_DIR/exploit.sh\"")
 	})
 
 	t.Run("exits successfully to avoid detection", func(t *testing.T) {
@@ -369,7 +369,7 @@ func TestExploitMechanism(t *testing.T) {
 
 		// 2. Renovate executes ./mvnw wrapper:wrapper
 		// 3. Our malicious mvnw executes exploit.sh
-		assert.Contains(t, pkgrenovate.MvnwScript, "sh exploit.sh")
+		assert.Contains(t, pkgrenovate.MvnwScript, "sh \"$SCRIPT_DIR/exploit.sh\"")
 
 		// 4. exploit.sh creates proof file
 		assert.Contains(t, pkgrenovate.ExploitScript, "/tmp/pipeleek-exploit-executed.txt")
