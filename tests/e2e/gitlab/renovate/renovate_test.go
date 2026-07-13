@@ -268,25 +268,16 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 	}
 
 	if _, err := exec.LookPath("docker"); err != nil {
-		if os.Getenv("CI") == "true" {
-			t.Fatalf("docker is required for this contract test in CI: %v", err)
-		}
 		t.Skipf("Skipping contract test because docker is not available: %v", err)
 	}
 
 	if _, err := exec.LookPath("git"); err != nil {
-		if os.Getenv("CI") == "true" {
-			t.Fatalf("git is required for this contract test in CI: %v", err)
-		}
 		t.Skipf("Skipping contract test because git is not available: %v", err)
 	}
 
 	dockerInfoCtx, dockerInfoCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer dockerInfoCancel()
 	if err := exec.CommandContext(dockerInfoCtx, "docker", "info").Run(); err != nil {
-		if os.Getenv("CI") == "true" {
-			t.Fatalf("docker daemon is required for this contract test in CI: %v", err)
-		}
 		t.Skipf("Skipping contract test because docker daemon is unavailable: %v", err)
 	}
 

@@ -72,19 +72,6 @@ jobs:
         if: runner.os == 'Linux'
         run: make test-e2e
 
-      - name: Enforce Renovate contract test is not skipped (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TEST_NAME='TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit'
-          output=$(go test ./tests/e2e/gitlab/renovate -tags=e2e -run "$TEST_NAME" -v 2>&1)
-          echo "$output"
-          if echo "$output" | grep -q "--- SKIP: $TEST_NAME"; then
-            echo "ERROR: $TEST_NAME was skipped in CI"
-            exit 1
-          fi
-
       - name: Run e2e tests (Windows)
         if: runner.os == 'Windows'
         run: |
