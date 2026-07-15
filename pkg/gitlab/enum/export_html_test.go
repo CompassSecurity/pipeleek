@@ -55,6 +55,7 @@ func TestWriteHTMLReport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "GitLab Enumeration Report")
 	assert.Contains(t, string(content), "security-team / security-tools")
+	assert.Contains(t, string(content), "Minimum access level:")
 	assert.Contains(t, string(content), "top-nav")
 	assert.Contains(t, string(content), "top-nav-brand")
 	assert.Contains(t, string(content), "<svg")
@@ -62,7 +63,9 @@ func TestWriteHTMLReport(t *testing.T) {
 	assert.Contains(t, string(content), "users-filter-query")
 	assert.Contains(t, string(content), "alice@example.com")
 	assert.Contains(t, string(content), "groups-filter-access")
+	assert.Contains(t, string(content), "groups-filter-username")
 	assert.Contains(t, string(content), "projects-filter-effective")
+	assert.Contains(t, string(content), "projects-filter-username")
 	assert.Contains(t, string(content), "groups-visible-count")
 	assert.Contains(t, string(content), "projects-visible-count")
 	assert.Contains(t, string(content), "users-visible-count")
@@ -74,16 +77,16 @@ func TestWriteHTMLReport_MembersShowNAWhenUsersNotEnumerated(t *testing.T) {
 	output := filepath.Join(tmpDir, "enum-report-no-users.html")
 
 	result := &EnumResult{
-		GeneratedAt:    time.Date(2026, 7, 6, 8, 0, 0, 0, time.UTC),
-		GitLabURL:      "https://gitlab.example.com",
-		MinAccessLevel: int(gitlab.GuestPermissions),
+		GeneratedAt:     time.Date(2026, 7, 6, 8, 0, 0, 0, time.UTC),
+		GitLabURL:       "https://gitlab.example.com",
+		MinAccessLevel:  int(gitlab.GuestPermissions),
 		UsersEnumerated: false,
 		Associations: &TokenAssociations{
 			Groups: []TokenAssociationGroup{{
-				ID:          1,
-				Name:        "security-team",
-				WebURL:      "https://gitlab.example.com/groups/security-team",
-				Visibility:  "private",
+				ID:           1,
+				Name:         "security-team",
+				WebURL:       "https://gitlab.example.com/groups/security-team",
+				Visibility:   "private",
 				AccessLevels: 30,
 			}},
 			Projects: []TokenAssociationProject{{

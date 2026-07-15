@@ -15,6 +15,7 @@ func TestNewEnumCmd(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("url"))
 	assert.NotNil(t, cmd.Flags().Lookup("token"))
 	assert.NotNil(t, cmd.Flags().Lookup("level"))
+	assert.Equal(t, "Minimal access", cmd.Flags().Lookup("level").DefValue)
 	assert.NotNil(t, cmd.Flags().Lookup("report-html"))
 	assert.NotNil(t, cmd.Flags().Lookup("users"))
 }

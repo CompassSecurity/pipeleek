@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -30,6 +31,8 @@ func AccessLevelName(level gitlab.AccessLevelValue) string {
 		return "Planner"
 	case gitlab.ReporterPermissions:
 		return "Reporter"
+	case gitlab.AccessLevelValue(25):
+		return "Security Manager"
 	case gitlab.DeveloperPermissions:
 		return "Developer"
 	case gitlab.MaintainerPermissions:
@@ -41,6 +44,48 @@ func AccessLevelName(level gitlab.AccessLevelValue) string {
 	default:
 		return fmt.Sprintf("Unknown (%d)", int(level))
 	}
+}
+
+// ParseAccessLevel converts a user-facing access level string into a GitLab access level value.
+// It accepts documented names such as "developer" or "security-manager" and also numeric values.
+func ParseAccessLevel(value string) (gitlab.AccessLevelValue, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.NewReplacer("_", " ", "-", " ").Replace(normalized)
+	normalized = strings.Join(strings.Fields(normalized), " ")
+
+	switch normalized {
+	case "no access", "none":
+		return gitlab.NoPermissions, nil
+	case "minimal access", "minimal":
+		return gitlab.MinimalAccessPermissions, nil
+	case "guest":
+		return gitlab.GuestPermissions, nil
+	case "planner":
+		return gitlab.PlannerPermissions, nil
+	case "reporter":
+		return gitlab.ReporterPermissions, nil
+	case "security manager", "security":
+		return gitlab.AccessLevelValue(25), nil
+	case "developer":
+		return gitlab.DeveloperPermissions, nil
+	case "maintainer":
+		return gitlab.MaintainerPermissions, nil
+	case "owner":
+		return gitlab.OwnerPermissions, nil
+	case "admin":
+		return gitlab.AdminPermissions, nil
+	}
+
+	if n, err := strconv.Atoi(normalized); err == nil {
+		return gitlab.AccessLevelValue(n), nil
+	}
+
+	return 0, fmt.Errorf("invalid access level %q", value)
+}
+
+// AccessLevelHelpText describes the supported named and numeric access levels.
+func AccessLevelHelpText() string {
+	return "Minimum repo access level. Accepted names: no access (0), minimal (5), guest (10), planner (15), reporter (20), security manager (25), developer (30), maintainer (40), owner (50), admin (60). Numeric values are also accepted."
 }
 
 // ProjectIteratorFunc is a callback function type for processing each project

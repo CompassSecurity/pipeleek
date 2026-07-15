@@ -33,6 +33,7 @@ type htmlProjectRow struct {
 	InheritedFromGroup   bool
 	MembersAccessible    bool
 	MembersCount         int
+	MemberUsernames      string
 	Members              []htmlMemberRow
 }
 
@@ -43,6 +44,7 @@ type htmlGroupRow struct {
 	AccessLevel       string
 	MembersAccessible bool
 	MembersCount      int
+	MemberUsernames   string
 	Members           []htmlMemberRow
 }
 
@@ -90,11 +92,11 @@ const enumReportTemplate = `<!doctype html>
   <title>Pipeleek GitLab Enumeration Report</title>
   <style>
     :root {
-      --bg: #f4f7ef;
+      --bg: #ffffff;
       --surface: #ffffff;
-      --ink: #223120;
-      --muted: #51664b;
-      --line: #d2dec0;
+      --ink: #2b2b2b;
+      --muted: #5f6368;
+      --line: #e3e6df;
       --accent: #406b36;
       --accent-light: #b9cf7e;
       --accent-dark: #2a4a25;
@@ -104,9 +106,9 @@ const enumReportTemplate = `<!doctype html>
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background: radial-gradient(circle at top left, #e8efd6, var(--bg) 45%);
+      background: var(--bg);
       color: var(--ink);
-      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
       line-height: 1.4;
       padding-top: 4.25rem;
     }
@@ -118,9 +120,10 @@ const enumReportTemplate = `<!doctype html>
       left: 0;
       right: 0;
       z-index: 1000;
-      border-bottom: 1px solid var(--line);
-      background: rgba(244, 247, 239, 0.95);
-      backdrop-filter: blur(6px);
+      border-bottom: 1px solid rgba(42, 74, 37, 0.25);
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 1px 4px rgba(42, 74, 37, 0.18);
     }
     .top-nav-inner {
       max-width: 1200px;
@@ -131,6 +134,13 @@ const enumReportTemplate = `<!doctype html>
       flex-wrap: wrap;
       align-items: center;
     }
+    .top-nav-title {
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: .01em;
+      margin-right: .5rem;
+    }
     .top-nav-brand {
       display: inline-flex;
       align-items: center;
@@ -138,8 +148,8 @@ const enumReportTemplate = `<!doctype html>
       height: 2rem;
       width: 2rem;
       border-radius: 999px;
-      background: #edf3df;
-      border: 1px solid #92aa7a;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.28);
       overflow: hidden;
       flex: 0 0 auto;
     }
@@ -150,9 +160,9 @@ const enumReportTemplate = `<!doctype html>
     }
     .top-nav-link {
       display: inline-block;
-      border: 1px solid #92aa7a;
-      background: #edf3df;
-      color: var(--accent-dark);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
       border-radius: 999px;
       padding: .3rem .7rem;
       font-size: .88rem;
@@ -161,19 +171,43 @@ const enumReportTemplate = `<!doctype html>
     }
     .top-nav-link:hover {
       text-decoration: none;
-      background: #dfeac6;
+      background: rgba(255, 255, 255, 0.16);
     }
     main { max-width: 1200px; margin: 1rem auto 2rem auto; padding: 0 1rem; }
-    h1, h2 { margin: 0 0 .75rem 0; scroll-margin-top: 5.25rem; }
+    h1, h2 { margin: 0 0 .75rem 0; scroll-margin-top: 5.25rem; font-weight: 400; color: #3c4043; }
+    h1 { font-size: 2.1rem; }
+    h2 { font-size: 1.35rem; }
     .card {
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 10px;
       padding: 1rem 1.25rem;
       margin-bottom: 1rem;
-      box-shadow: 0 12px 24px rgba(64, 107, 54, 0.08);
+      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
     }
     .meta { color: var(--muted); font-size: .95rem; }
+    .summary-row {
+      margin-top: .55rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .5rem;
+      font-size: .98rem;
+    }
+    .summary-row-label {
+      font-weight: 700;
+      color: var(--accent-dark);
+    }
+    .summary-row-value {
+      display: inline-flex;
+      align-items: center;
+      padding: .16rem .55rem;
+      border-radius: 999px;
+      background: #f3f6ef;
+      border: 1px solid #c8d6b2;
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
     .wrap { overflow-wrap: anywhere; word-break: break-word; }
     .kpi { display: inline-block; min-width: 10rem; margin-right: 1rem; }
     table { width: 100%; border-collapse: collapse; }
@@ -196,10 +230,14 @@ const enumReportTemplate = `<!doctype html>
       align-items: end;
       margin: .75rem 0 1rem 0;
     }
+    .filter-field {
+      min-width: 16rem;
+      flex: 1;
+    }
     .control-btn {
       appearance: none;
-      border: 1px solid #92aa7a;
-      background: #edf3df;
+      border: 1px solid #c8d6b2;
+      background: #f7f9f4;
       color: var(--accent-dark);
       border-radius: 8px;
       padding: .35rem .65rem;
@@ -208,7 +246,7 @@ const enumReportTemplate = `<!doctype html>
       font-weight: 600;
     }
     .control-btn:hover {
-      background: #dfeac6;
+      background: #eef4e4;
     }
     .back-to-top {
       position: fixed;
@@ -262,6 +300,14 @@ const enumReportTemplate = `<!doctype html>
       font-size: .84rem;
       white-space: nowrap;
     }
+    .kpi strong {
+      color: var(--accent-dark);
+    }
+    .summary-row {
+      padding: .15rem 0 .4rem 0;
+      border-top: 1px solid transparent;
+      border-bottom: 1px solid var(--line);
+    }
   </style>
 </head>
 <body>
@@ -270,6 +316,7 @@ const enumReportTemplate = `<!doctype html>
       <a class="top-nav-brand" href="#summary-section" aria-label="Pipeleek report top">
         {{ .PipeleekLogo }}
       </a>
+      <span class="top-nav-title">Pipeleek</span>
       <a class="top-nav-link" href="#summary-section">Summary</a>
       <a class="top-nav-link" href="#users-section">Users</a>
       <a class="top-nav-link" href="#groups-section">Groups</a>
@@ -280,7 +327,11 @@ const enumReportTemplate = `<!doctype html>
   <main>
     <section class="card" id="summary-section">
       <h1>GitLab Enumeration Report</h1>
-      <div class="meta">Target: {{ .GitLabURL }} | Generated: {{ .GeneratedAt }} | Min access level: {{ .MinAccessLevel }}</div>
+      <div class="meta">Target: {{ .GitLabURL }} | Generated: {{ .GeneratedAt }}</div>
+      <div class="summary-row">
+        <span class="summary-row-label">Minimum access level:</span>
+        <span class="summary-row-value">{{ .MinAccessLevel }}</span>
+      </div>
       <div style="margin-top:.8rem">
         <span class="kpi"><strong>User:</strong> {{ .UserName }} ({{ .UserUsername }})</span>
         <span class="kpi"><strong>Email:</strong> {{ .UserEmail }}</span>
@@ -357,6 +408,10 @@ const enumReportTemplate = `<!doctype html>
           <span class="legend">Search group</span><br />
           <input id="groups-filter-query" type="search" placeholder="security-team" class="control-btn" style="width:100%;padding:.35rem .55rem;" />
         </label>
+        <label class="filter-field">
+          <span class="legend">Member username</span><br />
+          <input id="groups-filter-username" type="search" placeholder="alice" class="control-btn" style="width:100%;padding:.35rem .55rem;" />
+        </label>
         <button id="groups-filter-reset" class="control-btn" type="button">Reset filters</button>
       </div>
       <p id="groups-visible-count" class="legend"></p>
@@ -366,7 +421,7 @@ const enumReportTemplate = `<!doctype html>
         </thead>
         <tbody id="groups-tbody">
           {{ range .Groups }}
-          <tr data-access="{{ filterKey .AccessLevel }}" data-visibility="{{ filterKey .Visibility }}" data-text="{{ lower .Name }} {{ lower .URL }}">
+          <tr data-access="{{ filterKey .AccessLevel }}" data-visibility="{{ filterKey .Visibility }}" data-text="{{ lower .Name }} {{ lower .URL }}" data-members="{{ lower .MemberUsernames }}">
             <td><a href="{{ .URL }}" target="_blank" rel="noopener noreferrer">{{ .Name }}</a></td>
             <td><span class="vis-tag {{ visibilityClass .Visibility }}">{{ visibilityText .Visibility }}</span></td>
             <td>{{ .AccessLevel }}</td>
@@ -442,6 +497,10 @@ const enumReportTemplate = `<!doctype html>
           <span class="legend">Search project</span><br />
           <input id="projects-filter-query" type="search" placeholder="security-tools" class="control-btn" style="width:100%;padding:.35rem .55rem;" />
         </label>
+        <label class="filter-field">
+          <span class="legend">Member username</span><br />
+          <input id="projects-filter-username" type="search" placeholder="alice" class="control-btn" style="width:100%;padding:.35rem .55rem;" />
+        </label>
         <button id="projects-filter-reset" class="control-btn" type="button">Reset filters</button>
       </div>
       <p id="projects-visible-count" class="legend"></p>
@@ -451,7 +510,7 @@ const enumReportTemplate = `<!doctype html>
         </thead>
         <tbody id="projects-tbody">
           {{ range .Projects }}
-          <tr data-effective="{{ filterKey .EffectiveAccessLevel }}" data-visibility="{{ filterKey .Visibility }}" data-inherited="{{ if .InheritedFromGroup }}yes{{ else }}no{{ end }}" data-text="{{ lower .Name }} {{ lower .URL }}">
+          <tr data-effective="{{ filterKey .EffectiveAccessLevel }}" data-visibility="{{ filterKey .Visibility }}" data-inherited="{{ if .InheritedFromGroup }}yes{{ else }}no{{ end }}" data-text="{{ lower .Name }} {{ lower .URL }}" data-members="{{ lower .MemberUsernames }}">
             <td><a href="{{ .URL }}" target="_blank" rel="noopener noreferrer">{{ .Name }}</a></td>
             <td><span class="vis-tag {{ visibilityClass .Visibility }}">{{ visibilityText .Visibility }}</span></td>
             <td>{{ .GroupAccessLevel }}</td>
@@ -513,6 +572,7 @@ const enumReportTemplate = `<!doctype html>
     const groupsFilterAccess = document.getElementById('groups-filter-access');
     const groupsFilterVisibility = document.getElementById('groups-filter-visibility');
     const groupsFilterQuery = document.getElementById('groups-filter-query');
+    const groupsFilterUsername = document.getElementById('groups-filter-username');
     const groupsFilterReset = document.getElementById('groups-filter-reset');
     const groupsVisibleCount = document.getElementById('groups-visible-count');
 
@@ -521,6 +581,7 @@ const enumReportTemplate = `<!doctype html>
     const projectsFilterVisibility = document.getElementById('projects-filter-visibility');
     const projectsFilterInherited = document.getElementById('projects-filter-inherited');
     const projectsFilterQuery = document.getElementById('projects-filter-query');
+    const projectsFilterUsername = document.getElementById('projects-filter-username');
     const projectsFilterReset = document.getElementById('projects-filter-reset');
     const projectsVisibleCount = document.getElementById('projects-visible-count');
 
@@ -542,6 +603,13 @@ const enumReportTemplate = `<!doctype html>
         return;
       }
       el.textContent = label + ': ' + visible + ' / ' + total;
+    };
+
+    const matchesMemberUsername = (rowMembers, filterValue) => {
+      if (filterValue === '') {
+        return true;
+      }
+      return rowMembers.includes(filterValue);
     };
 
     const applyUsersFilters = () => {
@@ -566,6 +634,7 @@ const enumReportTemplate = `<!doctype html>
       const access = groupsFilterAccess?.value || 'all';
       const visibility = groupsFilterVisibility?.value || 'all';
       const query = normalize(groupsFilterQuery?.value);
+      const username = normalize(groupsFilterUsername?.value);
 
       const items = rows(groupsTableBody);
       let visible = 0;
@@ -573,12 +642,18 @@ const enumReportTemplate = `<!doctype html>
         const rowAccess = row.dataset.access || '';
         const rowVisibility = row.dataset.visibility || '';
         const rowText = row.dataset.text || '';
+        const rowMembers = row.dataset.members || '';
+        const details = row.querySelector('details.member-details');
 
         const show = matchesAccessLike(rowAccess, access) &&
           (visibility === 'all' || visibility === rowVisibility) &&
-          (query === '' || rowText.includes(query));
+          (query === '' || rowText.includes(query)) &&
+          matchesMemberUsername(rowMembers, username);
 
         row.style.display = show ? '' : 'none';
+        if (details) {
+          details.open = show && username !== '' && rowMembers.includes(username);
+        }
         if (show) {
           visible += 1;
         }
@@ -592,6 +667,7 @@ const enumReportTemplate = `<!doctype html>
       const visibility = projectsFilterVisibility?.value || 'all';
       const inherited = projectsFilterInherited?.value || 'all';
       const query = normalize(projectsFilterQuery?.value);
+      const username = normalize(projectsFilterUsername?.value);
 
       const items = rows(projectsTableBody);
       let visible = 0;
@@ -600,13 +676,19 @@ const enumReportTemplate = `<!doctype html>
         const rowVisibility = row.dataset.visibility || '';
         const rowInherited = row.dataset.inherited || '';
         const rowText = row.dataset.text || '';
+        const rowMembers = row.dataset.members || '';
+        const details = row.querySelector('details.member-details');
 
         const show = matchesAccessLike(rowEffective, effective) &&
           (visibility === 'all' || visibility === rowVisibility) &&
           (inherited === 'all' || inherited === rowInherited) &&
-          (query === '' || rowText.includes(query));
+          (query === '' || rowText.includes(query)) &&
+          matchesMemberUsername(rowMembers, username);
 
         row.style.display = show ? '' : 'none';
+        if (details) {
+          details.open = show && username !== '' && rowMembers.includes(username);
+        }
         if (show) {
           visible += 1;
         }
@@ -618,6 +700,7 @@ const enumReportTemplate = `<!doctype html>
     groupsFilterAccess?.addEventListener('change', applyGroupsFilters);
     groupsFilterVisibility?.addEventListener('change', applyGroupsFilters);
     groupsFilterQuery?.addEventListener('input', applyGroupsFilters);
+    groupsFilterUsername?.addEventListener('input', applyGroupsFilters);
 
     usersFilterQuery?.addEventListener('input', applyUsersFilters);
     usersFilterReset?.addEventListener('click', () => {
@@ -637,6 +720,9 @@ const enumReportTemplate = `<!doctype html>
       if (groupsFilterQuery) {
         groupsFilterQuery.value = '';
       }
+      if (groupsFilterUsername) {
+        groupsFilterUsername.value = '';
+      }
       applyGroupsFilters();
     });
 
@@ -644,6 +730,7 @@ const enumReportTemplate = `<!doctype html>
     projectsFilterVisibility?.addEventListener('change', applyProjectsFilters);
     projectsFilterInherited?.addEventListener('change', applyProjectsFilters);
     projectsFilterQuery?.addEventListener('input', applyProjectsFilters);
+    projectsFilterUsername?.addEventListener('input', applyProjectsFilters);
     projectsFilterReset?.addEventListener('click', () => {
       if (projectsFilterEffective) {
         projectsFilterEffective.value = 'all';
@@ -656,6 +743,9 @@ const enumReportTemplate = `<!doctype html>
       }
       if (projectsFilterQuery) {
         projectsFilterQuery.value = '';
+      }
+      if (projectsFilterUsername) {
+        projectsFilterUsername.value = '';
       }
       applyProjectsFilters();
     });
@@ -708,12 +798,16 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 	groups := make([]htmlGroupRow, 0, len(result.Associations.Groups))
 	for _, group := range result.Associations.Groups {
 		members := make([]htmlMemberRow, 0, len(group.Members))
+		memberUsernames := make([]string, 0, len(group.Members))
 		for _, member := range group.Members {
 			members = append(members, htmlMemberRow{
 				Display:     memberDisplayName(member),
 				AccessLevel: util.AccessLevelName(gitlab.AccessLevelValue(member.AccessLevel)),
 				URL:         member.WebURL,
 			})
+			if strings.TrimSpace(member.Username) != "" {
+				memberUsernames = append(memberUsernames, member.Username)
+			}
 		}
 
 		groups = append(groups, htmlGroupRow{
@@ -723,6 +817,7 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 			AccessLevel:       util.AccessLevelName(gitlab.AccessLevelValue(group.AccessLevels)),
 			MembersAccessible: group.MembersAccessible,
 			MembersCount:      group.MemberCount,
+			MemberUsernames:   strings.Join(memberUsernames, " "),
 			Members:           members,
 		})
 	}
@@ -732,12 +827,16 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 	for _, project := range result.Associations.Projects {
 		effective, inherited := effectiveProjectAccessLevels(project.AccessLevels.GroupAccessLevel, project.AccessLevels.ProjectAccessLevel)
 		members := make([]htmlMemberRow, 0, len(project.Members))
+		memberUsernames := make([]string, 0, len(project.Members))
 		for _, member := range project.Members {
 			members = append(members, htmlMemberRow{
 				Display:     memberDisplayName(member),
 				AccessLevel: util.AccessLevelName(gitlab.AccessLevelValue(member.AccessLevel)),
 				URL:         member.WebURL,
 			})
+			if strings.TrimSpace(member.Username) != "" {
+				memberUsernames = append(memberUsernames, member.Username)
+			}
 		}
 
 		projects = append(projects, htmlProjectRow{
@@ -750,6 +849,7 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 			InheritedFromGroup:   inherited,
 			MembersAccessible:    project.MembersAccessible,
 			MembersCount:         project.MemberCount,
+			MemberUsernames:      strings.Join(memberUsernames, " "),
 			Members:              members,
 		})
 	}

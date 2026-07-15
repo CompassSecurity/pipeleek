@@ -47,6 +47,39 @@ func TestAccessLevelName_UnknownLevel(t *testing.T) {
 		t.Fatalf("AccessLevelName(99) = %q, want %q", result, expected)
 	}
 }
+
+func TestParseAccessLevel(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected gitlab.AccessLevelValue
+	}{
+		{name: "minimal name", input: "minimal", expected: gitlab.MinimalAccessPermissions},
+		{name: "minimal display", input: "Minimal access", expected: gitlab.MinimalAccessPermissions},
+		{name: "security manager", input: "security-manager", expected: gitlab.AccessLevelValue(25)},
+		{name: "developer", input: "Developer", expected: gitlab.DeveloperPermissions},
+		{name: "numeric", input: "40", expected: gitlab.MaintainerPermissions},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			level, err := ParseAccessLevel(tt.input)
+			if err != nil {
+				t.Fatalf("ParseAccessLevel(%q) returned error: %v", tt.input, err)
+			}
+			if level != tt.expected {
+				t.Fatalf("ParseAccessLevel(%q) = %d, want %d", tt.input, level, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseAccessLevel_Invalid(t *testing.T) {
+	if _, err := ParseAccessLevel("not-a-level"); err == nil {
+		t.Fatal("expected error for invalid access level")
+	}
+}
+
 func TestDetermineVersion_ParsesVersion(t *testing.T) {
 	// Simulate GitLab /help endpoint content containing instance_version JSON fragment
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
