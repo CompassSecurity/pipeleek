@@ -405,6 +405,7 @@ func materializeAutodiscoveryRepoFixture(t *testing.T, filesSnapshot map[string]
 	defer gitCancel()
 	for _, cmdArgs := range [][]string{
 		{"init"},
+		{"checkout", "-B", "main"},
 		{"config", "user.email", "contract-test@example.com"},
 		{"config", "user.name", "contract-test"},
 		{"add", "."},
