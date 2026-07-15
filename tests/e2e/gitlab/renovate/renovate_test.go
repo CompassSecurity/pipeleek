@@ -5,14 +5,17 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/url"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -258,7 +261,9 @@ func TestGLRenovateBots(t *testing.T) {
 	assert.NotContains(t, stderr, "fatal")
 }
 
-func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T) {
+func skipRenovateContainerProbeIfUnavailable(t *testing.T) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("Skipping docker-backed renovate contract test in short mode")
 	}
@@ -280,6 +285,10 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 	if err := exec.CommandContext(dockerInfoCtx, "docker", "info").Run(); err != nil {
 		t.Skipf("Skipping contract test because docker daemon is unavailable: %v", err)
 	}
+}
+
+func captureAutodiscoveryRepoFiles(t *testing.T) map[string]capturedRepoFile {
+	t.Helper()
 
 	filesByPath := make(map[string]capturedRepoFile)
 	var filesMu sync.Mutex
@@ -360,17 +369,27 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 	assert.True(t, hasWrapper, "autodiscovery should create maven wrapper properties")
 	assert.True(t, hasExploit, "autodiscovery should create exploit.sh")
 
-	workspaceDir := t.TempDir()
+	return filesSnapshot
+}
+
+func materializeAutodiscoveryRepoFixture(t *testing.T, filesSnapshot map[string]capturedRepoFile) string {
+	t.Helper()
+
+	workspaceDir, err := os.MkdirTemp("/workspaces/pipeleek", ".tmp-renovate-fixture-*")
+	if err != nil {
+		workspaceDir = t.TempDir()
+	} else {
+		t.Cleanup(func() {
+			_ = os.RemoveAll(workspaceDir)
+		})
+	}
 	repoDir := filepath.Join(workspaceDir, "repo")
-	proofDir := filepath.Join(workspaceDir, "proof")
-	proofPath := filepath.Join(proofDir, "pipeleek-exploit-executed.txt")
 	requireNoError := func(err error, msg string) {
 		if err != nil {
 			t.Fatalf("%s: %v", msg, err)
 		}
 	}
 	requireNoError(os.MkdirAll(repoDir, 0o755), "failed to create repo dir")
-	requireNoError(os.MkdirAll(proofDir, 0o755), "failed to create proof dir")
 
 	for _, file := range filesSnapshot {
 		target := filepath.Join(repoDir, filepath.FromSlash(file.Path))
@@ -399,8 +418,13 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		}
 	}
 
+	return repoDir
+}
+
+func startRenovateProbeContainer(t *testing.T, repoDir string) (context.Context, context.CancelFunc, string) {
+	t.Helper()
+
 	renovateCtx, renovateCancel := context.WithTimeout(context.Background(), 4*time.Minute)
-	defer renovateCancel()
 	containerName := fmt.Sprintf("pipeleek-renovate-e2e-%d", time.Now().UnixNano())
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -408,7 +432,7 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		_ = exec.CommandContext(cleanupCtx, "docker", "rm", "-f", containerName).Run()
 	})
 
-	createCmd := exec.CommandContext(renovateCtx, "docker", "create", "--name", containerName, "--user", "0:0", "--entrypoint", "sleep", "renovate/renovate:latest", "300")
+	createCmd := exec.CommandContext(renovateCtx, "docker", "create", "--name", containerName, "--user", "0:0", "--add-host", "host.docker.internal:host-gateway", "--entrypoint", "sleep", "renovate/renovate:latest", "300")
 	if createOutput, createErr := createCmd.CombinedOutput(); createErr != nil {
 		t.Fatalf("failed to create renovate container: %v\n%s", createErr, string(createOutput))
 	}
@@ -436,17 +460,258 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		t.Fatalf("failed to initialize git repo inside container: %v\n%s", initGitErr, string(initGitOutput))
 	}
 
+	return renovateCtx, renovateCancel, containerName
+}
+
+func reserveLocalPort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to reserve local port: %v", err)
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port
+}
+
+func startGitDaemonForRepo(t *testing.T, repoDir string) string {
+	t.Helper()
+
+	serveRoot := t.TempDir()
+	bareRepoPath := filepath.Join(serveRoot, "contract-repo.git")
+
+	cloneCtx, cloneCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cloneCancel()
+	cloneCmd := exec.CommandContext(cloneCtx, "git", "clone", "--bare", repoDir, bareRepoPath)
+	if cloneOutput, cloneErr := cloneCmd.CombinedOutput(); cloneErr != nil {
+		t.Fatalf("failed to create bare repo for git daemon: %v\n%s", cloneErr, string(cloneOutput))
+	}
+
+	port := reserveLocalPort(t)
+	daemonCtx, daemonCancel := context.WithCancel(context.Background())
+	daemonCmd := exec.CommandContext(
+		daemonCtx,
+		"git",
+		"daemon",
+		"--reuseaddr",
+		"--verbose",
+		"--export-all",
+		"--enable=receive-pack",
+		"--base-path="+serveRoot,
+		"--listen=0.0.0.0",
+		"--port="+strconv.Itoa(port),
+		serveRoot,
+	)
+	if daemonErr := daemonCmd.Start(); daemonErr != nil {
+		t.Fatalf("failed to start git daemon: %v", daemonErr)
+	}
+	t.Cleanup(func() {
+		daemonCancel()
+		waitDone := make(chan struct{})
+		go func() {
+			_ = daemonCmd.Wait()
+			close(waitDone)
+		}()
+		select {
+		case <-waitDone:
+		case <-time.After(5 * time.Second):
+			_ = daemonCmd.Process.Kill()
+		}
+	})
+
+	cloneURL := fmt.Sprintf("git://127.0.0.1:%d/contract-repo.git", port)
+	return cloneURL
+}
+
+func runRenovateProbeWithHostNpx(t *testing.T, repoDir, endpoint string) string {
+	t.Helper()
+
+	probeCtx, probeCancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer probeCancel()
+
+	cmd := exec.CommandContext(
+		probeCtx,
+		"npx",
+		"-y",
+		"-p", "node@26.5.0",
+		"-p", "renovate@latest",
+		"renovate",
+		"--platform=gitlab",
+		"--endpoint="+endpoint,
+		"--token=mock-token",
+		"--git-url=ssh",
+		"--require-config=ignored",
+		"--onboarding=false",
+		"--enabled-managers=maven,maven-wrapper",
+		"group/contract-repo",
+	)
+	cmd.Dir = repoDir
+	cmd.Env = append(os.Environ(),
+		"LOG_LEVEL=debug",
+		"RENOVATE_PLATFORM=gitlab",
+		"RENOVATE_ENDPOINT="+endpoint,
+		"RENOVATE_TOKEN=mock-token",
+		"RENOVATE_GIT_URL=ssh",
+		"RENOVATE_REQUIRE_CONFIG=ignored",
+		"RENOVATE_ONBOARDING=false",
+		"RENOVATE_ENABLED_MANAGERS=maven,maven-wrapper",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output)
+	}
+	return string(output)
+}
+
+func startMockGitLabAutodiscoveryAPI(t *testing.T, cloneURL string) (string, func() string) {
+	t.Helper()
+
+	projectPayload := fmt.Sprintf(`{"id":123,"name":"contract-repo","path_with_namespace":"group/contract-repo","web_url":"https://gitlab.local/group/contract-repo","default_branch":"main","archived":false,"empty_repo":false,"mirror":false,"repository_access_level":"enabled","merge_requests_access_level":"enabled","merge_method":"merge","merge_trains_enabled":false,"squash_option":"default_on","http_url_to_repo":"%s","ssh_url_to_repo":"%s"}`,
+		cloneURL,
+		cloneURL,
+	)
+
+	var requestsMu sync.Mutex
+	requests := make([]string, 0, 32)
+	record := func(r *http.Request) {
+		requestsMu.Lock()
+		defer requestsMu.Unlock()
+		requests = append(requests, fmt.Sprintf("%s %s", r.Method, r.URL.Path))
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/version", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"version":"17.0.0"}`))
+	})
+	mux.HandleFunc("/api/v4/user", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":1,"name":"Renovate Bot","email":"renovate@example.com","username":"renovate-bot"}`))
+	})
+	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[" + projectPayload + "]"))
+	})
+	mux.HandleFunc("/api/v4/projects/group%2Fcontract-repo", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(projectPayload))
+	})
+	mux.HandleFunc("/api/v4/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(projectPayload))
+	})
+	mux.HandleFunc("/api/v4/projects/group/contract-repo", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(projectPayload))
+	})
+	mux.HandleFunc("/api/v4/projects/group/contract-repo/merge_requests", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"iid":2,"title":"Renovate Update","state":"opened","web_url":"https://gitlab.local/group/contract-repo/-/merge_requests/2"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+	mux.HandleFunc("/api/v4/projects/group/contract-repo/repository/commits/main/statuses", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+	mux.HandleFunc("/api/v4/projects/group/contract-repo/labels", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+	mux.HandleFunc("/api/v4/projects/123/merge_requests", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"iid":2,"title":"Renovate Update","state":"opened","web_url":"https://gitlab.local/group/contract-repo/-/merge_requests/2"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+	mux.HandleFunc("/api/v4/projects/123/repository/commits/main/statuses", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+	mux.HandleFunc("/api/v4/projects/123/labels", func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	})
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if handler, pattern := mux.Handler(r); pattern != "" {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		record(r)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Default: return [] for GET (list endpoints) and {} for others
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte("[]"))
+		} else {
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	if err != nil {
+		t.Fatalf("failed to bind mock gitlab listener: %v", err)
+	}
+	server.Listener = listener
+	server.Start()
+	t.Cleanup(server.Close)
+
+	port := server.Listener.Addr().(*net.TCPAddr).Port
+	endpoint := fmt.Sprintf("http://127.0.0.1:%d/api/v4/", port)
+	dumpRequests := func() string {
+		requestsMu.Lock()
+		defer requestsMu.Unlock()
+		if len(requests) == 0 {
+			return "(no API calls recorded)"
+		}
+		return strings.Join(requests, "\n")
+	}
+
+	return endpoint, dumpRequests
+}
+
+func runRenovateProbe(t *testing.T, renovateCtx context.Context, containerName, endpoint string) string {
+	t.Helper()
+
 	execArgs := []string{
 		"exec",
 		"-e", "LOG_LEVEL=debug",
-		"-e", "RENOVATE_PLATFORM=local",
+		"-e", "RENOVATE_PLATFORM=gitlab",
+		"-e", "RENOVATE_ENDPOINT=" + endpoint,
+		"-e", "RENOVATE_TOKEN=mock-token",
+		"-e", "RENOVATE_GIT_URL=ssh",
 		"-e", "RENOVATE_REQUIRE_CONFIG=ignored",
 		"-e", "RENOVATE_ONBOARDING=false",
 		"-e", "RENOVATE_ENABLED_MANAGERS=maven,maven-wrapper",
+		"-e", "RENOVATE_LOG_LEVEL=debug",
+		"-e", "RENOVATE_LOG_FILE=/tmp/pipeleek-renovate-internal.log",
+		"-e", "RENOVATE_X_HARD_EXIT=1",
 		"-w", "/tmp/repo",
 		containerName,
-		"renovate",
-		"--platform=local",
+		"/usr/local/renovate/node",
+		"/usr/local/renovate/dist/renovate.js",
+		"--platform=gitlab",
+		"--endpoint=" + endpoint,
+		"--token=mock-token",
+		"--git-url=ssh",
+		"--repositories=group/contract-repo",
 		"--require-config=ignored",
 		"--onboarding=false",
 		"--enabled-managers=maven,maven-wrapper",
@@ -458,37 +723,108 @@ func TestGLRenovateAutodiscovery_RenovateLatestExecutesMavenExploit(t *testing.T
 		t.Fatalf("renovate command failed: %v\n%s", renovateErr, renovateOutputStr)
 	}
 
-	invokeCtx, invokeCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer invokeCancel()
-	invokeArgs := []string{
+	return renovateOutputStr
+}
+
+func readExploitProofFromContainer(t *testing.T, renovateCtx context.Context, containerName string) (string, bool) {
+	t.Helper()
+
+	proofCmd := exec.CommandContext(
+		renovateCtx,
+		"docker",
 		"exec",
 		"-w", "/tmp/repo",
 		containerName,
 		"sh",
 		"-lc",
-		"sh ./mvnw wrapper:wrapper",
-	}
-	invokeCmd := exec.CommandContext(invokeCtx, "docker", invokeArgs...)
-	invokeOutput, invokeErr := invokeCmd.CombinedOutput()
-	if invokeErr != nil {
-		t.Fatalf("failed executing mvnw in renovate latest container: %v\n%s", invokeErr, string(invokeOutput))
-	}
-	assert.Contains(t, string(invokeOutput), "Maven wrapper executed", "mvnw wrapper invocation should execute exploit chain")
-
-	cpCtx, cpCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cpCancel()
-	cpCmd := exec.CommandContext(cpCtx, "docker", "cp", containerName+":/tmp/pipeleek-exploit-executed.txt", proofPath)
-	if cpOutput, cpErr := cpCmd.CombinedOutput(); cpErr != nil {
-		t.Fatalf("expected exploit proof file in container after mvnw execution in renovate latest container: %v\ncopy output:\n%s\nrenovate output:\n%s", cpErr, string(cpOutput), renovateOutputStr)
+		"cat /tmp/pipeleek-exploit-executed.txt",
+	)
+	proofOutput, proofErr := proofCmd.CombinedOutput()
+	if proofErr == nil {
+		return string(proofOutput), true
 	}
 
-	proofBytes, proofErr := os.ReadFile(proofPath)
-	if proofErr != nil {
-		t.Fatalf("expected exploit proof file to exist after running renovate latest: %v\nrenovate output:\n%s", proofErr, renovateOutputStr)
+	var exitErr *exec.ExitError
+	if errors.As(proofErr, &exitErr) {
+		return "", false
 	}
 
-	proofText := string(proofBytes)
-	assert.Contains(t, proofText, "Exploit executed at")
-	assert.Contains(t, proofText, "Working directory:", "proof file should include runtime working directory")
-	assert.Contains(t, proofText, "User:", "proof file should include runtime user")
+	t.Fatalf("failed to check exploit proof file in renovate container: %v\n%s", proofErr, string(proofOutput))
+	return "", false
+}
+
+func verifyContainerCanReachEndpoint(t *testing.T, renovateCtx context.Context, containerName, endpoint string) string {
+	t.Helper()
+
+	probeCmd := exec.CommandContext(
+		renovateCtx,
+		"docker",
+		"exec",
+		containerName,
+		"sh",
+		"-lc",
+		fmt.Sprintf("curl -sS -i --max-time 10 %q", endpoint+"version"),
+	)
+	probeOutput, probeErr := probeCmd.CombinedOutput()
+	if probeErr != nil {
+		t.Fatalf("failed to reach mock gitlab endpoint from renovate container: %v\n%s", probeErr, string(probeOutput))
+	}
+	return string(probeOutput)
+}
+
+func readRenovateProbeLogFromContainer(t *testing.T, renovateCtx context.Context, containerName string) string {
+	t.Helper()
+
+	logCmd := exec.CommandContext(
+		renovateCtx,
+		"docker",
+		"exec",
+		containerName,
+		"sh",
+		"-lc",
+		"if [ -f /tmp/pipeleek-renovate-output.log ]; then cat /tmp/pipeleek-renovate-output.log; else echo '(probe log file missing)'; fi; echo; echo '--- renovate internal log ---'; if [ -f /tmp/pipeleek-renovate-internal.log ]; then cat /tmp/pipeleek-renovate-internal.log; else echo '(internal log file missing)'; fi",
+	)
+	logOutput, logErr := logCmd.CombinedOutput()
+	if logErr != nil {
+		return fmt.Sprintf("(failed reading probe log: %v)\n%s", logErr, string(logOutput))
+	}
+	if len(logOutput) == 0 {
+		return "(probe log empty)"
+	}
+	return string(logOutput)
+}
+
+func tailForDiagnostics(value string, max int) string {
+	if len(value) <= max {
+		return value
+	}
+	return value[len(value)-max:]
+}
+
+func TestGLRenovateAutodiscovery_RenovateLatestPicksUpMavenWrapperExploit(t *testing.T) {
+	skipRenovateContainerProbeIfUnavailable(t)
+	filesSnapshot := captureAutodiscoveryRepoFiles(t)
+	repoDir := materializeAutodiscoveryRepoFixture(t, filesSnapshot)
+	cloneURL := startGitDaemonForRepo(t, repoDir)
+	endpoint, dumpRequests := startMockGitLabAutodiscoveryAPI(t, cloneURL)
+
+	// Remove any stale proof file from a previous run to avoid false positives.
+	_ = os.Remove("/tmp/pipeleek-exploit-executed.txt")
+
+	renovateOutput := runRenovateProbeWithHostNpx(t, repoDir, endpoint)
+
+	proofBytes, proofErr := os.ReadFile("/tmp/pipeleek-exploit-executed.txt")
+	proofContent := string(proofBytes)
+	proofFound := proofErr == nil
+	if !proofFound {
+		t.Fatalf(
+			"renovate latest completed but did not produce /tmp/pipeleek-exploit-executed.txt; this indicates arbitrary mvnw invocation may no longer happen in the current execution path\nrenovate output tail:\n%s\nmock gitlab requests:\n%s",
+			tailForDiagnostics(renovateOutput, 12000),
+			dumpRequests(),
+		)
+	}
+
+	assert.Contains(t, proofContent, "Exploit executed at")
+	assert.Contains(t, proofContent, "Working directory:")
+	assert.Contains(t, proofContent, "User:")
 }
