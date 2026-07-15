@@ -25,7 +25,7 @@ require (
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
 	golang.org/x/net v0.56.0
 	golang.org/x/term v0.44.0
-	golang.org/x/text v0.39.0
+	golang.org/x/text v0.40.0
 	golift.io/xtractr v0.4.0
 	resty.dev/v3 v3.0.0-rc.2
 )
@@ -194,7 +194,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.3 // indirect
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
 	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golift.io/udf v0.0.1 // indirect
 	google.golang.org/api v0.259.0 // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
