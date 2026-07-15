@@ -81,10 +81,12 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 
 	associations := &TokenAssociations{}
 	page := 1
+	useMinAccessFilter := true
 	log.Info().Msg("Collecting token associations")
 	for page != -1 {
 		log.Debug().Int("page", page).Msg("Requesting token association page")
-		batch, nextPage := fetchTokenAssociationsPage(client, gitlabUrl, gitlabApiToken, minAccessLevel, page)
+		batch, nextPage, usedMinAccessFilter := fetchTokenAssociationsPage(client, gitlabUrl, gitlabApiToken, minAccessLevel, page, useMinAccessFilter)
+		useMinAccessFilter = usedMinAccessFilter
 		if batch != nil {
 			log.Info().Int("page", page).Int("groups", len(batch.Groups)).Int("projects", len(batch.Projects)).Msg("Fetched token association page")
 			associations.Groups = append(associations.Groups, batch.Groups...)
@@ -490,34 +492,86 @@ func fetchCurrentToken(client resty.Client, baseUrl string, pat string) *SelfTok
 }
 
 // https://docs.gitlab.com/api/personal_access_tokens/#list-all-token-associations
-func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string, accessLevel int, page int) (*TokenAssociations, int) {
+func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string, accessLevel int, page int, includeMinAccessFilter bool) (*TokenAssociations, int, bool) {
 	u, err := url.Parse(baseUrl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to parse base URL")
 	}
 	u.Path = path.Join(u.Path, "api/v4/personal_access_tokens/self/associations")
-	resp := &TokenAssociations{}
-	res, err := client.R().
-		SetHeader("PRIVATE-TOKEN", pat).
-		SetResult(resp).
-		SetQueryParam("min_access_level", strconv.Itoa(accessLevel)).
-		SetQueryParam("per_page", "100").
-		SetQueryParam("page", strconv.Itoa(page)).
-		Get(u.String())
-
+	resp, res, err := requestTokenAssociationsPage(client, u.String(), pat, accessLevel, page, includeMinAccessFilter)
 	if err != nil {
 		log.Error().Err(err).Str("url", u.String()).Msg("Failed fetching token associations (network or client error)")
-		return nil, -1
-	}
-	if res != nil && res.StatusCode() != 200 {
-		log.Error().Int("status", res.StatusCode()).Str("url", u.String()).Str("response", res.String()).Msg("Failed fetching token associations (HTTP error)")
-		return nil, -1
+		return nil, -1, includeMinAccessFilter
 	}
 
-	nextPage, err := strconv.Atoi(res.Header().Get("x-next-page"))
-	if err != nil {
-		nextPage = -1
+	if res == nil {
+		log.Error().Str("url", u.String()).Msg("Failed fetching token associations (empty HTTP response)")
+		return nil, -1, includeMinAccessFilter
 	}
 
-	return resp, nextPage
+	if res.StatusCode() == 200 {
+		nextPage, parseErr := strconv.Atoi(res.Header().Get("x-next-page"))
+		if parseErr != nil {
+			nextPage = -1
+		}
+		return resp, nextPage, includeMinAccessFilter
+	}
+
+	if includeMinAccessFilter && hasInvalidMinAccessLevelError(res) {
+		log.Warn().
+			Int("requestedMinAccessLevel", accessLevel).
+			Str("url", u.String()).
+			Msg("GitLab API rejected min_access_level; retrying token associations without min_access_level filter")
+
+		resp, res, err = requestTokenAssociationsPage(client, u.String(), pat, accessLevel, page, false)
+		if err != nil {
+			log.Error().Err(err).Str("url", u.String()).Msg("Failed fetching token associations fallback request (network or client error)")
+			return nil, -1, false
+		}
+		if res == nil || res.StatusCode() != 200 {
+			status := 0
+			body := ""
+			if res != nil {
+				status = res.StatusCode()
+				body = res.String()
+			}
+			log.Error().Int("status", status).Str("url", u.String()).Str("response", body).Msg("Failed fetching token associations fallback request (HTTP error)")
+			return nil, -1, false
+		}
+
+		nextPage, parseErr := strconv.Atoi(res.Header().Get("x-next-page"))
+		if parseErr != nil {
+			nextPage = -1
+		}
+		return resp, nextPage, false
+	}
+
+	log.Error().Int("status", res.StatusCode()).Str("url", u.String()).Str("response", res.String()).Msg("Failed fetching token associations (HTTP error)")
+	return nil, -1, includeMinAccessFilter
+}
+
+func requestTokenAssociationsPage(client resty.Client, endpointURL string, pat string, accessLevel int, page int, includeMinAccessFilter bool) (*TokenAssociations, *resty.Response, error) {
+	resp := &TokenAssociations{}
+	req := client.R().
+		SetHeader("PRIVATE-TOKEN", pat).
+		SetResult(resp).
+		SetQueryParam("per_page", "100").
+		SetQueryParam("page", strconv.Itoa(page))
+
+	if includeMinAccessFilter {
+		req.SetQueryParam("min_access_level", strconv.Itoa(accessLevel))
+	}
+
+	res, err := req.Get(endpointURL)
+	return resp, res, err
+}
+
+func hasInvalidMinAccessLevelError(res *resty.Response) bool {
+	if res == nil {
+		return false
+	}
+	if res.StatusCode() != 400 {
+		return false
+	}
+	return strings.Contains(strings.ToLower(res.String()), "min_access_level") && strings.Contains(strings.ToLower(res.String()), "valid value")
 }
