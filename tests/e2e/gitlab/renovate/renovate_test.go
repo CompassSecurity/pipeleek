@@ -532,7 +532,7 @@ func runRenovateProbeWithHostNpx(t *testing.T, repoDir, endpoint string) string 
 		probeCtx,
 		"npx",
 		"-y",
-		"-p", "node@26.5.0",
+		"-p", "node@24.11.0",
 		"-p", "renovate@latest",
 		"renovate",
 		"--platform=gitlab",
