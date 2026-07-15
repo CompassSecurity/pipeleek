@@ -108,3 +108,45 @@ func TestWriteHTMLReport_MembersShowNAWhenUsersNotEnumerated(t *testing.T) {
 	// Groups + Projects members columns should display N/A when users enrichment is disabled.
 	assert.Equal(t, 2, strings.Count(string(content), "N/A"))
 }
+
+func TestWriteHTMLReport_MembersShowNAWhenMembersInaccessible(t *testing.T) {
+	tmpDir := t.TempDir()
+	output := filepath.Join(tmpDir, "enum-report-members-inaccessible.html")
+
+	result := &EnumResult{
+		GeneratedAt:     time.Date(2026, 7, 6, 8, 0, 0, 0, time.UTC),
+		GitLabURL:       "https://gitlab.example.com",
+		MinAccessLevel:  int(gitlab.GuestPermissions),
+		UsersEnumerated: true,
+		Associations: &TokenAssociations{
+			Groups: []TokenAssociationGroup{{
+				ID:                1,
+				Name:              "security-team",
+				WebURL:            "https://gitlab.example.com/groups/security-team",
+				Visibility:        "private",
+				AccessLevels:      30,
+				MembersAccessible: false,
+				MemberCount:       42,
+			}},
+			Projects: []TokenAssociationProject{{
+				ID:                2,
+				NameWithNamespace: "security-team / security-tools",
+				WebURL:            "https://gitlab.example.com/security-team/security-tools",
+				Visibility:        "private",
+				AccessLevels:      TokenAssociationProjectAccess{GroupAccessLevel: 30, ProjectAccessLevel: 0},
+				MembersAccessible: false,
+				MemberCount:       13,
+			}},
+		},
+	}
+
+	err := WriteHTMLReport(result, output)
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(output)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, strings.Count(string(content), "N/A"))
+	assert.NotContains(t, string(content), ">42<")
+	assert.NotContains(t, string(content), ">13<")
+}

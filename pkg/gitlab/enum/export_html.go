@@ -447,11 +447,7 @@ const enumReportTemplate = `<!doctype html>
                 {{ end }}
               </details>
               {{ else }}
-              {{ if $.UsersEnumerated }}
-              {{ .MembersCount }}
-              {{ else }}
               N/A
-              {{ end }}
               {{ end }}
             </td>
           </tr>
@@ -545,11 +541,7 @@ const enumReportTemplate = `<!doctype html>
                 {{ end }}
               </details>
               {{ else }}
-              {{ if $.UsersEnumerated }}
-              {{ .MembersCount }}
-              {{ else }}
               N/A
-              {{ end }}
               {{ end }}
             </td>
           </tr>
@@ -774,7 +766,10 @@ const enumReportTemplate = `<!doctype html>
 
 // WriteHTMLReport writes a standalone HTML report for the current enum result.
 func WriteHTMLReport(result *EnumResult, outputPath string) error {
+	cleanOutputPath := filepath.Clean(outputPath)
+
 	view := htmlReportView{
+		// #nosec G203 -- pipeleekLogoSVG is a trusted, static go:embed asset sanitized before template rendering.
 		PipeleekLogo:    template.HTML(sanitizeEmbeddedSVG(pipeleekLogoSVG)),
 		GitLabURL:       result.GitLabURL,
 		GeneratedAt:     result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
@@ -881,13 +876,14 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 		return err
 	}
 
-	if dir := filepath.Dir(outputPath); dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+	if dir := filepath.Dir(cleanOutputPath); dir != "." {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return err
 		}
 	}
 
-	f, err := os.OpenFile(outputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	// #nosec G304 -- cleanOutputPath is an explicit user-selected report destination provided via CLI/config.
+	f, err := os.OpenFile(cleanOutputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
