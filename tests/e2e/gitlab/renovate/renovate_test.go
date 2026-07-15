@@ -825,6 +825,13 @@ func TestGLRenovateAutodiscovery_RenovateLatestPicksUpMavenWrapperExploit(t *tes
 		)
 	}
 
+	proofFirstLine := strings.TrimSpace(strings.SplitN(proofContent, "\n", 2)[0])
+	if proofFirstLine == "" {
+		t.Log("exploit proof file found: first line is empty")
+	} else {
+		t.Logf("exploit proof: %s", proofFirstLine)
+	}
+
 	assert.Contains(t, proofContent, "Exploit executed at")
 	assert.Contains(t, proofContent, "Working directory:")
 	assert.Contains(t, proofContent, "User:")
