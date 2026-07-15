@@ -1,6 +1,7 @@
 package enum
 
 import (
+	_ "embed"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -62,23 +63,26 @@ type htmlUserRow struct {
 }
 
 type htmlReportView struct {
-	PipeleekLogoPath string
-	GitLabURL        string
-	GeneratedAt      string
-	MinAccessLevel   string
-	UserName         string
-	UserUsername     string
-	UserEmail        string
-	TokenName        string
-	TokenScopes      string
-	UsersCount       int
-	GroupsCount      int
-	ProjectsCount    int
-	UsersEnumerated  bool
-	Users            []htmlUserRow
-	Groups           []htmlGroupRow
-	Projects         []htmlProjectRow
+	PipeleekLogo    template.HTML
+	GitLabURL       string
+	GeneratedAt     string
+	MinAccessLevel  string
+	UserName        string
+	UserUsername    string
+	UserEmail       string
+	TokenName       string
+	TokenScopes     string
+	UsersCount      int
+	GroupsCount     int
+	ProjectsCount   int
+	UsersEnumerated bool
+	Users           []htmlUserRow
+	Groups          []htmlGroupRow
+	Projects        []htmlProjectRow
 }
+
+//go:embed pipeleek-anim.svg
+var pipeleekLogoSVG string
 
 const enumReportTemplate = `<!doctype html>
 <html lang="en">
@@ -141,12 +145,14 @@ const enumReportTemplate = `<!doctype html>
       display: inline-flex;
       align-items: center;
       justify-content: flex-start;
-      height: 3rem;
+      height: 2.35rem;
       flex: 0 0 auto;
+      overflow: hidden;
     }
-    .top-nav-brand img {
-      width: auto;
-      height: 3rem;
+    .top-nav-brand svg {
+      width: auto !important;
+      height: 2.1rem !important;
+      max-height: 2.1rem !important;
       display: block;
     }
     .top-nav-link {
@@ -319,7 +325,7 @@ const enumReportTemplate = `<!doctype html>
   <nav class="top-nav" aria-label="Report navigation">
     <div class="top-nav-inner">
       <a class="top-nav-brand" href="#summary-section" aria-label="Pipeleek report top">
-        <img src="{{ .PipeleekLogoPath }}" alt="Pipeleek" />
+        {{ .PipeleekLogo }}
       </a>
       <span class="top-nav-title">Pipeleek</span>
       <a class="top-nav-link" href="#summary-section">Summary</a>
@@ -794,14 +800,15 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 	cleanOutputPath := filepath.Clean(outputPath)
 
 	view := htmlReportView{
-		PipeleekLogoPath: logoPathForReport(cleanOutputPath),
-		GitLabURL:        result.GitLabURL,
-		GeneratedAt:      result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
-		MinAccessLevel:   util.AccessLevelName(gitlab.AccessLevelValue(result.MinAccessLevel)),
-		UsersEnumerated:  result.UsersEnumerated,
-		UsersCount:       len(result.Users),
-		GroupsCount:      len(result.Associations.Groups),
-		ProjectsCount:    len(result.Associations.Projects),
+		// #nosec G203 -- pipeleekLogoSVG is a trusted static asset embedded at build-time and sanitized before rendering.
+		PipeleekLogo:    template.HTML(sanitizeEmbeddedSVG(pipeleekLogoSVG)),
+		GitLabURL:       result.GitLabURL,
+		GeneratedAt:     result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
+		MinAccessLevel:  util.AccessLevelName(gitlab.AccessLevelValue(result.MinAccessLevel)),
+		UsersEnumerated: result.UsersEnumerated,
+		UsersCount:      len(result.Users),
+		GroupsCount:     len(result.Associations.Groups),
+		ProjectsCount:   len(result.Associations.Projects),
 	}
 
 	if result.User != nil {
@@ -965,20 +972,22 @@ func memberDisplayName(member TokenAssociationMember) string {
 	return "user-" + strconv.FormatInt(member.ID, 10)
 }
 
-func logoPathForReport(outputPath string) string {
-	const fallbackLogoPath = "docs/pipeleek-anim.svg"
-
-	repoDir, err := os.Getwd()
-	if err != nil {
-		return fallbackLogoPath
+func sanitizeEmbeddedSVG(svg string) string {
+	svg = strings.TrimSpace(svg)
+	for {
+		if strings.HasPrefix(svg, "<?") {
+			if end := strings.Index(svg, "?>"); end >= 0 {
+				svg = strings.TrimSpace(svg[end+2:])
+				continue
+			}
+		}
+		if strings.HasPrefix(strings.ToLower(svg), "<!doctype") {
+			if end := strings.Index(svg, ">"); end >= 0 {
+				svg = strings.TrimSpace(svg[end+1:])
+				continue
+			}
+		}
+		break
 	}
-
-	reportDir := filepath.Dir(outputPath)
-	logoAbsPath := filepath.Join(repoDir, "docs", "pipeleek-anim.svg")
-	logoRelPath, err := filepath.Rel(reportDir, logoAbsPath)
-	if err != nil {
-		return fallbackLogoPath
-	}
-
-	return filepath.ToSlash(logoRelPath)
+	return svg
 }
