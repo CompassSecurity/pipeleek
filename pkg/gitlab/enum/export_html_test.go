@@ -58,7 +58,7 @@ func TestWriteHTMLReport(t *testing.T) {
 	assert.Contains(t, string(content), "Minimum access level:")
 	assert.Contains(t, string(content), "top-nav")
 	assert.Contains(t, string(content), "top-nav-brand")
-	assert.Contains(t, string(content), "<svg")
+	assert.Contains(t, string(content), "pipeleek-anim.svg")
 	assert.Contains(t, string(content), "users-section")
 	assert.Contains(t, string(content), "users-filter-query")
 	assert.Contains(t, string(content), "alice@example.com")
@@ -69,6 +69,7 @@ func TestWriteHTMLReport(t *testing.T) {
 	assert.Contains(t, string(content), "groups-visible-count")
 	assert.Contains(t, string(content), "projects-visible-count")
 	assert.Contains(t, string(content), "users-visible-count")
+	assert.Contains(t, string(content), "toggle-full-width")
 	assert.Contains(t, string(content), "back-to-top")
 }
 

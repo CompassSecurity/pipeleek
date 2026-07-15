@@ -1,7 +1,6 @@
 package enum
 
 import (
-	_ "embed"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -63,26 +62,23 @@ type htmlUserRow struct {
 }
 
 type htmlReportView struct {
-	PipeleekLogo    template.HTML
-	GitLabURL       string
-	GeneratedAt     string
-	MinAccessLevel  string
-	UserName        string
-	UserUsername    string
-	UserEmail       string
-	TokenName       string
-	TokenScopes     string
-	UsersCount      int
-	GroupsCount     int
-	ProjectsCount   int
-	UsersEnumerated bool
-	Users           []htmlUserRow
-	Groups          []htmlGroupRow
-	Projects        []htmlProjectRow
+	PipeleekLogoPath string
+	GitLabURL        string
+	GeneratedAt      string
+	MinAccessLevel   string
+	UserName         string
+	UserUsername     string
+	UserEmail        string
+	TokenName        string
+	TokenScopes      string
+	UsersCount       int
+	GroupsCount      int
+	ProjectsCount    int
+	UsersEnumerated  bool
+	Users            []htmlUserRow
+	Groups           []htmlGroupRow
+	Projects         []htmlProjectRow
 }
-
-//go:embed pipeleek.svg
-var pipeleekLogoSVG string
 
 const enumReportTemplate = `<!doctype html>
 <html lang="en">
@@ -144,18 +140,13 @@ const enumReportTemplate = `<!doctype html>
     .top-nav-brand {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      height: 2rem;
-      width: 2rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.28);
-      overflow: hidden;
+      justify-content: flex-start;
+      height: 3rem;
       flex: 0 0 auto;
     }
-    .top-nav-brand svg {
-      width: 1.5rem;
-      height: 1.5rem;
+    .top-nav-brand img {
+      width: auto;
+      height: 3rem;
       display: block;
     }
     .top-nav-link {
@@ -173,7 +164,21 @@ const enumReportTemplate = `<!doctype html>
       text-decoration: none;
       background: rgba(255, 255, 255, 0.16);
     }
-    main { max-width: 1200px; margin: 1rem auto 2rem auto; padding: 0 1rem; }
+    .top-nav-spacer {
+      flex: 1 1 auto;
+    }
+    .top-nav-toggle {
+      appearance: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .top-nav-toggle[aria-pressed="true"] {
+      background: rgba(255, 255, 255, 0.24);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    main { margin: 1rem auto 2rem auto; padding: 0 1rem; }
+    .main-default { max-width: 1200px; }
+    .main-wide { max-width: calc(100vw - 1rem); }
     h1, h2 { margin: 0 0 .75rem 0; scroll-margin-top: 5.25rem; font-weight: 400; color: #3c4043; }
     h1 { font-size: 2.1rem; }
     h2 { font-size: 1.35rem; }
@@ -314,17 +319,19 @@ const enumReportTemplate = `<!doctype html>
   <nav class="top-nav" aria-label="Report navigation">
     <div class="top-nav-inner">
       <a class="top-nav-brand" href="#summary-section" aria-label="Pipeleek report top">
-        {{ .PipeleekLogo }}
+        <img src="{{ .PipeleekLogoPath }}" alt="Pipeleek" />
       </a>
       <span class="top-nav-title">Pipeleek</span>
       <a class="top-nav-link" href="#summary-section">Summary</a>
       <a class="top-nav-link" href="#users-section">Users</a>
       <a class="top-nav-link" href="#groups-section">Groups</a>
       <a class="top-nav-link" href="#projects-section">Projects</a>
+      <span class="top-nav-spacer"></span>
+      <button id="toggle-full-width" class="top-nav-link top-nav-toggle" type="button" aria-pressed="false">Expand cards</button>
     </div>
   </nav>
 
-  <main>
+  <main id="report-main" class="main-default">
     <section class="card" id="summary-section">
       <h1>GitLab Enumeration Report</h1>
       <div class="meta">Target: {{ .GitLabURL }} | Generated: {{ .GeneratedAt }}</div>
@@ -555,6 +562,8 @@ const enumReportTemplate = `<!doctype html>
 
   <script>
     const backToTopBtn = document.getElementById('back-to-top');
+    const reportMain = document.getElementById('report-main');
+    const toggleFullWidthBtn = document.getElementById('toggle-full-width');
     const usersTableBody = document.getElementById('users-tbody');
     const usersFilterQuery = document.getElementById('users-filter-query');
     const usersFilterReset = document.getElementById('users-filter-reset');
@@ -579,6 +588,16 @@ const enumReportTemplate = `<!doctype html>
 
     const rows = (tbody) => Array.from(tbody?.querySelectorAll('tr') || []);
     const normalize = (v) => (v || '').trim().toLowerCase();
+
+    const setFullWidth = (enabled) => {
+      if (!reportMain || !toggleFullWidthBtn) {
+        return;
+      }
+      reportMain.classList.toggle('main-wide', enabled);
+      reportMain.classList.toggle('main-default', !enabled);
+      toggleFullWidthBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      toggleFullWidthBtn.textContent = enabled ? 'Use normal width' : 'Expand cards';
+    };
 
     const matchesAccessLike = (value, filterValue) => {
       if (filterValue === 'all') {
@@ -756,9 +775,15 @@ const enumReportTemplate = `<!doctype html>
 
     window.addEventListener('scroll', updateBackToTopVisibility, { passive: true });
 
+    toggleFullWidthBtn?.addEventListener('click', () => {
+      const enabled = !reportMain?.classList.contains('main-wide');
+      setFullWidth(Boolean(enabled));
+    });
+
     applyUsersFilters();
     applyGroupsFilters();
     applyProjectsFilters();
+    setFullWidth(false);
     updateBackToTopVisibility();
   </script>
 </body>
@@ -769,15 +794,14 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 	cleanOutputPath := filepath.Clean(outputPath)
 
 	view := htmlReportView{
-		// #nosec G203 -- pipeleekLogoSVG is a trusted, static go:embed asset sanitized before template rendering.
-		PipeleekLogo:    template.HTML(sanitizeEmbeddedSVG(pipeleekLogoSVG)),
-		GitLabURL:       result.GitLabURL,
-		GeneratedAt:     result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
-		MinAccessLevel:  util.AccessLevelName(gitlab.AccessLevelValue(result.MinAccessLevel)),
-		UsersEnumerated: result.UsersEnumerated,
-		UsersCount:      len(result.Users),
-		GroupsCount:     len(result.Associations.Groups),
-		ProjectsCount:   len(result.Associations.Projects),
+		PipeleekLogoPath: logoPathForReport(cleanOutputPath),
+		GitLabURL:        result.GitLabURL,
+		GeneratedAt:      result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
+		MinAccessLevel:   util.AccessLevelName(gitlab.AccessLevelValue(result.MinAccessLevel)),
+		UsersEnumerated:  result.UsersEnumerated,
+		UsersCount:       len(result.Users),
+		GroupsCount:      len(result.Associations.Groups),
+		ProjectsCount:    len(result.Associations.Projects),
 	}
 
 	if result.User != nil {
@@ -941,22 +965,20 @@ func memberDisplayName(member TokenAssociationMember) string {
 	return "user-" + strconv.FormatInt(member.ID, 10)
 }
 
-func sanitizeEmbeddedSVG(svg string) string {
-	svg = strings.TrimSpace(svg)
-	for {
-		if strings.HasPrefix(svg, "<?") {
-			if end := strings.Index(svg, "?>"); end >= 0 {
-				svg = strings.TrimSpace(svg[end+2:])
-				continue
-			}
-		}
-		if strings.HasPrefix(strings.ToLower(svg), "<!doctype") {
-			if end := strings.Index(svg, ">"); end >= 0 {
-				svg = strings.TrimSpace(svg[end+1:])
-				continue
-			}
-		}
-		break
+func logoPathForReport(outputPath string) string {
+	const fallbackLogoPath = "docs/pipeleek-anim.svg"
+
+	repoDir, err := os.Getwd()
+	if err != nil {
+		return fallbackLogoPath
 	}
-	return svg
+
+	reportDir := filepath.Dir(outputPath)
+	logoAbsPath := filepath.Join(repoDir, "docs", "pipeleek-anim.svg")
+	logoRelPath, err := filepath.Rel(reportDir, logoAbsPath)
+	if err != nil {
+		return fallbackLogoPath
+	}
+
+	return filepath.ToSlash(logoRelPath)
 }
