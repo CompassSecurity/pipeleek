@@ -44,6 +44,26 @@ Some companies grant their developers `developer` access to each repository, thi
 
 > The main question: Is the access concept based on the least privilege principle?
 
+Use `enum` early to see what the token can access:
+
+```bash
+pipeleek gl enum -u https://leakycompany.com -t glpat-[redacted]
+```
+
+For easier review, write the HTML report:
+
+```bash
+pipeleek gl enum -u https://leakycompany.com -t glpat-[redacted] --report-html enum.html
+```
+
+The report is searchable and filterable, and helps spot over-privileged access quickly.
+
+```bash
+pipeleek gl enum -u https://leakycompany.com -t glpat-[redacted] --users --report-html enum.html
+```
+
+Note: `--users` can take a long time in large environments because it fetches members across many groups and projects.
+
 ## Known Vulnerabilities
 
 Usually GitLab does disclose the installed version to auhtenticated users only.
