@@ -92,6 +92,7 @@ Set any config key using `PIPELEEK_` prefix. Replace dots with underscores:
 export PIPELEEK_GITLAB_URL=https://gitlab.example.com
 export PIPELEEK_GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
 export PIPELEEK_GITLAB_ENUM_LEVEL=full
+export PIPELEEK_GITLAB_ENUM_USERS=true
 
 pipeleek gl enum
 ```
@@ -127,6 +128,9 @@ pipeleek gl enum --url https://gitlab-dev.company.com
 
 # Use config URL/token but different level
 pipeleek gl enum --level minimal
+
+# Include related users from discovered groups/projects in HTML report
+pipeleek gl enum --report-html enum.html --users
 ```
 
 ### Partial Configuration

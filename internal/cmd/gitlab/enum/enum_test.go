@@ -15,6 +15,8 @@ func TestNewEnumCmd(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("url"))
 	assert.NotNil(t, cmd.Flags().Lookup("token"))
 	assert.NotNil(t, cmd.Flags().Lookup("level"))
+	assert.NotNil(t, cmd.Flags().Lookup("report-html"))
+	assert.NotNil(t, cmd.Flags().Lookup("users"))
 }
 
 func TestEnumCmd_AllDefinedFlagsAreBound(t *testing.T) {

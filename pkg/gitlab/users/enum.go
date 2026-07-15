@@ -120,22 +120,19 @@ func RunEnum(gitlabURL, token string) {
 // client's error chain.
 func enumerateUsersViaAPI(git *gitlab.Client) ([]*enumeratedUser, *gitlab.Response, error) {
 	allUsers := newEnumeratedUsers()
+	log.Debug().Msg("Requesting users via /api/v4/users pagination")
 
-	page := int64(1)
-	for page != -1 {
-		users, resp, nextPg, err := listUsers(git, page)
-		if err != nil {
-			return nil, resp, err
+	users, resp, err := util.ListAllUsers(git)
+	if err != nil {
+		return nil, resp, err
+	}
+	log.Debug().Int("usersFetched", len(users)).Msg("Fetched users from /api/v4/users")
+
+	for _, user := range users {
+		entry, isNew := allUsers.addAPIUser(user)
+		if isNew {
+			logDiscoveredUser(entry, "users_api")
 		}
-
-		for _, user := range users {
-			entry, isNew := allUsers.addAPIUser(user)
-			if isNew {
-				logDiscoveredUser(entry, "users_api")
-			}
-		}
-
-		page = nextPg
 	}
 
 	return allUsers.sorted(), nil, nil
@@ -162,6 +159,7 @@ func collectPublicGroupMembers(git *gitlab.Client, gqlClient *http.Client, graph
 	page := int64(1)
 
 	for page != -1 {
+		log.Debug().Int64("page", page).Msg("Requesting public groups page")
 		groups, resp, err := git.Groups.ListGroups(&gitlab.ListGroupsOptions{
 			Visibility: gitlab.Ptr(visibility),
 			ListOptions: gitlab.ListOptions{
@@ -214,6 +212,7 @@ func collectGroupMembers(git *gitlab.Client, groupID int64, allUsers *enumerated
 	page := int64(1)
 
 	for page != -1 {
+		log.Debug().Int64("groupId", groupID).Int64("page", page).Msg("Requesting group members page")
 		opt := &gitlab.ListGroupMembersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
@@ -223,6 +222,7 @@ func collectGroupMembers(git *gitlab.Client, groupID int64, allUsers *enumerated
 
 		members, resp, err := git.Groups.ListAllGroupMembers(groupID, opt)
 		if err != nil && isAllMembersEndpointUnavailable(err, resp) {
+			log.Debug().Int64("groupId", groupID).Msg("ListAllGroupMembers unavailable, falling back to ListGroupMembers")
 			members, resp, err = git.Groups.ListGroupMembers(groupID, opt)
 		}
 		if err != nil {
@@ -243,6 +243,7 @@ func collectGroupMembers(git *gitlab.Client, groupID int64, allUsers *enumerated
 				stats.groupMemberHits++
 			}
 		}
+		log.Debug().Int64("groupId", groupID).Int64("page", page).Int("membersOnPage", len(members)).Int("groupMemberHits", stats.groupMemberHits).Msg("Processed group members page")
 
 		page = nextPage(resp)
 	}
@@ -255,6 +256,7 @@ func collectPublicProjectMembers(git *gitlab.Client, gqlClient *http.Client, gra
 	page := int64(1)
 
 	for page != -1 {
+		log.Debug().Int64("page", page).Msg("Requesting public projects page")
 		projects, resp, err := git.Projects.ListProjects(&gitlab.ListProjectsOptions{
 			Visibility: gitlab.Ptr(visibility),
 			Simple:     gitlab.Ptr(true),
@@ -308,6 +310,7 @@ func collectProjectMembers(git *gitlab.Client, projectID int64, allUsers *enumer
 	page := int64(1)
 
 	for page != -1 {
+		log.Debug().Int64("projectId", projectID).Int64("page", page).Msg("Requesting project members page")
 		opt := &gitlab.ListProjectMembersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
@@ -317,6 +320,7 @@ func collectProjectMembers(git *gitlab.Client, projectID int64, allUsers *enumer
 
 		members, resp, err := git.ProjectMembers.ListAllProjectMembers(projectID, opt)
 		if err != nil && isAllMembersEndpointUnavailable(err, resp) {
+			log.Debug().Int64("projectId", projectID).Msg("ListAllProjectMembers unavailable, falling back to ListProjectMembers")
 			members, resp, err = git.ProjectMembers.ListProjectMembers(projectID, opt)
 		}
 		if err != nil {
@@ -337,6 +341,7 @@ func collectProjectMembers(git *gitlab.Client, projectID int64, allUsers *enumer
 				stats.projectMemberHits++
 			}
 		}
+		log.Debug().Int64("projectId", projectID).Int64("page", page).Int("membersOnPage", len(members)).Int("projectMemberHits", stats.projectMemberHits).Msg("Processed project members page")
 
 		page = nextPage(resp)
 	}
@@ -606,23 +611,6 @@ func parseGraphQLUserID(id string) int64 {
 	}
 
 	return parsed
-}
-
-// listUsers fetches a single page of /api/v4/users. It always returns the
-// *gitlab.Response even on error so callers can inspect the HTTP status code
-// directly, bypassing any error-chain wrapping introduced by the HTTP client.
-func listUsers(git *gitlab.Client, page int64) ([]*gitlab.User, *gitlab.Response, int64, error) {
-	users, resp, err := git.Users.ListUsers(&gitlab.ListUsersOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 100,
-			Page:    page,
-		},
-	})
-	if err != nil {
-		return nil, resp, -1, err
-	}
-
-	return users, resp, nextPage(resp), nil
 }
 
 func newEnumeratedUsers() *enumeratedUsers {
