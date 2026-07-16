@@ -1,11 +1,13 @@
 package enum
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgenum "github.com/CompassSecurity/pipeleek/pkg/gitlab/enum"
 	gitlabutil "github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +19,7 @@ var flagBindings = map[string]string{
 	"level":       "gitlab.enum.level",
 	"report-html": "gitlab.enum.report_html",
 	"users":       "gitlab.enum.users",
+	"users-concurrency": "gitlab.enum.users_concurrency",
 }
 
 func NewEnumCmd() *cobra.Command {
@@ -32,6 +35,7 @@ func NewEnumCmd() *cobra.Command {
 	enumCmd.Flags().String("level", "", gitlabutil.AccessLevelHelpText())
 	enumCmd.Flags().String("report-html", "", "Write an HTML visualization report to the given file path")
 	enumCmd.Flags().Bool("users", false, "Enumerate members from discovered groups/projects and include them in HTML report")
+	enumCmd.Flags().Int("users-concurrency", 2, "Number of concurrent member-fetch workers used by --users")
 
 	return enumCmd
 }
@@ -51,6 +55,14 @@ func Enum(cmd *cobra.Command, args []string) {
 			_, err := gitlabutil.ParseAccessLevel(levelRaw)
 			return err
 		}).
+		AddValidator(func() error {
+			usersConcurrency := config.GetInt("gitlab.enum.users_concurrency")
+			if usersConcurrency < 1 {
+				return fmt.Errorf("users-concurrency must be >= 1")
+			}
+
+			return nil
+		}).
 		MustBind()
 
 	level := -1
@@ -63,6 +75,8 @@ func Enum(cmd *cobra.Command, args []string) {
 		level = int(parsedLevel)
 	}
 
+	logging.RegisterStatusHook(pkgenum.StatusHook)
+
 	pkgenum.RunEnumWithOptions(
 		config.GetString("gitlab.url"),
 		config.GetString("gitlab.token"),
@@ -70,6 +84,7 @@ func Enum(cmd *cobra.Command, args []string) {
 		pkgenum.ExportOptions{
 			HTMLReportPath: config.GetString("gitlab.enum.report_html"),
 			EnumerateUsers: config.GetBool("gitlab.enum.users"),
+			UsersConcurrency: config.GetInt("gitlab.enum.users_concurrency"),
 		},
 	)
 }

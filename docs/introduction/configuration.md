@@ -93,6 +93,7 @@ export PIPELEEK_GITLAB_URL=https://gitlab.example.com
 export PIPELEEK_GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
 export PIPELEEK_GITLAB_ENUM_LEVEL=full
 export PIPELEEK_GITLAB_ENUM_USERS=true
+export PIPELEEK_GITLAB_ENUM_USERS_CONCURRENCY=2
 
 pipeleek gl enum
 ```
@@ -131,6 +132,9 @@ pipeleek gl enum --level minimal
 
 # Include related users from discovered groups/projects in HTML report
 pipeleek gl enum --report-html enum.html --users
+
+# Tune concurrent member fetching used by --users
+pipeleek gl enum --users --users-concurrency 2
 ```
 
 ### Partial Configuration

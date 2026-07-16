@@ -7,10 +7,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gitlabutil "github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
@@ -21,6 +23,7 @@ import (
 type ExportOptions struct {
 	HTMLReportPath string
 	EnumerateUsers bool
+	UsersConcurrency int
 }
 
 // EnumResult contains collected user, token and access association data.
@@ -33,6 +36,166 @@ type EnumResult struct {
 	Users           []*gitlab.User     `json:"users"`
 	Token           *SelfToken         `json:"token"`
 	Associations    *TokenAssociations `json:"associations"`
+}
+
+type enumStatusTracker struct {
+	mu                sync.RWMutex
+	startedAt         time.Time
+	stage             string
+	usersEnabled      bool
+	associationPages  int
+	groupsDiscovered  int
+	projectsDiscovered int
+	groupTargets      int
+	projectTargets    int
+	groupsProcessed   int
+	projectsProcessed int
+	usersCollected    int
+}
+
+var statusTracker = &enumStatusTracker{}
+
+const usersFetchWorkerCount = 2
+
+type scopedMemberFetchKind string
+
+const (
+	scopedMemberFetchGroup   scopedMemberFetchKind = "group"
+	scopedMemberFetchProject scopedMemberFetchKind = "project"
+)
+
+type scopedMemberFetchJob struct {
+	kind           scopedMemberFetchKind
+	id             int
+	label          string
+	groupIndexes   []int
+	projectIndexes []int
+}
+
+type scopedMemberFetchResult struct {
+	job        scopedMemberFetchJob
+	members    []TokenAssociationMember
+	accessible bool
+	err        error
+}
+
+// StatusHook returns the current enum progress for the status key shortcut.
+func StatusHook() *zerolog.Event {
+	return statusTracker.event()
+}
+
+func (s *enumStatusTracker) reset(usersEnabled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.startedAt = time.Now()
+	s.stage = "starting"
+	s.usersEnabled = usersEnabled
+	s.associationPages = 0
+	s.groupsDiscovered = 0
+	s.projectsDiscovered = 0
+	s.groupTargets = 0
+	s.projectTargets = 0
+	s.groupsProcessed = 0
+	s.projectsProcessed = 0
+	s.usersCollected = 0
+}
+
+func (s *enumStatusTracker) setStage(stage string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stage = stage
+}
+
+func (s *enumStatusTracker) addAssociationPage(groups int, projects int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.associationPages++
+	s.groupsDiscovered += groups
+	s.projectsDiscovered += projects
+}
+
+func (s *enumStatusTracker) markGroupProcessed() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.groupsProcessed++
+}
+
+func (s *enumStatusTracker) markProjectProcessed() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.projectsProcessed++
+}
+
+func (s *enumStatusTracker) setUsersCollected(users int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.usersCollected = users
+}
+
+func (s *enumStatusTracker) setProcessingTargets(groups int, projects int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.groupTargets = groups
+	s.projectTargets = projects
+	s.groupsProcessed = 0
+	s.projectsProcessed = 0
+}
+
+func (s *enumStatusTracker) event() *zerolog.Event {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	progressCurrent, progressTotal, progressPercent, progressKnown := s.progressSnapshot()
+
+	event := log.Info().
+		Str("stage", s.stage).
+		Bool("usersEnabled", s.usersEnabled).
+		Bool("progressKnown", progressKnown).
+		Int("progressCurrent", progressCurrent).
+		Int("progressTotal", progressTotal).
+		Int("progressPercent", progressPercent).
+		Int("associationPages", s.associationPages).
+		Int("groupsDiscovered", s.groupsDiscovered).
+		Int("projectsDiscovered", s.projectsDiscovered).
+		Int("groupsProcessed", s.groupsProcessed).
+		Int("projectsProcessed", s.projectsProcessed).
+		Int("usersCollected", s.usersCollected)
+
+	if !s.startedAt.IsZero() {
+		event = event.Dur("elapsed", time.Since(s.startedAt))
+	}
+
+	return event
+}
+
+func (s *enumStatusTracker) progressSnapshot() (current int, total int, percent int, known bool) {
+	if s.stage == "completed" {
+		return 1, 1, 100, true
+	}
+
+	if s.stage != "collecting_users" {
+		return s.associationPages, 0, -1, false
+	}
+
+	totalGroups := s.groupsDiscovered
+	totalProjects := s.projectsDiscovered
+	if s.groupTargets > 0 || s.projectTargets > 0 {
+		totalGroups = s.groupTargets
+		totalProjects = s.projectTargets
+	}
+
+	total = totalGroups + totalProjects
+	current = s.groupsProcessed + s.projectsProcessed
+	if total <= 0 {
+		return current, total, -1, false
+	}
+
+	percent = (current * 100) / total
+	if percent > 100 {
+		percent = 100
+	}
+
+	return current, total, percent, true
 }
 
 func effectiveProjectAccessLevels(groupAccessLevel int, projectAccessLevel int) (effective int, inherited bool) {
@@ -51,7 +214,10 @@ func RunEnum(gitlabUrl, gitlabApiToken string, minAccessLevel int) {
 
 // RunEnumWithOptions performs enumeration and optionally writes export artifacts.
 func RunEnumWithOptions(gitlabUrl, gitlabApiToken string, minAccessLevel int, opts ExportOptions) {
-	result := collectEnumData(gitlabUrl, gitlabApiToken, minAccessLevel, opts.EnumerateUsers)
+	statusTracker.reset(opts.EnumerateUsers)
+	result := collectEnumData(gitlabUrl, gitlabApiToken, minAccessLevel, opts.EnumerateUsers, opts.UsersConcurrency)
+	statusTracker.setUsersCollected(len(result.Users))
+	statusTracker.setStage("completed")
 	logEnumResult(result)
 
 	if opts.HTMLReportPath != "" {
@@ -64,7 +230,7 @@ func RunEnumWithOptions(gitlabUrl, gitlabApiToken string, minAccessLevel int, op
 	log.Info().Msg("Done")
 }
 
-func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enumerateUsers bool) *EnumResult {
+func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enumerateUsers bool, usersConcurrency int) *EnumResult {
 	git, err := gitlabutil.GetGitlabClient(gitlabApiToken, gitlabUrl)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed creating gitlab client")
@@ -83,6 +249,7 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 	page := 1
 	useMinAccessFilter := minAccessLevel > 0
 	appliedMinAccessLevel := minAccessLevel
+	statusTracker.setStage("collecting_associations")
 	log.Info().Msg("Collecting token associations")
 	for page != -1 {
 		log.Debug().Int("page", page).Msg("Requesting token association page")
@@ -92,6 +259,7 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 			appliedMinAccessLevel = 0
 		}
 		if batch != nil {
+			statusTracker.addAssociationPage(len(batch.Groups), len(batch.Projects))
 			log.Info().Int("page", page).Int("groups", len(batch.Groups)).Int("projects", len(batch.Projects)).Msg("Fetched token association page")
 			associations.Groups = append(associations.Groups, batch.Groups...)
 			associations.Projects = append(associations.Projects, batch.Projects...)
@@ -123,13 +291,16 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 
 	users := make([]*gitlab.User, 0)
 	if enumerateUsers {
+		startedAt := time.Now()
+		statusTracker.setStage("collecting_users")
 		log.Info().Msg("Collecting scoped members from discovered groups and projects")
-		fetchedUsers, fetchErr := collectScopedUsersFromAssociations(git, associations)
+		fetchedUsers, fetchErr := collectScopedUsersFromAssociations(git, associations, usersConcurrency)
 		if fetchErr != nil {
 			log.Warn().Err(fetchErr).Msg("Failed enumerating users from associated groups/projects; continuing without users section data")
 		} else {
 			users = fetchedUsers
 		}
+		log.Info().Dur("duration", time.Since(startedAt)).Int("users", len(users)).Int("groups", len(associations.Groups)).Int("projects", len(associations.Projects)).Msg("Finished scoped users enumeration")
 	}
 
 	return &EnumResult{
@@ -175,46 +346,130 @@ func logEnumResult(result *EnumResult) {
 	}
 }
 
-func collectScopedUsersFromAssociations(git *gitlab.Client, associations *TokenAssociations) ([]*gitlab.User, error) {
+func collectScopedUsersFromAssociations(git *gitlab.Client, associations *TokenAssociations, usersConcurrency int) ([]*gitlab.User, error) {
 	usersByID := make(map[int64]*gitlab.User)
 	usersByUsername := make(map[string]*gitlab.User)
+	groupIndexesByID := make(map[int][]int)
+	projectIndexesByID := make(map[int][]int)
 
 	for i := range associations.Groups {
-		group := &associations.Groups[i]
-		log.Info().Int("groupId", group.ID).Str("group", group.Name).Msg("Enumerating group members")
-		members, accessible, err := fetchGroupMembers(git, int64(group.ID))
-		group.MembersEnumerated = true
-		group.MembersAccessible = accessible
-		if err != nil {
-			group.MembersError = err.Error()
-			log.Warn().Err(err).Int("groupId", group.ID).Str("group", group.Name).Msg("Failed enumerating group members")
-			continue
-		}
-		group.Members = members
-		group.MemberCount = len(members)
-		log.Info().Int("groupId", group.ID).Str("group", group.Name).Int("members", group.MemberCount).Msg("Enumerated group members")
-
-		for _, member := range members {
-			addScopedMemberUser(usersByID, usersByUsername, member)
-		}
+		groupIndexesByID[associations.Groups[i].ID] = append(groupIndexesByID[associations.Groups[i].ID], i)
 	}
 
 	for i := range associations.Projects {
-		project := &associations.Projects[i]
-		log.Info().Int("projectId", project.ID).Str("project", project.NameWithNamespace).Msg("Enumerating project members")
-		members, accessible, err := fetchProjectMembers(git, int64(project.ID))
-		project.MembersEnumerated = true
-		project.MembersAccessible = accessible
-		if err != nil {
-			project.MembersError = err.Error()
-			log.Warn().Err(err).Int("projectId", project.ID).Str("project", project.NameWithNamespace).Msg("Failed enumerating project members")
-			continue
-		}
-		project.Members = members
-		project.MemberCount = len(members)
-		log.Info().Int("projectId", project.ID).Str("project", project.NameWithNamespace).Int("members", project.MemberCount).Msg("Enumerated project members")
+		projectIndexesByID[associations.Projects[i].ID] = append(projectIndexesByID[associations.Projects[i].ID], i)
+	}
 
-		for _, member := range members {
+	statusTracker.setProcessingTargets(len(groupIndexesByID), len(projectIndexesByID))
+
+	jobs := make([]scopedMemberFetchJob, 0, len(groupIndexesByID)+len(projectIndexesByID))
+	for groupID, indexes := range groupIndexesByID {
+		representative := &associations.Groups[indexes[0]]
+		jobs = append(jobs, scopedMemberFetchJob{
+			kind:         scopedMemberFetchGroup,
+			id:           groupID,
+			label:        representative.Name,
+			groupIndexes: indexes,
+		})
+		log.Info().Int("groupId", representative.ID).Str("group", representative.Name).Int("occurrences", len(indexes)).Msg("Queueing group members enumeration")
+	}
+
+	for projectID, indexes := range projectIndexesByID {
+		representative := &associations.Projects[indexes[0]]
+		jobs = append(jobs, scopedMemberFetchJob{
+			kind:           scopedMemberFetchProject,
+			id:             projectID,
+			label:          representative.NameWithNamespace,
+			projectIndexes: indexes,
+		})
+		log.Info().Int("projectId", representative.ID).Str("project", representative.NameWithNamespace).Int("occurrences", len(indexes)).Msg("Queueing project members enumeration")
+	}
+
+	if len(jobs) == 0 {
+		return make([]*gitlab.User, 0), nil
+	}
+
+	workerCount := usersFetchWorkerCount
+	if usersConcurrency > 0 {
+		workerCount = usersConcurrency
+	}
+	if len(jobs) < workerCount {
+		workerCount = len(jobs)
+	}
+
+	jobCh := make(chan scopedMemberFetchJob)
+	resultCh := make(chan scopedMemberFetchResult, len(jobs))
+
+	var wg sync.WaitGroup
+	worker := func() {
+		defer wg.Done()
+		for job := range jobCh {
+			result := scopedMemberFetchResult{job: job}
+			switch job.kind {
+			case scopedMemberFetchGroup:
+				result.members, result.accessible, result.err = fetchGroupMembers(git, int64(job.id))
+			case scopedMemberFetchProject:
+				result.members, result.accessible, result.err = fetchProjectMembers(git, int64(job.id))
+			}
+			resultCh <- result
+		}
+	}
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go worker()
+	}
+
+	go func() {
+		for _, job := range jobs {
+			jobCh <- job
+		}
+		close(jobCh)
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	for result := range resultCh {
+		switch result.job.kind {
+		case scopedMemberFetchGroup:
+			statusTracker.markGroupProcessed()
+			for _, idx := range result.job.groupIndexes {
+				group := &associations.Groups[idx]
+				group.MembersEnumerated = true
+				group.MembersAccessible = result.accessible
+				if result.err != nil {
+					group.MembersError = result.err.Error()
+					continue
+				}
+				group.Members = result.members
+				group.MemberCount = len(result.members)
+			}
+			if result.err != nil {
+				log.Warn().Err(result.err).Int("groupId", result.job.id).Str("group", result.job.label).Msg("Failed enumerating group members")
+				continue
+			}
+			log.Info().Int("groupId", result.job.id).Str("group", result.job.label).Int("members", len(result.members)).Msg("Enumerated group members")
+		case scopedMemberFetchProject:
+			statusTracker.markProjectProcessed()
+			for _, idx := range result.job.projectIndexes {
+				project := &associations.Projects[idx]
+				project.MembersEnumerated = true
+				project.MembersAccessible = result.accessible
+				if result.err != nil {
+					project.MembersError = result.err.Error()
+					continue
+				}
+				project.Members = result.members
+				project.MemberCount = len(result.members)
+			}
+			if result.err != nil {
+				log.Warn().Err(result.err).Int("projectId", result.job.id).Str("project", result.job.label).Msg("Failed enumerating project members")
+				continue
+			}
+			log.Info().Int("projectId", result.job.id).Str("project", result.job.label).Int("members", len(result.members)).Msg("Enumerated project members")
+		}
+
+		for _, member := range result.members {
 			addScopedMemberUser(usersByID, usersByUsername, member)
 		}
 	}
