@@ -26,6 +26,16 @@ func TestGitLabEnum(t *testing.T) {
 				"username": "testuser",
 				"email":    "test@example.com",
 			})
+		case "/api/v4/personal_access_tokens/self":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{})
+		case "/api/v4/personal_access_tokens/self/associations":
+			w.Header().Set("x-next-page", "")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"groups":   []map[string]interface{}{},
+				"projects": []map[string]interface{}{},
+			})
 
 		case "/api/v4/groups":
 			w.WriteHeader(http.StatusOK)
