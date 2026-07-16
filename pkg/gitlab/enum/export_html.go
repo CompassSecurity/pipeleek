@@ -804,7 +804,7 @@ func WriteHTMLReport(result *EnumResult, outputPath string) error {
 		PipeleekLogo:    template.HTML(sanitizeEmbeddedSVG(pipeleekLogoSVG)),
 		GitLabURL:       result.GitLabURL,
 		GeneratedAt:     result.GeneratedAt.Format("2006-01-02T15:04:05Z"),
-		MinAccessLevel:  util.AccessLevelName(gitlab.AccessLevelValue(result.MinAccessLevel)),
+    MinAccessLevel:  reportMinAccessLevelLabel(result.MinAccessFilterApplied, result.MinAccessLevel),
 		UsersEnumerated: result.UsersEnumerated,
 		UsersCount:      len(result.Users),
 		GroupsCount:     len(result.Associations.Groups),
@@ -990,4 +990,12 @@ func sanitizeEmbeddedSVG(svg string) string {
 		break
 	}
 	return svg
+}
+
+func reportMinAccessLevelLabel(filterApplied bool, level int) string {
+  if !filterApplied || level <= 0 {
+		return "No filter (all associations)"
+	}
+
+	return util.AccessLevelName(gitlab.AccessLevelValue(level))
 }

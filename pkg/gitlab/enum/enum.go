@@ -31,6 +31,7 @@ type EnumResult struct {
 	GeneratedAt     time.Time          `json:"generated_at"`
 	GitLabURL       string             `json:"gitlab_url"`
 	MinAccessLevel  int                `json:"min_access_level"`
+	MinAccessFilterApplied bool        `json:"min_access_filter_applied"`
 	UsersEnumerated bool               `json:"users_enumerated"`
 	User            *gitlab.User       `json:"user"`
 	Users           []*gitlab.User     `json:"users"`
@@ -310,6 +311,7 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 		GeneratedAt:     time.Now().UTC(),
 		GitLabURL:       gitlabUrl,
 		MinAccessLevel:  appliedMinAccessLevel,
+		MinAccessFilterApplied: useMinAccessFilter,
 		UsersEnumerated: enumerateUsers,
 		User:            user,
 		Users:           users,
@@ -854,5 +856,6 @@ func hasInvalidMinAccessLevelError(res *resty.Response) bool {
 	if res.StatusCode() != 400 {
 		return false
 	}
-	return strings.Contains(strings.ToLower(res.String()), "min_access_level") && strings.Contains(strings.ToLower(res.String()), "valid value")
+	bodyLower := strings.ToLower(res.String())
+	return strings.Contains(bodyLower, "min_access_level") && strings.Contains(bodyLower, "valid value")
 }
