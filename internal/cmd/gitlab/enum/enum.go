@@ -1,12 +1,13 @@
 package enum
 
 import (
+	"strings"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgenum "github.com/CompassSecurity/pipeleek/pkg/gitlab/enum"
 	gitlabutil "github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 // flagBindings maps CLI flags to configuration keys
@@ -28,7 +29,7 @@ func NewEnumCmd() *cobra.Command {
 	}
 	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
-	enumCmd.Flags().String("level", gitlabutil.AccessLevelName(gitlab.MinimalAccessPermissions), gitlabutil.AccessLevelHelpText())
+	enumCmd.Flags().String("level", "", gitlabutil.AccessLevelHelpText())
 	enumCmd.Flags().String("report-html", "", "Write an HTML visualization report to the given file path")
 	enumCmd.Flags().Bool("users", false, "Enumerate members from discovered groups/projects and include them in HTML report")
 
@@ -42,14 +43,24 @@ func Enum(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
 		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
 		AddValidator(func() error {
-			_, err := gitlabutil.ParseAccessLevel(config.GetString("gitlab.enum.level"))
+			levelRaw := strings.TrimSpace(config.GetString("gitlab.enum.level"))
+			if levelRaw == "" {
+				return nil
+			}
+
+			_, err := gitlabutil.ParseAccessLevel(levelRaw)
 			return err
 		}).
 		MustBind()
 
-	level, err := gitlabutil.ParseAccessLevel(config.GetString("gitlab.enum.level"))
-	if err != nil {
-		log.Fatal().Err(err).Str("level", config.GetString("gitlab.enum.level")).Msg("Invalid GitLab access level")
+	level := -1
+	levelRaw := strings.TrimSpace(config.GetString("gitlab.enum.level"))
+	if levelRaw != "" {
+		parsedLevel, err := gitlabutil.ParseAccessLevel(levelRaw)
+		if err != nil {
+			log.Fatal().Err(err).Str("level", config.GetString("gitlab.enum.level")).Msg("Invalid GitLab access level")
+		}
+		level = int(parsedLevel)
 	}
 
 	pkgenum.RunEnumWithOptions(

@@ -81,12 +81,16 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 
 	associations := &TokenAssociations{}
 	page := 1
-	useMinAccessFilter := true
+	useMinAccessFilter := minAccessLevel > 0
+	appliedMinAccessLevel := minAccessLevel
 	log.Info().Msg("Collecting token associations")
 	for page != -1 {
 		log.Debug().Int("page", page).Msg("Requesting token association page")
 		batch, nextPage, usedMinAccessFilter := fetchTokenAssociationsPage(client, gitlabUrl, gitlabApiToken, minAccessLevel, page, useMinAccessFilter)
 		useMinAccessFilter = usedMinAccessFilter
+		if !useMinAccessFilter {
+			appliedMinAccessLevel = 0
+		}
 		if batch != nil {
 			log.Info().Int("page", page).Int("groups", len(batch.Groups)).Int("projects", len(batch.Projects)).Msg("Fetched token association page")
 			associations.Groups = append(associations.Groups, batch.Groups...)
@@ -111,6 +115,8 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 					Bool("accessInheritedFromGroup", inherited).
 					Msg("Project")
 			}
+		} else {
+			log.Fatal().Int("page", page).Msg("Failed fetching token associations; aborting enum to avoid incomplete results")
 		}
 		page = nextPage
 	}
@@ -129,7 +135,7 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 	return &EnumResult{
 		GeneratedAt:     time.Now().UTC(),
 		GitLabURL:       gitlabUrl,
-		MinAccessLevel:  minAccessLevel,
+		MinAccessLevel:  appliedMinAccessLevel,
 		UsersEnumerated: enumerateUsers,
 		User:            user,
 		Users:           users,
@@ -498,7 +504,24 @@ func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string,
 		log.Fatal().Err(err).Msg("Unable to parse base URL")
 	}
 	u.Path = path.Join(u.Path, "api/v4/personal_access_tokens/self/associations")
-	resp, res, err := requestTokenAssociationsPage(client, u.String(), pat, accessLevel, page, includeMinAccessFilter)
+
+	if includeMinAccessFilter && accessLevel <= 0 {
+		log.Warn().
+			Int("requestedMinAccessLevel", accessLevel).
+			Str("url", u.String()).
+			Msg("GitLab token associations endpoint does not support non-positive min_access_level values; querying without min_access_level filter")
+		includeMinAccessFilter = false
+	}
+
+	if includeMinAccessFilter && accessLevel == int(gitlab.MinimalAccessPermissions) {
+		log.Warn().
+			Int("requestedMinAccessLevel", accessLevel).
+			Str("url", u.String()).
+			Msg("GitLab token associations endpoint does not support min_access_level=minimal (5); querying without min_access_level filter")
+		includeMinAccessFilter = false
+	}
+
+	resp, res, err := requestTokenAssociationsPageWithRetry(client, u.String(), pat, accessLevel, page, includeMinAccessFilter)
 	if err != nil {
 		log.Error().Err(err).Str("url", u.String()).Msg("Failed fetching token associations (network or client error)")
 		return nil, -1, includeMinAccessFilter
@@ -523,7 +546,7 @@ func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string,
 			Str("url", u.String()).
 			Msg("GitLab API rejected min_access_level; retrying token associations without min_access_level filter")
 
-		resp, res, err = requestTokenAssociationsPage(client, u.String(), pat, accessLevel, page, false)
+		resp, res, err = requestTokenAssociationsPageWithRetry(client, u.String(), pat, accessLevel, page, false)
 		if err != nil {
 			log.Error().Err(err).Str("url", u.String()).Msg("Failed fetching token associations fallback request (network or client error)")
 			return nil, -1, false
@@ -548,6 +571,48 @@ func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string,
 
 	log.Error().Int("status", res.StatusCode()).Str("url", u.String()).Str("response", res.String()).Msg("Failed fetching token associations (HTTP error)")
 	return nil, -1, includeMinAccessFilter
+}
+
+func requestTokenAssociationsPageWithRetry(client resty.Client, endpointURL string, pat string, accessLevel int, page int, includeMinAccessFilter bool) (*TokenAssociations, *resty.Response, error) {
+	const maxAttempts = 3
+
+	var (
+		resp *TokenAssociations
+		res  *resty.Response
+		err  error
+	)
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resp, res, err = requestTokenAssociationsPage(client, endpointURL, pat, accessLevel, page, includeMinAccessFilter)
+		if err != nil {
+			if attempt < maxAttempts {
+				time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+				continue
+			}
+			return nil, nil, err
+		}
+
+		if res == nil {
+			if attempt < maxAttempts {
+				time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+				continue
+			}
+			return resp, res, nil
+		}
+
+		status := res.StatusCode()
+		if status == 429 || status >= 500 {
+			if attempt < maxAttempts {
+				log.Warn().Int("attempt", attempt).Int("status", status).Str("url", endpointURL).Msg("Transient token associations API failure; retrying")
+				time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+				continue
+			}
+		}
+
+		return resp, res, nil
+	}
+
+	return resp, res, err
 }
 
 func requestTokenAssociationsPage(client resty.Client, endpointURL string, pat string, accessLevel int, page int, includeMinAccessFilter bool) (*TokenAssociations, *resty.Response, error) {
