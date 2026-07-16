@@ -1,12 +1,15 @@
 package enum
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgenum "github.com/CompassSecurity/pipeleek/pkg/gitlab/enum"
 	gitlabutil "github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 // flagBindings maps CLI flags to configuration keys
@@ -16,6 +19,7 @@ var flagBindings = map[string]string{
 	"level":       "gitlab.enum.level",
 	"report-html": "gitlab.enum.report_html",
 	"users":       "gitlab.enum.users",
+	"users-concurrency": "gitlab.enum.users_concurrency",
 }
 
 func NewEnumCmd() *cobra.Command {
@@ -28,9 +32,10 @@ func NewEnumCmd() *cobra.Command {
 	}
 	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
-	enumCmd.Flags().String("level", gitlabutil.AccessLevelName(gitlab.MinimalAccessPermissions), gitlabutil.AccessLevelHelpText())
+	enumCmd.Flags().String("level", "developer", gitlabutil.AccessLevelHelpText())
 	enumCmd.Flags().String("report-html", "", "Write an HTML visualization report to the given file path")
 	enumCmd.Flags().Bool("users", false, "Enumerate members from discovered groups/projects and include them in HTML report")
+	enumCmd.Flags().Int("users-concurrency", 2, "Number of concurrent member-fetch workers used by --users")
 
 	return enumCmd
 }
@@ -42,15 +47,35 @@ func Enum(cmd *cobra.Command, args []string) {
 		AddValidator(func() error { return config.ValidateURL(config.GetString("gitlab.url"), "GitLab URL") }).
 		AddValidator(func() error { return config.ValidateToken(config.GetString("gitlab.token"), "GitLab API Token") }).
 		AddValidator(func() error {
-			_, err := gitlabutil.ParseAccessLevel(config.GetString("gitlab.enum.level"))
+			levelRaw := strings.TrimSpace(config.GetString("gitlab.enum.level"))
+			if levelRaw == "" {
+				return nil
+			}
+
+			_, err := gitlabutil.ParseAccessLevel(levelRaw)
 			return err
+		}).
+		AddValidator(func() error {
+			usersConcurrency := config.GetInt("gitlab.enum.users_concurrency")
+			if usersConcurrency < 1 {
+				return fmt.Errorf("users-concurrency must be >= 1")
+			}
+
+			return nil
 		}).
 		MustBind()
 
-	level, err := gitlabutil.ParseAccessLevel(config.GetString("gitlab.enum.level"))
-	if err != nil {
-		log.Fatal().Err(err).Str("level", config.GetString("gitlab.enum.level")).Msg("Invalid GitLab access level")
+	level := -1
+	levelRaw := strings.TrimSpace(config.GetString("gitlab.enum.level"))
+	if levelRaw != "" {
+		parsedLevel, err := gitlabutil.ParseAccessLevel(levelRaw)
+		if err != nil {
+			log.Fatal().Err(err).Str("level", config.GetString("gitlab.enum.level")).Msg("Invalid GitLab access level")
+		}
+		level = int(parsedLevel)
 	}
+
+	logging.RegisterStatusHook(pkgenum.StatusHook)
 
 	pkgenum.RunEnumWithOptions(
 		config.GetString("gitlab.url"),
@@ -59,6 +84,7 @@ func Enum(cmd *cobra.Command, args []string) {
 		pkgenum.ExportOptions{
 			HTMLReportPath: config.GetString("gitlab.enum.report_html"),
 			EnumerateUsers: config.GetBool("gitlab.enum.users"),
+			UsersConcurrency: config.GetInt("gitlab.enum.users_concurrency"),
 		},
 	)
 }

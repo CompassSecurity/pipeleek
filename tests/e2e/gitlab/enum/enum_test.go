@@ -26,6 +26,16 @@ func TestGitLabEnum(t *testing.T) {
 				"username": "testuser",
 				"email":    "test@example.com",
 			})
+		case "/api/v4/personal_access_tokens/self":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{})
+		case "/api/v4/personal_access_tokens/self/associations":
+			w.Header().Set("x-next-page", "")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"groups":   []map[string]interface{}{},
+				"projects": []map[string]interface{}{},
+			})
 
 		case "/api/v4/groups":
 			w.WriteHeader(http.StatusOK)
@@ -255,7 +265,7 @@ func TestGitLabEnum_WithUsersEnumeration(t *testing.T) {
 		"--token", "glpat-test",
 		"--users",
 		"--report-html", htmlPath,
-	}, nil, 10*time.Second)
+	}, nil, 30*time.Second)
 
 	require.Nil(t, exitErr, "Enum command with users enumeration should succeed")
 
@@ -283,6 +293,181 @@ func TestGitLabEnum_WithUsersEnumeration(t *testing.T) {
 	assert.True(t, requestedGroupAllMembersEndpoint, "Expected group all_members endpoint request when --users is provided")
 	assert.True(t, requestedProjectAllMembersEndpoint, "Expected project all_members endpoint request when --users is provided")
 	assert.False(t, requestedGlobalUsersEndpoint, "Did not expect /api/v4/users request for scoped --users enumeration")
+}
+
+func TestGitLabEnum_WithUsersEnumeration_DedupesAssociationMemberRequests(t *testing.T) {
+	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/api/v4/user":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"id":       1,
+				"username": "testuser",
+				"name":     "Test User",
+				"email":    "test@example.com",
+			})
+		case "/api/v4/groups/7/members/all", "/api/v4/projects/13/members/all":
+			w.Header().Set("x-next-page", "")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+				{
+					"id":           2,
+					"username":     "alice",
+					"name":         "Alice Example",
+					"email":        "alice@example.com",
+					"public_email": "alice@example.com",
+					"state":        "active",
+					"web_url":      serverURL(serverURLFromRequest(r), "/alice"),
+				},
+			})
+		case "/api/v4/personal_access_tokens/self":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"id":            99,
+				"name":          "test-token",
+				"revoked":       false,
+				"created_at":    "2026-07-06T08:00:00Z",
+				"description":   "e2e token",
+				"scopes":        []string{"api", "read_api"},
+				"user_id":       1,
+				"last_used_at":  "2026-07-06T08:00:00Z",
+				"active":        true,
+				"expires_at":    "",
+				"last_used_ips": []string{"127.0.0.1"},
+			})
+		case "/api/v4/personal_access_tokens/self/associations":
+			w.Header().Set("x-next-page", "")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"groups": []map[string]interface{}{
+					{
+						"id":              7,
+						"web_url":         serverURL(serverURLFromRequest(r), "/groups/security-team"),
+						"name":            "security-team",
+						"parent_id":       nil,
+						"organization_id": 1,
+						"access_levels":   50,
+						"visibility":      "private",
+					},
+					{
+						"id":              7,
+						"web_url":         serverURL(serverURLFromRequest(r), "/groups/security-team"),
+						"name":            "security-team-duplicate",
+						"parent_id":       nil,
+						"organization_id": 1,
+						"access_levels":   50,
+						"visibility":      "private",
+					},
+				},
+				"projects": []map[string]interface{}{
+					{
+						"id":                  13,
+						"description":         "",
+						"name":                "security-tools",
+						"name_with_namespace": "security-team / security-tools",
+						"path":                "security-tools",
+						"path_with_namespace": "security-team/security-tools",
+						"created_at":          "2026-07-06T08:00:00Z",
+						"access_levels": map[string]interface{}{
+							"project_access_level": 0,
+							"group_access_level":   50,
+						},
+						"visibility": "private",
+						"web_url":    serverURL(serverURLFromRequest(r), "/security-team/security-tools"),
+						"namespace": map[string]interface{}{
+							"id":         7,
+							"name":       "security-team",
+							"path":       "security-team",
+							"kind":       "group",
+							"full_path":  "security-team",
+							"parent_id":  nil,
+							"avatar_url": "",
+							"web_url":    serverURL(serverURLFromRequest(r), "/groups/security-team"),
+						},
+					},
+					{
+						"id":                  13,
+						"description":         "",
+						"name":                "security-tools-duplicate",
+						"name_with_namespace": "security-team / security-tools",
+						"path":                "security-tools",
+						"path_with_namespace": "security-team/security-tools",
+						"created_at":          "2026-07-06T08:00:00Z",
+						"access_levels": map[string]interface{}{
+							"project_access_level": 0,
+							"group_access_level":   50,
+						},
+						"visibility": "private",
+						"web_url":    serverURL(serverURLFromRequest(r), "/security-team/security-tools"),
+						"namespace": map[string]interface{}{
+							"id":         7,
+							"name":       "security-team",
+							"path":       "security-team",
+							"kind":       "group",
+							"full_path":  "security-team",
+							"parent_id":  nil,
+							"avatar_url": "",
+							"web_url":    serverURL(serverURLFromRequest(r), "/groups/security-team"),
+						},
+					},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{})
+		}
+	})
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+	htmlPath := filepath.Join(tmpDir, "enum-report-users-dedupe.html")
+
+	_, _, exitErr := testutil.RunCLI(t, []string{
+		"gl", "enum",
+		"--url", server.URL,
+		"--token", "glpat-test",
+		"--users",
+		"--report-html", htmlPath,
+	}, nil, 10*time.Second)
+
+	require.Nil(t, exitErr, "Enum command with users enumeration should succeed")
+
+	requests := getRequests()
+	groupAllMembersRequests := 0
+	projectAllMembersRequests := 0
+	for _, req := range requests {
+		if req.Path == "/api/v4/groups/7/members/all" {
+			groupAllMembersRequests++
+		}
+		if req.Path == "/api/v4/projects/13/members/all" {
+			projectAllMembersRequests++
+		}
+	}
+
+	assert.Equal(t, 1, groupAllMembersRequests, "Expected one group member request for duplicate group associations")
+	assert.Equal(t, 1, projectAllMembersRequests, "Expected one project member request for duplicate project associations")
+}
+
+func TestGitLabEnum_WithUsersConcurrencyRejectsZero(t *testing.T) {
+	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{})
+	})
+	defer cleanup()
+
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "enum",
+		"--url", server.URL,
+		"--token", "glpat-test",
+		"--users",
+		"--users-concurrency", "0",
+	}, nil, 10*time.Second)
+
+	require.Error(t, exitErr, "Enum command should fail for invalid --users-concurrency value")
+	assert.Contains(t, stdout+stderr, "users-concurrency must be >= 1")
 }
 
 func serverURL(base string, suffix string) string {
