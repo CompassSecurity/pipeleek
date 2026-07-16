@@ -32,7 +32,7 @@ func NewEnumCmd() *cobra.Command {
 	}
 	enumCmd.Flags().StringP("url", "u", "", "GitLab instance URL")
 	enumCmd.Flags().StringP("token", "t", "", "GitLab API Token")
-	enumCmd.Flags().String("level", "", gitlabutil.AccessLevelHelpText())
+	enumCmd.Flags().String("level", "developer", gitlabutil.AccessLevelHelpText())
 	enumCmd.Flags().String("report-html", "", "Write an HTML visualization report to the given file path")
 	enumCmd.Flags().Bool("users", false, "Enumerate members from discovered groups/projects and include them in HTML report")
 	enumCmd.Flags().Int("users-concurrency", 2, "Number of concurrent member-fetch workers used by --users")

@@ -85,7 +85,7 @@ func ParseAccessLevel(value string) (gitlab.AccessLevelValue, error) {
 
 // AccessLevelHelpText describes the supported named and numeric access levels.
 func AccessLevelHelpText() string {
-	return "Minimum repo access level. Accepted names: no access (0), minimal (5), guest (10), planner (15), reporter (20), security manager (25), developer (30), maintainer (40), owner (50), admin (60). Numeric values are also accepted."
+	return "Minimum repo access level. Default is developer (30). Leave empty to disable filtering and return all associations. Accepted names: no access (0), minimal (5), guest (10), planner (15), reporter (20), security manager (25), developer (30), maintainer (40), owner (50), admin (60). Numeric values are also accepted."
 }
 
 // ProjectIteratorFunc is a callback function type for processing each project
