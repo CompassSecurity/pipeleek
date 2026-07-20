@@ -46,6 +46,16 @@ This makes the bot susceptible to autodiscovery exploits, since it will renovate
 
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
 
+Pipeleek reports these findings through the `ruleID` field on the main enum log line. The rule names mean:
+
+- `V1`: only negation patterns, so any non-excluded repository can pass
+- `V2`: wildcard pattern that matches every repository
+- `V3`: regex without a start anchor, so a matching substring can bypass the filter
+- `V4`: anchored regex that still admits a bypass through probe testing
+- `N2`: half-delimited glob that starts with `/` and does not match GitLab paths correctly
+- `N4`: regex body that does not compile under RE2 and needs manual review
+- `INFO`: residual namespace-trust note for structurally sound filters
+
 ## 2. Exploit Autodiscovery with a Malicious Project
 
 The Renovate bot from the example above is configured to autodiscover new projects and does not apply any, or only weak, bypassable filters. You can create a repository with a malicious script that gets executed by the bot.
