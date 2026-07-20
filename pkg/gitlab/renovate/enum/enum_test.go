@@ -362,66 +362,68 @@ func TestDumpConfigFileContents_OnlyCICD(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestWorstActionableVerdict(t *testing.T) {
+func TestWorstFindingRuleID(t *testing.T) {
 	tests := []struct {
-		name        string
-		findings    []filter.Finding
-		wantVerdict filter.Verdict
-		wantOK      bool
+		name     string
+		findings []filter.Finding
+		wantRule string
+		wantOK   bool
 	}{
 		{
 			name:   "empty findings returns false",
 			wantOK: false,
 		},
 		{
-			name:        "single Vulnerable finding",
-			findings:    []filter.Finding{{Verdict: filter.Vulnerable}},
-			wantVerdict: filter.Vulnerable,
-			wantOK:      true,
+			name:     "single Vulnerable finding",
+			findings: []filter.Finding{{RuleID: "V3", Verdict: filter.Vulnerable}},
+			wantRule: "V3",
+			wantOK:   true,
 		},
 		{
-			name:        "single NeedsReview finding",
-			findings:    []filter.Finding{{Verdict: filter.NeedsReview}},
-			wantVerdict: filter.NeedsReview,
-			wantOK:      true,
+			name:     "single NeedsReview finding",
+			findings: []filter.Finding{{RuleID: "N4", Verdict: filter.NeedsReview}},
+			wantRule: "N4",
+			wantOK:   true,
 		},
 		{
-			name:   "only Safe findings returns false",
-			findings: []filter.Finding{{Verdict: filter.Safe}},
-			wantOK: false,
+			name:     "only Safe findings returns INFO",
+			findings: []filter.Finding{{RuleID: "INFO", Verdict: filter.Safe}},
+			wantRule: "INFO",
+			wantOK:   true,
 		},
 		{
-			name:   "only Broken findings returns false",
-			findings: []filter.Finding{{Verdict: filter.Broken}},
-			wantOK: false,
+			name:     "only Broken findings returns N2",
+			findings: []filter.Finding{{RuleID: "N2", Verdict: filter.Broken}},
+			wantRule: "N2",
+			wantOK:   true,
 		},
 		{
 			name: "Vulnerable beats NeedsReview",
 			findings: []filter.Finding{
-				{Verdict: filter.NeedsReview},
-				{Verdict: filter.Vulnerable},
+				{RuleID: "N4", Verdict: filter.NeedsReview},
+				{RuleID: "V4", Verdict: filter.Vulnerable},
 			},
-			wantVerdict: filter.Vulnerable,
-			wantOK:      true,
+			wantRule: "V4",
+			wantOK:   true,
 		},
 		{
-			name: "NeedsReview among Safe and Broken",
+			name: "Broken beats NeedsReview",
 			findings: []filter.Finding{
-				{Verdict: filter.Safe},
-				{Verdict: filter.NeedsReview},
-				{Verdict: filter.Broken},
+				{RuleID: "INFO", Verdict: filter.Safe},
+				{RuleID: "N4", Verdict: filter.NeedsReview},
+				{RuleID: "N2", Verdict: filter.Broken},
 			},
-			wantVerdict: filter.NeedsReview,
-			wantOK:      true,
+			wantRule: "N2",
+			wantOK:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := worstActionableVerdict(tt.findings)
+			got, ok := worstFindingRuleID(tt.findings)
 			assert.Equal(t, tt.wantOK, ok)
 			if tt.wantOK {
-				assert.Equal(t, tt.wantVerdict, got)
+				assert.Equal(t, tt.wantRule, got)
 			}
 		})
 	}

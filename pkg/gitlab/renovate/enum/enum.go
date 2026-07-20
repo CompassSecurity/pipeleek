@@ -196,8 +196,8 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			Str("url", project.WebURL)
 		if hasAutodiscoveryFilters {
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
-			if v, ok := worstActionableVerdict(filterFindings); ok {
-				event = event.Str("autodiscoveryFilterBypass", v.String())
+			if ruleID, ok := worstFindingRuleID(filterFindings); ok {
+				event = event.Str("autodiscoveryFilterBypass", ruleID)
 			}
 		}
 		event.Msg("Identified Renovate (bot) configuration")
@@ -421,17 +421,32 @@ func filterLogEvent(v filter.Verdict) *zerolog.Event {
 // worstActionableVerdict returns the most severe Vulnerable or NeedsReview
 // verdict found in findings, and reports whether such a verdict exists.
 // Safe and Broken findings are excluded.
-func worstActionableVerdict(findings []filter.Finding) (filter.Verdict, bool) {
-	found := false
-	worst := filter.NeedsReview
+func worstFindingRuleID(findings []filter.Finding) (string, bool) {
+	if len(findings) == 0 {
+		return "", false
+	}
+
+	bestScore := -1
+	bestRuleID := ""
 	for _, f := range findings {
-		if f.Verdict == filter.Vulnerable {
-			return filter.Vulnerable, true
-		}
-		if f.Verdict == filter.NeedsReview {
-			worst = filter.NeedsReview
-			found = true
+		score := findingSeverityScore(f.Verdict)
+		if score > bestScore {
+			bestScore = score
+			bestRuleID = f.RuleID
 		}
 	}
-	return worst, found
+	return bestRuleID, true
+}
+
+func findingSeverityScore(v filter.Verdict) int {
+	switch v {
+	case filter.Vulnerable:
+		return 3
+	case filter.Broken:
+		return 2
+	case filter.NeedsReview:
+		return 1
+	default:
+		return 0
+	}
 }

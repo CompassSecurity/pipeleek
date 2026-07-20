@@ -56,6 +56,12 @@ Pipeleek reports these findings through the `ruleID` field on the main enum log 
 - `N4`: regex body that does not compile under RE2 and needs manual review
 - `INFO`: residual namespace-trust note for structurally sound filters
 
+For example, a safe filter analysis is reported on the same line as the enum result:
+
+```bash
+2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"MatthiasLohr/*\"\n  ]" autodiscoveryFilterBypass=INFO hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=enabled selfHostedConfigFile=false url=https://gitlab.com/MatthiasLohr/renovate
+```
+
 ## 2. Exploit Autodiscovery with a Malicious Project
 
 The Renovate bot from the example above is configured to autodiscover new projects and does not apply any, or only weak, bypassable filters. You can create a repository with a malicious script that gets executed by the bot.
