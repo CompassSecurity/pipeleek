@@ -10,9 +10,11 @@ import (
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 
@@ -191,6 +193,10 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
 		}
 		event.Msg("Identified Renovate (bot) configuration")
+
+		if hasAutodiscoveryFilters && filterValue != "" {
+			logFilterFindings(filter.Analyze(filterValue))
+		}
 
 		if hasCiCdRenovateConfig {
 			yml, err := format.PrettyPrintYAML(ciCdYml)
@@ -371,4 +377,32 @@ func validateOrderBy(orderBy string) error {
 		return fmt.Errorf("invalid value for --order-by: %q. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity", orderBy)
 	}
 	return nil
+}
+
+// logFilterFindings logs each autodiscoverFilter bypass finding at the
+// appropriate zerolog level based on its verdict.
+func logFilterFindings(findings []filter.Finding) {
+	for _, f := range findings {
+		e := filterLogEvent(f.Verdict).
+			Str("ruleID", f.RuleID).
+			Str("verdict", f.Verdict.String())
+		if f.Pattern != "" {
+			e = e.Str("pattern", f.Pattern)
+		}
+		if len(f.Evidence) > 0 {
+			e = e.Strs("evidence", f.Evidence)
+		}
+		e.Msg(f.Message)
+	}
+}
+
+func filterLogEvent(v filter.Verdict) *zerolog.Event {
+	switch v {
+	case filter.Vulnerable:
+		return log.Error()
+	case filter.NeedsReview:
+		return log.Warn()
+	default:
+		return log.Info()
+	}
 }
