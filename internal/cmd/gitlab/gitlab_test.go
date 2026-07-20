@@ -11,6 +11,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/users"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/variables"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/vuln"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/whoami"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +46,23 @@ func TestNewGitLabRootCmd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, usersCmd)
 	assert.Equal(t, "users", usersCmd.Name())
+
+	whoamiCmd, _, err := cmd.Find([]string{"whoami"})
+	require.NoError(t, err)
+	require.NotNil(t, whoamiCmd)
+	assert.Equal(t, "whoami", whoamiCmd.Name())
+}
+
+func TestNewWhoAmICmd(t *testing.T) {
+	cmd := whoami.NewWhoAmICmd()
+
+	require.NotNil(t, cmd, "NewWhoAmICmd should return non-nil command")
+	assert.Equal(t, "whoami", cmd.Use)
+	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
+
+	flags := cmd.Flags()
+	assert.NotNil(t, flags.Lookup("url"), "'url' flag should be registered")
+	assert.NotNil(t, flags.Lookup("token"), "'token' flag should be registered")
 }
 
 func TestNewVulnCmd(t *testing.T) {
