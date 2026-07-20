@@ -59,7 +59,7 @@ Pipeleek reports these findings through the `ruleID` field on the main enum log 
 For example, a safe filter analysis is reported on the same line as the enum result:
 
 ```bash
-2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"MatthiasLohr/*\"\n  ]" autodiscoveryFilterBypass=INFO hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=enabled selfHostedConfigFile=false url=https://gitlab.com/MatthiasLohr/renovate
+2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"acme-org/*\"\n  ]" autodiscoveryFilterBypass=INFO hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=enabled selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate
 ```
 
 ## 2. Exploit Autodiscovery with a Malicious Project
