@@ -11,11 +11,11 @@ import (
 
 func TestClassifyPattern(t *testing.T) {
 	tests := []struct {
-		raw      string
-		kind     PatternKind
-		negated  bool
-		nocase   bool
-		body     string
+		raw     string
+		kind    PatternKind
+		negated bool
+		nocase  bool
+		body    string
 	}{
 		{"/myorg/", KindRegex, false, false, "myorg"},
 		{"/^myorg/", KindRegex, false, false, "^myorg"},
@@ -50,6 +50,13 @@ func TestClassifyPattern(t *testing.T) {
 func TestClassifyPattern_HalfDelimitedIsGlob(t *testing.T) {
 	p := classifyPattern("/gms/support/**")
 	assert.Equal(t, KindGlob, p.kind, "half-delimited must be KindGlob")
+}
+
+func TestClassifyPattern_RegexInsensitiveMatchesUppercaseLiteral(t *testing.T) {
+	p := classifyPattern("/^MyOrg\\//i")
+	assert.Equal(t, KindRegex, p.kind)
+	assert.True(t, p.matchFn("myorg/project"))
+	assert.True(t, p.matchFn("MYORG/project"))
 }
 
 // ─── Phase 3: list-semantics unit tests ──────────────────────────────────────
@@ -138,12 +145,12 @@ func hasRule(findings []Finding, ruleID string) bool {
 
 func TestAnalyze_Corpus(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
-		wantVerdict    Verdict
-		wantRules      []string // must all be present
-		wantNoRules    []string // must all be absent
-		wantEvidence   bool     // at least one finding must have evidence
+		name         string
+		input        string
+		wantVerdict  Verdict
+		wantRules    []string // must all be present
+		wantNoRules  []string // must all be absent
+		wantEvidence bool     // at least one finding must have evidence
 	}{
 		{
 			name:        "safe glob namespace wildcard",

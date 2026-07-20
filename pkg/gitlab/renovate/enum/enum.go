@@ -387,10 +387,13 @@ func validateOrderBy(orderBy string) error {
 	return nil
 }
 
-// logFilterFindings logs each autodiscoverFilter bypass finding at the
-// appropriate zerolog level based on its verdict.
+// logFilterFindings logs actionable autodiscovery filter findings at the
+// appropriate zerolog level based on verdict.
 func logFilterFindings(findings []filter.Finding) {
 	for _, f := range findings {
+		if f.RuleID == "INFO" {
+			continue
+		}
 		e := filterLogEvent(f.Verdict).
 			Str("ruleID", f.RuleID).
 			Str("verdict", f.Verdict.String())

@@ -73,7 +73,7 @@ type Finding struct {
 
 // Analyze parses filterValue (a single pattern string or a JSON array of
 // pattern strings) and returns all findings in order of decreasing severity.
-// It always appends an INFO finding describing the residual namespace-trust risk.
+// Empty or whitespace-only inputs return nil.
 func Analyze(filterValue string) []Finding {
 	patterns := parsePatterns(filterValue)
 	if len(patterns) == 0 {
@@ -173,7 +173,7 @@ func parsePatterns(filterValue string) []parsedPattern {
 	trimmed := strings.TrimSpace(filterValue)
 	if strings.HasPrefix(trimmed, "[") {
 		if err := json.Unmarshal([]byte(trimmed), &items); err != nil {
-			// fall through: treat as single pattern
+			items = nil
 		}
 	}
 	if len(items) == 0 {
@@ -223,7 +223,12 @@ func classifyPattern(raw string) parsedPattern {
 			p.body = negBody[1 : len(negBody)-1]
 		}
 
-		re, err := regexp.Compile(p.body)
+		regexBody := p.body
+		if p.nocase {
+			regexBody = "(?i)" + regexBody
+		}
+
+		re, err := regexp.Compile(regexBody)
 		if err != nil {
 			// RE2 compilation failed — Renovate falls back to treating as glob.
 			p.kind = KindMalformedRegexFallback
@@ -231,7 +236,7 @@ func classifyPattern(raw string) parsedPattern {
 		} else {
 			p.kind = KindRegex
 			if p.nocase {
-				p.matchFn = func(s string) bool { return re.MatchString(strings.ToLower(s)) }
+				p.matchFn = func(s string) bool { return re.MatchString(s) }
 			} else {
 				p.matchFn = re.MatchString
 			}
