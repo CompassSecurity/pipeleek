@@ -46,20 +46,17 @@ This makes the bot susceptible to autodiscovery exploits, since it will renovate
 
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
 
-Pipeleek reports these findings through the `ruleID` field on the main enum log line. The rule names mean:
+Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass` (highest-severity rule ID).
+For security triage, focus on these verdict classes:
 
-- `V1`: only negation patterns, so any non-excluded repository can pass
-- `V2`: wildcard pattern that matches every repository
-- `V3`: regex without a start anchor, so a matching substring can bypass the filter
-- `V4`: anchored regex that still admits a bypass through probe testing
-- `N2`: half-delimited glob that starts with `/` and does not match GitLab paths correctly
-- `N4`: regex body that does not compile under RE2 and needs manual review
-- `INFO`: residual namespace-trust note for structurally sound filters
+- `vulnerable`: attacker-controlled repositories can bypass the filter
+- `broken`: filter is misconfigured and may fail closed or fail open depending on pattern semantics
+- `needs_review`: analyzer cannot verify behavior safely and manual validation is required
 
-For example, a safe filter analysis is reported on the same line as the enum result:
+Example of a vulnerable filter summary:
 
 ```bash
-2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"acme-org/*\"\n  ]" autodiscoveryFilterBypass=INFO hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=enabled selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate
+2025-09-30T07:48:28Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"!/acme-org/(acme-org-security-policy-project|acme-org/.*|flatpak/.*)/\"\n  ]" autodiscoveryFilterBypass=V1 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
 ```
 
 ## 2. Exploit Autodiscovery with a Malicious Project
