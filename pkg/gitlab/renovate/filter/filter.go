@@ -196,6 +196,13 @@ func parsePatterns(filterValue string) []parsedPattern {
 var (
 	reClassifyStart = regexp.MustCompile(`^!?/`)
 	reClassifyEnd   = regexp.MustCompile(`/i?$`)
+
+	// Pre-compiled regexes used by deriveGoodSample and bracesFirstAlt.
+	reCharClass  = regexp.MustCompile(`\[[^\]]*\]`)
+	reGroup      = regexp.MustCompile(`\([^)]*\)`)
+	reQuantifier = regexp.MustCompile(`[+*?]\??`)
+	reCurly      = regexp.MustCompile(`\{[^}]*\}`)
+	reBraces     = regexp.MustCompile(`\{([^}]*)\}`)
 )
 
 func classifyPattern(raw string) parsedPattern {
@@ -479,10 +486,10 @@ func deriveGoodSample(p parsedPattern) string {
 		s = strings.ReplaceAll(s, `\/`, `/`)
 		s = strings.TrimSuffix(s, "$")
 		// Replace character classes and quantifiers with a literal token.
-		s = regexp.MustCompile(`\[[^\]]*\]`).ReplaceAllString(s, "zsample")
-		s = regexp.MustCompile(`\([^)]*\)`).ReplaceAllString(s, "zsample")
-		s = regexp.MustCompile(`[+*?]\??`).ReplaceAllString(s, "")
-		s = regexp.MustCompile(`\{[^}]*\}`).ReplaceAllString(s, "")
+		s = reCharClass.ReplaceAllString(s, "zsample")
+		s = reGroup.ReplaceAllString(s, "zsample")
+		s = reQuantifier.ReplaceAllString(s, "")
+		s = reCurly.ReplaceAllString(s, "")
 		s = strings.ReplaceAll(s, ".", "x")
 	default:
 		// Glob
@@ -555,8 +562,7 @@ func hostileMutations(sample, prefix string) []string {
 
 // bracesFirstAlt replaces {a,b,c} with the first alternative a.
 func bracesFirstAlt(s string) string {
-	re := regexp.MustCompile(`\{([^}]*)\}`)
-	return re.ReplaceAllStringFunc(s, func(m string) string {
+	return reBraces.ReplaceAllStringFunc(s, func(m string) string {
 		inner := m[1 : len(m)-1]
 		if idx := strings.Index(inner, ","); idx >= 0 {
 			return strings.TrimSpace(inner[:idx])
