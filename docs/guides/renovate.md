@@ -48,12 +48,20 @@ Even when autodiscovery filters are enabled, weak or poorly written filter regex
 
 Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass`.
 The field is only emitted when a vulnerable finding is detected and contains the matching vulnerable rule ID (for example: `V1`, `V2`, `V3`, `V4`).
-If findings are only `broken` or `needs_review`, `autodiscoveryFilterBypass` is not logged.
-
-Example of a vulnerable filter summary:
+Examples of vulnerable filter summaries:
 
 ```bash
-2025-09-30T07:48:28Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\n    \"!/acme-org/(acme-org-security-policy-project|acme-org/.*|flatpak/.*)/\"\n  ]" autodiscoveryFilterBypass=V1 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
+# V1: only-negation filter list
+2025-09-30T07:48:28Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\"!/acme-org/private/.*\"]" autodiscoveryFilterBypass=V1 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
+
+# V2: wildcard allows everything
+2025-09-30T07:48:29Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="*" autodiscoveryFilterBypass=V2 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
+
+# V3: unanchored regex
+2025-09-30T07:48:30Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/acme-org\/infra/" autodiscoveryFilterBypass=V3 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
+
+# V4: anchored regex still bypassable by sibling namespace squatting
+2025-09-30T07:48:31Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/^acme-org/" autodiscoveryFilterBypass=V4 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
 ```
 
 ## 2. Exploit Autodiscovery with a Malicious Project
