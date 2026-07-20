@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -359,4 +360,69 @@ func TestDumpConfigFileContents_OnlyCICD(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "org", "repo", "renovate.json")
 	_, err = os.Stat(configPath)
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestWorstActionableVerdict(t *testing.T) {
+	tests := []struct {
+		name        string
+		findings    []filter.Finding
+		wantVerdict filter.Verdict
+		wantOK      bool
+	}{
+		{
+			name:   "empty findings returns false",
+			wantOK: false,
+		},
+		{
+			name:        "single Vulnerable finding",
+			findings:    []filter.Finding{{Verdict: filter.Vulnerable}},
+			wantVerdict: filter.Vulnerable,
+			wantOK:      true,
+		},
+		{
+			name:        "single NeedsReview finding",
+			findings:    []filter.Finding{{Verdict: filter.NeedsReview}},
+			wantVerdict: filter.NeedsReview,
+			wantOK:      true,
+		},
+		{
+			name:   "only Safe findings returns false",
+			findings: []filter.Finding{{Verdict: filter.Safe}},
+			wantOK: false,
+		},
+		{
+			name:   "only Broken findings returns false",
+			findings: []filter.Finding{{Verdict: filter.Broken}},
+			wantOK: false,
+		},
+		{
+			name: "Vulnerable beats NeedsReview",
+			findings: []filter.Finding{
+				{Verdict: filter.NeedsReview},
+				{Verdict: filter.Vulnerable},
+			},
+			wantVerdict: filter.Vulnerable,
+			wantOK:      true,
+		},
+		{
+			name: "NeedsReview among Safe and Broken",
+			findings: []filter.Finding{
+				{Verdict: filter.Safe},
+				{Verdict: filter.NeedsReview},
+				{Verdict: filter.Broken},
+			},
+			wantVerdict: filter.NeedsReview,
+			wantOK:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := worstActionableVerdict(tt.findings)
+			assert.Equal(t, tt.wantOK, ok)
+			if tt.wantOK {
+				assert.Equal(t, tt.wantVerdict, got)
+			}
+		})
+	}
 }

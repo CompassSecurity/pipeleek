@@ -182,6 +182,11 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			hasAutodiscoveryFilters, filterType, filterValue = detectAutodiscoveryFilters(ciCdYml, configFileContent)
 		}
 
+		var filterFindings []filter.Finding
+		if hasAutodiscoveryFilters && filterValue != "" {
+			filterFindings = filter.Analyze(filterValue)
+		}
+
 		event := log.Warn().
 			Str("pipelines", string(project.BuildsAccessLevel)).
 			Bool("hasAutodiscovery", autodiscovery).
@@ -191,11 +196,14 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			Str("url", project.WebURL)
 		if hasAutodiscoveryFilters {
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
+			if v, ok := worstActionableVerdict(filterFindings); ok {
+				event = event.Str("autodiscoveryFilterBypass", v.String())
+			}
 		}
 		event.Msg("Identified Renovate (bot) configuration")
 
-		if hasAutodiscoveryFilters && filterValue != "" {
-			logFilterFindings(filter.Analyze(filterValue))
+		if len(filterFindings) > 0 {
+			logFilterFindings(filterFindings)
 		}
 
 		if hasCiCdRenovateConfig {
@@ -405,4 +413,22 @@ func filterLogEvent(v filter.Verdict) *zerolog.Event {
 	default:
 		return log.Info()
 	}
+}
+
+// worstActionableVerdict returns the most severe Vulnerable or NeedsReview
+// verdict found in findings, and reports whether such a verdict exists.
+// Safe and Broken findings are excluded.
+func worstActionableVerdict(findings []filter.Finding) (filter.Verdict, bool) {
+	found := false
+	worst := filter.NeedsReview
+	for _, f := range findings {
+		if f.Verdict == filter.Vulnerable {
+			return filter.Vulnerable, true
+		}
+		if f.Verdict == filter.NeedsReview {
+			worst = filter.NeedsReview
+			found = true
+		}
+	}
+	return worst, found
 }
