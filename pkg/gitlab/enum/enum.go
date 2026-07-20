@@ -21,37 +21,37 @@ import (
 
 // ExportOptions controls optional enum artifact generation.
 type ExportOptions struct {
-	HTMLReportPath string
-	EnumerateUsers bool
+	HTMLReportPath   string
+	EnumerateUsers   bool
 	UsersConcurrency int
 }
 
 // EnumResult contains collected user, token and access association data.
 type EnumResult struct {
-	GeneratedAt     time.Time          `json:"generated_at"`
-	GitLabURL       string             `json:"gitlab_url"`
-	MinAccessLevel  int                `json:"min_access_level"`
-	MinAccessFilterApplied bool        `json:"min_access_filter_applied"`
-	UsersEnumerated bool               `json:"users_enumerated"`
-	User            *gitlab.User       `json:"user"`
-	Users           []*gitlab.User     `json:"users"`
-	Token           *SelfToken         `json:"token"`
-	Associations    *TokenAssociations `json:"associations"`
+	GeneratedAt            time.Time          `json:"generated_at"`
+	GitLabURL              string             `json:"gitlab_url"`
+	MinAccessLevel         int                `json:"min_access_level"`
+	MinAccessFilterApplied bool               `json:"min_access_filter_applied"`
+	UsersEnumerated        bool               `json:"users_enumerated"`
+	User                   *gitlab.User       `json:"user"`
+	Users                  []*gitlab.User     `json:"users"`
+	Token                  *SelfToken         `json:"token"`
+	Associations           *TokenAssociations `json:"associations"`
 }
 
 type enumStatusTracker struct {
-	mu                sync.RWMutex
-	startedAt         time.Time
-	stage             string
-	usersEnabled      bool
-	associationPages  int
-	groupsDiscovered  int
+	mu                 sync.RWMutex
+	startedAt          time.Time
+	stage              string
+	usersEnabled       bool
+	associationPages   int
+	groupsDiscovered   int
 	projectsDiscovered int
-	groupTargets      int
-	projectTargets    int
-	groupsProcessed   int
-	projectsProcessed int
-	usersCollected    int
+	groupTargets       int
+	projectTargets     int
+	groupsProcessed    int
+	projectsProcessed  int
+	usersCollected     int
 }
 
 var statusTracker = &enumStatusTracker{}
@@ -244,7 +244,11 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 	}
 
 	client := *httpclient.GetPipeleekHTTPClient("", nil, nil).SetRedirectPolicy(resty.RedirectFlexiblePolicy(5))
-	token := fetchCurrentToken(client, gitlabUrl, gitlabApiToken)
+	token, err := gitlabutil.FetchCurrentToken(gitlabUrl, gitlabApiToken)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed fetching token details")
+		token = nil
+	}
 
 	associations := &TokenAssociations{}
 	page := 1
@@ -308,15 +312,15 @@ func collectEnumData(gitlabUrl, gitlabApiToken string, minAccessLevel int, enume
 	}
 
 	return &EnumResult{
-		GeneratedAt:     time.Now().UTC(),
-		GitLabURL:       gitlabUrl,
-		MinAccessLevel:  appliedMinAccessLevel,
+		GeneratedAt:            time.Now().UTC(),
+		GitLabURL:              gitlabUrl,
+		MinAccessLevel:         appliedMinAccessLevel,
 		MinAccessFilterApplied: useMinAccessFilter,
-		UsersEnumerated: enumerateUsers,
-		User:            user,
-		Users:           users,
-		Token:           token,
-		Associations:    associations,
+		UsersEnumerated:        enumerateUsers,
+		User:                   user,
+		Users:                  users,
+		Token:                  token,
+		Associations:           associations,
 	}
 }
 
@@ -718,44 +722,7 @@ type TokenAssociationProjectNamespace struct {
 	WebURL    string      `json:"web_url"`
 }
 
-type SelfToken struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Revoked     bool      `json:"revoked"`
-	CreatedAt   time.Time `json:"created_at"`
-	Description string    `json:"description"`
-	Scopes      []string  `json:"scopes"`
-	UserID      int       `json:"user_id"`
-	LastUsedAt  time.Time `json:"last_used_at"`
-	Active      bool      `json:"active"`
-	ExpiresAt   string    `json:"expires_at"`
-	LastUsedIps []string  `json:"last_used_ips"`
-}
-
-func fetchCurrentToken(client resty.Client, baseUrl string, pat string) *SelfToken {
-	u, err := url.Parse(baseUrl)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Unable to parse base URL")
-	}
-	u.Path = path.Join(u.Path, "api/v4/personal_access_tokens/self")
-	currentToken := &SelfToken{}
-	res, err := client.R().
-		SetHeader("PRIVATE-TOKEN", pat).
-		SetResult(currentToken).
-		Get(u.String())
-
-	if err != nil {
-		log.Error().Err(err).Str("url", u.String()).Msg("Failed fetching token details (network or client error)")
-		return nil
-	}
-
-	if res != nil && res.StatusCode() != 200 {
-		log.Error().Int("status", res.StatusCode()).Str("url", u.String()).Str("response", res.String()).Msg("Failed fetching token details (HTTP error)")
-		return nil
-	}
-
-	return currentToken
-}
+type SelfToken = gitlabutil.SelfToken
 
 // https://docs.gitlab.com/api/personal_access_tokens/#list-all-token-associations
 func fetchTokenAssociationsPage(client resty.Client, baseUrl string, pat string, accessLevel int, page int, includeMinAccessFilter bool) (*TokenAssociations, int, bool) {

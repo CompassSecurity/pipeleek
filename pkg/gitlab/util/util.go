@@ -1,14 +1,18 @@
 package util
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/PuerkitoBio/goquery"
@@ -143,6 +147,62 @@ func IterateGroupProjects(client *gitlab.Client, groupID interface{}, opts *gitl
 
 func GetGitlabClient(token string, url string) (*gitlab.Client, error) {
 	return gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
+}
+
+// SelfToken represents the current personal access token details returned by GitLab.
+type SelfToken struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Revoked     bool      `json:"revoked"`
+	CreatedAt   time.Time `json:"created_at"`
+	Description string    `json:"description"`
+	Scopes      []string  `json:"scopes"`
+	UserID      int       `json:"user_id"`
+	LastUsedAt  time.Time `json:"last_used_at"`
+	Active      bool      `json:"active"`
+	ExpiresAt   string    `json:"expires_at"`
+	LastUsedIps []string  `json:"last_used_ips"`
+}
+
+// FetchCurrentToken retrieves the current personal access token details from GitLab.
+func FetchCurrentToken(baseURL string, pat string) (*SelfToken, error) {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+	u.Path = path.Join(u.Path, "api/v4/personal_access_tokens/self")
+
+	httpClient := httpclient.GetPipeleekStandardHTTPClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("PRIVATE-TOKEN", pat)
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed fetching current token: status=%d body=%s", res.StatusCode, string(bodyBytes))
+	}
+
+	currentToken := &SelfToken{}
+	if err := json.Unmarshal(bodyBytes, currentToken); err != nil {
+		return nil, err
+	}
+
+	return currentToken, nil
 }
 
 func CookieSessionValid(gitlabUrl string, cookieVal string) {
