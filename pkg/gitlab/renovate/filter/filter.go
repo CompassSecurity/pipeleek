@@ -59,7 +59,7 @@ func (v Verdict) String() string {
 
 // Finding is a single classifier result for one pattern or the filter list as a whole.
 type Finding struct {
-	// RuleID identifies the check: "V1"–"V4" for exploitable, "N1"–"N4" for broken/review, "INFO" for informational.
+	// RuleID identifies the check: "V1"–"V4" for exploitable, "N2"–"N4" for broken/review, "INFO" for informational.
 	RuleID string
 	// Verdict is the security classification.
 	Verdict Verdict
@@ -89,7 +89,6 @@ func Analyze(filterValue string) []Finding {
 
 	// Per-pattern static rules.
 	for _, p := range patterns {
-		findings = append(findings, checkN1(p)...)
 		findings = append(findings, checkN2(p)...)
 		findings = append(findings, checkN4(p)...)
 		if p.kind == KindRegex {
@@ -289,23 +288,6 @@ func checkV2(ps []parsedPattern) []Finding {
 				Message: `Wildcard pattern "*" matches every repository; the filter provides no scope restriction.`,
 			}}
 		}
-	}
-	return nil
-}
-
-// checkN1: a non-negated glob pattern with no "/" cannot match GitLab's
-// "namespace/project" path format; the bot will silently process nothing.
-func checkN1(p parsedPattern) []Finding {
-	if p.negated || p.kind == KindRegex || p.kind == KindMalformedRegexFallback {
-		return nil
-	}
-	if !strings.Contains(p.raw, "/") {
-		return []Finding{{
-			RuleID:  "N1",
-			Verdict: Broken,
-			Pattern: p.raw,
-			Message: "Glob pattern contains no '/' separator; it will never match a GitLab 'namespace/project' path, so the bot will silently process no repositories.",
-		}}
 	}
 	return nil
 }

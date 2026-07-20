@@ -157,7 +157,7 @@ func TestAnalyze_Corpus(t *testing.T) {
 			input:       "MatthiasLohr/*",
 			wantVerdict: Safe,
 			wantRules:   []string{"INFO"},
-			wantNoRules: []string{"V1", "V2", "V3", "V4", "N1", "N2"},
+			wantNoRules: []string{"V1", "V2", "V3", "V4", "N2"},
 		},
 		{
 			name:        "safe glob with brace expansion",
@@ -171,27 +171,20 @@ func TestAnalyze_Corpus(t *testing.T) {
 			input:       "gemseo/dev/gemseo",
 			wantVerdict: Safe,
 			wantRules:   []string{"INFO"},
-			wantNoRules: []string{"V1", "V2", "V3", "V4", "N1", "N2"},
+			wantNoRules: []string{"V1", "V2", "V3", "V4", "N2"},
 		},
 		{
 			name:        "safe glob hyphen-namespace wildcard",
 			input:       "haproxy-haptic/*",
 			wantVerdict: Safe,
 			wantRules:   []string{"INFO"},
-			wantNoRules: []string{"V1", "V2", "V3", "V4", "N1", "N2"},
+			wantNoRules: []string{"V1", "V2", "V3", "V4", "N2"},
 		},
 		{
 			name:        "N2 broken half-delimited leading slash",
 			input:       "/gms-squared/support/**",
 			wantVerdict: Broken,
 			wantRules:   []string{"N2", "INFO"},
-			wantNoRules: []string{"V1", "V2", "V3", "V4"},
-		},
-		{
-			name:        "N1 broken no slash",
-			input:       `["pinarnet"]`,
-			wantVerdict: Broken,
-			wantRules:   []string{"N1", "INFO"},
 			wantNoRules: []string{"V1", "V2", "V3", "V4"},
 		},
 		{
