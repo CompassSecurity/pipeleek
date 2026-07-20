@@ -187,7 +187,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			filterFindings = filter.Analyze(filterValue)
 		}
 
-		event := log.Warn().
+		event := log.Info().
 			Str("pipelines", string(project.BuildsAccessLevel)).
 			Bool("hasAutodiscovery", autodiscovery).
 			Bool("hasAutodiscoveryFilters", hasAutodiscoveryFilters).
