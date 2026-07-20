@@ -362,7 +362,7 @@ func TestDumpConfigFileContents_OnlyCICD(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestWorstFindingRuleID(t *testing.T) {
+func TestVulnerableFindingRuleID(t *testing.T) {
 	tests := []struct {
 		name     string
 		findings []filter.Finding
@@ -382,20 +382,17 @@ func TestWorstFindingRuleID(t *testing.T) {
 		{
 			name:     "single NeedsReview finding",
 			findings: []filter.Finding{{RuleID: "N4", Verdict: filter.NeedsReview}},
-			wantRule: "N4",
-			wantOK:   true,
+			wantOK:   false,
 		},
 		{
-			name:     "only Safe findings returns INFO",
+			name:     "only Safe findings returns false",
 			findings: []filter.Finding{{RuleID: "INFO", Verdict: filter.Safe}},
-			wantRule: "INFO",
-			wantOK:   true,
+			wantOK:   false,
 		},
 		{
-			name:     "only Broken findings returns N2",
+			name:     "only Broken findings returns false",
 			findings: []filter.Finding{{RuleID: "N2", Verdict: filter.Broken}},
-			wantRule: "N2",
-			wantOK:   true,
+			wantOK:   false,
 		},
 		{
 			name: "Vulnerable beats NeedsReview",
@@ -407,20 +404,19 @@ func TestWorstFindingRuleID(t *testing.T) {
 			wantOK:   true,
 		},
 		{
-			name: "Broken beats NeedsReview",
+			name: "Broken and NeedsReview returns false",
 			findings: []filter.Finding{
 				{RuleID: "INFO", Verdict: filter.Safe},
 				{RuleID: "N4", Verdict: filter.NeedsReview},
 				{RuleID: "N2", Verdict: filter.Broken},
 			},
-			wantRule: "N2",
-			wantOK:   true,
+			wantOK: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := worstFindingRuleID(tt.findings)
+			got, ok := vulnerableFindingRuleID(tt.findings)
 			assert.Equal(t, tt.wantOK, ok)
 			if tt.wantOK {
 				assert.Equal(t, tt.wantRule, got)

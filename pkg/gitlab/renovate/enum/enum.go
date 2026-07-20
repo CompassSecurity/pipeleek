@@ -195,7 +195,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			Str("url", project.WebURL)
 		if hasAutodiscoveryFilters {
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
-			if ruleID, ok := worstFindingRuleID(filterFindings); ok {
+			if ruleID, ok := vulnerableFindingRuleID(filterFindings); ok {
 				event = event.Str("autodiscoveryFilterBypass", ruleID)
 			}
 		}
@@ -382,35 +382,12 @@ func validateOrderBy(orderBy string) error {
 	return nil
 }
 
-// worstActionableVerdict returns the most severe Vulnerable or NeedsReview
-// verdict found in findings, and reports whether such a verdict exists.
-// Safe and Broken findings are excluded.
-func worstFindingRuleID(findings []filter.Finding) (string, bool) {
-	if len(findings) == 0 {
-		return "", false
-	}
-
-	bestScore := -1
-	bestRuleID := ""
+// vulnerableFindingRuleID returns the first vulnerable rule ID from findings.
+func vulnerableFindingRuleID(findings []filter.Finding) (string, bool) {
 	for _, f := range findings {
-		score := findingSeverityScore(f.Verdict)
-		if score > bestScore {
-			bestScore = score
-			bestRuleID = f.RuleID
+		if f.Verdict == filter.Vulnerable {
+			return f.RuleID, true
 		}
 	}
-	return bestRuleID, true
-}
-
-func findingSeverityScore(v filter.Verdict) int {
-	switch v {
-	case filter.Vulnerable:
-		return 3
-	case filter.Broken:
-		return 2
-	case filter.NeedsReview:
-		return 1
-	default:
-		return 0
-	}
+	return "", false
 }

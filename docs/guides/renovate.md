@@ -46,7 +46,7 @@ This makes the bot susceptible to autodiscovery exploits, since it will renovate
 
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
 
-Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass` (highest-severity rule ID).
+Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass` (only when a vulnerable finding is detected).
 For security triage, focus on these verdict classes:
 
 - `vulnerable`: attacker-controlled repositories can bypass the filter
