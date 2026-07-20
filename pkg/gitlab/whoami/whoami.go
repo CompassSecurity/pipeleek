@@ -53,7 +53,7 @@ func RunWhoAmI(gitlabURL string, gitlabAPIToken string) {
 		log.Fatal().Stack().Err(err).Msg("Failed fetching GitLab whoami details")
 	}
 
-	log.Warn().
+	log.Info().
 		Str("username", result.User.Username).
 		Str("name", result.User.Name).
 		Str("email", result.User.Email).
@@ -63,7 +63,7 @@ func RunWhoAmI(gitlabURL string, gitlabAPIToken string) {
 	log.Debug().Interface("full_user", result.User).Msg("Full user details")
 
 	if result.Token != nil {
-		log.Warn().
+		log.Info().
 			Int("id", result.Token.ID).
 			Str("name", result.Token.Name).
 			Bool("revoked", result.Token.Revoked).
