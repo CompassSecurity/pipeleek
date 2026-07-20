@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
@@ -180,16 +181,25 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			hasAutodiscoveryFilters, filterType, filterValue = detectAutodiscoveryFilters(ciCdYml, configFileContent)
 		}
 
-		log.Warn().
+		var filterFindings []filter.Finding
+		if hasAutodiscoveryFilters && filterValue != "" {
+			filterFindings = filter.Analyze(filterValue)
+		}
+
+		event := log.Info().
 			Str("pipelines", string(project.BuildsAccessLevel)).
 			Bool("hasAutodiscovery", autodiscovery).
 			Bool("hasAutodiscoveryFilters", hasAutodiscoveryFilters).
-			Str("autodiscoveryFilterType", filterType).
-			Str("autodiscoveryFilterValue", filterValue).
 			Bool("hasConfigFile", configFile != nil).
 			Bool("selfHostedConfigFile", selfHostedConfigFile).
-			Str("url", project.WebURL).
-			Msg("Identified Renovate (bot) configuration")
+			Str("url", project.WebURL)
+		if hasAutodiscoveryFilters {
+			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
+			if ruleID, ok := vulnerableFindingRuleID(filterFindings); ok {
+				event = event.Str("autodiscoveryFilterBypass", ruleID)
+			}
+		}
+		event.Msg("Identified Renovate (bot) configuration")
 
 		if hasCiCdRenovateConfig {
 			yml, err := format.PrettyPrintYAML(ciCdYml)
@@ -370,4 +380,14 @@ func validateOrderBy(orderBy string) error {
 		return fmt.Errorf("invalid value for --order-by: %q. Allowed: id, name, path, created_at, updated_at, star_count, last_activity_at, similarity", orderBy)
 	}
 	return nil
+}
+
+// vulnerableFindingRuleID returns the first vulnerable rule ID from findings.
+func vulnerableFindingRuleID(findings []filter.Finding) (string, bool) {
+	for _, f := range findings {
+		if f.Verdict == filter.Vulnerable {
+			return f.RuleID, true
+		}
+	}
+	return "", false
 }

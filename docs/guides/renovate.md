@@ -37,7 +37,7 @@ For example, we enumerated Renovate configs found on GitLab.com. One project was
 ```bash
 pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 2025-09-30T07:11:06Z info Fetching projects
-2025-09-30T07:11:12Z warn Identified Renovate (bot) configuration autodiscoveryFilterType= autodiscoveryFilterValue= hasAutodiscovery=true hasAutodiscoveryFilters=false hasConfigFile=true pipelines=enabled selfHostedConfigFile=true url=https://gitlab.com/test-group/renovate-bot
+2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType= autodiscoveryFilterValue= hasAutodiscovery=true hasAutodiscoveryFilters=false hasConfigFile=true pipelines=enabled selfHostedConfigFile=true url=https://gitlab.com/test-group/renovate-bot
 2025-09-30T07:11:16Z info Fetched all projects
 2025-09-30T07:11:16Z info Done, Bye Bye 🏳️‍🌈🔥
 ```
@@ -45,6 +45,15 @@ pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 This makes the bot susceptible to autodiscovery exploits, since it will renovate any repository it can access.
 
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
+
+Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass`.
+The field is only emitted when a vulnerable finding is detected and contains the matching vulnerable rule ID (for example: `V1`, `V2`, `V3`, `V4`).
+Quick examples (filter value -> example bypass path):
+
+- `V1`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`
+- `V2`: `*` -> `attacker/any-repo`
+- `V3`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
+- `V4`: `/^acme-org/` -> `acme-org-evil/x`
 
 ## 2. Exploit Autodiscovery with a Malicious Project
 

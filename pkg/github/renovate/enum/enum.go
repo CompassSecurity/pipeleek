@@ -345,7 +345,7 @@ func identifyRenovateBotWorkflow(ctx context.Context, client *github.Client, rep
 
 		actionsEnabled := !repo.GetDisabled() && !repo.GetArchived()
 
-		log.Warn().
+		log.Info().
 			Bool("actionsEnabled", actionsEnabled).
 			Bool("hasAutodiscovery", autodiscovery).
 			Bool("hasAutodiscoveryFilters", hasAutodiscoveryFilters).
