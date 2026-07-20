@@ -180,16 +180,17 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			hasAutodiscoveryFilters, filterType, filterValue = detectAutodiscoveryFilters(ciCdYml, configFileContent)
 		}
 
-		log.Warn().
+		event := log.Warn().
 			Str("pipelines", string(project.BuildsAccessLevel)).
 			Bool("hasAutodiscovery", autodiscovery).
 			Bool("hasAutodiscoveryFilters", hasAutodiscoveryFilters).
-			Str("autodiscoveryFilterType", filterType).
-			Str("autodiscoveryFilterValue", filterValue).
 			Bool("hasConfigFile", configFile != nil).
 			Bool("selfHostedConfigFile", selfHostedConfigFile).
-			Str("url", project.WebURL).
-			Msg("Identified Renovate (bot) configuration")
+			Str("url", project.WebURL)
+		if hasAutodiscoveryFilters {
+			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
+		}
+		event.Msg("Identified Renovate (bot) configuration")
 
 		if hasCiCdRenovateConfig {
 			yml, err := format.PrettyPrintYAML(ciCdYml)
