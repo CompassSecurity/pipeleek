@@ -91,7 +91,7 @@ func TestFilterListMatch_WildcardShortCircuit(t *testing.T) {
 }
 
 func TestFilterListMatch_Regex(t *testing.T) {
-	patterns := []parsedPattern{classifyPattern("/^myorg\\//") }
+	patterns := []parsedPattern{classifyPattern("/^myorg\\//")}
 	f := &filterList{patterns: patterns}
 	assert.True(t, f.match("myorg/project"))
 	assert.False(t, f.match("myorg-evil/project"))
@@ -99,7 +99,7 @@ func TestFilterListMatch_Regex(t *testing.T) {
 }
 
 func TestFilterListMatch_RegexNoAnchor(t *testing.T) {
-	patterns := []parsedPattern{classifyPattern("/myorg/") }
+	patterns := []parsedPattern{classifyPattern("/myorg/")}
 	f := &filterList{patterns: patterns}
 	assert.True(t, f.match("myorg/project"))
 	// Unanchored — attacker subpath bypass.

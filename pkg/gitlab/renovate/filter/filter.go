@@ -470,6 +470,14 @@ func probe(f *filterList, ps []parsedPattern) []Finding {
 	return findings
 }
 
+// stripRegexBody strips the leading anchor and unescapes \/ in a regex body,
+// returning a string that is closer to a literal path. Used by both
+// deriveGoodSample and literalNamespacePrefix.
+func stripRegexBody(body string) string {
+	s := strings.TrimPrefix(body, "^")
+	return strings.ReplaceAll(s, `\/`, `/`)
+}
+
 // deriveGoodSample synthesises a concrete path that should be matched by p.
 func deriveGoodSample(p parsedPattern) string {
 	raw := p.raw
@@ -481,9 +489,7 @@ func deriveGoodSample(p parsedPattern) string {
 	switch p.kind {
 	case KindRegex:
 		// Start from the body, strip anchors, unescape \/, sanitise metacharacters.
-		s = p.body
-		s = strings.TrimPrefix(s, "^")
-		s = strings.ReplaceAll(s, `\/`, `/`)
+		s = stripRegexBody(p.body)
 		s = strings.TrimSuffix(s, "$")
 		// Replace character classes and quantifiers with a literal token.
 		s = reCharClass.ReplaceAllString(s, "zsample")
@@ -519,9 +525,7 @@ func literalNamespacePrefix(p parsedPattern) string {
 
 	var s string
 	if p.kind == KindRegex {
-		s = p.body
-		s = strings.TrimPrefix(s, "^")
-		s = strings.ReplaceAll(s, `\/`, `/`)
+		s = stripRegexBody(p.body)
 	} else {
 		s = raw
 	}
