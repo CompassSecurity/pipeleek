@@ -55,6 +55,18 @@ Quick examples (filter value -> example bypass path):
 - `V3`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
 - `V4`: `/^acme-org/` -> `acme-org-evil/x`
 
+### Identify Renovate Bots Directly
+
+Use the `bots` command to identify Renovate bot users directly, even if the target instance has little or no visible Renovate configuration.
+
+```bash
+pipeleek gl renovate bots -u https://gitlab.com -t glpat-[redacted]
+```
+
+This command is useful when `renovate enum` returns no results, for example when configuration files were deleted or are not accessible to your token.
+
+If no Renovate configs are found, blind exploitation might still work: identify a likely Renovate bot user, invite it to your repository, and hope it is misconfigured and processes your project.
+
 ## 2. Exploit Autodiscovery with a Malicious Project
 
 The Renovate bot from the example above is configured to autodiscover new projects and does not apply any, or only weak, bypassable filters. You can create a repository with a malicious script that gets executed by the bot.
