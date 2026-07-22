@@ -63,7 +63,7 @@ Use the `bots` command to identify Renovate bot users directly, even if the targ
 pipeleek gl renovate bots -u https://gitlab.com -t glpat-[redacted]
 ```
 
-This command is useful when `renovate enum` returns no results, for example when configuration files were deleted or are not accessible to your token.
+This command is useful when `pipeleek gl renovate enum` returns no results, for example when configuration files were deleted or are not accessible to your token.
 
 If no Renovate configs are found, blind exploitation might still work: identify a likely Renovate bot user, invite it to your repository, and hope it is misconfigured and processes your project.
 
