@@ -1,5 +1,4 @@
 package scan
-package scan
 
 import (
 	"reflect"

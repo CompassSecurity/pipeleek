@@ -221,7 +221,7 @@ func analyzeDotenvArtifact(git *gitlab.Client, item QueueItem, options *ScanOpti
 func analyzeCICDYaml(git *gitlab.Client, item QueueItem, options *ScanOptions) {
 	ciCdYml, err := util.FetchCICDYml(git, int64(item.Meta.ProjectId))
 	if err != nil {
-		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed fetching project CI/CD YML")
+		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed fetching project CI/CD YAML")
 		return
 	}
 
@@ -233,7 +233,7 @@ func analyzeCICDYaml(git *gitlab.Client, item QueueItem, options *ScanOptions) {
 		HitTimeout:        options.HitTimeout,
 	})
 	if err != nil {
-		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed detecting secrets in CI/CD YML")
+		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed detecting secrets in CI/CD YAML")
 		return
 	}
 

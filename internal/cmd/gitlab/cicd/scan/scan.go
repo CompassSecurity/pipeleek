@@ -1,6 +1,9 @@
 package scan
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
@@ -11,17 +14,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type ScanOptions struct {
+// scanOptions collects the resolved config values for a single run of the command.
+type scanOptions struct {
 	config.CommonScanOptions
+	GitlabUrl          string
+	GitlabApiToken     string
 	ProjectSearchQuery string
 	Member             bool
 	Repository         string
 	Namespace          string
 	QueueFolder        string
-}
-
-var options = ScanOptions{
-	CommonScanOptions: config.DefaultCommonScanOptions(),
 }
 
 // flagBindings maps CLI flags to configuration keys for binding and testing
@@ -60,64 +62,81 @@ pipeleek gl cicd scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com
 		Run: Scan,
 	}
 
-	flags.AddCommonScanFlagsNoArtifacts(scanCmd, &options.CommonScanOptions)
-	scanCmd.Flags().BoolVarP(&options.Owned, "owned", "o", false, "Scan only user owned repositories")
-	scanCmd.Flags().StringVarP(&options.ProjectSearchQuery, "search", "s", "", "Query string for searching projects")
-	scanCmd.Flags().BoolVarP(&options.Member, "member", "m", false, "Scan projects the user is member of")
-	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single repository to scan, format: namespace/repo")
-	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
-	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
+	defaultOpts := config.DefaultCommonScanOptions()
+	flags.AddCommonScanFlagsNoArtifacts(scanCmd, &defaultOpts)
+	scanCmd.Flags().BoolP("owned", "o", false, "Scan only user owned repositories")
+	scanCmd.Flags().StringP("search", "s", "", "Query string for searching projects")
+	scanCmd.Flags().BoolP("member", "m", false, "Scan projects the user is member of")
+	scanCmd.Flags().StringP("repo", "r", "", "Single repository to scan, format: namespace/repo")
+	scanCmd.Flags().StringP("namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
+	scanCmd.Flags().StringP("queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
 	return scanCmd
 }
 
+// Scan is the named Cobra Run handler; it resolves config into a local options struct and delegates to runScan.
 func Scan(cmd *cobra.Command, args []string) {
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitlab.url", "gitlab.token").
 		MustBind()
 
-	gitlabUrl := config.GetString("gitlab.url")
-	gitlabApiToken := config.GetString("gitlab.token")
-	options.ProjectSearchQuery = config.GetString("gitlab.cicd.scan.search")
-	options.Member = config.GetBool("gitlab.cicd.scan.member")
-	options.Repository = config.GetString("gitlab.cicd.scan.repo")
-	options.Namespace = config.GetString("gitlab.cicd.scan.namespace")
-	options.Owned = config.GetBool("gitlab.cicd.scan.owned")
-	options.QueueFolder = config.GetString("gitlab.cicd.scan.queue")
-	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
-	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	hitTimeoutRaw := config.GetString("common.hit_timeout")
+	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("invalid hit-timeout %q: %w", hitTimeoutRaw, err)).Msg("Invalid hit timeout")
+	}
 
-	if err := config.ValidateURL(gitlabUrl, "GitLab URL"); err != nil {
+	opts := scanOptions{
+		GitlabUrl:          config.GetString("gitlab.url"),
+		GitlabApiToken:     config.GetString("gitlab.token"),
+		ProjectSearchQuery: config.GetString("gitlab.cicd.scan.search"),
+		Member:             config.GetBool("gitlab.cicd.scan.member"),
+		Repository:         config.GetString("gitlab.cicd.scan.repo"),
+		Namespace:          config.GetString("gitlab.cicd.scan.namespace"),
+		QueueFolder:        config.GetString("gitlab.cicd.scan.queue"),
+		CommonScanOptions: config.CommonScanOptions{
+			Owned:                  config.GetBool("gitlab.cicd.scan.owned"),
+			MaxScanGoRoutines:      config.GetInt("common.threads"),
+			TruffleHogVerification: config.GetBool("common.trufflehog_verification"),
+			ConfidenceFilter:       config.GetStringSlice("common.confidence_filter"),
+			HitTimeout:             hitTimeout,
+		},
+	}
+
+	runScan(opts)
+}
+
+func runScan(opts scanOptions) {
+	if err := config.ValidateURL(opts.GitlabUrl, "GitLab URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab URL")
 	}
-	if err := config.ValidateToken(gitlabApiToken, "GitLab API Token"); err != nil {
+	if err := config.ValidateToken(opts.GitlabApiToken, "GitLab API Token"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitLab API Token")
 	}
-	if err := config.ValidateThreadCount(options.MaxScanGoRoutines); err != nil {
+	if err := config.ValidateThreadCount(opts.MaxScanGoRoutines); err != nil {
 		log.Fatal().Err(err).Msg("Invalid thread count")
 	}
 
-	detectors.SetGitLabURL(gitlabUrl)
+	detectors.SetGitLabURL(opts.GitlabUrl)
 
 	scanOpts, err := scan.InitializeOptions(
-		gitlabUrl,
-		gitlabApiToken,
+		opts.GitlabUrl,
+		opts.GitlabApiToken,
 		"",
-		options.ProjectSearchQuery,
-		options.Repository,
-		options.Namespace,
-		options.QueueFolder,
+		opts.ProjectSearchQuery,
+		opts.Repository,
+		opts.Namespace,
+		opts.QueueFolder,
 		"0",
 		false,
-		options.Owned,
-		options.Member,
-		options.TruffleHogVerification,
+		opts.Owned,
+		opts.Member,
+		opts.TruffleHogVerification,
 		0,
-		options.MaxScanGoRoutines,
-		options.ConfidenceFilter,
-		options.HitTimeout,
+		opts.MaxScanGoRoutines,
+		opts.ConfidenceFilter,
+		opts.HitTimeout,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed initializing scan options")

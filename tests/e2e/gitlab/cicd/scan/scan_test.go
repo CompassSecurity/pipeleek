@@ -50,7 +50,7 @@ func TestGLCicdScan_HappyPath(t *testing.T) {
 
 	requests := getRequests()
 	for _, req := range requests {
-		assert.NotContains(t, req.Path, "/jobs/", "Should never fetch job logs or artifacts")
+		assert.NotContains(t, req.Path, "/jobs", "Should never fetch job logs or artifacts")
 		assert.NotContains(t, req.Path, "/pipelines", "Should never list pipelines")
 	}
 
