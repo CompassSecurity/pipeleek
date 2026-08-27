@@ -1,6 +1,7 @@
 package cicd
 
 import (
+	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/cicd/scan"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab/cicd/yaml"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +21,7 @@ func NewCiCdCmd() *cobra.Command {
 	ciCdCmd.PersistentFlags().StringVarP(&gitlabApiToken, "token", "t", "", "GitLab API Token")
 
 	ciCdCmd.AddCommand(yaml.NewYamlCmd())
+	ciCdCmd.AddCommand(scan.NewScanCmd())
 
 	return ciCdCmd
 }
