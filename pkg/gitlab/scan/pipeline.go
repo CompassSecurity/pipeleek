@@ -39,6 +39,8 @@ type ScanOptions struct {
 	QueueFolder            string
 	TruffleHogVerification bool
 	HitTimeout             time.Duration
+	// CICDYamlOnly restricts scanning to the project's merged CI/CD YAML, skipping job logs and artifacts.
+	CICDYamlOnly bool
 }
 
 func ScanGitLabPipelines(options *ScanOptions) {
@@ -94,7 +96,7 @@ func ScanGitLabPipelines(options *ScanOptions) {
 func scanRepository(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	log.Info().Str("repository", options.Repository).Msg("Scanning repository pipelines")
+	log.Info().Str("repository", options.Repository).Msg("Scanning repository " + scanTargetLabel(options))
 
 	project, resp, err := git.Projects.GetProject(options.Repository, &gitlab.GetProjectOptions{})
 	if err != nil {
@@ -120,7 +122,7 @@ func scanRepository(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup
 func scanNamespace(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	log.Info().Str("namespace", options.Namespace).Msg("Scanning namespace pipelines")
+	log.Info().Str("namespace", options.Namespace).Msg("Scanning namespace " + scanTargetLabel(options))
 	group, resp, err := git.Groups.GetGroup(options.Namespace, &gitlab.GetGroupOptions{})
 
 	if err != nil {
@@ -144,7 +146,6 @@ func scanNamespace(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 	}
 
 	err = util.IterateGroupProjects(git, group.ID, projectOpts, func(project *gitlab.Project) error {
-		log.Debug().Str("url", project.WebURL).Msg("Fetch project jobs")
 		getAllJobs(git, project, options)
 		return nil
 	})
@@ -194,7 +195,6 @@ func fetchProjects(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 	}
 
 	err := util.IterateProjects(git, projectOpts, func(project *gitlab.Project) error {
-		log.Debug().Str("url", project.WebURL).Msg("Fetch project jobs")
 		getAllJobs(git, project, options)
 		return nil
 	})
@@ -208,8 +208,28 @@ func fetchProjects(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 
 func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOptions) {
 
+	if options.CICDYamlOnly {
+		log.Debug().Str("url", project.WebURL).Msg("Fetch project CI/CD YAML")
+	} else {
+		log.Debug().Str("url", project.WebURL).Msg("Fetch project jobs")
+	}
+
 	if isUnauthenticatedMode(options) {
+		if options.CICDYamlOnly {
+			return
+		}
 		getAllJobsViaPipelines(git, project, options)
+		return
+	}
+
+	enqueueItem(globQueue, QueueItemCICDYaml, QueueMeta{
+		ProjectId:                int(project.ID),
+		JobWebUrl:                project.WebURL,
+		JobName:                  ".gitlab-ci.yml",
+		ProjectPathWithNamespace: project.PathWithNamespace,
+	}, waitGroup)
+
+	if options.CICDYamlOnly {
 		return
 	}
 
@@ -278,6 +298,14 @@ jobOut:
 
 func isUnauthenticatedMode(options *ScanOptions) bool {
 	return strings.TrimSpace(options.GitlabApiToken) == ""
+}
+
+// scanTargetLabel describes what getAllJobs fetches per project, for accurate progress logging.
+func scanTargetLabel(options *ScanOptions) string {
+	if options.CICDYamlOnly {
+		return "CI/CD YAML"
+	}
+	return "pipelines"
 }
 
 // getAllJobsViaPipelines enqueues jobs by iterating pipelines then their jobs.

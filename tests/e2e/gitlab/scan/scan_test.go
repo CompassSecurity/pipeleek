@@ -251,4 +251,57 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 	}
 }
 
+// TestGitLabScan_ScansCICDYaml verifies the scan command fetches and scans the
+// project's merged .gitlab-ci.yml for secrets via the CI lint API.
+func TestGitLabScan_ScansCICDYaml(t *testing.T) {
+	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/api/v4/projects":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": 1, "name": "test-project", "path_with_namespace": "group/test-project"},
+			})
+
+		case "/api/v4/projects/1/ci/lint":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"valid": true,
+				"merged_yaml": "deploy:\n  script:\n    - echo AKIAIOSFODNN7EXAMPLE\n",
+				"warnings": [],
+				"errors": []
+			}`))
+
+		case "/api/v4/projects/1/pipelines":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+
+		default:
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		}
+	})
+	defer cleanup()
+
+	stdout, _, exitErr := testutil.RunCLI(t, []string{
+		"gl", "scan",
+		"--url", server.URL,
+		"--token", "glpat-test-token-123",
+	}, nil, 10*time.Second)
+
+	assert.Nil(t, exitErr, "Command should succeed")
+
+	requests := getRequests()
+	lintRequestFound := false
+	for _, req := range requests {
+		if req.Path == "/api/v4/projects/1/ci/lint" {
+			lintRequestFound = true
+			break
+		}
+	}
+	assert.True(t, lintRequestFound, "Should fetch the project's merged CI/CD YAML via the ci/lint endpoint")
+	assert.Contains(t, stdout, "AKIAIOSFODNN7EXAMPLE", "Should detect the secret embedded in the CI/CD YAML")
+}
+
 // TestGitLabEnum tests GitLab enumeration command

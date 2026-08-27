@@ -18,6 +18,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	artifactproc "github.com/CompassSecurity/pipeleek/pkg/scan/artifact"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/logline"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/result"
@@ -33,6 +34,7 @@ const (
 	QueueItemJobTrace QueueItemType = "jobTrace"
 	QueueItemArtifact QueueItemType = "artifact"
 	QueueItemDotenv   QueueItemType = "dotenv"
+	QueueItemCICDYaml QueueItemType = "cicdYaml"
 )
 
 type QueueMeta struct {
@@ -113,6 +115,10 @@ func analyzeQueueItem(serializeditem []byte, git *gitlab.Client, options *ScanOp
 
 	if item.Type == QueueItemDotenv {
 		analyzeDotenvArtifact(git, item, options)
+	}
+
+	if item.Type == QueueItemCICDYaml {
+		analyzeCICDYaml(git, item, options)
 	}
 }
 
@@ -210,6 +216,31 @@ func analyzeDotenvArtifact(git *gitlab.Client, item QueueItem, options *ScanOpti
 			"note": "Check artifacts page - dotenv files are only downloadable there",
 		})
 	}
+}
+
+func analyzeCICDYaml(git *gitlab.Client, item QueueItem, options *ScanOptions) {
+	ciCdYml, err := util.FetchCICDYml(git, int64(item.Meta.ProjectId))
+	if err != nil {
+		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed fetching project CI/CD YAML")
+		return
+	}
+
+	logResult, err := logline.ProcessLogs([]byte(ciCdYml), logline.ProcessOptions{
+		MaxGoRoutines:     options.MaxScanGoRoutines,
+		VerifyCredentials: options.TruffleHogVerification,
+		BuildURL:          item.Meta.JobWebUrl,
+		JobName:           item.Meta.JobName,
+		HitTimeout:        options.HitTimeout,
+	})
+	if err != nil {
+		log.Debug().Err(err).Int("project", item.Meta.ProjectId).Msg("Failed detecting secrets in CI/CD YAML")
+		return
+	}
+
+	result.ReportFindings(logResult.Findings, result.ReportOptions{
+		LocationURL: item.Meta.JobWebUrl,
+		JobName:     item.Meta.JobName,
+	})
 }
 
 func getJobTrace(git *gitlab.Client, projectId int, jobId int, jobWebUrl string, options *ScanOptions) []byte {
