@@ -10,6 +10,9 @@ const RenovateJSON = `
     "extends": [
        "config:recommended"
     ],
+    "enabledManagers": [
+       "maven-wrapper"
+    ],
     "prConcurrentLimit": 0,
     "prHourlyLimit": 0
 }

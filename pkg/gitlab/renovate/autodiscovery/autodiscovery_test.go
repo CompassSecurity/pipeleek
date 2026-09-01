@@ -24,6 +24,11 @@ func TestRenovateJsonConfig(t *testing.T) {
 		assert.Contains(t, pkgrenovate.RenovateJSON, "config:recommended")
 	})
 
+	t.Run("enables maven-wrapper manager", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.RenovateJSON, `"enabledManagers"`)
+		assert.Contains(t, pkgrenovate.RenovateJSON, "maven-wrapper")
+	})
+
 	t.Run("disables PR throttling", func(t *testing.T) {
 		assert.Contains(t, pkgrenovate.RenovateJSON, `"prConcurrentLimit": 0`)
 		assert.Contains(t, pkgrenovate.RenovateJSON, `"prHourlyLimit": 0`)
