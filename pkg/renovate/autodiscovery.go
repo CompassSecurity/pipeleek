@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/rs/zerolog/log"
 )
 
 // Shared constants and templates for Renovate autodiscovery exploit PoCs
@@ -69,9 +70,23 @@ type mavenMetadata struct {
 	} `xml:"versioning"`
 }
 
-// MavenWrapperProperties resolves the newest Maven release from Maven Central at startup time,
+// GetMavenWrapperProperties resolves the newest Maven release from Maven Central at runtime,
 // and falls back to a known-good version if the metadata lookup is unavailable.
-var MavenWrapperProperties = MavenWrapperPropertiesForVersion(latestApacheMavenVersion())
+func GetMavenWrapperProperties() string {
+	version := latestApacheMavenVersion()
+	if version == "" {
+		version = "3.8.1"
+		log.Warn().Str("version", version).Msg("Failed to resolve latest Maven version from metadata, using fallback version")
+	} else {
+		log.Debug().Str("version", version).Msg("Discovered latest Maven version from Maven Central metadata")
+	}
+	return MavenWrapperPropertiesForVersion(version)
+}
+
+// MavenWrapperProperties is kept for compatibility with older callers and tests.
+// It will still resolve the version lazily when accessed, but the runtime command path
+// should prefer GetMavenWrapperProperties() to avoid stale values cached at package init.
+var MavenWrapperProperties = GetMavenWrapperProperties()
 
 func MavenWrapperPropertiesForVersion(version string) string {
 	if version == "" {
@@ -82,22 +97,18 @@ func MavenWrapperPropertiesForVersion(version string) string {
 }
 
 func latestApacheMavenVersion() string {
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	resp, err := client.R().Get("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml")
+	client := httpclient.GetPipeleekStandardHTTPClient()
+	resp, err := client.Get("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml")
 	if err != nil {
 		return ""
 	}
+	defer resp.Body.Close()
 
-	if resp.StatusCode() != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return ""
 	}
 
-	if resp.RawResponse == nil || resp.RawResponse.Body == nil {
-		return ""
-	}
-	defer resp.RawResponse.Body.Close()
-
-	payload, err := io.ReadAll(resp.RawResponse.Body)
+	payload, err := io.ReadAll(resp.Body)
 	if err != nil || len(payload) == 0 {
 		return ""
 	}

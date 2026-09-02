@@ -47,10 +47,9 @@ func TestPomXML(t *testing.T) {
 		assert.Contains(t, pkgrenovate.PomXML, "<artifactId>pipeleek-autodiscovery-poc</artifactId>")
 	})
 
-	t.Run("declares dependency with outdated version", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.PomXML, "<dependencies>")
-		assert.Contains(t, pkgrenovate.PomXML, "<groupId>junit</groupId>")
-		assert.Contains(t, pkgrenovate.PomXML, "<version>4.12</version>", "Should use old version to trigger update")
+	t.Run("stays dependency-free so only the wrapper is updated", func(t *testing.T) {
+		assert.NotContains(t, pkgrenovate.PomXML, "<dependencies>")
+		assert.NotContains(t, pkgrenovate.PomXML, "junit")
 	})
 
 	t.Run("is valid XML structure", func(t *testing.T) {

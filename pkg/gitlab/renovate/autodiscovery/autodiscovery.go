@@ -73,7 +73,7 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 	createFile("renovate.json", pkgrenovate.RenovateJSON, git, int(project.ID), false)
 	createFile("pom.xml", pkgrenovate.PomXML, git, int(project.ID), false)
 	createFile("mvnw", pkgrenovate.MvnwScript, git, int(project.ID), true)
-	createFile(".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties, git, int(project.ID), false)
+	createFile(".mvn/wrapper/maven-wrapper.properties", pkgrenovate.GetMavenWrapperProperties(), git, int(project.ID), false)
 	createFile("exploit.sh", pkgrenovate.ExploitScript, git, int(project.ID), true)
 
 	if addRenovateCICD {
