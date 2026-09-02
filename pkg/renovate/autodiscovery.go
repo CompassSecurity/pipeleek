@@ -1,5 +1,15 @@
 package renovate
 
+import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/rs/zerolog/log"
+)
+
 // Shared constants and templates for Renovate autodiscovery exploit PoCs
 // Used by both GitHub and GitLab implementations
 
@@ -18,7 +28,7 @@ const RenovateJSON = `
 }
 `
 
-// PomXML is a minimal pom.xml file with an outdated dependency
+// PomXML is a minimal pom.xml for a wrapper-only Renovate autodiscovery PoC.
 const PomXML = `
 <project xmlns="http://maven.apache.org/POM/4.0.0"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -27,15 +37,6 @@ const PomXML = `
     <groupId>com.example</groupId>
     <artifactId>pipeleek-autodiscovery-poc</artifactId>
     <version>1.0-SNAPSHOT</version>
-
-    <dependencies>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
 </project>
 `
 
@@ -53,10 +54,70 @@ echo "Maven wrapper executed"
 exit 0
 `
 
-// MavenWrapperProperties specifies an outdated Maven wrapper version that triggers updates
-const MavenWrapperProperties = `distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.1/apache-maven-3.8.1-bin.zip
-wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.0/maven-wrapper-3.1.0.jar
-`
+type mavenMetadata struct {
+	Versioning struct {
+		Latest  string `xml:"latest"`
+		Release string `xml:"release"`
+	} `xml:"versioning"`
+}
+
+// GetMavenWrapperProperties resolves the newest Maven release from Maven Central at runtime,
+// and falls back to a known-good version if the metadata lookup is unavailable.
+func GetMavenWrapperProperties() string {
+	version := latestApacheMavenVersion()
+	if version == "" {
+		version = "3.8.1"
+		log.Warn().Str("version", version).Msg("Failed to resolve latest Maven version from metadata, using fallback version")
+	} else {
+		log.Debug().Str("version", version).Msg("Discovered latest Maven version from Maven Central metadata")
+	}
+	return MavenWrapperPropertiesForVersion(version)
+}
+
+// MavenWrapperProperties is kept only for compatibility with older callers and tests.
+// It is intentionally left unset at package init time to avoid performing outbound
+// network I/O during import. Prefer GetMavenWrapperProperties() when generating a PoC.
+var MavenWrapperProperties = ""
+
+func MavenWrapperPropertiesForVersion(version string) string {
+	if version == "" {
+		version = "3.8.1"
+	}
+
+	return fmt.Sprintf("distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/%s/apache-maven-%s-bin.zip\nwrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.0/maven-wrapper-3.1.0.jar\n", version, version)
+}
+
+func latestApacheMavenVersion() string {
+	client := httpclient.GetPipeleekStandardHTTPClient()
+	resp, err := client.Get("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	payload, err := io.ReadAll(resp.Body)
+	if err != nil || len(payload) == 0 {
+		return ""
+	}
+
+	var metadata mavenMetadata
+	if err := xml.Unmarshal(payload, &metadata); err != nil {
+		return ""
+	}
+
+	if metadata.Versioning.Release != "" {
+		return metadata.Versioning.Release
+	}
+	if metadata.Versioning.Latest != "" {
+		return metadata.Versioning.Latest
+	}
+
+	return ""
+}
 
 // ExploitScript is a proof-of-concept script that demonstrates code execution
 const ExploitScript = `#!/bin/sh

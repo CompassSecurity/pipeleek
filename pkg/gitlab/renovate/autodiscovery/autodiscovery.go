@@ -1,6 +1,8 @@
 package renovate
 
 import (
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/renovate"
@@ -12,12 +14,9 @@ var gitlabCiYml = `
 # GitLab CI/CD pipeline that runs Renovate Bot for debugging
 # This verifies the exploit actually executes during Maven wrapper update
 #
-# Setup instructions:
-# 1. Go to Project Settings > Access Tokens
-# 2. Create a new project access token with 'api' scope and 'Maintainer' role (required for autodiscover)
-# 3. Go to Project Settings > CI/CD > Variables
-# 4. Add a new variable: Key = RENOVATE_TOKEN, Value = <your-token>
-# 5. Run the pipeline and check the job output for exploit execution proof
+# Automatic setup: Pipeleek creates the temporary project token and RENOVATE_TOKEN variable
+# automatically when --add-renovate-cicd-for-debugging is enabled, so no manual setup is required here.
+# Run the pipeline and check the job output for exploit execution proof.
 
 renovate-debugging:
   image: renovate/renovate:latest
@@ -71,13 +70,35 @@ func RunGenerate(gitlabUrl, gitlabApiToken, repoName, username string, addRenova
 	createFile("renovate.json", pkgrenovate.RenovateJSON, git, int(project.ID), false)
 	createFile("pom.xml", pkgrenovate.PomXML, git, int(project.ID), false)
 	createFile("mvnw", pkgrenovate.MvnwScript, git, int(project.ID), true)
-	createFile(".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties, git, int(project.ID), false)
+	createFile(".mvn/wrapper/maven-wrapper.properties", pkgrenovate.GetMavenWrapperProperties(), git, int(project.ID), false)
 	createFile("exploit.sh", pkgrenovate.ExploitScript, git, int(project.ID), true)
 
 	if addRenovateCICD {
 		createFile(".gitlab-ci.yml", gitlabCiYml, git, int(project.ID), false)
 		log.Info().Msg("Created .gitlab-ci.yml for local Renovate testing")
-		log.Warn().Msg("IMPORTANT: Add a CI/CD variable named RENOVATE_TOKEN with a project access token that has 'api' scope and at least maintainer permissions")
+
+		token, _, err := git.ProjectAccessTokens.CreateProjectAccessToken(project.ID, &gogitlab.CreateProjectAccessTokenOptions{
+			Name:        gogitlab.Ptr("pipeleek-renovate-debugging"),
+			Description: gogitlab.Ptr("Temporary Renovate token created by Pipeleek for autodiscovery debugging"),
+			Scopes:      &[]string{"api"},
+			AccessLevel: gogitlab.Ptr(gogitlab.MaintainerPermissions),
+			ExpiresAt:   gogitlab.Ptr(gogitlab.ISOTime(time.Now().Add(24 * time.Hour))),
+		})
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed creating project access token for Renovate debugging")
+		}
+
+		_, _, err = git.ProjectVariables.CreateVariable(project.ID, &gogitlab.CreateProjectVariableOptions{
+			Key:       gogitlab.Ptr("RENOVATE_TOKEN"),
+			Value:     gogitlab.Ptr(token.Token),
+			Masked:    gogitlab.Ptr(true),
+			Protected: gogitlab.Ptr(false),
+		})
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed creating RENOVATE_TOKEN project variable")
+		}
+
+		log.Info().Str("key", "RENOVATE_TOKEN").Msg("Created project CI/CD variable for Renovate debugging")
 		log.Info().Msg("Then run the pipeline again, check the job output for 'SUCCESS: Exploit was executed!'")
 		log.Info().Msg("If you want to retest, you need to DELETE the merge request and remove the branch that was created. Do not merge the update!")
 	}
