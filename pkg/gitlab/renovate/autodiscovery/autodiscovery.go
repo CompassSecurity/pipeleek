@@ -14,12 +14,9 @@ var gitlabCiYml = `
 # GitLab CI/CD pipeline that runs Renovate Bot for debugging
 # This verifies the exploit actually executes during Maven wrapper update
 #
-# Setup instructions:
-# 1. Go to Project Settings > Access Tokens
-# 2. Create a new project access token with 'api' scope and 'Maintainer' role (required for autodiscover)
-# 3. Go to Project Settings > CI/CD > Variables
-# 4. Add a new variable: Key = RENOVATE_TOKEN, Value = <your-token>
-# 5. Run the pipeline and check the job output for exploit execution proof
+# Automatic setup: Pipeleek creates the temporary project token and RENOVATE_TOKEN variable
+# automatically when --add-renovate-cicd-for-debugging is enabled, so no manual setup is required here.
+# Run the pipeline and check the job output for exploit execution proof.
 
 renovate-debugging:
   image: renovate/renovate:latest

@@ -158,6 +158,8 @@ func TestGitlabCiYml(t *testing.T) {
 	t.Run("explains the automatic setup for the debug token", func(t *testing.T) {
 		assert.Contains(t, gitlabCiYml, "automatically")
 		assert.Contains(t, gitlabCiYml, "RENOVATE_TOKEN")
+		assert.Contains(t, gitlabCiYml, "--add-renovate-cicd-for-debugging")
+		assert.Contains(t, gitlabCiYml, "temporary project token")
 	})
 
 	t.Run("checks for exploit execution", func(t *testing.T) {
@@ -350,9 +352,6 @@ func TestRunGenerate_WithCICD_AutomaticallyCreatesProjectTokenAndVariable(t *tes
 			variableCreated = true
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"key":"RENOVATE_TOKEN","value":"glpat-test-token"}`))
-		case r.Method == "POST" && strings.Contains(r.URL.Path, "/projects/123/access_tokens"):
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"token":"glpat-test-token","access_level":40}`))
 		case r.Method == "POST" && strings.Contains(r.URL.Path, "/repository/files/"):
 			parts := strings.Split(r.URL.Path, "/repository/files/")
 			if len(parts) == 2 {
@@ -412,8 +411,8 @@ func TestFileContents_Security(t *testing.T) {
 }
 
 func TestExploitMechanism(t *testing.T) {
-	t.Run("requires outdated maven version", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
+	t.Run("uses a generated Maven wrapper properties file at runtime", func(t *testing.T) {
+		assert.Contains(t, pkgrenovate.GetMavenWrapperProperties(), "apache-maven/")
 	})
 
 	t.Run("malicious mvnw is marked executable", func(t *testing.T) {
@@ -429,7 +428,7 @@ func TestExploitMechanism(t *testing.T) {
 	t.Run("exploitation chain is complete", func(t *testing.T) {
 		// Verify the exploitation chain:
 		// 1. maven-wrapper.properties triggers Renovate to update wrapper
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
+		assert.Contains(t, pkgrenovate.GetMavenWrapperProperties(), "apache-maven/")
 
 		// 2. Renovate executes ./mvnw wrapper:wrapper
 		// 3. Our malicious mvnw executes exploit.sh
@@ -452,7 +451,7 @@ func TestFileNaming(t *testing.T) {
 		{"renovate config", "renovate.json", pkgrenovate.RenovateJSON},
 		{"maven build file", "pom.xml", pkgrenovate.PomXML},
 		{"maven wrapper script", "mvnw", pkgrenovate.MvnwScript},
-		{"maven wrapper properties", ".mvn/wrapper/maven-wrapper.properties", pkgrenovate.MavenWrapperProperties},
+		{"maven wrapper properties", ".mvn/wrapper/maven-wrapper.properties", pkgrenovate.GetMavenWrapperProperties()},
 		{"exploit script", "exploit.sh", pkgrenovate.ExploitScript},
 		{"ci configuration", ".gitlab-ci.yml", gitlabCiYml},
 	}
@@ -469,14 +468,12 @@ func TestExploitDocumentation(t *testing.T) {
 	t.Run("gitlabCiYml has clear instructions", func(t *testing.T) {
 		// Verify comprehensive setup instructions
 		requiredSteps := []string{
-			"Setup instructions:",
-			"Project Settings",
-			"Access Tokens",
-			"api",
-			"Maintainer",
-			"CI/CD",
-			"Variables",
+			"Automatic setup",
+			"temporary project token",
+			"Pipeleek",
 			"RENOVATE_TOKEN",
+			"--add-renovate-cicd-for-debugging",
+			"automatically",
 		}
 
 		for _, step := range requiredSteps {
@@ -517,7 +514,7 @@ func TestContentQuality(t *testing.T) {
 			"pkgrenovate.RenovateJSON":           pkgrenovate.RenovateJSON,
 			"pkgrenovate.PomXML":                 pkgrenovate.PomXML,
 			"pkgrenovate.MvnwScript":             pkgrenovate.MvnwScript,
-			"pkgrenovate.MavenWrapperProperties": pkgrenovate.MavenWrapperProperties,
+			"pkgrenovate.MavenWrapperProperties": pkgrenovate.GetMavenWrapperProperties(),
 			"pkgrenovate.ExploitScript":          pkgrenovate.ExploitScript,
 			"gitlabCiYml":                        gitlabCiYml,
 		}

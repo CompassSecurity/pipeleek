@@ -28,7 +28,7 @@ const RenovateJSON = `
 }
 `
 
-// PomXML is a minimal pom.xml file with an outdated dependency
+// PomXML is a minimal pom.xml for a wrapper-only Renovate autodiscovery PoC.
 const PomXML = `
 <project xmlns="http://maven.apache.org/POM/4.0.0"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -37,15 +37,6 @@ const PomXML = `
     <groupId>com.example</groupId>
     <artifactId>pipeleek-autodiscovery-poc</artifactId>
     <version>1.0-SNAPSHOT</version>
-
-    <dependencies>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
 </project>
 `
 
@@ -83,10 +74,10 @@ func GetMavenWrapperProperties() string {
 	return MavenWrapperPropertiesForVersion(version)
 }
 
-// MavenWrapperProperties is kept for compatibility with older callers and tests.
-// It will still resolve the version lazily when accessed, but the runtime command path
-// should prefer GetMavenWrapperProperties() to avoid stale values cached at package init.
-var MavenWrapperProperties = GetMavenWrapperProperties()
+// MavenWrapperProperties is kept only for compatibility with older callers and tests.
+// It is intentionally left unset at package init time to avoid performing outbound
+// network I/O during import. Prefer GetMavenWrapperProperties() when generating a PoC.
+var MavenWrapperProperties = ""
 
 func MavenWrapperPropertiesForVersion(version string) string {
 	if version == "" {
