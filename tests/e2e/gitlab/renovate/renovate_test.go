@@ -831,17 +831,17 @@ func TestGLRenovateAutodiscovery_RenovateLatestPicksUpMavenWrapperExploit(t *tes
 
 	proofBytes, proofErr := os.ReadFile("/tmp/pipeleek-exploit-executed.txt")
 	proofFound := proofErr == nil
-	if proofFound {
+	if !proofFound {
 		t.Fatalf(
-			"generated wrapper still triggered an exploit path: /tmp/pipeleek-exploit-executed.txt was created\nrenovate output tail:\n%s\nmock gitlab requests:\n%s\nproof file contents:\n%s",
+			"expected Renovate to trigger the generated wrapper exploit path, but /tmp/pipeleek-exploit-executed.txt was not created\nrenovate output tail:\n%s\nmock gitlab requests:\n%s",
 			tailForDiagnostics(renovateOutput, 12000),
 			dumpRequests(),
-			string(proofBytes),
 		)
 	}
 
-	// The PoC intentionally resolves the latest upstream Maven version dynamically, so a fresh
-	// wrapper should not be stale enough to cause an exploit when Renovate runs against it.
-	t.Logf("Renovate completed without triggering exploit as expected. Output tail:\n%s", tailForDiagnostics(renovateOutput, 12000))
-	assert.NotContains(t, dumpRequests(), "POST /api/v4/projects/123/merge_requests")
+	// The malicious wrapper is intentional: Renovate resolves the latest maven-wrapper line and then
+	// runs the generated mvnw script, which executes the proof-of-concept exploit shell.
+	t.Logf("Renovate picked up the Maven wrapper exploit as expected. Output tail:\n%s", tailForDiagnostics(renovateOutput, 12000))
+	assert.Contains(t, dumpRequests(), "POST /api/v4/projects/group/contract-repo/merge_requests")
+	assert.Contains(t, string(proofBytes), "Exploit executed at")
 }
