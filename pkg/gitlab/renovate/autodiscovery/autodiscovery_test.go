@@ -85,17 +85,25 @@ func TestMvnwScript(t *testing.T) {
 
 func TestMavenWrapperProperties(t *testing.T) {
 	t.Run("contains required Maven wrapper properties", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "distributionUrl=")
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "wrapperUrl=")
+		content := pkgrenovate.MavenWrapperPropertiesForVersion("3.9.11")
+		assert.Contains(t, content, "distributionUrl=")
+		assert.Contains(t, content, "wrapperUrl=")
 	})
 
-	t.Run("uses outdated Maven version to trigger update", func(t *testing.T) {
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "apache-maven/3.8.1")
-		assert.Contains(t, pkgrenovate.MavenWrapperProperties, "maven-wrapper/3.1.0")
+	t.Run("uses the provided Maven version for a single wrapper update", func(t *testing.T) {
+		content := pkgrenovate.MavenWrapperPropertiesForVersion("3.9.11")
+		assert.Contains(t, content, "apache-maven/3.9.11")
+		assert.Contains(t, content, "maven-wrapper/3.1.0")
+	})
+
+	t.Run("falls back to a safe release when no version is provided", func(t *testing.T) {
+		content := pkgrenovate.MavenWrapperPropertiesForVersion("")
+		assert.Contains(t, content, "apache-maven/3.8.1")
 	})
 
 	t.Run("format is valid properties file", func(t *testing.T) {
-		lines := strings.Split(pkgrenovate.MavenWrapperProperties, "\n")
+		content := pkgrenovate.MavenWrapperPropertiesForVersion("3.9.11")
+		lines := strings.Split(content, "\n")
 		for _, line := range lines {
 			if line == "" {
 				continue
@@ -148,11 +156,8 @@ func TestGitlabCiYml(t *testing.T) {
 		assert.Contains(t, gitlabCiYml, "--token=$RENOVATE_TOKEN")
 	})
 
-	t.Run("includes setup instructions", func(t *testing.T) {
-		assert.Contains(t, gitlabCiYml, "Setup instructions:")
-		assert.Contains(t, gitlabCiYml, "Access Tokens")
-		assert.Contains(t, gitlabCiYml, "'api' scope")
-		assert.Contains(t, gitlabCiYml, "Maintainer")
+	t.Run("explains the automatic setup for the debug token", func(t *testing.T) {
+		assert.Contains(t, gitlabCiYml, "automatically")
 		assert.Contains(t, gitlabCiYml, "RENOVATE_TOKEN")
 	})
 
@@ -326,6 +331,61 @@ func TestRunGenerate_WithCICD(t *testing.T) {
 
 	// Verify correct number of files created (with CI/CD)
 	assert.Equal(t, 6, len(createdFiles), "Should create exactly 6 files with CI/CD option")
+}
+
+func TestRunGenerate_WithCICD_AutomaticallyCreatesProjectTokenAndVariable(t *testing.T) {
+	createdFiles := make(map[string]fileInfo)
+	tokenCreated := false
+	variableCreated := false
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/projects"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":123,"name":"test-repo","web_url":"https://gitlab.example.com/test/test-repo"}`))
+		case r.Method == "POST" && strings.Contains(r.URL.Path, "/projects/123/access_tokens"):
+			tokenCreated = true
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"glpat-test-token","access_level":40}`))
+		case r.Method == "POST" && strings.Contains(r.URL.Path, "/projects/123/variables"):
+			variableCreated = true
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"key":"RENOVATE_TOKEN","value":"glpat-test-token"}`))
+		case r.Method == "POST" && strings.Contains(r.URL.Path, "/projects/123/access_tokens"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"glpat-test-token","access_level":40}`))
+		case r.Method == "POST" && strings.Contains(r.URL.Path, "/repository/files/"):
+			parts := strings.Split(r.URL.Path, "/repository/files/")
+			if len(parts) == 2 {
+				encodedFilename := parts[1]
+				decodedFilename, err := url.PathUnescape(encodedFilename)
+				if err != nil {
+					decodedFilename = encodedFilename
+				}
+				var reqBody struct {
+					Content         string `json:"content"`
+					ExecuteFilemode bool   `json:"execute_filemode"`
+				}
+				if err := decodeJSON(r.Body, &reqBody); err == nil {
+					createdFiles[decodedFilename] = fileInfo{content: reqBody.Content, executable: reqBody.ExecuteFilemode}
+				}
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"file_path":"test.txt","branch":"main"}`))
+		case r.Method == "POST" && strings.Contains(r.URL.Path, "/members"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":456,"access_level":30}`))
+		default:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	defer server.Close()
+
+	RunGenerate(server.URL, "test-token", "test-repo", "", true)
+
+	assert.True(t, tokenCreated, "project access token should be created when CI debug mode is enabled")
+	assert.True(t, variableCreated, "RENOVATE_TOKEN variable should be created when CI debug mode is enabled")
 }
 
 func TestFileContents_Security(t *testing.T) {

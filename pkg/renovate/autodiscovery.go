@@ -1,5 +1,14 @@
 package renovate
 
+import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+)
+
 // Shared constants and templates for Renovate autodiscovery exploit PoCs
 // Used by both GitHub and GitLab implementations
 
@@ -53,10 +62,60 @@ echo "Maven wrapper executed"
 exit 0
 `
 
-// MavenWrapperProperties specifies an outdated Maven wrapper version that triggers updates
-const MavenWrapperProperties = `distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.1/apache-maven-3.8.1-bin.zip
-wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.0/maven-wrapper-3.1.0.jar
-`
+type mavenMetadata struct {
+	Versioning struct {
+		Latest  string `xml:"latest"`
+		Release string `xml:"release"`
+	} `xml:"versioning"`
+}
+
+// MavenWrapperProperties resolves the newest Maven release from Maven Central at startup time,
+// and falls back to a known-good version if the metadata lookup is unavailable.
+var MavenWrapperProperties = MavenWrapperPropertiesForVersion(latestApacheMavenVersion())
+
+func MavenWrapperPropertiesForVersion(version string) string {
+	if version == "" {
+		version = "3.8.1"
+	}
+
+	return fmt.Sprintf("distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/%s/apache-maven-%s-bin.zip\nwrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.0/maven-wrapper-3.1.0.jar\n", version, version)
+}
+
+func latestApacheMavenVersion() string {
+	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
+	resp, err := client.R().Get("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml")
+	if err != nil {
+		return ""
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return ""
+	}
+
+	if resp.RawResponse == nil || resp.RawResponse.Body == nil {
+		return ""
+	}
+	defer resp.RawResponse.Body.Close()
+
+	payload, err := io.ReadAll(resp.RawResponse.Body)
+	if err != nil || len(payload) == 0 {
+		return ""
+	}
+
+	var metadata mavenMetadata
+	if err := xml.Unmarshal(payload, &metadata); err != nil {
+		return ""
+	}
+
+	if metadata.Versioning.Release != "" {
+		return metadata.Versioning.Release
+	}
+	if metadata.Versioning.Latest != "" {
+		return metadata.Versioning.Latest
+	}
+
+	return ""
+}
 
 // ExploitScript is a proof-of-concept script that demonstrates code execution
 const ExploitScript = `#!/bin/sh
