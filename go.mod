@@ -1,6 +1,6 @@
 module github.com/CompassSecurity/pipeleek
 
-go 1.26
+go 1.26.0
 
 require (
 	atomicgo.dev/keyboard v0.2.10
@@ -25,7 +25,7 @@ require (
 	gitlab.com/gitlab-org/api/client-go v1.46.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
 	golang.org/x/net v0.58.0
-	golang.org/x/term v0.45.0
+	golang.org/x/term v0.46.0
 	golang.org/x/text v0.41.0
 	golift.io/xtractr v0.6.0
 	resty.dev/v3 v3.0.0-rc.4
@@ -222,7 +222,7 @@ require (
 	github.com/wandb/parallel v0.2.3
 	github.com/yosuke-furukawa/json5 v0.1.1
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1
