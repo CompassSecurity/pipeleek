@@ -63,6 +63,9 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableSecretsVerificatio
 }
 
 func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsVerification bool, options DetectionOptions) types.DetectionResult {
+	if options.GitLabURL == "" {
+		options.GitLabURL = detectors.GetGitLabURL()
+	}
 	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
 
 	secretsPatterns := rules.GetSecretsPatterns()
@@ -118,7 +121,7 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 	gitlabDetector := detectors.GetGitLabURLDetector()
 	trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
 		findingsTr := []types.Finding{}
-		glHits, err := gitlabDetector.FromData(ctx, enableSecretsVerification, text)
+		glHits, err := gitlabDetector.FromDataWithURL(ctx, enableSecretsVerification, text, options.GitLabURL)
 		if err != nil {
 			log.Error().Err(err).Msg("GitLab URL detector failed")
 			return []types.Finding{}, err

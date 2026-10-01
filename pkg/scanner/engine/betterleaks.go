@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,17 +20,28 @@ import (
 	"github.com/betterleaks/betterleaks/v2/sources/prefilter"
 )
 
+// gitLabDotCom is the host hardcoded in Betterleaks' GitLab validators.
+const gitLabDotCom = "https://gitlab.com"
+
+// publicGitLabURL is where the stock GitLab rules validate; tests point it at a mock.
+var publicGitLabURL = gitLabDotCom
+
+const findingIndexAttr = "pipeleek.finding_index"
+
 type betterleaksRuntimeKey struct {
-	gitLabURL string
-	verify    bool
-	workers   int
-	timeout   time.Duration
+	gitLabURL       string
+	publicGitLabURL string
+	verify          bool
+	workers         int
+	timeout         time.Duration
 }
 
 type betterleaksRuntime struct {
-	scanner   *blscan.Scanner
-	analyzer  *blanalyze.Analyzer
-	prefilter sources.PrefilterFunc
+	scanner  *blscan.Scanner
+	analyzer *blanalyze.Analyzer
+	// selfHostedAnalyzer re-validates GitLab findings against the configured instance.
+	selfHostedAnalyzer *blanalyze.Analyzer
+	prefilter          sources.PrefilterFunc
 }
 
 var betterleaksRuntimes = struct {
@@ -39,10 +51,11 @@ var betterleaksRuntimes = struct {
 
 func getBetterleaksRuntime(gitLabURL string, verify bool, workers int, timeout time.Duration) (*betterleaksRuntime, error) {
 	key := betterleaksRuntimeKey{
-		gitLabURL: strings.TrimRight(gitLabURL, "/"),
-		verify:    verify,
-		workers:   workers,
-		timeout:   timeout,
+		gitLabURL:       strings.TrimRight(gitLabURL, "/"),
+		publicGitLabURL: publicGitLabURL,
+		verify:          verify,
+		workers:         workers,
+		timeout:         timeout,
 	}
 
 	betterleaksRuntimes.Lock()
@@ -55,7 +68,7 @@ func getBetterleaksRuntime(gitLabURL string, verify bool, workers int, timeout t
 	if err != nil {
 		return nil, err
 	}
-	rewriteGitLabRuleHosts(config, key.gitLabURL)
+	rewriteGitLabRuleHosts(config, key.publicGitLabURL)
 
 	scannerOptions := []blscan.Option{blscan.WithPrecompile(), blscan.WithWorkers(workers)}
 	scanner, err := blscan.New(config, scannerOptions...)
@@ -82,6 +95,18 @@ func getBetterleaksRuntime(gitLabURL string, verify bool, workers int, timeout t
 		if err != nil {
 			return nil, err
 		}
+
+		if key.gitLabURL != "" && key.gitLabURL != key.publicGitLabURL {
+			selfHostedConfig, err := blconfig.Default()
+			if err != nil {
+				return nil, err
+			}
+			rewriteGitLabRuleHosts(selfHostedConfig, key.gitLabURL)
+			runtime.selfHostedAnalyzer, err = blanalyze.New(selfHostedConfig, analyzerOptions...)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	betterleaksRuntimes.items[key] = runtime
@@ -89,15 +114,39 @@ func getBetterleaksRuntime(gitLabURL string, verify bool, workers int, timeout t
 }
 
 func rewriteGitLabRuleHosts(config *blconfig.Config, gitLabURL string) {
-	if gitLabURL == "" {
+	if gitLabURL == "" || gitLabURL == gitLabDotCom {
 		return
 	}
 	for i := range config.Rules {
-		if !strings.HasPrefix(config.Rules[i].ID, "gitlab-") {
+		if !isGitLabRule(config.Rules[i].ID) {
 			continue
 		}
-		config.Rules[i].ValidateExpr = strings.ReplaceAll(config.Rules[i].ValidateExpr, "https://gitlab.com", gitLabURL)
-		config.Rules[i].AnalyzeExpr = strings.ReplaceAll(config.Rules[i].AnalyzeExpr, "https://gitlab.com", gitLabURL)
+		config.Rules[i].ValidateExpr = strings.ReplaceAll(config.Rules[i].ValidateExpr, gitLabDotCom, gitLabURL)
+		config.Rules[i].AnalyzeExpr = strings.ReplaceAll(config.Rules[i].AnalyzeExpr, gitLabDotCom, gitLabURL)
+	}
+}
+
+func isGitLabRule(ruleID string) bool {
+	return strings.HasPrefix(ruleID, "gitlab-")
+}
+
+// mergeValidation keeps the stronger outcome: valid on any host wins, and a
+// credential is only rejected when every host rejects it.
+func mergeValidation(a, b blreport.Analysis) blreport.Analysis {
+	if validationRank(b.Status) > validationRank(a.Status) {
+		return b
+	}
+	return a
+}
+
+func validationRank(status blreport.ValidationStatus) int {
+	switch status {
+	case blreport.ValidationStatusValid:
+		return 2
+	case blreport.ValidationStatusInvalid, blreport.ValidationStatusRevoked:
+		return 0
+	default:
+		return 1
 	}
 }
 
@@ -179,5 +228,30 @@ func (runtime *betterleaksRuntime) scan(ctx context.Context, content []byte, pat
 	if err != nil {
 		return findings, err
 	}
-	return validated, nil
+	if runtime.selfHostedAnalyzer == nil {
+		return validated, nil
+	}
+
+	// Results arrive in completion order, so tag each GitLab finding with its index.
+	err = runtime.selfHostedAnalyzer.ValidateStream(ctx, func(ctx context.Context, yield func(blreport.Finding) error) error {
+		for i := range validated {
+			if !isGitLabRule(validated[i].RuleID) {
+				continue
+			}
+			finding := validated[i].Clone()
+			finding.SetAttr(findingIndexAttr, strconv.Itoa(i))
+			if err := yield(finding); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, func(finding blreport.Finding) error {
+		i, err := strconv.Atoi(finding.Attr(findingIndexAttr))
+		if err != nil || i < 0 || i >= len(validated) {
+			return nil
+		}
+		validated[i].Analysis = mergeValidation(validated[i].Analysis, finding.Analysis)
+		return nil
+	})
+	return validated, err
 }

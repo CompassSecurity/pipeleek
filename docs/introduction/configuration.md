@@ -76,6 +76,8 @@ common:
   hit_timeout: 120 # Seconds
 ```
 
+`secrets_verification` replaces the deprecated `trufflehog_verification` key. The old key (and `PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION`) is still read, with a warning, when the new key is not set.
+
 Override per-command:
 
 ```yaml

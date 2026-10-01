@@ -57,7 +57,7 @@ func ScanGitLabPipelines(options *ScanOptions) {
 
 	runner.InitScanner(options.ConfidenceFilter)
 	if !options.SecretsVerification {
-		log.Info().Msg("TruffleHog verification is disabled")
+		log.Info().Msg("Secrets verification is disabled")
 	}
 
 	git, err := util.GetGitlabClient(options.GitlabApiToken, options.GitlabUrl)

@@ -1,10 +1,12 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -442,44 +444,109 @@ func TestDetectHits_BetterleaksFindingUsesExtractedValue(t *testing.T) {
 	t.Fatalf("Betterleaks GitLab PAT finding not found: %v", findings)
 }
 
-func TestDetectHitsWithOptions_BetterleaksValidationUsesConfiguredGitLabHost(t *testing.T) {
-	token := "glpat-cdefghijklmnopqrstuv"
+func newGitLabPATServer(t *testing.T, status int, patRequests *atomic.Int32) *httptest.Server {
+	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v4/personal_access_tokens/self" {
-			t.Errorf("request path = %q, want GitLab PAT self-inspection endpoint", r.URL.Path)
+		if r.URL.Path == "/api/v4/personal_access_tokens/self" {
+			patRequests.Add(1)
 		}
-		if got := r.Header.Get("PRIVATE-TOKEN"); got != token {
-			t.Errorf("PRIVATE-TOKEN = %q, want test token", got)
+		w.WriteHeader(status)
+		if status == http.StatusOK {
+			_, _ = fmt.Fprint(w, `{"id":1,"name":"fixture","user_id":1,"scopes":["api"]}`)
 		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprint(w, `{"id":1,"name":"fixture","user_id":1,"scopes":["api"]}`)
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
+	return server
+}
 
-	findings, err := DetectHitsWithOptions([]byte("GITLAB_TOKEN="+token), 1, true, DetectionOptions{
-		GitLabURL: server.URL,
-		Timeout:   60 * time.Second,
-	})
-	if err != nil {
-		t.Fatalf("DetectHitsWithOptions() error = %v", err)
+func TestDetectBetterleaks_ValidatesGitLabOnPublicAndSelfHosted(t *testing.T) {
+	tests := []struct {
+		name         string
+		publicStatus int
+		selfStatus   int
+		wantFound    bool
+	}{
+		{name: "valid on self-hosted only", publicStatus: http.StatusUnauthorized, selfStatus: http.StatusOK, wantFound: true},
+		{name: "valid on gitlab.com only", publicStatus: http.StatusOK, selfStatus: http.StatusUnauthorized, wantFound: true},
+		{name: "invalid on both is suppressed", publicStatus: http.StatusUnauthorized, selfStatus: http.StatusUnauthorized, wantFound: false},
 	}
-	for _, finding := range findings {
-		if finding.Pattern.Pattern.Name == "betterleaks/gitlab-pat" {
-			if finding.Text != token || finding.Pattern.Pattern.Confidence != "high-verified" {
-				t.Fatalf("unexpected validated finding: %+v", finding)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var publicRequests, selfRequests atomic.Int32
+			public := newGitLabPATServer(t, tt.publicStatus, &publicRequests)
+			selfHosted := newGitLabPATServer(t, tt.selfStatus, &selfRequests)
+
+			originalPublic := publicGitLabURL
+			publicGitLabURL = public.URL
+			t.Cleanup(func() { publicGitLabURL = originalPublic })
+
+			token := "glpat-cdefghijklmnopqrstuv"
+			findings, err := detectBetterleaks(context.Background(), []byte("GITLAB_TOKEN="+token), 1, true, DetectionOptions{
+				GitLabURL: selfHosted.URL,
+				Timeout:   60 * time.Second,
+			})
+			if err != nil {
+				t.Fatalf("detectBetterleaks() error = %v", err)
 			}
-			return
-		}
+			if publicRequests.Load() == 0 || selfRequests.Load() == 0 {
+				t.Fatalf("expected validation on both hosts, got public=%d self-hosted=%d", publicRequests.Load(), selfRequests.Load())
+			}
+
+			var found *types.Finding
+			for i := range findings {
+				if findings[i].Pattern.Pattern.Name == "betterleaks/gitlab-pat" {
+					found = &findings[i]
+				}
+			}
+			if !tt.wantFound {
+				if found != nil {
+					t.Fatalf("expected finding rejected by both hosts to be suppressed, got %+v", *found)
+				}
+				return
+			}
+			if found == nil {
+				t.Fatalf("validated Betterleaks GitLab PAT finding not found: %v", findings)
+			}
+			if found.Text != token || found.Pattern.Pattern.Confidence != "high-verified" {
+				t.Fatalf("unexpected validated finding: %+v", *found)
+			}
+		})
 	}
-	t.Fatalf("validated Betterleaks GitLab PAT finding not found: %v", findings)
+}
+
+func TestMergeValidation(t *testing.T) {
+	valid := blreport.Analysis{Status: blreport.ValidationStatusValid}
+	invalid := blreport.Analysis{Status: blreport.ValidationStatusInvalid}
+	revoked := blreport.Analysis{Status: blreport.ValidationStatusRevoked}
+	unknown := blreport.Analysis{Status: blreport.ValidationStatusUnknown}
+
+	tests := []struct {
+		name string
+		a, b blreport.Analysis
+		want blreport.ValidationStatus
+	}{
+		{"valid wins over invalid", invalid, valid, blreport.ValidationStatusValid},
+		{"valid wins over unknown", valid, unknown, blreport.ValidationStatusValid},
+		{"unknown keeps finding unresolved", invalid, unknown, blreport.ValidationStatusUnknown},
+		{"rejected on both stays rejected", invalid, revoked, blreport.ValidationStatusInvalid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mergeValidation(tt.a, tt.b).Status; got != tt.want {
+				t.Fatalf("mergeValidation() = %q, want %q", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestDetectHitsWithOptions_BetterleaksPathRule(t *testing.T) {
 	content := []byte(`administrator_login_password = "A1b2C3d4E5f6"`)
 	findForPath := func(path string) []types.Finding {
-		findings, err := DetectHitsWithOptions(content, 1, false, DetectionOptions{Path: path, Timeout: 60 * time.Second})
+		// Call detectBetterleaks directly: DetectHits dedup would mask the second call.
+		findings, err := detectBetterleaks(context.Background(), content, 1, false, DetectionOptions{Path: path, Timeout: 60 * time.Second})
 		if err != nil {
-			t.Fatalf("DetectHitsWithOptions(%q) error = %v", path, err)
+			t.Fatalf("detectBetterleaks(%q) error = %v", path, err)
 		}
 		return findings
 	}

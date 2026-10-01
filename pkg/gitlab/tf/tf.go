@@ -38,7 +38,7 @@ func ScanTerraformStates(options TFOptions) {
 
 	scanner.InitRules(options.ConfidenceFilter)
 	if !options.SecretsVerification {
-		log.Info().Msg("TruffleHog verification is disabled")
+		log.Info().Msg("Secrets verification is disabled")
 	}
 
 	if err := os.MkdirAll(options.OutputDir, 0o750); err != nil {

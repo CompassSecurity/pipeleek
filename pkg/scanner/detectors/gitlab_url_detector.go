@@ -84,8 +84,12 @@ func GetGitLabURLDetector() *GitLabURLDetector {
 }
 
 func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []byte) ([]detectors.Result, error) {
+	return d.FromDataWithURL(ctx, verify, data, GetGitLabURL())
+}
+
+// FromDataWithURL verifies matches against url instead of the package-global URL.
+func (d *GitLabURLDetector) FromDataWithURL(ctx context.Context, verify bool, data []byte, url string) ([]detectors.Result, error) {
 	var results []detectors.Result
-	url := GetGitLabURL()
 
 	for _, pattern := range d.patterns {
 		if err := ctx.Err(); err != nil {

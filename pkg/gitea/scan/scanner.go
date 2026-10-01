@@ -44,7 +44,7 @@ func (s *giteaScanner) Scan() error {
 
 	runner.InitScanner(s.options.ConfidenceFilter)
 	if !s.options.SecretsVerification {
-		log.Info().Msg("TruffleHog verification is disabled")
+		log.Info().Msg("Secrets verification is disabled")
 	}
 
 	s.scanRepositories()

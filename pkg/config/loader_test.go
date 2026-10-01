@@ -117,6 +117,37 @@ func TestInitializeViper_MissingExplicitFileUsesDefaults(t *testing.T) {
 	assert.Equal(t, true, GetBool("common.secrets_verification"))
 }
 
+func TestInitializeViper_LegacyVerificationKey(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		env    map[string]string
+		want   bool
+	}{
+		{name: "legacy config opt-out honored", config: "common:\n  trufflehog_verification: false\n", want: false},
+		{name: "legacy env opt-out honored", env: map[string]string{"PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION": "false"}, want: false},
+		{name: "new config key wins over legacy", config: "common:\n  trufflehog_verification: false\n  secrets_verification: true\n", want: true},
+		{name: "new env key wins over legacy config", config: "common:\n  trufflehog_verification: false\n", env: map[string]string{"PIPELEEK_COMMON_SECRETS_VERIFICATION": "true"}, want: true},
+		{name: "default when neither set", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			globalViper = nil
+			t.Setenv("PIPELEEK_NO_CONFIG", "")
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+
+			configFile := filepath.Join(t.TempDir(), "pipeleek.yaml")
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0644))
+
+			require.NoError(t, InitializeViper(configFile))
+			assert.Equal(t, tt.want, GetBool("common.secrets_verification"))
+		})
+	}
+}
+
 func TestInitializeViper_InvalidYAML(t *testing.T) {
 	// Reset global viper
 	globalViper = nil

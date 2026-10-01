@@ -27,7 +27,10 @@ The `--secrets-verification` option controls provider verification for both Truf
 - A Betterleaks validation result of `valid` is reported as `high-verified`.
 - Explicitly `invalid` or `revoked` Betterleaks results are suppressed.
 - `unknown`, `error`, `needs_validation`, and rules without a validator remain reported at their rule confidence.
+- Betterleaks GitLab tokens are validated against `gitlab.com` and, when scanning a self-managed instance, against that instance too. A token is `high-verified` if either accepts it, and suppressed only if both reject it.
 - TruffleHog keeps its existing behavior: with verification enabled it reports verified hits; with verification disabled it reports supported detections as `trufflehog-unverified`.
+
+With verification disabled, Betterleaks reports every detection at its rule confidence (`high`, `medium`, or `low`). Unlike TruffleHog, it has no separate unverified confidence level.
 
 ### Confidence Levels
 
