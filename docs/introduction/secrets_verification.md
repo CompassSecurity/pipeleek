@@ -12,7 +12,7 @@ keywords:
   - opsec
 ---
 
-Pipeleek uses [TruffleHog v3](https://github.com/trufflesecurity/trufflehog) and [Betterleaks](https://github.com/betterleaks/betterleaks) to detect secrets in CI/CD logs and artifacts. When verification is enabled, both engines can check supported credentials against their providers.
+Pipeleek uses [TruffleHog](https://github.com/trufflesecurity/trufflehog) and [Betterleaks](https://github.com/betterleaks/betterleaks) to detect secrets in CI/CD logs and artifacts. When verification is enabled, both engines can check supported credentials against their providers.
 
 ### How It Works
 
@@ -22,15 +22,10 @@ When Pipeleek scans logs or artifacts, it uses three detection sources:
 2. **Betterleaks rules**: Embedded default rules with keyword, path, capture, and false-positive filtering
 3. **TruffleHog detectors**: Specialized detectors with active verification
 
-The `--secrets-verification` option controls provider verification for both TruffleHog and Betterleaks. Betterleaks scans locally when verification is disabled. When enabled, validation expressions can make outbound requests to credential providers. Betterleaks limits each validation batch to 100 requests per provider origin and 10 requests per second:
+The `--secrets-verification` option controls provider verification for both TruffleHog and Betterleaks. With verification enabled, either engine may make outbound requests to credential providers for supported credentials. Disable verification to scan without those provider checks; findings are still reported, but their confidence depends on the detection source:
 
-- A Betterleaks validation result of `valid` is reported as `high-verified`.
-- Explicitly `invalid` or `revoked` Betterleaks results are suppressed.
-- `unknown`, `error`, `needs_validation`, and rules without a validator remain reported at their rule confidence.
-- Betterleaks GitLab tokens are validated against `gitlab.com` and, when scanning a self-managed instance, against that instance too. A token is `high-verified` if either accepts it, and suppressed only if both reject it.
-- TruffleHog keeps its existing behavior: with verification enabled it reports verified hits; with verification disabled it reports supported detections as `trufflehog-unverified`.
-
-With verification disabled, Betterleaks reports every detection at its rule confidence (`high`, `medium`, or `low`). Unlike TruffleHog, it has no separate unverified confidence level.
+- TruffleHog reports verified hits as `high-verified`. With verification disabled, supported detections are reported as `trufflehog-unverified`.
+- Betterleaks reports a validation result of `valid` as `high-verified`. Without verification, all Betterleaks detections are reported at their rule confidence (`high`, `medium`, or `low`); Betterleaks has no separate unverified confidence level.
 
 ### Confidence Levels
 
