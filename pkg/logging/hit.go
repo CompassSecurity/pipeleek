@@ -89,21 +89,75 @@ type HitRecord struct {
 
 type HitSink func(HitRecord)
 
-var (
-	hitSinkMu sync.RWMutex
-	hitSink   HitSink
-)
-
-func RegisterHitSink(sink HitSink) {
-	hitSinkMu.Lock()
-	defer hitSinkMu.Unlock()
-	hitSink = sink
+type hitSinkSubscription struct {
+	mu     sync.RWMutex
+	sink   HitSink
+	active bool
 }
 
-func getHitSink() HitSink {
+func (s *hitSinkSubscription) deliver(record HitRecord) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.active {
+		s.sink(record)
+	}
+}
+
+func (s *hitSinkSubscription) deactivate() {
+	s.mu.Lock()
+	s.active = false
+	s.mu.Unlock()
+}
+
+var (
+	hitSinkMu      sync.RWMutex
+	hitSinkID      uint64
+	hitSinkEntries = make(map[uint64]*hitSinkSubscription)
+)
+
+func RegisterHitSink(sink HitSink) func() {
+	if sink == nil {
+		return func() {}
+	}
+	subscription := &hitSinkSubscription{sink: sink, active: true}
+	hitSinkMu.Lock()
+	hitSinkID++
+	id := hitSinkID
+	hitSinkEntries[id] = subscription
+	hitSinkMu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			hitSinkMu.Lock()
+			delete(hitSinkEntries, id)
+			hitSinkMu.Unlock()
+			subscription.deactivate()
+		})
+	}
+}
+
+func getHitSinkSubscriptions() []*hitSinkSubscription {
 	hitSinkMu.RLock()
 	defer hitSinkMu.RUnlock()
-	return hitSink
+	subscriptions := make([]*hitSinkSubscription, 0, len(hitSinkEntries))
+	for _, subscription := range hitSinkEntries {
+		subscriptions = append(subscriptions, subscription)
+	}
+	return subscriptions
+}
+
+func dispatchHitRecord(record HitRecord) {
+	for _, subscription := range getHitSinkSubscriptions() {
+		sinkRecord := record
+		if record.Fields != nil {
+			sinkRecord.Fields = make(map[string]interface{}, len(record.Fields))
+			for key, value := range record.Fields {
+				sinkRecord.Fields[key] = value
+			}
+		}
+		subscription.deliver(sinkRecord)
+	}
 }
 
 type HitEvent struct {
@@ -162,10 +216,10 @@ func (h *HitEvent) Msg(msg string) {
 	}
 	h.event.Bool("_hit", true).Msg(msg)
 
-	if sink := getHitSink(); sink != nil {
+	if len(getHitSinkSubscriptions()) > 0 {
 		record := HitRecord{
 			Time:   time.Now().UTC(),
-			Fields: map[string]interface{}{},
+			Fields: make(map[string]interface{}, len(h.fields)),
 		}
 		for key, val := range h.fields {
 			record.Fields[key] = val
@@ -182,7 +236,7 @@ func (h *HitEvent) Msg(msg string) {
 		if v, ok := record.Fields["value"].(string); ok {
 			record.Value = v
 		}
-		sink(record)
+		dispatchHitRecord(record)
 	}
 }
 

@@ -9,7 +9,89 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
 )
+
+func TestHandleRootSetsSecureAuthCookie(t *testing.T) {
+	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/?token=abc", nil)
+	res := httptest.NewRecorder()
+	s.handleRoot(res, req)
+
+	if res.Code != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, res.Code)
+	}
+	cookies := res.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one auth cookie, got %d", len(cookies))
+	}
+	cookie := cookies[0]
+	if !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("expected Secure, HttpOnly, SameSite=Strict cookie; got %#v", cookie)
+	}
+}
+
+func TestHandleHitAssignsUniqueIDs(t *testing.T) {
+	s := &Server{clients: make(map[chan string]struct{})}
+	record := logging.HitRecord{Time: time.Now(), Value: "same-secret", Fields: map[string]interface{}{"ruleName": "same-rule"}}
+	s.handleHit(record)
+	s.handleHit(record)
+
+	if len(s.findings) != 2 {
+		t.Fatalf("expected 2 findings, got %d", len(s.findings))
+	}
+	if s.findings[0].ID == s.findings[1].ID {
+		t.Fatalf("expected distinct finding IDs, both were %q", s.findings[0].ID)
+	}
+}
+
+func TestCompletedEventsReplayFindingsAndDone(t *testing.T) {
+	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	s.handleHit(logging.HitRecord{Time: time.Now(), Value: "secret"})
+	s.Complete()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodGet, "/events", nil).WithContext(ctx)
+	req.AddCookie(&http.Cookie{Name: "pipeleek-webui-token", Value: "abc"})
+	res := httptest.NewRecorder()
+	s.handler().ServeHTTP(res, req)
+
+	if !strings.Contains(res.Body.String(), "event: finding") || !strings.Contains(res.Body.String(), "event: done") {
+		t.Fatalf("expected completed stream to replay findings then completion, got %q", res.Body.String())
+	}
+}
+
+func TestHandleHitDisconnectsOverflowedSSEClient(t *testing.T) {
+	s := &Server{clients: make(map[chan string]struct{})}
+	client := make(chan string, 1)
+	client <- "queued"
+	s.clients[client] = struct{}{}
+	s.handleHit(logging.HitRecord{Time: time.Now(), Value: "secret"})
+
+	if len(s.clients) != 0 {
+		t.Fatal("expected overflowed SSE client to be removed for reconnect and replay")
+	}
+	if got := <-client; got != "queued" {
+		t.Fatalf("expected queued event before closure, got %q", got)
+	}
+	if _, ok := <-client; ok {
+		t.Fatal("expected overflowed SSE client channel to be closed")
+	}
+}
+
+func TestStartConfiguresReadHeaderTimeout(t *testing.T) {
+	server, err := Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	if server.server.ReadHeaderTimeout != 5*time.Second {
+		t.Fatalf("expected 5s ReadHeaderTimeout, got %s", server.server.ReadHeaderTimeout)
+	}
+}
 
 func TestHandleRootAllowsInlineScript(t *testing.T) {
 	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
@@ -25,6 +107,9 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	body := res.Body.String()
 	if !strings.Contains(body, "Live secret findings") {
 		t.Fatalf("expected rendered page body, got %q", body)
+	}
+	if strings.Contains(body, "tableBody.innerHTML") || !strings.Contains(body, "function appendDetailValue") || !strings.Contains(body, "parsed.protocol === 'http:' || parsed.protocol === 'https:'") {
+		t.Fatal("expected finding values to render via DOM text APIs with HTTP(S)-only links")
 	}
 	if strings.Contains(body, "/api/findings") || strings.Contains(body, "loadFindings") {
 		t.Fatal("expected the findings page to rely on SSE instead of the JSON snapshot endpoint")

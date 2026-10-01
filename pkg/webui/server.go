@@ -36,15 +36,18 @@ type Finding struct {
 }
 
 type Server struct {
-	mu       sync.RWMutex
-	findings []Finding
-	clients  map[chan string]struct{}
-	token    string
-	port     string
-	url      string
-	server   *http.Server
-	done     chan struct{}
-	once     sync.Once
+	mu                sync.RWMutex
+	findings          []Finding
+	clients           map[chan string]struct{}
+	nextID            uint64
+	token             string
+	port              string
+	url               string
+	server            *http.Server
+	done              chan struct{}
+	once              sync.Once
+	completed         bool
+	unregisterHitSink func()
 }
 
 var pageTemplate = strings.Join([]string{
@@ -294,19 +297,33 @@ var pageTemplate = strings.Join([]string{
 	"    function renderSummary() {",
 	"      var counts = { low: 0, medium: 0, high: 0, 'high-verified': 0 };",
 	"      state.all.forEach(function(item) { var key = normalize(item.confidence || 'unknown'); if (key in counts) counts[key] += 1; });",
-	"      var cards = ['high-verified', 'high', 'medium', 'low'].map(function(key) { var label = key.charAt(0).toUpperCase() + key.slice(1); return '<div class=\"metric\"><label>' + label + '</label><strong>' + (counts[key] || 0) + '</strong></div>'; }).join('');",
-	"      summaryCards.innerHTML = cards;",
+	"      summaryCards.replaceChildren();",
+	"      ['high-verified', 'high', 'medium', 'low'].forEach(function(key) { var metric = document.createElement('div'); metric.className = 'metric'; var label = document.createElement('label'); label.textContent = key.charAt(0).toUpperCase() + key.slice(1); var count = document.createElement('strong'); count.textContent = String(counts[key] || 0); metric.append(label, count); summaryCards.appendChild(metric); });",
 	"    }",
 	"    function filteredFindings() {",
 	"      var query = normalize(searchFilter.value);",
 	"      return state.all.filter(function(item) { var severity = normalize(item.confidence); var kind = normalize(item.type); var matchesSeverity = state.severity.indexOf('all') >= 0 || state.severity.indexOf(severity) >= 0; var matchesType = state.type.indexOf('all') >= 0 || state.type.indexOf(kind) >= 0; var haystack = normalize([item.ruleName, item.value, item.url, item.type, JSON.stringify(item.details || {})].join(' ')); var matchesQuery = !query || haystack.indexOf(query) >= 0; return matchesSeverity && matchesType && matchesQuery; }).sort(function(a, b) { return new Date(b.time).getTime() - new Date(a.time).getTime(); });",
 	"    }",
-	"    function renderRows() {",
-	"      var list = filteredFindings();",
-	"      if (!list.length) { tableBody.innerHTML = '<tr><td colspan=\"6\" class=\"muted\">No findings match the current filters.</td></tr>'; return; }",
-	"      tableBody.innerHTML = list.map(function(item) { var details = Object.entries(item.details || {}).map(function(entry) { var value = entry[1]; if (entry[0] === 'url') { return '<li><strong>url</strong>: <a href=\"' + value + '\" target=\"_blank\" rel=\"noopener noreferrer\">' + value + '</a></li>'; } return '<li><strong>' + entry[0] + '</strong>: ' + value + '</li>'; }).join(''); var secretValue = item.value || ''; var secretBlock = secretValue ? '<div class=\"secret\" data-copy=\"' + secretValue.replace(/\"/g, '&quot;') + '\" tabindex=\"0\" role=\"button\" aria-label=\"Copy secret to clipboard\">' + secretValue.replace(/[<>]/g, '') + '</div>' : '<span class=\"muted\">—</span>'; var confidence = (item.confidence || 'unknown').toLowerCase(); var typeName = (item.type || 'log'); var confidenceBadge = '<span class=\"badge ' + severityClass(confidence) + '\">' + (item.confidence || 'unknown') + '</span>'; var typeBadge = '<span class=\"badge type-' + typeClass(typeName) + '\">' + typeName + '</span>'; var renderedDetails = details || (item.url ? '<li><strong>url</strong>: <a href=\"' + item.url + '\" target=\"_blank\" rel=\"noopener noreferrer\">' + item.url + '</a></li>' : ''); var row = '<tr><td>' + confidenceBadge + '</td><td>' + (item.ruleName || '—') + '</td><td>' + secretBlock + '</td><td>' + typeBadge + '</td><td>' + (renderedDetails ? '<ul class=\"details-list\">' + renderedDetails + '</ul>' : '<span class=\"muted\">—</span>') + '</td><td>' + formatTimestamp(item.time) + '</td></tr>'; return row; }).join('');",
-	"      tableBody.querySelectorAll('[data-copy]').forEach(function(node) { node.addEventListener('click', function() { var value = node.getAttribute('data-copy') || ''; if (!value) { return; } navigator.clipboard.writeText(value).then(function() { showToast('Secret copied to clipboard'); }).catch(function() { showToast('Copy failed'); }); }); node.addEventListener('keydown', function(event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); node.click(); } }); });",
+	"    function appendDetailValue(parent, key, value) {",
+	"      var item = document.createElement('li'); var label = document.createElement('strong'); label.textContent = key; item.append(label, document.createTextNode(': '));",
+	"      if (key.toLowerCase() === 'url') { var parsed; try { parsed = new URL(value); } catch (_) {} if (parsed && (parsed.protocol === 'http:' || parsed.protocol === 'https:')) { var link = document.createElement('a'); link.href = parsed.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = value; item.appendChild(link); } else { item.appendChild(document.createTextNode(value)); } } else { item.appendChild(document.createTextNode(value)); }",
+	"      parent.appendChild(item);",
 	"    }",
+	"    function renderRows() {",
+	"      var list = filteredFindings(); var fragment = document.createDocumentFragment();",
+	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted'; emptyCell.textContent = 'No findings match the current filters.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
+	"      list.forEach(function(item) {",
+	"        var row = document.createElement('tr'); var confidence = (item.confidence || 'unknown').toLowerCase(); var typeName = item.type || 'log';",
+	"        var severityCell = document.createElement('td'); var severityBadge = document.createElement('span'); severityBadge.className = 'badge ' + severityClass(confidence); severityBadge.textContent = item.confidence || 'unknown'; severityCell.appendChild(severityBadge); row.appendChild(severityCell);",
+	"        var ruleCell = document.createElement('td'); ruleCell.textContent = item.ruleName || '—'; row.appendChild(ruleCell);",
+	"        var secretCell = document.createElement('td'); if (item.value) { var secretButton = document.createElement('button'); secretButton.type = 'button'; secretButton.className = 'secret'; secretButton.dataset.copy = item.value; secretButton.setAttribute('aria-label', 'Copy secret to clipboard'); secretButton.textContent = item.value; secretCell.appendChild(secretButton); } else { var noSecret = document.createElement('span'); noSecret.className = 'muted'; noSecret.textContent = '—'; secretCell.appendChild(noSecret); } row.appendChild(secretCell);",
+	"        var typeCell = document.createElement('td'); var typeBadge = document.createElement('span'); typeBadge.className = 'badge type-' + typeClass(typeName); typeBadge.textContent = typeName; typeCell.appendChild(typeBadge); row.appendChild(typeCell);",
+	"        var detailsCell = document.createElement('td'); var detailEntries = Object.entries(item.details || {}); if (detailEntries.length === 0 && item.url) detailEntries.push(['url', item.url]); if (detailEntries.length) { var detailList = document.createElement('ul'); detailList.className = 'details-list'; detailEntries.forEach(function(entry) { appendDetailValue(detailList, entry[0], String(entry[1])); }); detailsCell.appendChild(detailList); } else { var noDetails = document.createElement('span'); noDetails.className = 'muted'; noDetails.textContent = '—'; detailsCell.appendChild(noDetails); } row.appendChild(detailsCell);",
+	"        var timeCell = document.createElement('td'); timeCell.textContent = formatTimestamp(item.time); row.appendChild(timeCell); fragment.appendChild(row);",
+	"      });",
+	"      tableBody.replaceChildren(fragment);",
+	"    }",
+	"    tableBody.addEventListener('click', function(event) { var button = event.target.closest('button[data-copy]'); if (!button) return; navigator.clipboard.writeText(button.dataset.copy || '').then(function() { showToast('Secret copied to clipboard'); }).catch(function() { showToast('Copy failed'); }); });",
 	"    function exportCSV() {",
 	"      var findings = filteredFindings();",
 	"      fetch('/api/export.csv', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(findings) }).then(function(response) { if (!response.ok) throw new Error('export'); return response.blob(); }).then(function(blob) { var url = URL.createObjectURL(blob); var link = document.createElement('a'); link.href = url; link.download = 'pipeleek-findings.csv'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function() { URL.revokeObjectURL(url); }, 0); showToast('Exported ' + findings.length + ' findings to CSV'); }).catch(function() { showToast('CSV export failed'); });",
@@ -355,8 +372,8 @@ var pageTemplate = strings.Join([]string{
 	"    var source = new EventSource('/events');",
 	"    source.onopen = function() { connectionState.textContent = 'live'; connectionDot.classList.remove('offline'); };",
 	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); });",
-	"    source.addEventListener('done', function() { connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); });",
-	"    source.onerror = function() { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); };",
+	"    source.addEventListener('done', function() { connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); source.close(); });",
+	"    source.onerror = function() { if (connectionState.textContent !== 'complete') { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); } };",
 	"  </script>",
 	"</body>",
 	"</html>",
@@ -394,7 +411,8 @@ func Start() (*Server, error) {
 	}
 	server.url = fmt.Sprintf("http://127.0.0.1:%s/?token=%s", server.port, server.token)
 	server.server = &http.Server{
-		Handler: server.handler(),
+		Handler:           server.handler(),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
@@ -409,13 +427,16 @@ func Start() (*Server, error) {
 		}
 	}()
 
-	logging.RegisterHitSink(server.handleHit)
+	server.unregisterHitSink = logging.RegisterHitSink(server.handleHit)
 	zerologlog.Info().Str("url", server.url).Str("token", token).Msg("Findings web UI started")
 	return server, nil
 }
 
 func (s *Server) Close() error {
 	s.once.Do(func() {
+		if s.unregisterHitSink != nil {
+			s.unregisterHitSink()
+		}
 		close(s.done)
 		if s.server != nil {
 			_ = s.server.Close()
@@ -428,6 +449,7 @@ func (s *Server) Wait() {
 	if s == nil {
 		return
 	}
+	s.Complete()
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
@@ -439,9 +461,28 @@ func (s *Server) Wait() {
 	}
 }
 
+func (s *Server) Complete() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.completed {
+		return
+	}
+	s.completed = true
+	for client := range s.clients {
+		select {
+		case client <- "event: done\ndata: complete\n\n":
+		default:
+			delete(s.clients, client)
+			close(client)
+		}
+	}
+}
+
 func (s *Server) handleHit(record logging.HitRecord) {
+	s.mu.Lock()
+	s.nextID++
 	finding := Finding{
-		ID:         fmt.Sprintf("%s-%s", record.Time.Format(time.RFC3339Nano), record.Value),
+		ID:         fmt.Sprintf("%d", s.nextID),
 		Time:       record.Time.Format(time.RFC3339),
 		Type:       record.Type,
 		Confidence: record.Confidence,
@@ -472,7 +513,6 @@ func (s *Server) handleHit(record logging.HitRecord) {
 		}
 	}
 
-	s.mu.Lock()
 	s.findings = append(s.findings, finding)
 	payload, err := json.Marshal(finding)
 	if err == nil {
@@ -480,6 +520,8 @@ func (s *Server) handleHit(record logging.HitRecord) {
 			select {
 			case ch <- "event: finding\ndata: " + string(payload) + "\n\n":
 			default:
+				delete(s.clients, ch)
+				close(ch)
 			}
 		}
 	}
@@ -533,7 +575,7 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if q := r.URL.Query().Get("token"); q != "" && q == s.token {
-		http.SetCookie(w, &http.Cookie{Name: "pipeleek-webui-token", Value: s.token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		http.SetCookie(w, &http.Cookie{Name: "pipeleek-webui-token", Value: s.token, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -637,7 +679,11 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	ch := make(chan string, 32)
 	s.mu.Lock()
-	s.clients[ch] = struct{}{}
+	if !s.completed {
+		s.clients[ch] = struct{}{}
+	}
+	findings := append([]Finding(nil), s.findings...)
+	completed := s.completed
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -650,19 +696,27 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	flusher.Flush()
 
-	s.mu.RLock()
-	for _, finding := range s.findings {
+	for _, finding := range findings {
 		payload, _ := json.Marshal(finding)
-		_, _ = fmt.Fprintf(w, "event: finding\ndata: %s\n\n", string(payload))
+		if _, err := fmt.Fprintf(w, "event: finding\ndata: %s\n\n", string(payload)); err != nil {
+			return
+		}
 		flusher.Flush()
 	}
-	s.mu.RUnlock()
+	if completed {
+		_, _ = fmt.Fprint(w, "event: done\ndata: complete\n\n")
+		flusher.Flush()
+		return
+	}
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
 			if _, err := fmt.Fprint(w, msg); err != nil {
 				return
 			}
