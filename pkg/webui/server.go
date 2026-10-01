@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -397,8 +398,14 @@ func Start() (*Server, error) {
 	}
 
 	go func() {
-		if err := server.server.Serve(listener); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			zerologlog.Error().Err(err).Msg("Findings web UI listener exited")
+		if err := server.server.Serve(listener); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				zerologlog.Info().Err(err).Msg("Findings web UI listener stopped")
+				return
+			}
+			if !errors.Is(err, net.ErrClosed) && !strings.Contains(err.Error(), "use of closed network connection") {
+				zerologlog.Error().Err(err).Msg("Findings web UI listener exited")
+			}
 		}
 	}()
 
