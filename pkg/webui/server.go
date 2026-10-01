@@ -46,6 +46,8 @@ type Server struct {
 	server            *http.Server
 	done              chan struct{}
 	once              sync.Once
+	startedAt         time.Time
+	completedAt       time.Time
 	completed         bool
 	unregisterHitSink func()
 }
@@ -151,6 +153,8 @@ var pageTemplate = strings.Join([]string{
 	"      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);",
 	"    }",
 	"    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }",
+	"    .header-copy { min-width: 0; }",
+	"    .elapsed-time { display: block; font-size: .875rem; font-variant-numeric: tabular-nums; }",
 	"    h1 { margin: 0; font-size: 2rem; font-weight: 400; color: #3c4043; }",
 	"    .status { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .35rem .75rem; border: 1px solid var(--line); background: #f3f5ef; font-size: .85rem; font-weight: 600; }",
 	"    .dot { width: .6rem; height: .6rem; border-radius: 50%; background: #4cae5d; display: inline-block; }",
@@ -193,6 +197,7 @@ var pageTemplate = strings.Join([]string{
 	"    .secret:hover { border-color: rgba(64,107,54,.5); background: #f1f6eb; }",
 	"    .secret:active { transform: translateY(1px); }",
 	"    .muted { color: var(--muted); }",
+	"    .empty-state { padding: 2rem 1rem; text-align: center; }",
 	"    .details-list { margin: 0; padding-left: 1rem; }",
 	"    .details-list a { text-decoration: underline; }",
 	"    table th:nth-child(1), table td:nth-child(1) { width: 14%; }",
@@ -221,7 +226,10 @@ var pageTemplate = strings.Join([]string{
 	"  <main id=\"top\" class=\"main-default\">",
 	"    <div class=\"card\">",
 	"      <div class=\"row\">",
-	"        <h1 style=\"margin:0; font-weight:400; font-size:2rem;\">Live secret findings</h1>",
+	"        <div class=\"header-copy\">",
+	"          <h1 style=\"margin:0; font-weight:400; font-size:2rem;\">Live secret findings</h1>",
+	"          <span id=\"elapsed-time\" class=\"muted elapsed-time\" aria-live=\"off\">Elapsed 00:00:00</span>",
+	"        </div>",
 	"        <div class=\"status\"><span class=\"dot\" id=\"connection-dot\"></span><span id=\"connection-state\">connecting</span></div>",
 	"      </div>",
 	"    </div>",
@@ -273,7 +281,7 @@ var pageTemplate = strings.Join([]string{
 	"  </main>",
 	"  <div id=\"toast\" aria-live=\"polite\">Secret copied to clipboard</div>",
 	"  <script>",
-	"    const state = { all: [], severity: ['all'], type: ['all'], search: '' };",
+	"    const state = { all: [], severity: ['all'], type: ['all'], search: '', completed: {{.Completed}} };",
 	"    const severityFilter = document.getElementById('severity-filter');",
 	"    const typeFilter = document.getElementById('type-filter');",
 	"    const searchFilter = document.getElementById('search-filter');",
@@ -284,6 +292,10 @@ var pageTemplate = strings.Join([]string{
 	"    const connectionState = document.getElementById('connection-state');",
 	"    const connectionDot = document.getElementById('connection-dot');",
 	"    const toast = document.getElementById('toast');",
+	"    const elapsedTime = document.getElementById('elapsed-time');",
+	"    var elapsedBase = {{.ElapsedMillis}};",
+	"    var elapsedStartedAt = Date.now();",
+	"    function updateElapsedTime() { var totalSeconds = Math.floor(Math.max(0, elapsedBase + (state.completed ? 0 : Date.now() - elapsedStartedAt)) / 1000); var hours = Math.floor(totalSeconds / 3600); var minutes = Math.floor((totalSeconds % 3600) / 60); var seconds = totalSeconds % 60; elapsedTime.textContent = 'Elapsed ' + [hours, minutes, seconds].map(function(value) { return String(value).padStart(2, '0'); }).join(':'); }",
 	"    const normalize = function(value) { return (value || '').toLowerCase(); };",
 	"    function severityClass(value) { return String(value || 'unknown').toLowerCase().replace(/\\s+/g, '-'); }",
 	"    function typeClass(value) { return String(value || 'log').toLowerCase().replace(/\\s+/g, '-'); }",
@@ -311,7 +323,7 @@ var pageTemplate = strings.Join([]string{
 	"    }",
 	"    function renderRows() {",
 	"      var list = filteredFindings(); var fragment = document.createDocumentFragment();",
-	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted'; emptyCell.textContent = 'No findings match the current filters.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
+	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted empty-state'; emptyCell.textContent = state.all.length ? 'No findings match the current filters.' : state.completed ? 'No findings were detected.' : 'No findings yet. Results will appear here as the scan runs.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
 	"      list.forEach(function(item) {",
 	"        var row = document.createElement('tr'); var confidence = (item.confidence || 'unknown').toLowerCase(); var typeName = item.type || 'log';",
 	"        var severityCell = document.createElement('td'); var severityBadge = document.createElement('span'); severityBadge.className = 'badge ' + severityClass(confidence); severityBadge.textContent = item.confidence || 'unknown'; severityCell.appendChild(severityBadge); row.appendChild(severityCell);",
@@ -369,10 +381,14 @@ var pageTemplate = strings.Join([]string{
 	"    searchFilter.addEventListener('input', applyFilters);",
 	"    resetButton.addEventListener('click', resetFilters);",
 	"    exportCSVButton.addEventListener('click', exportCSV);",
+	"    renderSummary();",
+	"    renderRows();",
+	"    updateElapsedTime();",
+	"    var elapsedTimer = state.completed ? null : window.setInterval(updateElapsedTime, 1000);",
 	"    var source = new EventSource('/events');",
 	"    source.onopen = function() { connectionState.textContent = 'live'; connectionDot.classList.remove('offline'); };",
 	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); });",
-	"    source.addEventListener('done', function() { connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); source.close(); });",
+	"    source.addEventListener('done', function() { if (!state.completed) { elapsedBase += Date.now() - elapsedStartedAt; state.completed = true; } updateElapsedTime(); window.clearInterval(elapsedTimer); connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); renderRows(); source.close(); });",
 	"    source.onerror = function() { if (connectionState.textContent !== 'complete') { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); } };",
 	"  </script>",
 	"</body>",
@@ -404,10 +420,11 @@ func Start() (*Server, error) {
 	}
 
 	server := &Server{
-		clients: make(map[chan string]struct{}),
-		token:   token,
-		done:    make(chan struct{}),
-		port:    fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
+		clients:   make(map[chan string]struct{}),
+		token:     token,
+		done:      make(chan struct{}),
+		port:      fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
+		startedAt: time.Now(),
 	}
 	server.url = fmt.Sprintf("http://127.0.0.1:%s/?token=%s", server.port, server.token)
 	server.server = &http.Server{
@@ -468,6 +485,7 @@ func (s *Server) Complete() {
 		return
 	}
 	s.completed = true
+	s.completedAt = time.Now()
 	for client := range s.clients {
 		select {
 		case client <- "event: done\ndata: complete\n\n":
@@ -585,9 +603,29 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
+	s.mu.RLock()
+	completed := s.completed
+	endTime := time.Now()
+	if completed && !s.completedAt.IsZero() {
+		endTime = s.completedAt
+	}
+	elapsedMillis := int64(0)
+	if !s.startedAt.IsZero() {
+		elapsedMillis = endTime.Sub(s.startedAt).Milliseconds()
+		if elapsedMillis < 0 {
+			elapsedMillis = 0
+		}
+	}
+	s.mu.RUnlock()
 	view := struct {
-		PipeleekLogo template.HTML
-	}{PipeleekLogo: gitlabenum.PipeleekLogoHTML()}
+		PipeleekLogo  template.HTML
+		ElapsedMillis int64
+		Completed     bool
+	}{
+		PipeleekLogo:  gitlabenum.PipeleekLogoHTML(),
+		ElapsedMillis: elapsedMillis,
+		Completed:     completed,
+	}
 	if err := template.Must(template.New("page").Parse(pageTemplate)).Execute(w, view); err != nil {
 		zerologlog.Error().Err(err).Msg("Failed to render findings UI")
 	}

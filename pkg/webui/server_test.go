@@ -108,6 +108,12 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "Live secret findings") {
 		t.Fatalf("expected rendered page body, got %q", body)
 	}
+	if !strings.Contains(body, "No findings yet. Results will appear here as the scan runs.") || !strings.Contains(body, "No findings were detected.") || !strings.Contains(body, "No findings match the current filters.") {
+		t.Fatal("expected distinct empty states for an active scan, a completed scan, and filtered results")
+	}
+	if !strings.Contains(body, "id=\"elapsed-time\"") || !strings.Contains(body, "var elapsedBase = ") || !strings.Contains(body, "window.setInterval(updateElapsedTime, 1000)") {
+		t.Fatal("expected elapsed timer element, server-provided baseline, and periodic updates")
+	}
 	if strings.Contains(body, "tableBody.innerHTML") || !strings.Contains(body, "function appendDetailValue") || !strings.Contains(body, "parsed.protocol === 'http:' || parsed.protocol === 'https:'") {
 		t.Fatal("expected finding values to render via DOM text APIs with HTTP(S)-only links")
 	}
