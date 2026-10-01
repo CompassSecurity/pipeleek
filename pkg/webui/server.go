@@ -212,7 +212,6 @@ var pageTemplate = strings.Join([]string{
 	"      </a>",
 	"      <div class=\"top-nav-spacer\"></div>",
 	"      <button id=\"toggle-full-width\" class=\"top-nav-link top-nav-toggle\" type=\"button\" aria-pressed=\"false\">Full width</button>",
-	"      <a class=\"top-nav-link\" href=\"/api/findings\" target=\"_blank\" rel=\"noopener noreferrer\">JSON</a>",
 	"    </div>",
 	"  </nav>",
 	"  <main id=\"top\" class=\"main-default\">",
@@ -349,7 +348,6 @@ var pageTemplate = strings.Join([]string{
 	"    var mainContent = document.getElementById('top');",
 	"    var fullWidthButton = document.getElementById('toggle-full-width');",
 	"    fullWidthButton.addEventListener('click', function() { var enabled = !mainContent.classList.contains('main-wide'); mainContent.classList.toggle('main-wide', enabled); mainContent.classList.toggle('main-default', !enabled); fullWidthButton.setAttribute('aria-pressed', enabled ? 'true' : 'false'); fullWidthButton.textContent = enabled ? 'Normal width' : 'Full width'; });",
-	"    function loadFindings() { return fetch('/api/findings', { credentials: 'same-origin' }).then(function(response) { if (!response.ok) { throw new Error('network'); } return response.json(); }).then(function(data) { state.all = Array.isArray(data) ? data : []; renderSummary(); renderRows(); }); }",
 	"    searchFilter.addEventListener('input', applyFilters);",
 	"    resetButton.addEventListener('click', resetFilters);",
 	"    exportCSVButton.addEventListener('click', exportCSV);",
@@ -358,7 +356,6 @@ var pageTemplate = strings.Join([]string{
 	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); });",
 	"    source.addEventListener('done', function() { connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); });",
 	"    source.onerror = function() { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); };",
-	"    loadFindings().catch(function() { connectionState.textContent = 'auth required'; connectionDot.classList.add('offline'); });",
 	"  </script>",
 	"</body>",
 	"</html>",
@@ -485,7 +482,6 @@ func (s *Server) handleHit(record logging.HitRecord) {
 func (s *Server) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleRoot)
-	mux.HandleFunc("/api/findings", s.requireAuth(s.handleFindings))
 	mux.HandleFunc("/api/export.csv", s.requireAuth(s.handleExportCSV))
 	mux.HandleFunc("/events", s.requireAuth(s.handleEvents))
 	return mux
@@ -517,6 +513,10 @@ func (s *Server) isAuthorized(r *http.Request) bool {
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
 	if !s.isAuthorized(r) {
 		if r.URL != nil && r.URL.RawQuery != "" && strings.Contains(r.URL.RawQuery, "token=") {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -541,19 +541,6 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}{PipeleekLogo: gitlabenum.PipeleekLogoHTML()}
 	if err := template.Must(template.New("page").Parse(pageTemplate)).Execute(w, view); err != nil {
 		zerologlog.Error().Err(err).Msg("Failed to render findings UI")
-	}
-}
-
-func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	s.mu.RLock()
-	findings := append([]Finding(nil), s.findings...)
-	s.mu.RUnlock()
-	if err := json.NewEncoder(w).Encode(findings); err != nil {
-		zerologlog.Error().Err(err).Msg("Failed to encode findings JSON")
 	}
 }
 

@@ -2,6 +2,7 @@ package webui
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
@@ -25,6 +26,9 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "Live secret findings") {
 		t.Fatalf("expected rendered page body, got %q", body)
 	}
+	if strings.Contains(body, "/api/findings") || strings.Contains(body, "loadFindings") {
+		t.Fatal("expected the findings page to rely on SSE instead of the JSON snapshot endpoint")
+	}
 	if !strings.Contains(body, `viewBox="0 0 375 375"`) {
 		t.Fatal("expected the embedded enum report logo in the navbar")
 	}
@@ -43,6 +47,74 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	csp := res.Header().Get("Content-Security-Policy")
 	if !strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
 		t.Fatalf("expected CSP to allow inline script, got %q", csp)
+	}
+}
+
+func TestFindingsJSONEndpointIsRemoved(t *testing.T) {
+	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	req := httptest.NewRequest(http.MethodGet, "/api/findings", nil)
+	req.AddCookie(&http.Cookie{Name: "pipeleek-webui-token", Value: "abc"})
+	res := httptest.NewRecorder()
+	s.handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, res.Code)
+	}
+}
+
+func TestProtectedRoutesRejectMissingOrInvalidCookies(t *testing.T) {
+	routes := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "page", method: http.MethodGet, path: "/"},
+		{name: "events", method: http.MethodGet, path: "/events"},
+		{name: "csv export", method: http.MethodPost, path: "/api/export.csv", body: "[]"},
+	}
+	credentials := []struct {
+		name  string
+		value string
+	}{
+		{name: "missing cookie"},
+		{name: "invalid cookie", value: "wrong"},
+	}
+
+	for _, credential := range credentials {
+		t.Run(credential.name, func(t *testing.T) {
+			for _, route := range routes {
+				t.Run(route.name, func(t *testing.T) {
+					s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+					req := httptest.NewRequest(route.method, route.path, strings.NewReader(route.body))
+					if credential.value != "" {
+						req.AddCookie(&http.Cookie{Name: "pipeleek-webui-token", Value: credential.value})
+					}
+					res := httptest.NewRecorder()
+					s.handler().ServeHTTP(res, req)
+					if res.Code != http.StatusUnauthorized {
+						t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, res.Code)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestEventsAllowValidCookie(t *testing.T) {
+	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodGet, "/events", nil).WithContext(ctx)
+	req.AddCookie(&http.Cookie{Name: "pipeleek-webui-token", Value: "abc"})
+	res := httptest.NewRecorder()
+	s.handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+	if got := res.Header().Get("Content-Type"); got != "text/event-stream" {
+		t.Fatalf("expected event stream content type, got %q", got)
 	}
 }
 
