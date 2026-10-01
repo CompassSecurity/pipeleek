@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/format"
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
-	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	artifactproc "github.com/CompassSecurity/pipeleek/pkg/scan/artifact"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/logline"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/result"
@@ -146,7 +146,7 @@ func analyzeJobTrace(git *gitlab.Client, item QueueItem, options *ScanOptions) {
 
 	logResult, err := logline.ProcessLogs(trace, logline.ProcessOptions{
 		MaxGoRoutines:     options.MaxScanGoRoutines,
-		VerifyCredentials: options.TruffleHogVerification,
+		VerifyCredentials: options.SecretsVerification,
 		BuildURL:          item.Meta.JobWebUrl,
 		JobName:           item.Meta.JobName,
 		HitTimeout:        options.HitTimeout,
@@ -181,7 +181,7 @@ func analyzeJobArtifact(git *gitlab.Client, item QueueItem, options *ScanOptions
 
 	_, err := artifactproc.ProcessZipArtifact(data, artifactproc.ProcessOptions{
 		MaxGoRoutines:     options.MaxScanGoRoutines,
-		VerifyCredentials: options.TruffleHogVerification,
+		VerifyCredentials: options.SecretsVerification,
 		BuildURL:          item.Meta.JobWebUrl,
 		ArtifactName:      item.Meta.JobName,
 		HitTimeout:        options.HitTimeout,
@@ -200,7 +200,7 @@ func analyzeDotenvArtifact(git *gitlab.Client, item QueueItem, options *ScanOpti
 
 	logResult, err := logline.ProcessLogs(dotenvText, logline.ProcessOptions{
 		MaxGoRoutines:     options.MaxScanGoRoutines,
-		VerifyCredentials: options.TruffleHogVerification,
+		VerifyCredentials: options.SecretsVerification,
 		BuildURL:          item.Meta.JobWebUrl,
 		HitTimeout:        options.HitTimeout,
 	})
@@ -227,7 +227,7 @@ func analyzeCICDYaml(git *gitlab.Client, item QueueItem, options *ScanOptions) {
 
 	logResult, err := logline.ProcessLogs([]byte(ciCdYml), logline.ProcessOptions{
 		MaxGoRoutines:     options.MaxScanGoRoutines,
-		VerifyCredentials: options.TruffleHogVerification,
+		VerifyCredentials: options.SecretsVerification,
 		BuildURL:          item.Meta.JobWebUrl,
 		JobName:           item.Meta.JobName,
 		HitTimeout:        options.HitTimeout,

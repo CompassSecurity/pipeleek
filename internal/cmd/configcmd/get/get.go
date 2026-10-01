@@ -1,8 +1,8 @@
 package get
 
 import (
-	"github.com/rs/zerolog/log"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd/common"
@@ -40,7 +40,7 @@ pipeleek config get`,
 				if err := common.ValidateKeyPath(args[0]); err != nil {
 					return common.LogAndWrapError("get", "validate key path", err)
 				}
-				key := common.CanonicalizeKeyPath(args[0])
+				key := args[0]
 				if !configgen.IsAllowedReadConfigPath(cmd.Root(), key) {
 					return common.LogAndWrapError("get", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))
 				}
@@ -58,7 +58,7 @@ pipeleek config get`,
 				return printConfigValue(cmd, configData)
 			}
 
-			key := common.CanonicalizeKeyPath(args[0])
+			key := args[0]
 
 			value, found := config.GetByPath(configData, key)
 			if !found {

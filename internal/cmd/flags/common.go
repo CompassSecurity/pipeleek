@@ -8,11 +8,11 @@ import (
 )
 
 // addBaseScanFlags adds the core scanning flags shared by all scan commands:
-// threads, truffle-hog-verification, confidence, and hit-timeout.
+// threads, secrets-verification, confidence, and hit-timeout.
 func addBaseScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions) {
 	cmd.Flags().IntVarP(&opts.MaxScanGoRoutines, "threads", "", 4, "Number of concurrent threads for scanning")
-	cmd.Flags().BoolVarP(&opts.TruffleHogVerification, "truffle-hog-verification", "", true,
-		"Enable TruffleHog credential verification to actively test found credentials and only report verified ones (enabled by default, disable with --truffle-hog-verification=false)")
+	cmd.Flags().BoolVarP(&opts.SecretsVerification, "secrets-verification", "", true,
+		"Verify supported credentials with their providers (enabled by default, disable with --secrets-verification=false)")
 	cmd.Flags().StringSliceVarP(&opts.ConfidenceFilter, "confidence", "", []string{},
 		"Filter for confidence level, separate by comma if multiple. See readme for more info.")
 	cmd.Flags().DurationVarP(&opts.HitTimeout, "hit-timeout", "", 60*time.Second,

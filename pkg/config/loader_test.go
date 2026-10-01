@@ -22,7 +22,7 @@ func TestInitializeViper_NoFile(t *testing.T) {
 
 	// Check defaults are set
 	assert.Equal(t, 4, GetInt("common.threads"))
-	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, true, GetBool("common.secrets_verification"))
 	assert.Equal(t, "500Mb", GetString("common.max_artifact_size"))
 	assert.Equal(t, "https://api.github.com", GetString("github.url"))
 }
@@ -61,7 +61,7 @@ gitea:
 
 common:
   threads: 8
-  trufflehog_verification: false
+  secrets_verification: false
   max_artifact_size: 1GB
   confidence_filter:
     - high
@@ -99,7 +99,7 @@ common:
 
 	// Verify common config
 	assert.Equal(t, 8, GetInt("common.threads"))
-	assert.Equal(t, false, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, false, GetBool("common.secrets_verification"))
 	assert.Equal(t, "1GB", GetString("common.max_artifact_size"))
 	assert.Equal(t, []string{"high", "medium"}, GetStringSlice("common.confidence_filter"))
 	assert.Equal(t, "120s", GetString("common.hit_timeout"))
@@ -114,7 +114,38 @@ func TestInitializeViper_MissingExplicitFileUsesDefaults(t *testing.T) {
 	err := InitializeViper("/nonexistent/path/to/config.yaml")
 	assert.NoError(t, err)
 	assert.Equal(t, 4, GetInt("common.threads"))
-	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, true, GetBool("common.secrets_verification"))
+}
+
+func TestInitializeViper_LegacyVerificationKey(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		env    map[string]string
+		want   bool
+	}{
+		{name: "legacy config opt-out honored", config: "common:\n  trufflehog_verification: false\n", want: false},
+		{name: "legacy env opt-out honored", env: map[string]string{"PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION": "false"}, want: false},
+		{name: "new config key wins over legacy", config: "common:\n  trufflehog_verification: false\n  secrets_verification: true\n", want: true},
+		{name: "new env key wins over legacy config", config: "common:\n  trufflehog_verification: false\n", env: map[string]string{"PIPELEEK_COMMON_SECRETS_VERIFICATION": "true"}, want: true},
+		{name: "default when neither set", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			globalViper = nil
+			t.Setenv("PIPELEEK_NO_CONFIG", "")
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+
+			configFile := filepath.Join(t.TempDir(), "pipeleek.yaml")
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0644))
+
+			require.NoError(t, InitializeViper(configFile))
+			assert.Equal(t, tt.want, GetBool("common.secrets_verification"))
+		})
+	}
 }
 
 func TestInitializeViper_InvalidYAML(t *testing.T) {

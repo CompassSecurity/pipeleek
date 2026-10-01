@@ -12,6 +12,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/runner"
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
 	"github.com/CompassSecurity/pipeleek/pkg/system"
 	"github.com/nsqio/go-diskqueue"
 	"github.com/rs/zerolog/log"
@@ -23,27 +24,30 @@ var waitGroup *sync.WaitGroup
 var queueFileName string
 
 type ScanOptions struct {
-	GitlabUrl              string
-	GitlabApiToken         string
-	GitlabCookie           string
-	ProjectSearchQuery     string
-	Artifacts              bool
-	Owned                  bool
-	Member                 bool
-	Repository             string
-	Namespace              string
-	JobLimit               int
-	ConfidenceFilter       []string
-	MaxArtifactSize        int64
-	MaxScanGoRoutines      int
-	QueueFolder            string
-	TruffleHogVerification bool
-	HitTimeout             time.Duration
+	GitlabUrl           string
+	GitlabApiToken      string
+	GitlabCookie        string
+	ProjectSearchQuery  string
+	Artifacts           bool
+	Owned               bool
+	Member              bool
+	Repository          string
+	Namespace           string
+	JobLimit            int
+	ConfidenceFilter    []string
+	MaxArtifactSize     int64
+	MaxScanGoRoutines   int
+	QueueFolder         string
+	SecretsVerification bool
+	HitTimeout          time.Duration
 	// CICDYamlOnly restricts scanning to the project's merged CI/CD YAML, skipping job logs and artifacts.
 	CICDYamlOnly bool
 }
 
 func ScanGitLabPipelines(options *ScanOptions) {
+	detectors.SetGitLabURL(options.GitlabUrl)
+	defer detectors.ClearGitLabURL()
+
 	globQueue, queueFileName = setupQueue(options)
 	system.RegisterGracefulShutdownHandler(cleanUp)
 
@@ -52,8 +56,8 @@ func ScanGitLabPipelines(options *ScanOptions) {
 	}
 
 	runner.InitScanner(options.ConfidenceFilter)
-	if !options.TruffleHogVerification {
-		log.Info().Msg("TruffleHog verification is disabled")
+	if !options.SecretsVerification {
+		log.Info().Msg("Secrets verification is disabled")
 	}
 
 	git, err := util.GetGitlabClient(options.GitlabApiToken, options.GitlabUrl)

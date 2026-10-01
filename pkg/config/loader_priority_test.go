@@ -146,8 +146,8 @@ common:
 	threads := config.GetInt("common.threads")
 	assert.Equal(t, 10, threads, "Config file > default")
 
-	// Test 4: Default should be used when nothing else is set (trufflehog_verification default is true)
-	verification := config.GetBool("common.trufflehog_verification")
+	// Test 4: Default should be used when nothing else is set (secrets_verification default is true)
+	verification := config.GetBool("common.secrets_verification")
 	assert.Equal(t, true, verification, "Default value used when no override")
 }
 

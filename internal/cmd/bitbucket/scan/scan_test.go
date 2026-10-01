@@ -58,8 +58,8 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("threads") == nil {
 		t.Error("Expected 'threads' flag to exist")
 	}
-	if flags.Lookup("truffle-hog-verification") == nil {
-		t.Error("Expected 'truffle-hog-verification' flag to exist")
+	if flags.Lookup("secrets-verification") == nil {
+		t.Error("Expected 'secrets-verification' flag to exist")
 	}
 	if flags.Lookup("max-pipelines") == nil {
 		t.Error("Expected 'max-pipelines' flag to exist")
@@ -72,11 +72,11 @@ func TestNewScanCmd(t *testing.T) {
 func TestBitBucketScanOptions(t *testing.T) {
 	opts := BitBucketScanOptions{
 		CommonScanOptions: config.CommonScanOptions{
-			ConfidenceFilter:       []string{"high", "medium"},
-			MaxScanGoRoutines:      4,
-			TruffleHogVerification: true,
-			Artifacts:              true,
-			Owned:                  true,
+			ConfidenceFilter:    []string{"high", "medium"},
+			MaxScanGoRoutines:   4,
+			SecretsVerification: true,
+			Artifacts:           true,
+			Owned:               true,
 		},
 		Email:           "test@example.com",
 		AccessToken:     "token123",
@@ -100,8 +100,8 @@ func TestBitBucketScanOptions(t *testing.T) {
 	if opts.MaxScanGoRoutines != 4 {
 		t.Errorf("Expected MaxScanGoRoutines 4, got %d", opts.MaxScanGoRoutines)
 	}
-	if !opts.TruffleHogVerification {
-		t.Error("Expected TruffleHogVerification to be true")
+	if !opts.SecretsVerification {
+		t.Error("Expected SecretsVerification to be true")
 	}
 	if opts.MaxPipelines != 10 {
 		t.Errorf("Expected MaxPipelines 10, got %d", opts.MaxPipelines)

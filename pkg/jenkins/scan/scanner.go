@@ -23,20 +23,20 @@ import (
 )
 
 type ScanOptions struct {
-	Username               string
-	Token                  string
-	JenkinsURL             string
-	Folder                 string
-	Job                    string
-	MaxBuilds              int
-	Artifacts              bool
-	MaxArtifactSize        int64
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	HitTimeout             time.Duration
-	Context                context.Context
-	Client                 JenkinsClient
+	Username            string
+	Token               string
+	JenkinsURL          string
+	Folder              string
+	Job                 string
+	MaxBuilds           int
+	Artifacts           bool
+	MaxArtifactSize     int64
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	HitTimeout          time.Duration
+	Context             context.Context
+	Client              JenkinsClient
 }
 
 type Scanner interface {
@@ -190,7 +190,7 @@ func (s *jenkinsScanner) scanJobDefinition(jobPath string, job *gojenkins.Job) {
 		return
 	}
 
-	findings, err := pkgscanner.DetectHits([]byte(configXML), s.options.MaxScanGoRoutines, s.options.TruffleHogVerification, s.options.HitTimeout)
+	findings, err := pkgscanner.DetectHits([]byte(configXML), s.options.MaxScanGoRoutines, s.options.SecretsVerification, s.options.HitTimeout)
 	if err != nil {
 		log.Debug().Err(err).Str("job", jobPath).Msg("Failed scanning job definition")
 		return
@@ -245,7 +245,7 @@ func (s *jenkinsScanner) scanBuildLogs(job *gojenkins.Job, build *gojenkins.Buil
 
 	logResult, err := logline.ProcessLogs([]byte(logOutput), logline.ProcessOptions{
 		MaxGoRoutines:     s.options.MaxScanGoRoutines,
-		VerifyCredentials: s.options.TruffleHogVerification,
+		VerifyCredentials: s.options.SecretsVerification,
 		HitTimeout:        s.options.HitTimeout,
 	})
 	if err != nil {
@@ -278,7 +278,7 @@ func (s *jenkinsScanner) scanBuildEnvVars(job *gojenkins.Job, build *gojenkins.B
 		builder.WriteString("\n")
 	}
 
-	findings, err := pkgscanner.DetectHits([]byte(builder.String()), s.options.MaxScanGoRoutines, s.options.TruffleHogVerification, s.options.HitTimeout)
+	findings, err := pkgscanner.DetectHits([]byte(builder.String()), s.options.MaxScanGoRoutines, s.options.SecretsVerification, s.options.HitTimeout)
 	if err != nil {
 		log.Debug().Err(err).Str("job", job.Raw.FullName).Int64("build", build.GetBuildNumber()).Msg("Failed detecting secrets in build env vars")
 		return
@@ -317,16 +317,16 @@ func (s *jenkinsScanner) scanBuildArtifacts(job *gojenkins.Job, build *gojenkins
 		}
 
 		if filetype.IsArchive(artifactBytes) {
-			pkgscanner.HandleArchiveArtifact(artifact.Path, artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), s.options.TruffleHogVerification, s.options.HitTimeout)
+			pkgscanner.HandleArchiveArtifact(artifact.Path, artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), s.options.SecretsVerification, s.options.HitTimeout)
 			continue
 		}
 
-		pkgscanner.DetectFileHits(artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), artifact.Path, "", s.options.TruffleHogVerification, s.options.HitTimeout)
+		pkgscanner.DetectFileHits(artifactBytes, build.GetUrl(), fmt.Sprintf("Build %d", build.GetBuildNumber()), artifact.Path, "", s.options.SecretsVerification, s.options.HitTimeout)
 	}
 }
 
 func InitializeOptions(username, token, jenkinsURL, folder, job, maxArtifactSizeStr string,
-	artifacts, truffleHogVerification bool,
+	artifacts, secretsVerification bool,
 	maxBuilds, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (ScanOptions, error) {
 
 	byteSize, err := format.ParseHumanSize(maxArtifactSizeStr)
@@ -338,20 +338,20 @@ func InitializeOptions(username, token, jenkinsURL, folder, job, maxArtifactSize
 	client := NewClient(jenkinsURL, username, token)
 
 	return ScanOptions{
-		Username:               username,
-		Token:                  token,
-		JenkinsURL:             jenkinsURL,
-		Folder:                 folder,
-		Job:                    job,
-		MaxBuilds:              maxBuilds,
-		Artifacts:              artifacts,
-		MaxArtifactSize:        byteSize,
-		ConfidenceFilter:       confidenceFilter,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		HitTimeout:             hitTimeout,
-		Context:                ctx,
-		Client:                 client,
+		Username:            username,
+		Token:               token,
+		JenkinsURL:          jenkinsURL,
+		Folder:              folder,
+		Job:                 job,
+		MaxBuilds:           maxBuilds,
+		Artifacts:           artifacts,
+		MaxArtifactSize:     byteSize,
+		ConfidenceFilter:    confidenceFilter,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		HitTimeout:          hitTimeout,
+		Context:             ctx,
+		Client:              client,
 	}, nil
 }
 

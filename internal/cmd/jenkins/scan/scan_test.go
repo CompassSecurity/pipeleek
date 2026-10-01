@@ -24,7 +24,7 @@ func TestNewScanCmd(t *testing.T) {
 		"job",
 		"max-builds",
 		"threads",
-		"truffle-hog-verification",
+		"secrets-verification",
 		"confidence",
 		"artifacts",
 		"max-artifact-size",
@@ -38,10 +38,10 @@ func TestNewScanCmd(t *testing.T) {
 func TestJenkinsScanOptions(t *testing.T) {
 	opts := JenkinsScanOptions{
 		CommonScanOptions: config.CommonScanOptions{
-			ConfidenceFilter:       []string{"high"},
-			MaxScanGoRoutines:      5,
-			TruffleHogVerification: true,
-			Artifacts:              true,
+			ConfidenceFilter:    []string{"high"},
+			MaxScanGoRoutines:   5,
+			SecretsVerification: true,
+			Artifacts:           true,
 		},
 		JenkinsURL: "https://jenkins.example.com",
 		Username:   "admin",

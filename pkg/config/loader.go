@@ -82,11 +82,11 @@ type JenkinsConfig struct {
 
 // CommonConfig contains common configuration settings
 type CommonConfig struct {
-	Threads                int      `mapstructure:"threads"`
-	TruffleHogVerification bool     `mapstructure:"trufflehog_verification"`
-	MaxArtifactSize        string   `mapstructure:"max_artifact_size"`
-	ConfidenceFilter       []string `mapstructure:"confidence_filter"`
-	HitTimeout             string   `mapstructure:"hit_timeout"`
+	Threads             int      `mapstructure:"threads"`
+	SecretsVerification bool     `mapstructure:"secrets_verification"`
+	MaxArtifactSize     string   `mapstructure:"max_artifact_size"`
+	ConfidenceFilter    []string `mapstructure:"confidence_filter"`
+	HitTimeout          string   `mapstructure:"hit_timeout"`
 }
 
 var globalViper *viper.Viper
@@ -109,6 +109,7 @@ func InitializeViper(configFile string) error {
 		v.SetEnvPrefix("PIPELEEK")
 		v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		v.AutomaticEnv()
+		applyLegacyVerificationKey(v)
 		globalViper = v
 		return nil
 	}
@@ -162,9 +163,33 @@ func InitializeViper(configFile string) error {
 	v.SetEnvPrefix("PIPELEEK")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	applyLegacyVerificationKey(v)
 
 	globalViper = v
 	return nil
+}
+
+const (
+	secretsVerificationKey       = "common.secrets_verification"
+	legacySecretsVerificationKey = "common.trufflehog_verification"
+)
+
+// applyLegacyVerificationKey keeps opt-outs made with the pre-rename key working.
+// It sets a default, so flags and the new key still take precedence.
+func applyLegacyVerificationKey(v *viper.Viper) {
+	if v.InConfig(secretsVerificationKey) || envKeySet(secretsVerificationKey) {
+		return
+	}
+	if !v.InConfig(legacySecretsVerificationKey) && !envKeySet(legacySecretsVerificationKey) {
+		return
+	}
+	v.SetDefault(secretsVerificationKey, v.GetBool(legacySecretsVerificationKey))
+	log.Warn().Str("deprecated", legacySecretsVerificationKey).Str("replacement", secretsVerificationKey).Msg("Deprecated config key used, please rename it")
+}
+
+func envKeySet(key string) bool {
+	_, ok := os.LookupEnv("PIPELEEK_" + strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
+	return ok
 }
 
 func GetViper() *viper.Viper {
@@ -207,7 +232,7 @@ func UnmarshalConfig() (*Config, error) {
 
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("common.threads", 4)
-	v.SetDefault("common.trufflehog_verification", true)
+	v.SetDefault("common.secrets_verification", true)
 	v.SetDefault("common.max_artifact_size", "500Mb")
 	v.SetDefault("common.confidence_filter", []string{})
 	v.SetDefault("common.hit_timeout", "60s")

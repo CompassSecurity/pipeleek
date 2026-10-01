@@ -1,6 +1,6 @@
 common:
   threads: 4
-  trufflehog_verification: true
+  secrets_verification: true
 
 circle:
   url: https://circleci.com

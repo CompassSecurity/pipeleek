@@ -25,7 +25,7 @@ func TestInitializeViper_JSONFormat(t *testing.T) {
   },
   "common": {
     "threads": 12,
-    "trufflehog_verification": false
+    "secrets_verification": false
   }
 }`
 
@@ -39,7 +39,7 @@ func TestInitializeViper_JSONFormat(t *testing.T) {
 	assert.Equal(t, "https://gitlab.json.com", GetString("gitlab.url"))
 	assert.Equal(t, "glpat-json-token", GetString("gitlab.token"))
 	assert.Equal(t, 12, GetInt("common.threads"))
-	assert.Equal(t, false, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, false, GetBool("common.secrets_verification"))
 }
 
 func TestInitializeViper_TOMLFormat(t *testing.T) {
@@ -57,7 +57,7 @@ token = "glpat-toml-token"
 
 [common]
 threads = 16
-trufflehog_verification = true
+secrets_verification = true
 `
 
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
@@ -70,7 +70,7 @@ trufflehog_verification = true
 	assert.Equal(t, "https://gitlab.toml.com", GetString("gitlab.url"))
 	assert.Equal(t, "glpat-toml-token", GetString("gitlab.token"))
 	assert.Equal(t, 16, GetInt("common.threads"))
-	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, true, GetBool("common.secrets_verification"))
 }
 
 func TestConfigFileSearchOrder(t *testing.T) {

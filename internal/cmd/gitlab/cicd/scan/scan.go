@@ -28,18 +28,18 @@ type scanOptions struct {
 
 // flagBindings maps CLI flags to configuration keys for binding and testing
 var flagBindings = map[string]string{
-	"url":                      "gitlab.url",
-	"token":                    "gitlab.token",
-	"search":                   "gitlab.cicd.scan.search",
-	"member":                   "gitlab.cicd.scan.member",
-	"repo":                     "gitlab.cicd.scan.repo",
-	"namespace":                "gitlab.cicd.scan.namespace",
-	"owned":                    "gitlab.cicd.scan.owned",
-	"queue":                    "gitlab.cicd.scan.queue",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "gitlab.url",
+	"token":                "gitlab.token",
+	"search":               "gitlab.cicd.scan.search",
+	"member":               "gitlab.cicd.scan.member",
+	"repo":                 "gitlab.cicd.scan.repo",
+	"namespace":            "gitlab.cicd.scan.namespace",
+	"owned":                "gitlab.cicd.scan.owned",
+	"queue":                "gitlab.cicd.scan.queue",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -96,11 +96,11 @@ func Scan(cmd *cobra.Command, args []string) {
 		Namespace:          config.GetString("gitlab.cicd.scan.namespace"),
 		QueueFolder:        config.GetString("gitlab.cicd.scan.queue"),
 		CommonScanOptions: config.CommonScanOptions{
-			Owned:                  config.GetBool("gitlab.cicd.scan.owned"),
-			MaxScanGoRoutines:      config.GetInt("common.threads"),
-			TruffleHogVerification: config.GetBool("common.trufflehog_verification"),
-			ConfidenceFilter:       config.GetStringSlice("common.confidence_filter"),
-			HitTimeout:             hitTimeout,
+			Owned:               config.GetBool("gitlab.cicd.scan.owned"),
+			MaxScanGoRoutines:   config.GetInt("common.threads"),
+			SecretsVerification: config.GetBool("common.secrets_verification"),
+			ConfidenceFilter:    config.GetStringSlice("common.confidence_filter"),
+			HitTimeout:          hitTimeout,
 		},
 	}
 
@@ -132,7 +132,7 @@ func runScan(opts scanOptions) {
 		false,
 		opts.Owned,
 		opts.Member,
-		opts.TruffleHogVerification,
+		opts.SecretsVerification,
 		0,
 		opts.MaxScanGoRoutines,
 		opts.ConfidenceFilter,

@@ -22,20 +22,20 @@ var scanOptions = GiteaScanOptions{
 }
 
 var flagBindings = map[string]string{
-	"url":                      "gitea.url",
-	"token":                    "gitea.token",
-	"cookie":                   "gitea.cookie",
-	"organization":             "gitea.scan.organization",
-	"repository":               "gitea.scan.repository",
-	"runs-limit":               "gitea.scan.runs_limit",
-	"start-run-id":             "gitea.scan.start_run_id",
-	"owned":                    "gitea.scan.owned",
-	"artifacts":                "gitea.scan.artifacts",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "gitea.url",
+	"token":                "gitea.token",
+	"cookie":               "gitea.cookie",
+	"organization":         "gitea.scan.organization",
+	"repository":           "gitea.scan.repository",
+	"runs-limit":           "gitea.scan.runs_limit",
+	"start-run-id":         "gitea.scan.start_run_id",
+	"owned":                "gitea.scan.owned",
+	"artifacts":            "gitea.scan.artifacts",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 var maxArtifactSize string
@@ -109,7 +109,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	scanOptions.Owned = config.GetBool("gitea.scan.owned")
 	scanOptions.Artifacts = config.GetBool("gitea.scan.artifacts")
 	scanOptions.MaxScanGoRoutines = config.GetInt("common.threads")
-	scanOptions.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	scanOptions.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	scanOptions.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
@@ -136,7 +136,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		maxArtifactSize,
 		scanOptions.Owned,
 		scanOptions.Artifacts,
-		scanOptions.TruffleHogVerification,
+		scanOptions.SecretsVerification,
 		scanOptions.RunsLimit,
 		scanOptions.StartRunID,
 		scanOptions.MaxScanGoRoutines,

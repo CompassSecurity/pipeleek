@@ -454,8 +454,8 @@ func TestAzureDevOpsScan_VerboseLogging(t *testing.T) {
 	// The actual log level check would require inspecting the output format
 }
 
-// TestAzureDevOpsScan_TruffleHogVerificationDisabled tests --truffle-hog-verification=false
-func TestAzureDevOpsScan_TruffleHogVerificationDisabled(t *testing.T) {
+// TestAzureDevOpsScan_SecretsVerificationDisabled tests --secrets-verification=false
+func TestAzureDevOpsScan_SecretsVerificationDisabled(t *testing.T) {
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -538,7 +538,7 @@ Build complete`
 		"--token", "azure-pat-token",
 		"--username", "testuser",
 		"--organization", "myorg",
-		"--truffle-hog-verification=false",
+		"--secrets-verification=false",
 		"--artifacts",
 	}, nil, 15*time.Second)
 

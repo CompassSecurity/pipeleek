@@ -24,51 +24,51 @@ import (
 )
 
 type InitializeOptionsInput struct {
-	Token                  string
-	CircleURL              string
-	Organization           string
-	Projects               []string
-	VCS                    string
-	Branch                 string
-	Statuses               []string
-	WorkflowNames          []string
-	JobNames               []string
-	Since                  string
-	Until                  string
-	MaxPipelines           int
-	IncludeTests           bool
-	IncludeInsights        bool
-	Artifacts              bool
-	MaxArtifactSize        string
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	HitTimeout             time.Duration
+	Token               string
+	CircleURL           string
+	Organization        string
+	Projects            []string
+	VCS                 string
+	Branch              string
+	Statuses            []string
+	WorkflowNames       []string
+	JobNames            []string
+	Since               string
+	Until               string
+	MaxPipelines        int
+	IncludeTests        bool
+	IncludeInsights     bool
+	Artifacts           bool
+	MaxArtifactSize     string
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	HitTimeout          time.Duration
 }
 
 type ScanOptions struct {
-	Token                  string
-	CircleURL              string
-	Organization           string
-	Projects               []string
-	Branch                 string
-	Statuses               map[string]struct{}
-	WorkflowNames          map[string]struct{}
-	JobNames               map[string]struct{}
-	Since                  *time.Time
-	Until                  *time.Time
-	MaxPipelines           int
-	IncludeTests           bool
-	IncludeInsights        bool
-	Artifacts              bool
-	MaxArtifactSize        int64
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	HitTimeout             time.Duration
-	Context                context.Context
-	APIClient              CircleClient
-	HTTPClient             *http.Client
+	Token               string
+	CircleURL           string
+	Organization        string
+	Projects            []string
+	Branch              string
+	Statuses            map[string]struct{}
+	WorkflowNames       map[string]struct{}
+	JobNames            map[string]struct{}
+	Since               *time.Time
+	Until               *time.Time
+	MaxPipelines        int
+	IncludeTests        bool
+	IncludeInsights     bool
+	Artifacts           bool
+	MaxArtifactSize     int64
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	HitTimeout          time.Duration
+	Context             context.Context
+	APIClient           CircleClient
+	HTTPClient          *http.Client
 }
 
 type Scanner interface {
@@ -219,7 +219,7 @@ func (s *circleScanner) scanProjectInsights(project string) error {
 			continue
 		}
 
-		findings, err := pkgscanner.DetectHits(payload, s.options.MaxScanGoRoutines, s.options.TruffleHogVerification, s.options.HitTimeout)
+		findings, err := pkgscanner.DetectHits(payload, s.options.MaxScanGoRoutines, s.options.SecretsVerification, s.options.HitTimeout)
 		if err != nil {
 			continue
 		}
@@ -385,7 +385,7 @@ func (s *circleScanner) scanJobLogs(project string, workflow workflowItem, jobUR
 			processed := flattenLogOutput(logBytes)
 			logResult, err := logline.ProcessLogs(processed, logline.ProcessOptions{
 				MaxGoRoutines:     s.options.MaxScanGoRoutines,
-				VerifyCredentials: s.options.TruffleHogVerification,
+				VerifyCredentials: s.options.SecretsVerification,
 				HitTimeout:        s.options.HitTimeout,
 			})
 			if err != nil {
@@ -440,7 +440,7 @@ func (s *circleScanner) scanJobTests(project string, workflow workflowItem, job 
 		return err
 	}
 
-	findings, err := pkgscanner.DetectHits(payload, s.options.MaxScanGoRoutines, s.options.TruffleHogVerification, s.options.HitTimeout)
+	findings, err := pkgscanner.DetectHits(payload, s.options.MaxScanGoRoutines, s.options.SecretsVerification, s.options.HitTimeout)
 	if err != nil {
 		return err
 	}
@@ -501,11 +501,11 @@ func (s *circleScanner) scanJobArtifacts(project string, workflow workflowItem, 
 
 		s.artifactsScanned.Add(1)
 		if filetype.IsArchive(content) {
-			pkgscanner.HandleArchiveArtifact(artifact.Path, content, locationURL, details.Name, s.options.TruffleHogVerification, s.options.HitTimeout)
+			pkgscanner.HandleArchiveArtifact(artifact.Path, content, locationURL, details.Name, s.options.SecretsVerification, s.options.HitTimeout)
 			continue
 		}
 
-		pkgscanner.DetectFileHits(content, locationURL, details.Name, artifact.Path, workflow.Name, s.options.TruffleHogVerification, s.options.HitTimeout)
+		pkgscanner.DetectFileHits(content, locationURL, details.Name, artifact.Path, workflow.Name, s.options.SecretsVerification, s.options.HitTimeout)
 	}
 
 	return nil
@@ -612,28 +612,28 @@ func InitializeOptions(input InitializeOptionsInput) (ScanOptions, error) {
 	}
 
 	return ScanOptions{
-		Token:                  input.Token,
-		CircleURL:              input.CircleURL,
-		Organization:           input.Organization,
-		Projects:               projects,
-		Branch:                 input.Branch,
-		Statuses:               toFilterSet(input.Statuses),
-		WorkflowNames:          toFilterSet(input.WorkflowNames),
-		JobNames:               toFilterSet(input.JobNames),
-		Since:                  since,
-		Until:                  until,
-		MaxPipelines:           input.MaxPipelines,
-		IncludeTests:           input.IncludeTests,
-		IncludeInsights:        input.IncludeInsights,
-		Artifacts:              input.Artifacts,
-		MaxArtifactSize:        maxArtifactBytes,
-		ConfidenceFilter:       input.ConfidenceFilter,
-		MaxScanGoRoutines:      input.MaxScanGoRoutines,
-		TruffleHogVerification: input.TruffleHogVerification,
-		HitTimeout:             input.HitTimeout,
-		Context:                context.Background(),
-		APIClient:              apiClient,
-		HTTPClient:             httpClient,
+		Token:               input.Token,
+		CircleURL:           input.CircleURL,
+		Organization:        input.Organization,
+		Projects:            projects,
+		Branch:              input.Branch,
+		Statuses:            toFilterSet(input.Statuses),
+		WorkflowNames:       toFilterSet(input.WorkflowNames),
+		JobNames:            toFilterSet(input.JobNames),
+		Since:               since,
+		Until:               until,
+		MaxPipelines:        input.MaxPipelines,
+		IncludeTests:        input.IncludeTests,
+		IncludeInsights:     input.IncludeInsights,
+		Artifacts:           input.Artifacts,
+		MaxArtifactSize:     maxArtifactBytes,
+		ConfidenceFilter:    input.ConfidenceFilter,
+		MaxScanGoRoutines:   input.MaxScanGoRoutines,
+		SecretsVerification: input.SecretsVerification,
+		HitTimeout:          input.HitTimeout,
+		Context:             context.Background(),
+		APIClient:           apiClient,
+		HTTPClient:          httpClient,
 	}, nil
 }
 

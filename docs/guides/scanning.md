@@ -29,7 +29,7 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 2025-09-30T09:53:37Z hit SECRET confidence=high type=artifact file=an_artifact.txt jobName=artifact-job ruleName="Generic - 1719" url=gitlab.com/testgroup/project/-/jobs/11484162833 value="datadog_api_key=secret_artifact_value "
 ```
 
-As shown, Pipeleek can detect secrets in job logs and build artifacts. Security findings are logged at the custom `hit` level to distinguish them from regular warnings. Manually review the hits to verify if they're valid credentials. If you see `confidence=high-verified`, it's very likely a real credential, as Pipeleek has tested it against the respective service.
+As shown, Pipeleek can detect secrets in job logs and build artifacts using its YAML patterns, Betterleaks rules, and TruffleHog detectors. Security findings are logged at the custom `hit` level to distinguish them from regular warnings. Manually review the hits to verify if they're valid credentials. If you see `confidence=high-verified`, TruffleHog or Betterleaks confirmed the credential with its provider; enabling `--secrets-verification` can make outbound validation requests.
 
 If you find a repository that looks particularly interesting e.g. `secret-pipelines`, you can scan all its job logs, not just the most recent ones:
 

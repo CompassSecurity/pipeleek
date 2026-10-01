@@ -16,20 +16,20 @@ import (
 
 // ScanOptions contains configuration options for Azure DevOps scanning operations.
 type ScanOptions struct {
-	Username               string
-	AccessToken            string
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	MaxBuilds              int
-	Organization           string
-	Project                string
-	Artifacts              bool
-	DevOpsURL              string
-	MaxArtifactSize        int64
-	HitTimeout             time.Duration
-	Context                context.Context
-	Client                 AzureDevOpsApiClient
+	Username            string
+	AccessToken         string
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	MaxBuilds           int
+	Organization        string
+	Project             string
+	Artifacts           bool
+	DevOpsURL           string
+	MaxArtifactSize     int64
+	HitTimeout          time.Duration
+	Context             context.Context
+	Client              AzureDevOpsApiClient
 }
 
 type Scanner interface {
@@ -174,7 +174,7 @@ func (s *devOpsScanner) listLogs(organization string, project string, buildId in
 func (s *devOpsScanner) scanLogLines(logs []byte, buildWebUrl string) {
 	logResult, err := logline.ProcessLogs(logs, logline.ProcessOptions{
 		MaxGoRoutines:     s.options.MaxScanGoRoutines,
-		VerifyCredentials: s.options.TruffleHogVerification,
+		VerifyCredentials: s.options.SecretsVerification,
 		HitTimeout:        s.options.HitTimeout,
 	})
 	if err != nil {
@@ -227,7 +227,7 @@ func (s *devOpsScanner) analyzeArtifact(art Artifact, buildWebUrl string) {
 
 	_, err = artifactproc.ProcessZipArtifact(zipBytes, artifactproc.ProcessOptions{
 		MaxGoRoutines:     s.options.MaxScanGoRoutines,
-		VerifyCredentials: s.options.TruffleHogVerification,
+		VerifyCredentials: s.options.SecretsVerification,
 		BuildURL:          buildWebUrl,
 		ArtifactName:      art.Name,
 		HitTimeout:        s.options.HitTimeout,
@@ -240,7 +240,7 @@ func (s *devOpsScanner) analyzeArtifact(art Artifact, buildWebUrl string) {
 
 // InitializeOptions prepares scan options from CLI parameters.
 func InitializeOptions(username, accessToken, devOpsURL, organization, project, maxArtifactSizeStr string,
-	artifacts, truffleHogVerification bool,
+	artifacts, secretsVerification bool,
 	maxBuilds, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (ScanOptions, error) {
 
 	byteSize, err := format.ParseHumanSize(maxArtifactSizeStr)
@@ -252,19 +252,19 @@ func InitializeOptions(username, accessToken, devOpsURL, organization, project, 
 	client := NewClient(username, accessToken, devOpsURL)
 
 	return ScanOptions{
-		Username:               username,
-		AccessToken:            accessToken,
-		ConfidenceFilter:       confidenceFilter,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		MaxBuilds:              maxBuilds,
-		Organization:           organization,
-		Project:                project,
-		Artifacts:              artifacts,
-		DevOpsURL:              devOpsURL,
-		MaxArtifactSize:        byteSize,
-		HitTimeout:             hitTimeout,
-		Context:                ctx,
-		Client:                 client,
+		Username:            username,
+		AccessToken:         accessToken,
+		ConfidenceFilter:    confidenceFilter,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		MaxBuilds:           maxBuilds,
+		Organization:        organization,
+		Project:             project,
+		Artifacts:           artifacts,
+		DevOpsURL:           devOpsURL,
+		MaxArtifactSize:     byteSize,
+		HitTimeout:          hitTimeout,
+		Context:             ctx,
+		Client:              client,
 	}, nil
 }

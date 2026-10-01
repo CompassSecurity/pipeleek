@@ -28,7 +28,8 @@ func ReportFinding(finding scanner.Finding, opts ReportOptions) {
 		Str("type", string(secretType)).
 		Str("confidence", finding.Pattern.Pattern.Confidence).
 		Str("ruleName", finding.Pattern.Pattern.Name).
-		Str("value", finding.Text)
+		Str("value", finding.Text).
+		Engine(finding.Engine)
 
 	// Add location information if provided
 	if opts.LocationURL != "" {
@@ -56,7 +57,8 @@ func ReportFindingWithCustomFields(finding scanner.Finding, customFields map[str
 		Str("type", string(secretType)).
 		Str("confidence", finding.Pattern.Pattern.Confidence).
 		Str("ruleName", finding.Pattern.Pattern.Name).
-		Str("value", finding.Text)
+		Str("value", finding.Text).
+		Engine(finding.Engine)
 
 	for key, value := range customFields {
 		event = event.Str(key, value)

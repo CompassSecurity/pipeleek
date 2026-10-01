@@ -92,7 +92,7 @@ pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --log-level=trace
 You can change interactively between log levels by pressing `t`: Trace, `d`: Debug, `i`: info, `w`: Warn, `e`: Error.
 
 ```bash
-pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --truffle-hog-verification=false --verbose
+pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verification=false --verbose
 # Human Pressed d on keyboard
 2025-09-30T11:42:58Z info New Log level logLevel=debug
 ```

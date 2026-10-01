@@ -70,11 +70,13 @@ Scan commands inherit from `common`:
 ```yaml
 common:
   threads: 2
-  trufflehog_verification: true
+  secrets_verification: true
   max_artifact_size: 100Mb
   confidence_filter: medium # low, medium, high, high-verified
   hit_timeout: 120 # Seconds
 ```
+
+`secrets_verification` replaces the deprecated `trufflehog_verification` key. The old key (and `PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION`) is still read, with a warning, when the new key is not set.
 
 Override per-command:
 
@@ -112,7 +114,7 @@ github:
 
 common:
   threads: 8
-  trufflehog_verification: false
+  secrets_verification: false
 ```
 
 ```bash
@@ -179,7 +181,7 @@ pipeleek config set gitlab.token "glpat-xxxxxxxxxxxxxxxxxxxx"
 pipeleek config set common.threads 8
 
 # Set a boolean
-pipeleek config set common.trufflehog_verification false
+pipeleek config set common.secrets_verification false
 
 # Set a list (YAML format)
 pipeleek config set gitlab.runners.exploit.tags '[\"docker\", \"shared\"]'

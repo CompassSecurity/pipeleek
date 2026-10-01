@@ -277,3 +277,22 @@ func TestGitLabURLDetector_FromData_VerifyEnabledWithURL_UserAPIFailure(t *testi
 	assert.NoError(t, err)
 	assert.Empty(t, results)
 }
+
+func TestGitLabURLDetector_FromDataWithURL_IgnoresGlobalURL(t *testing.T) {
+	defer ClearGitLabURL()
+	ClearGitLabURL()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v4/user" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":1}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	results, err := NewGitLabURLDetector().FromDataWithURL(context.Background(), true, []byte(`token: glpat-abcdefghijklmnopqrst`), server.URL)
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.True(t, results[0].Verified)
+}

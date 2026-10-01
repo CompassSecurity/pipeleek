@@ -38,8 +38,8 @@ func TestNewScanCmd(t *testing.T) {
 	if flags.Lookup("threads") == nil {
 		t.Error("Expected 'threads' flag to exist")
 	}
-	if flags.Lookup("truffle-hog-verification") == nil {
-		t.Error("Expected 'truffle-hog-verification' flag to exist")
+	if flags.Lookup("secrets-verification") == nil {
+		t.Error("Expected 'secrets-verification' flag to exist")
 	}
 	if flags.Lookup("max-workflows") == nil {
 		t.Error("Expected 'max-workflows' flag to exist")
@@ -75,11 +75,11 @@ func TestGitHubScanCmd_PersistentFlags(t *testing.T) {
 func TestGitHubScanOptions(t *testing.T) {
 	opts := GitHubScanOptions{
 		CommonScanOptions: config.CommonScanOptions{
-			ConfidenceFilter:       []string{"high", "verified"},
-			MaxScanGoRoutines:      8,
-			TruffleHogVerification: true,
-			Artifacts:              true,
-			Owned:                  false,
+			ConfidenceFilter:    []string{"high", "verified"},
+			MaxScanGoRoutines:   8,
+			SecretsVerification: true,
+			Artifacts:           true,
+			Owned:               false,
 		},
 		AccessToken:  "ghp_test123",
 		MaxWorkflows: 20,
@@ -99,8 +99,8 @@ func TestGitHubScanOptions(t *testing.T) {
 	if opts.MaxScanGoRoutines != 8 {
 		t.Errorf("Expected MaxScanGoRoutines 8, got %d", opts.MaxScanGoRoutines)
 	}
-	if !opts.TruffleHogVerification {
-		t.Error("Expected TruffleHogVerification to be true")
+	if !opts.SecretsVerification {
+		t.Error("Expected SecretsVerification to be true")
 	}
 	if opts.MaxWorkflows != 20 {
 		t.Errorf("Expected MaxWorkflows 20, got %d", opts.MaxWorkflows)

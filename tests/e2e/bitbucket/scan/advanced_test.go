@@ -259,7 +259,7 @@ func TestBitBucketScan_Verbose(t *testing.T) {
 	t.Logf("Output:\n%s", output)
 }
 
-func TestBitBucketScan_TruffleHogVerification(t *testing.T) {
+func TestBitBucketScan_SecretsVerification(t *testing.T) {
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -331,7 +331,7 @@ func TestBitBucketScan_TruffleHogVerification(t *testing.T) {
 		"--email", "testuser",
 		"--token", "testtoken",
 		"--workspace", "test-workspace",
-		"--truffle-hog-verification=false",
+		"--secrets-verification=false",
 	}, nil, 15*time.Second)
 
 	assert.Nil(t, exitErr, "Scan with verification disabled should succeed")

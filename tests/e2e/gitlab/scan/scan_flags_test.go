@@ -320,8 +320,8 @@ func TestGitLabScan_QueueFolder(t *testing.T) {
 	// The scanner should use the custom queue directory
 }
 
-// TestGitLabScan_TruffleHogVerificationDisabled tests --truffleHogVerification=false
-func TestGitLabScan_TruffleHogVerificationDisabled(t *testing.T) {
+// TestGitLabScan_SecretsVerificationDisabled tests --secretsVerification=false
+func TestGitLabScan_SecretsVerificationDisabled(t *testing.T) {
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -364,7 +364,7 @@ Job complete`
 		"gl", "scan",
 		"--url", server.URL,
 		"--token", "glpat-test-token",
-		"--truffle-hog-verification=false",
+		"--secrets-verification=false",
 		"--job-limit", "1",
 	}, nil, 15*time.Second)
 

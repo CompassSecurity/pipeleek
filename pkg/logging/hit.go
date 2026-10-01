@@ -102,6 +102,14 @@ func (h *HitEvent) Err(err error) *HitEvent {
 	return h
 }
 
+// Engine adds the detection engine field, only when debug logging is enabled.
+func (h *HitEvent) Engine(engine string) *HitEvent {
+	if engine != "" && zerolog.GlobalLevel() <= zerolog.DebugLevel {
+		h.event.Str("engine", engine)
+	}
+	return h
+}
+
 func (h *HitEvent) Msg(msg string) {
 	if h.writer != nil {
 		h.writer.markNextAsHit()

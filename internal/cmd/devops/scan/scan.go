@@ -26,19 +26,19 @@ var maxArtifactSize string
 // flagBindings maps CLI flags to configuration keys for binding and testing.
 // #nosec G101 -- Contains configuration key names like "token", not hardcoded secrets.
 var flagBindings = map[string]string{
-	"url":                      "azure_devops.url",
-	"token":                    "azure_devops.token",
-	"username":                 "azure_devops.username",
-	"organization":             "azure_devops.scan.organization",
-	"project":                  "azure_devops.scan.project",
-	"max-builds":               "azure_devops.scan.max_builds",
-	"artifacts":                "azure_devops.scan.artifacts",
-	"owned":                    "azure_devops.scan.owned",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "azure_devops.url",
+	"token":                "azure_devops.token",
+	"username":             "azure_devops.username",
+	"organization":         "azure_devops.scan.organization",
+	"project":              "azure_devops.scan.project",
+	"max-builds":           "azure_devops.scan.max_builds",
+	"artifacts":            "azure_devops.scan.artifacts",
+	"owned":                "azure_devops.scan.owned",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -92,7 +92,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Project = config.GetString("azure_devops.scan.project")
 	options.MaxBuilds = config.GetInt("azure_devops.scan.max_builds")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
@@ -114,7 +114,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		options.Project,
 		maxArtifactSize,
 		options.Artifacts,
-		options.TruffleHogVerification,
+		options.SecretsVerification,
 		options.MaxBuilds,
 		options.MaxScanGoRoutines,
 		options.ConfidenceFilter,

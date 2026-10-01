@@ -11,8 +11,8 @@ type CommonScanOptions struct {
 	ConfidenceFilter []string
 	// MaxScanGoRoutines controls the number of concurrent scanning threads
 	MaxScanGoRoutines int
-	// TruffleHogVerification enables/disables TruffleHog credential verification
-	TruffleHogVerification bool
+	// SecretsVerification enables or disables provider verification for supported credentials.
+	SecretsVerification bool
 	// Artifacts enables/disables artifact scanning
 	Artifacts bool
 	// MaxArtifactSize is the maximum size of artifacts to scan (in bytes)
@@ -26,12 +26,12 @@ type CommonScanOptions struct {
 // DefaultCommonScanOptions returns sensible default values for common scan options.
 func DefaultCommonScanOptions() CommonScanOptions {
 	return CommonScanOptions{
-		ConfidenceFilter:       []string{},
-		MaxScanGoRoutines:      4,
-		TruffleHogVerification: true,
-		Artifacts:              false,
-		MaxArtifactSize:        500 * 1024 * 1024, // 500MB
-		Owned:                  false,
-		HitTimeout:             60 * time.Second,
+		ConfidenceFilter:    []string{},
+		MaxScanGoRoutines:   4,
+		SecretsVerification: true,
+		Artifacts:           false,
+		MaxArtifactSize:     500 * 1024 * 1024, // 500MB
+		Owned:               false,
+		HitTimeout:          60 * time.Second,
 	}
 }

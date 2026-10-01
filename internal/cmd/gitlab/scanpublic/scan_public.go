@@ -30,18 +30,18 @@ var options = ScanPublicOptions{
 var maxArtifactSize string
 
 var flagBindings = map[string]string{
-	"url":                      "gitlab.url",
-	"search":                   "gitlab.scan_public.search",
-	"repo":                     "gitlab.scan_public.repo",
-	"namespace":                "gitlab.scan_public.namespace",
-	"job-limit":                "gitlab.scan_public.job_limit",
-	"queue":                    "gitlab.scan_public.queue",
-	"artifacts":                "gitlab.scan_public.artifacts",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "gitlab.url",
+	"search":               "gitlab.scan_public.search",
+	"repo":                 "gitlab.scan_public.repo",
+	"namespace":            "gitlab.scan_public.namespace",
+	"job-limit":            "gitlab.scan_public.job_limit",
+	"queue":                "gitlab.scan_public.queue",
+	"artifacts":            "gitlab.scan_public.artifacts",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanPublicCmd() *cobra.Command {
@@ -96,7 +96,7 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 	queueFolder := config.GetString("gitlab.scan_public.queue")
 	artifacts := config.GetBool("gitlab.scan_public.artifacts")
 	threads := config.GetInt("common.threads")
-	truffleHogVerification := config.GetBool("common.trufflehog_verification")
+	secretsVerification := config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	confidenceFilter := config.GetStringSlice("common.confidence_filter")
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
@@ -126,7 +126,7 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 		artifacts,
 		false,
 		false,
-		truffleHogVerification,
+		secretsVerification,
 		jobLimit,
 		threads,
 		confidenceFilter,

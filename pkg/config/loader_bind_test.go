@@ -154,7 +154,7 @@ func TestUnmarshalConfig_Defaults(t *testing.T) {
 
 	// Verify default values are populated
 	assert.Equal(t, 4, cfg.Common.Threads)
-	assert.True(t, cfg.Common.TruffleHogVerification)
+	assert.True(t, cfg.Common.SecretsVerification)
 	assert.Equal(t, "500Mb", cfg.Common.MaxArtifactSize)
 	assert.Equal(t, "https://api.github.com", cfg.GitHub.URL)
 	assert.Equal(t, "https://api.bitbucket.org/2.0", cfg.BitBucket.URL)

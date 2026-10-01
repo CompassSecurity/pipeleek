@@ -21,7 +21,7 @@ func scanLogs(logBytes []byte, repo *gitea.Repository, run ActionWorkflowRun, jo
 
 	logResult, err := logline.ProcessLogs(logBytes, logline.ProcessOptions{
 		MaxGoRoutines:     scanOptions.MaxScanGoRoutines,
-		VerifyCredentials: scanOptions.TruffleHogVerification,
+		VerifyCredentials: scanOptions.SecretsVerification,
 		HitTimeout:        scanOptions.HitTimeout,
 	})
 	if err != nil {
@@ -66,7 +66,7 @@ func processZipArtifact(zipBytes []byte, repo *gitea.Repository, run ActionWorkf
 
 	_, err := artifactproc.ProcessZipArtifact(zipBytes, artifactproc.ProcessOptions{
 		MaxGoRoutines:     scanOptions.MaxScanGoRoutines,
-		VerifyCredentials: scanOptions.TruffleHogVerification,
+		VerifyCredentials: scanOptions.SecretsVerification,
 		BuildURL:          run.HTMLURL,
 		ArtifactName:      artifactName,
 		WorkflowRunName:   run.Name,
@@ -108,18 +108,18 @@ func scanArtifactContent(content []byte, repo *gitea.Repository, run ActionWorkf
 
 	switch action {
 	case "archive":
-		scanner.HandleArchiveArtifact(displayName, content, run.HTMLURL, run.Name, scanOptions.TruffleHogVerification, scanOptions.HitTimeout)
+		scanner.HandleArchiveArtifact(displayName, content, run.HTMLURL, run.Name, scanOptions.SecretsVerification, scanOptions.HitTimeout)
 	case "skip":
 		log.Trace().
 			Str("file", displayName).
 			Str("type", fileType).
 			Msg("Unknown file type, scanning as text")
-		scanner.DetectFileHits(content, run.HTMLURL, run.Name, displayName, repo.FullName, scanOptions.TruffleHogVerification, scanOptions.HitTimeout)
+		scanner.DetectFileHits(content, run.HTMLURL, run.Name, displayName, repo.FullName, scanOptions.SecretsVerification, scanOptions.HitTimeout)
 	case "scan":
 		log.Debug().
 			Str("file", displayName).
 			Str("type", fileType).
 			Msg("Not an archive file type, scanning as text")
-		scanner.DetectFileHits(content, run.HTMLURL, run.Name, displayName, repo.FullName, scanOptions.TruffleHogVerification, scanOptions.HitTimeout)
+		scanner.DetectFileHits(content, run.HTMLURL, run.Name, displayName, repo.FullName, scanOptions.SecretsVerification, scanOptions.HitTimeout)
 	}
 }

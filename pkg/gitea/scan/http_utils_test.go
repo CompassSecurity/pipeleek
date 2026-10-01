@@ -484,21 +484,21 @@ func TestAuthTransport_RoundTrip(t *testing.T) {
 // Test setup helper
 func setupTestScanOptions() {
 	scanOptions = GiteaScanOptions{
-		Token:                  "test-token",
-		GiteaURL:               "https://gitea.example.com",
-		Artifacts:              false,
-		ConfidenceFilter:       []string{},
-		MaxScanGoRoutines:      4,
-		TruffleHogVerification: false,
-		Owned:                  false,
-		Organization:           "",
-		Repository:             "",
-		Cookie:                 "",
-		RunsLimit:              0,
-		StartRunID:             0,
-		Context:                context.Background(),
-		Client:                 nil,
-		HttpClient:             resty.New().SetRetryCount(0),
+		Token:               "test-token",
+		GiteaURL:            "https://gitea.example.com",
+		Artifacts:           false,
+		ConfidenceFilter:    []string{},
+		MaxScanGoRoutines:   4,
+		SecretsVerification: false,
+		Owned:               false,
+		Organization:        "",
+		Repository:          "",
+		Cookie:              "",
+		RunsLimit:           0,
+		StartRunID:          0,
+		Context:             context.Background(),
+		Client:              nil,
+		HttpClient:          resty.New().SetRetryCount(0),
 	}
 }
 

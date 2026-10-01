@@ -26,15 +26,15 @@ var options = BitBucketScanOptions{
 var maxArtifactSize string
 
 var flagBindings = map[string]string{
-	"url":                      "bitbucket.url",
-	"token":                    "bitbucket.token",
-	"email":                    "bitbucket.email",
-	"cookie":                   "bitbucket.cookie",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "bitbucket.url",
+	"token":                "bitbucket.token",
+	"email":                "bitbucket.email",
+	"cookie":               "bitbucket.cookie",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -84,7 +84,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Email = config.GetString("bitbucket.email")
 	options.BitBucketCookie = config.GetString("bitbucket.cookie")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
@@ -115,7 +115,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		options.Owned,
 		options.Public,
 		options.Artifacts,
-		options.TruffleHogVerification,
+		options.SecretsVerification,
 		options.MaxPipelines,
 		options.MaxScanGoRoutines,
 		options.ConfidenceFilter,

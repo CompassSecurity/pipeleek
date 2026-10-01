@@ -39,7 +39,7 @@ func TestNewScanCmd(t *testing.T) {
 		"tests",
 		"insights",
 		"threads",
-		"truffle-hog-verification",
+		"secrets-verification",
 		"confidence",
 		"artifacts",
 		"max-artifact-size",

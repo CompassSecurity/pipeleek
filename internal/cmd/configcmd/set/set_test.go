@@ -70,7 +70,7 @@ func TestSetCmd_LegacyKeyAliasWritesCanonicalPath(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "pipeleek.yaml")
-	if err := os.WriteFile(cfgPath, []byte("common:\n  trufflehog_verification: true\n"), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte("common:\n  secrets_verification: true\n"), 0o644); err != nil {
 		t.Fatalf("write cfg: %v", err)
 	}
 
@@ -79,7 +79,7 @@ func TestSetCmd_LegacyKeyAliasWritesCanonicalPath(t *testing.T) {
 		_ = config.InitializeViper(cfgPath)
 	}
 
-	root.SetArgs([]string{"config", "set", "common.truffle_hog_verification", "false"})
+	root.SetArgs([]string{"config", "set", "common.secrets_verification", "false"})
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
@@ -93,8 +93,8 @@ func TestSetCmd_LegacyKeyAliasWritesCanonicalPath(t *testing.T) {
 		t.Fatalf("read cfg: %v", err)
 	}
 	content := string(updated)
-	if !strings.Contains(content, "trufflehog_verification") || !strings.Contains(content, "false") {
-		t.Fatalf("expected updated config to contain trufflehog_verification=false, got:\n%s", content)
+	if !strings.Contains(content, "secrets_verification") || !strings.Contains(content, "false") {
+		t.Fatalf("expected updated config to contain secrets_verification=false, got:\n%s", content)
 	}
 }
 
@@ -114,10 +114,10 @@ func newRootWithConfig() *cobra.Command {
 	scan := &cobra.Command{Use: "scan"}
 	var search string
 	var threads int
-	var truffleHogVerification bool
+	var secretsVerification bool
 	scan.Flags().StringVar(&search, "search", "", "search")
 	scan.Flags().IntVar(&threads, "threads", 4, "threads")
-	scan.Flags().BoolVar(&truffleHogVerification, "truffle-hog-verification", true, "trufflehog verification")
+	scan.Flags().BoolVar(&secretsVerification, "secrets-verification", true, "trufflehog verification")
 	gl.AddCommand(scan)
 	root.AddCommand(gl)
 

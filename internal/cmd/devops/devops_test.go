@@ -56,6 +56,6 @@ func TestNewScanCmd(t *testing.T) {
 
 	assert.NotNil(t, flags.Lookup("confidence"), "'confidence' flag should be registered")
 	assert.NotNil(t, flags.Lookup("threads"), "'threads' flag should be registered")
-	assert.NotNil(t, flags.Lookup("truffle-hog-verification"), "'truffle-hog-verification' flag should be registered")
+	assert.NotNil(t, flags.Lookup("secrets-verification"), "'secrets-verification' flag should be registered")
 	assert.NotNil(t, flags.Lookup("max-artifact-size"), "'max-artifact-size' flag should be registered")
 }

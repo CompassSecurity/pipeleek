@@ -17,6 +17,7 @@ type PatternPattern struct {
 type Finding struct {
 	Pattern PatternElement
 	Text    string
+	Engine  string
 }
 
 type DetectionResult struct {
