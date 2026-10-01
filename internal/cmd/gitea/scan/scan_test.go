@@ -33,6 +33,8 @@ func TestNewScanCmd(t *testing.T) {
 		"repository",
 		"runs-limit",
 		"start-run-id",
+		"repo-sort",
+		"repo-order",
 		"artifacts",
 		"owned",
 		"threads",
@@ -44,6 +46,12 @@ func TestNewScanCmd(t *testing.T) {
 		if flags.Lookup(name) == nil {
 			t.Errorf("Expected flag %q to exist", name)
 		}
+	}
+	if got := cmd.Flags().Lookup("repo-sort").DefValue; got != "updated" {
+		t.Errorf("Expected default repo sort 'updated', got %q", got)
+	}
+	if got := cmd.Flags().Lookup("repo-order").DefValue; got != "desc" {
+		t.Errorf("Expected default repo order 'desc', got %q", got)
 	}
 }
 
@@ -59,6 +67,8 @@ func TestGiteaScanFlagBindings(t *testing.T) {
 	flagValues := map[string]string{
 		"organization": "my-org",
 		"repository":   "my-repo",
+		"repo-sort":    "size",
+		"repo-order":   "asc",
 	}
 	for flag, value := range flagValues {
 		if err := cmd.Flags().Set(flag, value); err != nil {
@@ -88,6 +98,12 @@ func TestGiteaScanFlagBindings(t *testing.T) {
 	if got := config.GetBool("gitea.scan.owned"); !got {
 		t.Error("Expected gitea.scan.owned=true")
 	}
+	if got := config.GetString("gitea.scan.repo_sort"); got != "size" {
+		t.Errorf("Expected gitea.scan.repo_sort=%q, got %q", "size", got)
+	}
+	if got := config.GetString("gitea.scan.repo_order"); got != "asc" {
+		t.Errorf("Expected gitea.scan.repo_order=%q, got %q", "asc", got)
+	}
 }
 
 func TestGiteaScanEnvVarBinding(t *testing.T) {
@@ -110,5 +126,24 @@ func TestGiteaScanEnvVarBinding(t *testing.T) {
 	}
 	if got := config.GetBool("gitea.scan.artifacts"); !got {
 		t.Errorf("Expected gitea.scan.artifacts=true from env var, got %v", got)
+	}
+}
+
+func TestRepositorySortAndOrderValidation(t *testing.T) {
+	for _, value := range []string{"alpha", "created", "updated", "size", "id"} {
+		if err := validateRepositorySort(value); err != nil {
+			t.Errorf("expected sort %q to be accepted: %v", value, err)
+		}
+	}
+	if err := validateRepositorySort("name"); err == nil {
+		t.Error("expected unsupported repository sort to be rejected")
+	}
+	for _, value := range []string{"asc", "desc"} {
+		if err := validateRepositoryOrder(value); err != nil {
+			t.Errorf("expected order %q to be accepted: %v", value, err)
+		}
+	}
+	if err := validateRepositoryOrder("ascending"); err == nil {
+		t.Error("expected unsupported repository sort order to be rejected")
 	}
 }

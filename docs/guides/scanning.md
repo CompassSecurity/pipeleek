@@ -33,7 +33,7 @@ As shown, Pipeleek can detect secrets in job logs and build artifacts using its 
 
 ### Live Findings Web UI
 
-Add `--webui` to serve findings in a live web UI while the scan runs. Pipeleek binds the UI to `127.0.0.1` on an available local port and prints a URL with a random access token. The UI is only reachable from the local machine by default. Open the printed URL in a browser to watch findings arrive, filter and search them, and export them as CSV. The URL grants access to scan findings; treat it as sensitive and redact its token before sharing logs.
+Add `--webui` to serve findings in a live web UI while the scan runs. Pipeleek binds the UI to `127.0.0.1` on an available local port and prints a URL with a random access token. The UI is only reachable from the local machine by default. Open the printed URL in a browser to watch findings arrive, filter and search them, and export them as CSV. Results remain available after the scan completes, and the command keeps serving the UI until you press Ctrl+C. The URL grants access to scan findings; treat it as sensitive and redact its token before sharing logs.
 
 Use `-v` with `--webui` to see debug-level startup details:
 

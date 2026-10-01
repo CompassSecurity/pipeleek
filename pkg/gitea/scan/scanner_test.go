@@ -26,6 +26,30 @@ func giteaMockServer(t *testing.T) *httptest.Server {
 	return srv
 }
 
+func TestRepositorySearchOptions(t *testing.T) {
+	tests := []struct {
+		name  string
+		opts  ScanOptions
+		sort  string
+		order string
+	}{
+		{name: "preserves existing defaults", sort: "updated", order: "desc"},
+		{name: "uses configured sort and order", opts: ScanOptions{RepositorySort: "size", RepositoryOrder: "asc"}, sort: "size", order: "asc"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := repositorySearchOptions(test.opts, 3)
+			if got.Sort != test.sort || got.Order != test.order {
+				t.Errorf("expected sort/order %q/%q, got %q/%q", test.sort, test.order, got.Sort, got.Order)
+			}
+			if got.Page != 3 || got.PageSize != 50 {
+				t.Errorf("expected page/page size 3/50, got %d/%d", got.Page, got.PageSize)
+			}
+		})
+	}
+}
+
 func TestInitializeOptions_SDKClientInjected(t *testing.T) {
 	srv := giteaMockServer(t)
 

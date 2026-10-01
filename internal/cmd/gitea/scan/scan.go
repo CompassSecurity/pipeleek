@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"fmt"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	giteascan "github.com/CompassSecurity/pipeleek/pkg/gitea/scan"
@@ -11,11 +13,13 @@ import (
 
 type GiteaScanOptions struct {
 	config.CommonScanOptions
-	Organization string
-	Repository   string
-	Cookie       string
-	RunsLimit    int
-	StartRunID   int64
+	Organization    string
+	Repository      string
+	Cookie          string
+	RunsLimit       int
+	StartRunID      int64
+	RepositorySort  string
+	RepositoryOrder string
 }
 
 var scanOptions = GiteaScanOptions{
@@ -30,6 +34,8 @@ var flagBindings = map[string]string{
 	"repository":           "gitea.scan.repository",
 	"runs-limit":           "gitea.scan.runs_limit",
 	"start-run-id":         "gitea.scan.start_run_id",
+	"repo-sort":            "gitea.scan.repo_sort",
+	"repo-order":           "gitea.scan.repo_order",
 	"owned":                "gitea.scan.owned",
 	"artifacts":            "gitea.scan.artifacts",
 	"threads":              "common.threads",
@@ -91,6 +97,8 @@ pipeleek gitea scan --token gitea_token_xxxxx --url https://gitea.example.com --
 	scanCmd.Flags().StringVarP(&scanOptions.Cookie, "cookie", "c", "", "Gitea session cookie (i_like_gitea). Needed when scanning where you are NOT the owner of the repository")
 	scanCmd.Flags().IntVarP(&scanOptions.RunsLimit, "runs-limit", "", 0, "Limit the number of workflow runs to scan per repository (0 = unlimited)")
 	scanCmd.Flags().Int64VarP(&scanOptions.StartRunID, "start-run-id", "", 0, "Start scanning from a specific run ID (only valid with --repository flag, 0 = start from latest)")
+	scanCmd.Flags().StringVar(&scanOptions.RepositorySort, "repo-sort", "updated", "Sort all accessible repositories by alpha, created, updated, size, or id (default updated)")
+	scanCmd.Flags().StringVar(&scanOptions.RepositoryOrder, "repo-order", "desc", "Sort order for all accessible repositories: asc or desc (default desc)")
 
 	return scanCmd
 }
@@ -99,6 +107,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitea.url", "gitea.token").
+		AddValidator(func() error { return validateRepositorySort(config.GetString("gitea.scan.repo_sort")) }).
+		AddValidator(func() error { return validateRepositoryOrder(config.GetString("gitea.scan.repo_order")) }).
 		MustBind()
 
 	giteaURL := config.GetString("gitea.url")
@@ -108,6 +118,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	scanOptions.Repository = config.GetString("gitea.scan.repository")
 	scanOptions.RunsLimit = config.GetInt("gitea.scan.runs_limit")
 	scanOptions.StartRunID = int64(config.GetInt("gitea.scan.start_run_id"))
+	scanOptions.RepositorySort = config.GetString("gitea.scan.repo_sort")
+	scanOptions.RepositoryOrder = config.GetString("gitea.scan.repo_order")
 	scanOptions.Owned = config.GetBool("gitea.scan.owned")
 	scanOptions.Artifacts = config.GetBool("gitea.scan.artifacts")
 	scanOptions.MaxScanGoRoutines = config.GetInt("common.threads")
@@ -152,6 +164,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed initializing scan options")
 	}
+	scanOpts.RepositorySort = scanOptions.RepositorySort
+	scanOpts.RepositoryOrder = scanOptions.RepositoryOrder
 
 	if scanOptions.Cookie != "" {
 		if err := giteascan.ValidateCookie(scanOpts); err != nil {
@@ -166,4 +180,20 @@ func Scan(cmd *cobra.Command, args []string) {
 	if ui != nil {
 		ui.Wait()
 	}
+}
+
+func validateRepositorySort(value string) error {
+	switch value {
+	case "alpha", "created", "updated", "size", "id":
+		return nil
+	default:
+		return fmt.Errorf("invalid repository sort %q; choose alpha, created, updated, size, or id", value)
+	}
+}
+
+func validateRepositoryOrder(value string) error {
+	if value != "asc" && value != "desc" {
+		return fmt.Errorf("invalid repository sort order %q; choose asc or desc", value)
+	}
+	return nil
 }

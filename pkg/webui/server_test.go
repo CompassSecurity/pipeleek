@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -45,10 +46,14 @@ func TestHandleHitAssignsUniqueIDs(t *testing.T) {
 	if s.findings[0].ID == s.findings[1].ID {
 		t.Fatalf("expected distinct finding IDs, both were %q", s.findings[0].ID)
 	}
+	if got, want := s.findings[0].TimestampMillis, record.Time.UnixMilli(); got != want {
+		t.Errorf("expected precise finding timestamp %d, got %d", want, got)
+	}
 }
 
 func TestCompletedEventsReplayFindingsAndDone(t *testing.T) {
-	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	startedAt := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+	s := &Server{token: "abc", clients: make(map[chan string]struct{}), startedAt: startedAt}
 	s.handleHit(logging.HitRecord{Time: time.Now(), Value: "secret"})
 	s.Complete()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,8 +63,28 @@ func TestCompletedEventsReplayFindingsAndDone(t *testing.T) {
 	res := httptest.NewRecorder()
 	s.handler().ServeHTTP(res, req)
 
-	if !strings.Contains(res.Body.String(), "event: finding") || !strings.Contains(res.Body.String(), "event: done") {
-		t.Fatalf("expected completed stream to replay findings then completion, got %q", res.Body.String())
+	body := res.Body.String()
+	findingIndex := strings.Index(body, "event: finding")
+	replayCompleteIndex := strings.Index(body, "event: replay-complete")
+	doneIndex := strings.Index(body, "event: done")
+	if findingIndex < 0 || replayCompleteIndex <= findingIndex || doneIndex <= replayCompleteIndex {
+		t.Fatalf("expected replayed findings, replay completion, then scan completion, got %q", body)
+	}
+	if !strings.Contains(body[doneIndex:], `"elapsedMillis":`) {
+		t.Fatalf("expected completion event to contain server-computed elapsed time, got %q", body[doneIndex:])
+	}
+}
+
+func TestDoneEventUsesServerCompletionTime(t *testing.T) {
+	startedAt := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+	s := &Server{
+		startedAt:   startedAt,
+		completedAt: startedAt.Add(42*time.Second + 135*time.Millisecond),
+		completed:   true,
+	}
+
+	if got, want := s.doneEventLocked(), "event: done\ndata: {\"elapsedMillis\":42135}\n\n"; got != want {
+		t.Fatalf("expected authoritative completion event %q, got %q", want, got)
 	}
 }
 
@@ -114,6 +139,21 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "id=\"elapsed-time\"") || !strings.Contains(body, "var elapsedBase = ") || !strings.Contains(body, "window.setInterval(updateElapsedTime, 1000)") {
 		t.Fatal("expected elapsed timer element, server-provided baseline, and periodic updates")
 	}
+	if !strings.Contains(body, `id="notification-threshold-picker"`) || !strings.Contains(body, `aria-multiselectable="false"`) || !strings.Contains(body, `data-value="high-verified" aria-selected="true"`) || !strings.Contains(body, `data-value="none" aria-selected="false"`) || !strings.Contains(body, `class="badge high-verified">high-verified</span>`) || !strings.Contains(body, `id="enable-notifications"`) {
+		t.Fatal("expected single-select badge picker with high-verified default, None option, and permission fallback control")
+	}
+	if strings.Index(body, `id="notification-status"`) < strings.Index(body, `id="notification-threshold-picker"`) {
+		t.Fatal("expected notification status to appear after its threshold picker")
+	}
+	if !strings.Contains(body, "Notification.requestPermission()") || !strings.Contains(body, "function meetsNotificationThreshold") || !strings.Contains(body, "Confidence: ' + (item.confidence || 'unknown')") {
+		t.Fatal("expected permission prompting, threshold matching, and non-secret notification text")
+	}
+	if !strings.Contains(body, "notificationsSince = Date.now(); closeActiveNotifications()") || !strings.Contains(body, "Number(item.timestampMillis)") || !strings.Contains(body, "findingTime < notificationsSince") || !strings.Contains(body, "function closeActiveNotifications()") {
+		t.Fatal("expected threshold changes to close and suppress already-queued notifications")
+	}
+	if !strings.Contains(body, `id="notification-threshold" type="hidden" value="high-verified"`) || strings.Contains(body, "document.cookie") || strings.Contains(body, "localStorage") {
+		t.Fatal("expected the notification threshold to reset to high-verified for each new WebUI page")
+	}
 	if strings.Contains(body, "tableBody.innerHTML") || !strings.Contains(body, "function appendDetailValue") || !strings.Contains(body, "parsed.protocol === 'http:' || parsed.protocol === 'https:'") {
 		t.Fatal("expected finding values to render via DOM text APIs with HTTP(S)-only links")
 	}
@@ -125,6 +165,9 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	}
 	if !strings.Contains(body, "table-layout: fixed") || strings.Contains(body, "width: 8%; white-space: nowrap") {
 		t.Fatal("expected findings table columns to stay within the table width")
+	}
+	if !strings.Contains(body, ".filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }") || !strings.Contains(body, ".filters > .control-btn { align-self: flex-start; margin-top: 1.5rem; }") {
+		t.Fatal("expected filter labels to align at the top while action buttons align with the controls")
 	}
 	if strings.Count(body, `aria-multiselectable="true"`) != 2 || !strings.Contains(body, `class="badge high-verified">high-verified</span>`) {
 		t.Fatal("expected severity and type filters to render badge-style multi-select options")
@@ -138,6 +181,53 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	csp := res.Header().Get("Content-Security-Policy")
 	if !strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
 		t.Fatalf("expected CSP to allow inline script, got %q", csp)
+	}
+}
+
+func TestHandleRootRendersFixedActiveAndCompletedElapsedTimes(t *testing.T) {
+	startedAt := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name        string
+		server      *Server
+		now         time.Time
+		wantElapsed string
+		wantState   string
+	}{
+		{
+			name:        "active scan",
+			server:      &Server{token: "abc", startedAt: startedAt},
+			now:         startedAt.Add(12*time.Second + 345*time.Millisecond),
+			wantElapsed: "12345",
+			wantState:   "false",
+		},
+		{
+			name: "completed scan",
+			server: &Server{
+				token:       "abc",
+				startedAt:   startedAt,
+				completedAt: startedAt.Add(42*time.Second + 135*time.Millisecond),
+				completed:   true,
+			},
+			now:         startedAt.Add(time.Minute),
+			wantElapsed: "42135",
+			wantState:   "true",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+			req.AddCookie(&http.Cookie{Name: "pipeleek-webui-token", Value: "abc"})
+			res := httptest.NewRecorder()
+			test.server.handleRootAt(res, req, test.now)
+
+			body := res.Body.String()
+			elapsedMatch := regexp.MustCompile(`var elapsedBase =\s+(\d+)\s*;`).FindStringSubmatch(body)
+			stateMatch := regexp.MustCompile(`completed:\s+(true|false)\s*,`).FindStringSubmatch(body)
+			if len(elapsedMatch) < 2 || elapsedMatch[1] != test.wantElapsed || len(stateMatch) < 2 || stateMatch[1] != test.wantState {
+				t.Fatalf("expected elapsed baseline %q and completed state %q in rendered page", test.wantElapsed, test.wantState)
+			}
+		})
 	}
 }
 

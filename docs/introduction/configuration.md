@@ -85,6 +85,11 @@ Override per-command:
 gitlab:
   scan:
     threads: 20 # Override common.threads for gl scan
+
+gitea:
+  scan:
+    repo_sort: updated # alpha, created, updated, size, or id; default updated
+    repo_order: desc # asc or desc; default desc
 ```
 
 ## Environment Variables

@@ -31,14 +31,14 @@ The `--secrets-verification` option controls provider verification for both Truf
 
 Pipeleek assigns confidence levels to all detected secrets:
 
-| Level                     | Source     | Description                                       | Verified |
-| ------------------------- | ---------- | ------------------------------------------------- | -------- |
-| **high-verified**         | TruffleHog, Betterleaks | Actively verified and confirmed working | ✅ Yes |
-| **trufflehog-unverified** | TruffleHog | Detected but not verified (verification disabled) | ❌ No |
-| **high**                  | rules.yml, Betterleaks | High confidence pattern match | ❌ No |
-| **medium**                | rules.yml, Betterleaks | Medium confidence pattern match | ❌ No |
-| **low**                   | rules.yml, Betterleaks | Low confidence pattern match | ❌ No |
-| **custom**                | rules.yml | User-defined confidence level | ❌ No |
+| Level                     | Source                  | Description                                       | Verified |
+| ------------------------- | ----------------------- | ------------------------------------------------- | -------- |
+| **high-verified**         | TruffleHog, Betterleaks | Actively verified and confirmed working           | ✅ Yes   |
+| **trufflehog-unverified** | TruffleHog              | Detected but not verified (verification disabled) | ❌ No    |
+| **high**                  | rules.yml, Betterleaks  | High confidence pattern match                     | ❌ No    |
+| **medium**                | rules.yml, Betterleaks  | Medium confidence pattern match                   | ❌ No    |
+| **low**                   | rules.yml, Betterleaks  | Low confidence pattern match                      | ❌ No    |
+| **custom**                | rules.yml               | User-defined confidence level                     | ❌ No    |
 
 ### Disabling Verification
 
