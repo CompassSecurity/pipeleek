@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -77,23 +78,64 @@ func NewHitLevelWriter(out io.Writer) *HitLevelWriter {
 }
 
 // HitEvent wraps a zerolog.Event for hit-level logging with "level":"hit" output.
+type HitRecord struct {
+	Time       time.Time
+	Type       string
+	Confidence string
+	RuleName   string
+	Value      string
+	Fields     map[string]interface{}
+}
+
+type HitSink func(HitRecord)
+
+var (
+	hitSinkMu sync.RWMutex
+	hitSink   HitSink
+)
+
+func RegisterHitSink(sink HitSink) {
+	hitSinkMu.Lock()
+	defer hitSinkMu.Unlock()
+	hitSink = sink
+}
+
+func getHitSink() HitSink {
+	hitSinkMu.RLock()
+	defer hitSinkMu.RUnlock()
+	return hitSink
+}
+
 type HitEvent struct {
 	event  *zerolog.Event
 	writer *HitLevelWriter
+	fields map[string]interface{}
 }
 
 func (h *HitEvent) Str(key, val string) *HitEvent {
 	h.event.Str(key, val)
+	if h.fields == nil {
+		h.fields = make(map[string]interface{})
+	}
+	h.fields[key] = val
 	return h
 }
 
 func (h *HitEvent) Int(key string, val int) *HitEvent {
 	h.event.Int(key, val)
+	if h.fields == nil {
+		h.fields = make(map[string]interface{})
+	}
+	h.fields[key] = val
 	return h
 }
 
 func (h *HitEvent) Bool(key string, val bool) *HitEvent {
 	h.event.Bool(key, val)
+	if h.fields == nil {
+		h.fields = make(map[string]interface{})
+	}
+	h.fields[key] = val
 	return h
 }
 
@@ -106,6 +148,10 @@ func (h *HitEvent) Err(err error) *HitEvent {
 func (h *HitEvent) Engine(engine string) *HitEvent {
 	if engine != "" && zerolog.GlobalLevel() <= zerolog.DebugLevel {
 		h.event.Str("engine", engine)
+		if h.fields == nil {
+			h.fields = make(map[string]interface{})
+		}
+		h.fields["engine"] = engine
 	}
 	return h
 }
@@ -115,6 +161,29 @@ func (h *HitEvent) Msg(msg string) {
 		h.writer.markNextAsHit()
 	}
 	h.event.Bool("_hit", true).Msg(msg)
+
+	if sink := getHitSink(); sink != nil {
+		record := HitRecord{
+			Time:   time.Now().UTC(),
+			Fields: map[string]interface{}{},
+		}
+		for key, val := range h.fields {
+			record.Fields[key] = val
+		}
+		if v, ok := record.Fields["type"].(string); ok {
+			record.Type = v
+		}
+		if v, ok := record.Fields["confidence"].(string); ok {
+			record.Confidence = v
+		}
+		if v, ok := record.Fields["ruleName"].(string); ok {
+			record.RuleName = v
+		}
+		if v, ok := record.Fields["value"].(string); ok {
+			record.Value = v
+		}
+		sink(record)
+	}
 }
 
 var globalHitWriter *HitLevelWriter

@@ -5,6 +5,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgscan "github.com/CompassSecurity/pipeleek/pkg/github/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
+	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -44,6 +45,7 @@ var flagBindings = map[string]string{
 	"max-artifact-size":    "common.max_artifact_size",
 	"confidence":           "common.confidence_filter",
 	"hit-timeout":          "common.hit_timeout",
+	"webui":                "common.webui",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -104,6 +106,10 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	if ui != nil {
+		defer ui.Close()
+	}
 
 	if err := config.ValidateURL(options.GitHubURL, "GitHub URL"); err != nil {
 		log.Fatal().Err(err).Msg("Invalid GitHub URL")
@@ -141,5 +147,8 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	if err := scanner.Scan(); err != nil {
 		log.Fatal().Err(err).Msg("Scan failed")
+	}
+	if ui != nil {
+		ui.Wait()
 	}
 }

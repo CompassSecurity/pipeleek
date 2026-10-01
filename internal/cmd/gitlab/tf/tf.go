@@ -7,6 +7,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	tfpkg "github.com/CompassSecurity/pipeleek/pkg/gitlab/tf"
+	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +26,7 @@ var flagBindings = map[string]string{
 	"secrets-verification": "common.secrets_verification",
 	"confidence":           "common.confidence_filter",
 	"hit-timeout":          "common.hit_timeout",
+	"webui":                "common.webui",
 }
 
 func NewTFCmd() *cobra.Command {
@@ -74,6 +76,10 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	options.SecretsVerification = config.GetBool("common.secrets_verification")
+	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	if ui != nil {
+		defer ui.Close()
+	}
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
 	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
 	if err != nil {
@@ -92,6 +98,9 @@ func tfRun(cmd *cobra.Command, args []string) {
 	}
 
 	tfpkg.ScanTerraformStates(tfOptions)
+	if ui != nil {
+		ui.Wait()
+	}
 
 	log.Info().Msg("Done, Bye Bye 🏳️‍🌈🔥")
 }
