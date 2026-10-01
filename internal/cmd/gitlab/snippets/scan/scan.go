@@ -26,17 +26,17 @@ var options = ScanOptions{
 }
 
 var flagBindings = map[string]string{
-	"url":                      "gitlab.url",
-	"token":                    "gitlab.token",
-	"repo":                     "gitlab.snippets.scan.repo",
-	"namespace":                "gitlab.snippets.scan.namespace",
-	"search":                   "gitlab.snippets.scan.search",
-	"owned":                    "gitlab.snippets.scan.owned",
-	"member":                   "gitlab.snippets.scan.member",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "gitlab.url",
+	"token":                "gitlab.token",
+	"repo":                 "gitlab.snippets.scan.repo",
+	"namespace":            "gitlab.snippets.scan.namespace",
+	"search":               "gitlab.snippets.scan.search",
+	"owned":                "gitlab.snippets.scan.owned",
+	"member":               "gitlab.snippets.scan.member",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -87,7 +87,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	owned := config.GetBool("gitlab.snippets.scan.owned")
 	member := config.GetBool("gitlab.snippets.scan.member")
 	threads := config.GetInt("common.threads")
-	truffleHogVerification := config.GetBool("common.trufflehog_verification")
+	secretsVerification := config.GetBool("common.secrets_verification")
 	confidenceFilter := config.GetStringSlice("common.confidence_filter")
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
 	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
@@ -108,7 +108,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		owned,
 		member,
 		threads,
-		truffleHogVerification,
+		secretsVerification,
 		confidenceFilter,
 		hitTimeout,
 	)

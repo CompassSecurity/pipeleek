@@ -19,17 +19,17 @@ import (
 )
 
 type ScanOptions struct {
-	GitlabURL              string
-	GitlabToken            string
-	Project                string
-	Namespace              string
-	ProjectSearchQuery     string
-	Owned                  bool
-	Member                 bool
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	ConfidenceFilter       []string
-	HitTimeout             time.Duration
+	GitlabURL           string
+	GitlabToken         string
+	Project             string
+	Namespace           string
+	ProjectSearchQuery  string
+	Owned               bool
+	Member              bool
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	ConfidenceFilter    []string
+	HitTimeout          time.Duration
 }
 
 type Scanner interface {
@@ -50,7 +50,7 @@ func NewScanner(opts *ScanOptions) Scanner {
 }
 
 func InitializeOptions(gitlabURL, gitlabToken, project, namespace, projectSearchQuery string,
-	owned, member bool, maxScanGoRoutines int, truffleHogVerification bool,
+	owned, member bool, maxScanGoRoutines int, secretsVerification bool,
 	confidenceFilter []string, hitTimeout time.Duration) (*ScanOptions, error) {
 
 	if _, err := url.ParseRequestURI(gitlabURL); err != nil {
@@ -62,17 +62,17 @@ func InitializeOptions(gitlabURL, gitlabToken, project, namespace, projectSearch
 	}
 
 	return &ScanOptions{
-		GitlabURL:              gitlabURL,
-		GitlabToken:            gitlabToken,
-		Project:                project,
-		Namespace:              namespace,
-		ProjectSearchQuery:     projectSearchQuery,
-		Owned:                  owned,
-		Member:                 member,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		ConfidenceFilter:       confidenceFilter,
-		HitTimeout:             hitTimeout,
+		GitlabURL:           gitlabURL,
+		GitlabToken:         gitlabToken,
+		Project:             project,
+		Namespace:           namespace,
+		ProjectSearchQuery:  projectSearchQuery,
+		Owned:               owned,
+		Member:              member,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		ConfidenceFilter:    confidenceFilter,
+		HitTimeout:          hitTimeout,
 	}, nil
 }
 
@@ -326,7 +326,7 @@ func (s *snippetsScanner) scanAllVisibleSnippets(git *gitlab.Client) error {
 }
 
 func (s *snippetsScanner) reportFindings(content []byte, snippet *gitlab.Snippet, filePath string, customFields map[string]string) {
-	findings, err := pkgscanner.DetectHits(content, s.options.MaxScanGoRoutines, s.options.TruffleHogVerification, s.options.HitTimeout)
+	findings, err := pkgscanner.DetectHitsWithOptions(content, s.options.MaxScanGoRoutines, s.options.SecretsVerification, pkgscanner.DetectionOptions{Path: filePath, GitLabURL: s.options.GitlabURL, Timeout: s.options.HitTimeout})
 	if err != nil {
 		log.Warn().Err(err).Int64("snippetId", snippet.ID).Str("file", filePath).Msg("Failed detecting secrets in snippet content")
 		return

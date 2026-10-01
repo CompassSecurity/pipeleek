@@ -7,6 +7,7 @@ require (
 	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.38646
 	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/betterleaks/betterleaks/v2 v2.0.0-20260929212625-fa62e6aaad9d
 	github.com/bndr/gojenkins v1.2.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.19.2
@@ -44,6 +45,7 @@ require (
 	github.com/BobuSumisu/aho-corasick v1.0.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
+	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
 	github.com/Unpackerr/iso9660 v0.0.3 // indirect
 	github.com/andybalholm/brotli v1.2.3 // indirect
@@ -71,6 +73,7 @@ require (
 	github.com/cavaliergopher/cpio v1.0.1 // indirect
 	github.com/cavaliergopher/rpm v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/charlievieth/fastwalk v1.0.14 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/containerd/console v1.0.5 // indirect
@@ -83,8 +86,11 @@ require (
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
+	github.com/expr-lang/expr v1.17.8 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -128,6 +134,7 @@ require (
 	github.com/kevinburke/ssh_config v1.4.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.1 // indirect
@@ -142,13 +149,16 @@ require (
 	github.com/mewkiz/flac v1.0.14 // indirect
 	github.com/mewkiz/pkg v0.0.0-20260703220044-4fb89b18cc87 // indirect
 	github.com/mewpkg/term v0.0.0-20241026122259-37a80af23985 // indirect
+	github.com/mholt/archives v0.1.6-0.20260429171216-ef71b7a32fae // indirect
 	github.com/microsoft/go-mssqldb v1.8.2 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
+	github.com/minio/minlz v1.1.1 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nwaples/rardecode/v2 v2.4.1 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/peterebden/ar v0.0.0-20241106141004-20dc11b778e8 // indirect
 	github.com/pierrec/lz4/v4 v4.1.29 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
@@ -159,12 +169,14 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rabbitmq/amqp091-go v1.13.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/rrethy/ahocorasick v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
+	github.com/sorairolake/lzip-go v0.3.8 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect

@@ -1,8 +1,8 @@
 package set
 
 import (
-	"github.com/rs/zerolog/log"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"strings"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/configcmd/common"
@@ -25,7 +25,7 @@ Intermediate objects in the key path are created automatically if they don't exi
 Examples of value formats:
   pipeleek config set common.threads 8
   pipeleek config set gitlab.url https://gitlab.example.com
-  pipeleek config set common.trufflehog_verification true
+  pipeleek config set common.secrets_verification true
   pipeleek config set gitlab.runners.exploit.tags '[docker, linux]'`,
 		Example: `
 # Set a scalar string
@@ -35,7 +35,7 @@ pipeleek config set gitlab.url https://gitlab.example.com
 pipeleek config set common.threads 16
 
 # Set a boolean
-pipeleek config set common.trufflehog_verification false
+pipeleek config set common.secrets_verification false
 
 # Set an array
 pipeleek config set gitlab.runners.exploit.tags '[docker, linux]'
@@ -47,7 +47,7 @@ pipeleek config set gitlab.runners '{exploit: {tags: [docker]}}'`,
 			if err := common.ValidateKeyPath(args[0]); err != nil {
 				return common.LogAndWrapError("set", "validate key path", err)
 			}
-			key := common.CanonicalizeKeyPath(args[0])
+			key := args[0]
 			valueStr := args[1]
 			if !configgen.IsAllowedConfigPath(cmd.Root(), key) {
 				return common.LogAndWrapError("set", "validate key path", fmt.Errorf("key %q is not an allowed configuration path", args[0]))

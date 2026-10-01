@@ -2,6 +2,8 @@ package engine
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +11,8 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
+	blconfig "github.com/betterleaks/betterleaks/v2/config"
+	blreport "github.com/betterleaks/betterleaks/v2/report"
 )
 
 func init() {
@@ -418,4 +422,159 @@ func TestDetectHits_CustomGitLabDetector_MultipleTypes(t *testing.T) {
 			t.Errorf("Expected to find token with prefix %s, but found none. All findings: %v", prefix, findings)
 		}
 	}
+}
+
+func TestDetectHits_BetterleaksFindingUsesExtractedValue(t *testing.T) {
+	token := "glpat-bcdefghijklmnopqrstu"
+	findings, err := DetectHits([]byte("GITLAB_TOKEN="+token), 1, false, 60*time.Second)
+	if err != nil {
+		t.Fatalf("DetectHits() error = %v", err)
+	}
+
+	for _, finding := range findings {
+		if finding.Pattern.Pattern.Name == "betterleaks/gitlab-pat" {
+			if finding.Text != token {
+				t.Fatalf("Betterleaks finding text = %q, want extracted token %q", finding.Text, token)
+			}
+			return
+		}
+	}
+	t.Fatalf("Betterleaks GitLab PAT finding not found: %v", findings)
+}
+
+func TestDetectHitsWithOptions_BetterleaksValidationUsesConfiguredGitLabHost(t *testing.T) {
+	token := "glpat-cdefghijklmnopqrstuv"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v4/personal_access_tokens/self" {
+			t.Errorf("request path = %q, want GitLab PAT self-inspection endpoint", r.URL.Path)
+		}
+		if got := r.Header.Get("PRIVATE-TOKEN"); got != token {
+			t.Errorf("PRIVATE-TOKEN = %q, want test token", got)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, `{"id":1,"name":"fixture","user_id":1,"scopes":["api"]}`)
+	}))
+	defer server.Close()
+
+	findings, err := DetectHitsWithOptions([]byte("GITLAB_TOKEN="+token), 1, true, DetectionOptions{
+		GitLabURL: server.URL,
+		Timeout:   60 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("DetectHitsWithOptions() error = %v", err)
+	}
+	for _, finding := range findings {
+		if finding.Pattern.Pattern.Name == "betterleaks/gitlab-pat" {
+			if finding.Text != token || finding.Pattern.Pattern.Confidence != "high-verified" {
+				t.Fatalf("unexpected validated finding: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("validated Betterleaks GitLab PAT finding not found: %v", findings)
+}
+
+func TestDetectHitsWithOptions_BetterleaksPathRule(t *testing.T) {
+	content := []byte(`administrator_login_password = "A1b2C3d4E5f6"`)
+	findForPath := func(path string) []types.Finding {
+		findings, err := DetectHitsWithOptions(content, 1, false, DetectionOptions{Path: path, Timeout: 60 * time.Second})
+		if err != nil {
+			t.Fatalf("DetectHitsWithOptions(%q) error = %v", path, err)
+		}
+		return findings
+	}
+	hasRule := func(findings []types.Finding) bool {
+		for _, finding := range findings {
+			if finding.Pattern.Pattern.Name == "betterleaks/hashicorp-tf-password" {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !hasRule(findForPath("main.tf")) {
+		t.Fatal("expected Terraform password rule to match a .tf path")
+	}
+	if hasRule(findForPath("main.txt")) {
+		t.Fatal("Terraform password rule matched a non-Terraform path")
+	}
+}
+
+func TestDetectHits_SetsEngine(t *testing.T) {
+	defer detectors.ClearGitLabURL()
+	detectors.ClearGitLabURL()
+
+	findings, err := DetectHits([]byte("GITLAB_TOKEN=glpat-defghijklmnopqrstuvw"), 1, false, 60*time.Second)
+	if err != nil {
+		t.Fatalf("DetectHits() error = %v", err)
+	}
+
+	engines := map[string]bool{}
+	for _, finding := range findings {
+		if finding.Engine == "" {
+			t.Errorf("finding %q has no engine", finding.Pattern.Pattern.Name)
+		}
+		engines[finding.Engine] = true
+	}
+	for _, engine := range []string{EngineRules, EngineBetterleaks, EngineGitLab} {
+		if !engines[engine] {
+			t.Errorf("expected a finding from engine %q, got engines %v", engine, engines)
+		}
+	}
+}
+
+func TestMapBetterleaksFindings(t *testing.T) {
+	findings := []blreport.Finding{
+		{RuleID: "valid-token", Confidence: "medium", Match: blreport.Match{Full: "token=secret-value", Value: "secret-value"}, Analysis: blreport.Analysis{Status: blreport.ValidationStatusValid}},
+		{RuleID: "unresolved-token", Confidence: "low", Match: blreport.Match{Full: "token=other-value", Value: "other-value"}, Analysis: blreport.Analysis{Status: blreport.ValidationStatusUnknown}},
+		{RuleID: "invalid-token", Confidence: "high", Match: blreport.Match{Value: "invalid-value"}, Analysis: blreport.Analysis{Status: blreport.ValidationStatusInvalid}},
+		{RuleID: "revoked-token", Confidence: "high", Match: blreport.Match{Value: "revoked-value"}, Analysis: blreport.Analysis{Status: blreport.ValidationStatusRevoked}},
+	}
+
+	mapped := mapBetterleaksFindings(findings, nil)
+	if len(mapped) != 2 {
+		t.Fatalf("mapped %d findings, want 2", len(mapped))
+	}
+	if mapped[0].Pattern.Pattern.Name != "betterleaks/valid-token" || mapped[0].Text != "secret-value" || mapped[0].Pattern.Pattern.Confidence != "high-verified" || mapped[0].Engine != EngineBetterleaks {
+		t.Fatalf("unexpected validated finding mapping: %+v", mapped[0])
+	}
+	if mapped[1].Pattern.Pattern.Name != "betterleaks/unresolved-token" || mapped[1].Text != "other-value" || mapped[1].Pattern.Pattern.Confidence != "low" {
+		t.Fatalf("unexpected unresolved finding mapping: %+v", mapped[1])
+	}
+
+	verifiedOnly := mapBetterleaksFindings(findings, []string{"high-verified"})
+	if len(verifiedOnly) != 1 || verifiedOnly[0].Pattern.Pattern.Name != "betterleaks/valid-token" {
+		t.Fatalf("confidence filtering returned unexpected findings: %+v", verifiedOnly)
+	}
+}
+
+func TestGetBetterleaksRuntimeVerificationIsOptIn(t *testing.T) {
+	runtime, err := getBetterleaksRuntime("", false, 37, 0)
+	if err != nil {
+		t.Fatalf("getBetterleaksRuntime() error = %v", err)
+	}
+	if runtime.analyzer != nil {
+		t.Fatal("expected analyzer to remain uninitialized when verification is disabled")
+	}
+}
+
+func TestRewriteGitLabRuleHosts(t *testing.T) {
+	config, err := blconfig.Default()
+	if err != nil {
+		t.Fatalf("config.Default() error = %v", err)
+	}
+	rewriteGitLabRuleHosts(config, "https://gitlab.example.test")
+
+	for _, rule := range config.Rules {
+		if rule.ID == "gitlab-pat" {
+			if !strings.Contains(rule.ValidateExpr, "https://gitlab.example.test") || !strings.Contains(rule.ValidateExpr, "/api/v4/personal_access_tokens/self") {
+				t.Fatalf("GitLab PAT validator did not use the configured host: %s", rule.ValidateExpr)
+			}
+			if strings.Contains(rule.ValidateExpr, "https://gitlab.com") {
+				t.Fatal("GitLab PAT validator still references gitlab.com")
+			}
+			return
+		}
+	}
+	t.Fatal("GitLab PAT rule not found in Betterleaks default configuration")
 }

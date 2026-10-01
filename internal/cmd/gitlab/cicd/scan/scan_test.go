@@ -39,7 +39,7 @@ func TestNewScanCmd(t *testing.T) {
 		"owned",
 		"queue",
 		"threads",
-		"truffle-hog-verification",
+		"secrets-verification",
 		"confidence",
 		"hit-timeout",
 	} {

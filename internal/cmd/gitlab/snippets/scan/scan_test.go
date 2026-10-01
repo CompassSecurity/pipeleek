@@ -25,7 +25,7 @@ func TestNewScanCmd(t *testing.T) {
 	assert.NotNil(t, flags.Lookup("owned"))
 	assert.NotNil(t, flags.Lookup("member"))
 	assert.NotNil(t, flags.Lookup("threads"))
-	assert.NotNil(t, flags.Lookup("truffle-hog-verification"))
+	assert.NotNil(t, flags.Lookup("secrets-verification"))
 	assert.NotNil(t, flags.Lookup("confidence"))
 	assert.NotNil(t, flags.Lookup("hit-timeout"))
 
@@ -42,5 +42,5 @@ func TestNewScanCmd(t *testing.T) {
 	assert.Equal(t, "", flags.Lookup("search").DefValue)
 
 	defaults := config.DefaultCommonScanOptions()
-	assert.Equal(t, defaults.TruffleHogVerification, cmd.Flags().Lookup("truffle-hog-verification").DefValue == "true")
+	assert.Equal(t, defaults.SecretsVerification, cmd.Flags().Lookup("secrets-verification").DefValue == "true")
 }

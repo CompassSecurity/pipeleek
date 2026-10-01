@@ -17,23 +17,23 @@ import (
 
 // ScanOptions contains configuration options for BitBucket scanning operations.
 type ScanOptions struct {
-	Email                  string
-	AccessToken            string
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	MaxPipelines           int
-	Workspace              string
-	Owned                  bool
-	Public                 bool
-	After                  string
-	Artifacts              bool
-	BitBucketURL           string
-	MaxArtifactSize        int64
-	HitTimeout             time.Duration
-	Context                context.Context
-	Client                 BitBucketApiClient
-	HasProvidedCookie      bool
+	Email               string
+	AccessToken         string
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	MaxPipelines        int
+	Workspace           string
+	Owned               bool
+	Public              bool
+	After               string
+	Artifacts           bool
+	BitBucketURL        string
+	MaxArtifactSize     int64
+	HitTimeout          time.Duration
+	Context             context.Context
+	Client              BitBucketApiClient
+	HasProvidedCookie   bool
 }
 
 type Scanner interface {
@@ -216,7 +216,7 @@ func (s *bbScanner) listArtifacts(workspaceSlug string, repoSlug string, buildId
 			artifactBytes := s.options.Client.GetPipelineArtifact(workspaceSlug, repoSlug, buildId, art.UUID)
 
 			if filetype.IsArchive(artifactBytes) {
-				pkgscanner.HandleArchiveArtifact(art.Name, artifactBytes, s.buildWebArtifactUrl(workspaceSlug, repoSlug, buildId, art.StepUUID), "Build "+strconv.Itoa(buildId), s.options.TruffleHogVerification, s.options.HitTimeout)
+				pkgscanner.HandleArchiveArtifact(art.Name, artifactBytes, s.buildWebArtifactUrl(workspaceSlug, repoSlug, buildId, art.StepUUID), "Build "+strconv.Itoa(buildId), s.options.SecretsVerification, s.options.HitTimeout)
 			}
 		}
 
@@ -298,7 +298,7 @@ func (s *bbScanner) getSteplog(workspaceSlug string, repoSlug string, pipelineUu
 
 	logResult, err := logline.ProcessLogs(logBytes, logline.ProcessOptions{
 		MaxGoRoutines:     s.options.MaxScanGoRoutines,
-		VerifyCredentials: s.options.TruffleHogVerification,
+		VerifyCredentials: s.options.SecretsVerification,
 		HitTimeout:        s.options.HitTimeout,
 	})
 	if err != nil {
@@ -320,15 +320,15 @@ func (s *bbScanner) getDownloadArtifact(downloadUrl string, webUrl string, filen
 	}
 
 	if filetype.IsArchive(fileBytes) {
-		pkgscanner.HandleArchiveArtifact(filename, fileBytes, webUrl, "Download Artifact", s.options.TruffleHogVerification, s.options.HitTimeout)
+		pkgscanner.HandleArchiveArtifact(filename, fileBytes, webUrl, "Download Artifact", s.options.SecretsVerification, s.options.HitTimeout)
 	} else {
-		pkgscanner.DetectFileHits(fileBytes, webUrl, "Download Artifact", filename, "", s.options.TruffleHogVerification, s.options.HitTimeout)
+		pkgscanner.DetectFileHits(fileBytes, webUrl, "Download Artifact", filename, "", s.options.SecretsVerification, s.options.HitTimeout)
 	}
 }
 
 // InitializeOptions prepares scan options from CLI parameters.
 func InitializeOptions(email, accessToken, bitBucketCookie, bitBucketURL, workspace, after, maxArtifactSizeStr string,
-	owned, public, artifacts, truffleHogVerification bool,
+	owned, public, artifacts, secretsVerification bool,
 	maxPipelines, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (ScanOptions, error) {
 
 	byteSize, err := format.ParseHumanSize(maxArtifactSizeStr)
@@ -340,22 +340,22 @@ func InitializeOptions(email, accessToken, bitBucketCookie, bitBucketURL, worksp
 	client := NewClient(email, accessToken, bitBucketCookie, bitBucketURL)
 
 	return ScanOptions{
-		Email:                  email,
-		AccessToken:            accessToken,
-		ConfidenceFilter:       confidenceFilter,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		MaxPipelines:           maxPipelines,
-		Workspace:              workspace,
-		Owned:                  owned,
-		Public:                 public,
-		After:                  after,
-		Artifacts:              artifacts,
-		BitBucketURL:           bitBucketURL,
-		MaxArtifactSize:        byteSize,
-		HitTimeout:             hitTimeout,
-		Context:                ctx,
-		Client:                 client,
-		HasProvidedCookie:      bitBucketCookie != "",
+		Email:               email,
+		AccessToken:         accessToken,
+		ConfidenceFilter:    confidenceFilter,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		MaxPipelines:        maxPipelines,
+		Workspace:           workspace,
+		Owned:               owned,
+		Public:              public,
+		After:               after,
+		Artifacts:           artifacts,
+		BitBucketURL:        bitBucketURL,
+		MaxArtifactSize:     byteSize,
+		HitTimeout:          hitTimeout,
+		Context:             ctx,
+		Client:              client,
+		HasProvidedCookie:   bitBucketCookie != "",
 	}, nil
 }

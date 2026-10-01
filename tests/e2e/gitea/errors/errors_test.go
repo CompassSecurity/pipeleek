@@ -90,4 +90,4 @@ func TestGitea_APIErrors(t *testing.T) {
 	}
 }
 
-// TestGitea_TruffleHogVerification tests credential verification flag
+// TestGitea_SecretsVerification tests credential verification flag

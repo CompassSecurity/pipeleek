@@ -350,8 +350,8 @@ func TestGitHubScan_ThreadsConfiguration(t *testing.T) {
 	}
 }
 
-// TestGitHubScan_TruffleHogVerificationDisabled tests --truffleHogVerification=false flag
-func TestGitHubScan_TruffleHogVerificationDisabled(t *testing.T) {
+// TestGitHubScan_SecretsVerificationDisabled tests --secretsVerification=false flag
+func TestGitHubScan_SecretsVerificationDisabled(t *testing.T) {
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -389,7 +389,7 @@ func TestGitHubScan_TruffleHogVerificationDisabled(t *testing.T) {
 		"--url", server.URL,
 		"--token", "ghp_test_token",
 		"--owned",
-		"--truffle-hog-verification=false",
+		"--secrets-verification=false",
 	}, nil, 15*time.Second)
 
 	assert.Nil(t, exitErr, "Scan with TruffleHog verification disabled should succeed")

@@ -17,14 +17,14 @@ import (
 )
 
 type TFOptions struct {
-	GitlabUrl              string
-	GitlabApiToken         string
-	GitlabClient           *gitlab.Client
-	OutputDir              string
-	Threads                int
-	ConfidenceFilter       []string
-	TruffleHogVerification bool
-	HitTimeout             time.Duration
+	GitlabUrl           string
+	GitlabApiToken      string
+	GitlabClient        *gitlab.Client
+	OutputDir           string
+	Threads             int
+	ConfidenceFilter    []string
+	SecretsVerification bool
+	HitTimeout          time.Duration
 }
 
 type terraformState struct {
@@ -37,7 +37,7 @@ func ScanTerraformStates(options TFOptions) {
 	log.Info().Msg("Starting Terraform state scan")
 
 	scanner.InitRules(options.ConfidenceFilter)
-	if !options.TruffleHogVerification {
+	if !options.SecretsVerification {
 		log.Info().Msg("TruffleHog verification is disabled")
 	}
 
@@ -149,7 +149,7 @@ func downloadStateFile(state terraformState, options TFOptions) ([]byte, string,
 func scanStateFile(content []byte, filePath string, state terraformState, options TFOptions) {
 	log.Debug().Str("file", filePath).Msg("Scanning Terraform state for secrets")
 
-	findings, err := scanner.DetectHits(content, options.Threads, options.TruffleHogVerification, options.HitTimeout)
+	findings, err := scanner.DetectHitsWithOptions(content, options.Threads, options.SecretsVerification, scanner.DetectionOptions{Path: filePath, GitLabURL: options.GitlabUrl, Timeout: options.HitTimeout})
 	if err != nil {
 		log.Debug().Err(err).Str("file", filePath).Msg("Failed detecting secrets")
 		return
@@ -168,6 +168,7 @@ func scanStateFile(content []byte, filePath string, state terraformState, option
 				Str("ruleName", finding.Pattern.Pattern.Name).
 				Str("confidence", finding.Pattern.Pattern.Confidence).
 				Str("value", finding.Text).
+				Engine(finding.Engine).
 				Msg("SECRET")
 		}
 	}

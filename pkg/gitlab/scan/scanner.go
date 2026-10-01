@@ -46,7 +46,7 @@ func (s *gitlabScanner) GetQueueStatus() int {
 
 // InitializeOptions prepares scan options from CLI parameters.
 func InitializeOptions(gitlabUrl, gitlabApiToken, gitlabCookie, projectSearchQuery, repository, namespace, queueFolder, maxArtifactSizeStr string,
-	artifacts, owned, member, truffleHogVerification bool,
+	artifacts, owned, member, secretsVerification bool,
 	jobLimit, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (*ScanOptions, error) {
 
 	_, err := url.ParseRequestURI(gitlabUrl)
@@ -60,21 +60,21 @@ func InitializeOptions(gitlabUrl, gitlabApiToken, gitlabCookie, projectSearchQue
 	}
 
 	return &ScanOptions{
-		GitlabUrl:              gitlabUrl,
-		GitlabApiToken:         gitlabApiToken,
-		GitlabCookie:           gitlabCookie,
-		ProjectSearchQuery:     projectSearchQuery,
-		Artifacts:              artifacts,
-		Owned:                  owned,
-		Member:                 member,
-		Repository:             repository,
-		Namespace:              namespace,
-		JobLimit:               jobLimit,
-		ConfidenceFilter:       confidenceFilter,
-		MaxArtifactSize:        byteSize,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		QueueFolder:            queueFolder,
-		TruffleHogVerification: truffleHogVerification,
-		HitTimeout:             hitTimeout,
+		GitlabUrl:           gitlabUrl,
+		GitlabApiToken:      gitlabApiToken,
+		GitlabCookie:        gitlabCookie,
+		ProjectSearchQuery:  projectSearchQuery,
+		Artifacts:           artifacts,
+		Owned:               owned,
+		Member:              member,
+		Repository:          repository,
+		Namespace:           namespace,
+		JobLimit:            jobLimit,
+		ConfidenceFilter:    confidenceFilter,
+		MaxArtifactSize:     byteSize,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		QueueFolder:         queueFolder,
+		SecretsVerification: secretsVerification,
+		HitTimeout:          hitTimeout,
 	}, nil
 }

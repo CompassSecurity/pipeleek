@@ -22,12 +22,14 @@ func testRootCommand() *cobra.Command {
 	var search string
 	var artifacts bool
 	var threads int
+	var secretsVerification bool
 	var maxArtifactSize string
 	var confidence []string
 	var hitTimeout string
 	scan.Flags().StringVarP(&search, "search", "s", "", "Search query")
 	scan.Flags().BoolVarP(&artifacts, "artifacts", "a", false, "Scan artifacts")
 	scan.Flags().IntVarP(&threads, "threads", "", 4, "Threads")
+	scan.Flags().BoolVar(&secretsVerification, "secrets-verification", true, "Verify supported credentials")
 	scan.Flags().StringVarP(&maxArtifactSize, "max-artifact-size", "", "500Mb", "Max artifact size")
 	scan.Flags().StringSliceVarP(&confidence, "confidence", "", []string{}, "Confidence filter")
 	scan.Flags().StringVarP(&hitTimeout, "hit-timeout", "", "60s", "Per-hit timeout")
@@ -75,6 +77,7 @@ func TestGenerateExampleConfig_ContainsExpectedSections(t *testing.T) {
 
 	required := []string{
 		"common:",
+		"secrets_verification:",
 		"gitlab:",
 		"github:",
 		"scan:",

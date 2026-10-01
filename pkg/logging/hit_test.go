@@ -310,6 +310,49 @@ func TestHitEvent_Bool(t *testing.T) {
 	}
 }
 
+func TestHitEvent_Engine(t *testing.T) {
+	originalLogger := log.Logger
+	originalLevel := zerolog.GlobalLevel()
+	defer func() {
+		log.Logger = originalLogger
+		zerolog.SetGlobalLevel(originalLevel)
+	}()
+
+	tests := []struct {
+		name       string
+		level      zerolog.Level
+		engine     string
+		wantEngine bool
+	}{
+		{name: "debug level includes engine", level: zerolog.DebugLevel, engine: "betterleaks", wantEngine: true},
+		{name: "trace level includes engine", level: zerolog.TraceLevel, engine: "trufflehog", wantEngine: true},
+		{name: "info level omits engine", level: zerolog.InfoLevel, engine: "betterleaks", wantEngine: false},
+		{name: "empty engine omitted", level: zerolog.DebugLevel, engine: "", wantEngine: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			hitWriter := NewHitLevelWriter(&buf)
+			log.Logger = zerolog.New(hitWriter).With().Logger()
+			globalHitWriter = hitWriter
+			zerolog.SetGlobalLevel(tt.level)
+
+			Hit().Str("ruleName", "test").Engine(tt.engine).Msg("SECRET")
+
+			var logEntry map[string]interface{}
+			if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
+				t.Fatalf("Failed to parse log output: %v", err)
+			}
+			engine, ok := logEntry["engine"]
+			assert.Equal(t, tt.wantEngine, ok, "engine field presence")
+			if tt.wantEngine {
+				assert.Equal(t, tt.engine, engine)
+			}
+		})
+	}
+}
+
 func TestHitEvent_Err(t *testing.T) {
 	var buf bytes.Buffer
 	hitWriter := NewHitLevelWriter(&buf)

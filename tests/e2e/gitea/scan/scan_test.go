@@ -547,7 +547,7 @@ func TestGiteaScan_Verbose(t *testing.T) {
 
 // TestGiteaEnum tests Gitea enumeration command
 
-func TestGiteaScan_TruffleHogVerification(t *testing.T) {
+func TestGiteaScan_SecretsVerification(t *testing.T) {
 
 	server, _, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -573,7 +573,7 @@ func TestGiteaScan_TruffleHogVerification(t *testing.T) {
 		},
 		{
 			name: "verification_disabled",
-			args: []string{"gitea", "scan", "--url", server.URL, "--token", "test", "--truffle-hog-verification=false"},
+			args: []string{"gitea", "scan", "--url", server.URL, "--token", "test", "--secrets-verification=false"},
 		},
 	}
 

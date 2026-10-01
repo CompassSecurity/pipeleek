@@ -26,24 +26,24 @@ import (
 
 // ScanOptions contains configuration options for GitHub scanning operations.
 type ScanOptions struct {
-	AccessToken            string
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	MaxWorkflows           int
-	Organization           string
-	Owned                  bool
-	User                   string
-	Public                 bool
-	SearchQuery            string
-	Artifacts              bool
-	GitHubURL              string
-	Repo                   string
-	MaxArtifactSize        int64
-	HitTimeout             time.Duration
-	Context                context.Context
-	Client                 *github.Client
-	HttpClient             *resty.Client
+	AccessToken         string
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	MaxWorkflows        int
+	Organization        string
+	Owned               bool
+	User                string
+	Public              bool
+	SearchQuery         string
+	Artifacts           bool
+	GitHubURL           string
+	Repo                string
+	MaxArtifactSize     int64
+	HitTimeout          time.Duration
+	Context             context.Context
+	Client              *github.Client
+	HttpClient          *resty.Client
 }
 
 type Scanner interface {
@@ -412,7 +412,7 @@ func (s *scanner) downloadWorkflowRunLog(repo *github.Repository, workflowRun *g
 
 	logResult, err := logline.ProcessLogs(logs, logline.ProcessOptions{
 		MaxGoRoutines:     s.options.MaxScanGoRoutines,
-		VerifyCredentials: s.options.TruffleHogVerification,
+		VerifyCredentials: s.options.SecretsVerification,
 		BuildURL:          *workflowRun.HTMLURL,
 		HitTimeout:        s.options.HitTimeout,
 	})
@@ -550,7 +550,7 @@ func (s *scanner) analyzeArtifact(workflowRun *github.WorkflowRun, artifact *git
 
 		_, err = artifactproc.ProcessZipArtifact(body, artifactproc.ProcessOptions{
 			MaxGoRoutines:     s.options.MaxScanGoRoutines,
-			VerifyCredentials: s.options.TruffleHogVerification,
+			VerifyCredentials: s.options.SecretsVerification,
 			BuildURL:          *workflowRun.HTMLURL,
 			ArtifactName:      *workflowRun.Name,
 			HitTimeout:        s.options.HitTimeout,
@@ -564,7 +564,7 @@ func (s *scanner) analyzeArtifact(workflowRun *github.WorkflowRun, artifact *git
 
 // InitializeOptions prepares scan options from CLI parameters.
 func InitializeOptions(accessToken, gitHubURL, repo, organization, user, searchQuery, maxArtifactSizeStr string,
-	owned, public, artifacts, truffleHogVerification bool,
+	owned, public, artifacts, secretsVerification bool,
 	maxWorkflows, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (ScanOptions, error) {
 
 	byteSize, err := format.ParseHumanSize(maxArtifactSizeStr)
@@ -577,23 +577,23 @@ func InitializeOptions(accessToken, gitHubURL, repo, organization, user, searchQ
 	httpClient := httpclient.GetPipeleekHTTPClient("", nil, nil)
 
 	return ScanOptions{
-		AccessToken:            accessToken,
-		ConfidenceFilter:       confidenceFilter,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		MaxWorkflows:           maxWorkflows,
-		Organization:           organization,
-		Owned:                  owned,
-		User:                   user,
-		Public:                 public,
-		SearchQuery:            searchQuery,
-		Artifacts:              artifacts,
-		GitHubURL:              gitHubURL,
-		Repo:                   repo,
-		MaxArtifactSize:        byteSize,
-		HitTimeout:             hitTimeout,
-		Context:                ctx,
-		Client:                 client,
-		HttpClient:             httpClient,
+		AccessToken:         accessToken,
+		ConfidenceFilter:    confidenceFilter,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		MaxWorkflows:        maxWorkflows,
+		Organization:        organization,
+		Owned:               owned,
+		User:                user,
+		Public:              public,
+		SearchQuery:         searchQuery,
+		Artifacts:           artifacts,
+		GitHubURL:           gitHubURL,
+		Repo:                repo,
+		MaxArtifactSize:     byteSize,
+		HitTimeout:          hitTimeout,
+		Context:             ctx,
+		Client:              client,
+		HttpClient:          httpClient,
 	}, nil
 }

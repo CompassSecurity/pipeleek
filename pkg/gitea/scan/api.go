@@ -15,23 +15,23 @@ import (
 )
 
 type GiteaScanOptions struct {
-	Token                  string
-	GiteaURL               string
-	Artifacts              bool
-	ConfidenceFilter       []string
-	MaxScanGoRoutines      int
-	TruffleHogVerification bool
-	Owned                  bool
-	Organization           string
-	Repository             string
-	Cookie                 string
-	RunsLimit              int
-	StartRunID             int64
-	MaxArtifactSize        int64
-	HitTimeout             time.Duration
-	Context                context.Context
-	Client                 *gitea.Client
-	HttpClient             *resty.Client
+	Token               string
+	GiteaURL            string
+	Artifacts           bool
+	ConfidenceFilter    []string
+	MaxScanGoRoutines   int
+	SecretsVerification bool
+	Owned               bool
+	Organization        string
+	Repository          string
+	Cookie              string
+	RunsLimit           int
+	StartRunID          int64
+	MaxArtifactSize     int64
+	HitTimeout          time.Duration
+	Context             context.Context
+	Client              *gitea.Client
+	HttpClient          *resty.Client
 }
 
 type AuthTransport struct {

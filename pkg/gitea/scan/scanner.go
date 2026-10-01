@@ -43,7 +43,7 @@ func (s *giteaScanner) Scan() error {
 	scanOptions = s.options
 
 	runner.InitScanner(s.options.ConfidenceFilter)
-	if !s.options.TruffleHogVerification {
+	if !s.options.SecretsVerification {
 		log.Info().Msg("TruffleHog verification is disabled")
 	}
 
@@ -249,7 +249,7 @@ func (s *giteaScanner) scanRepository(repo *gitea.Repository) {
 
 // InitializeOptions prepares scan options from CLI parameters.
 func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArtifactSizeStr string,
-	owned, artifacts, truffleHogVerification bool,
+	owned, artifacts, secretsVerification bool,
 	runsLimit int, startRunID int64, maxScanGoRoutines int, confidenceFilter []string, hitTimeout time.Duration) (ScanOptions, error) {
 
 	_, err := url.ParseRequestURI(giteaURL)
@@ -296,23 +296,23 @@ func InitializeOptions(token, giteaURL, repository, organization, cookie, maxArt
 	}
 
 	return ScanOptions{
-		Token:                  token,
-		GiteaURL:               giteaURL,
-		Artifacts:              artifacts,
-		ConfidenceFilter:       confidenceFilter,
-		MaxScanGoRoutines:      maxScanGoRoutines,
-		TruffleHogVerification: truffleHogVerification,
-		Owned:                  owned,
-		Organization:           organization,
-		Repository:             repository,
-		Cookie:                 cookie,
-		RunsLimit:              runsLimit,
-		StartRunID:             startRunID,
-		MaxArtifactSize:        byteSize,
-		HitTimeout:             hitTimeout,
-		Context:                ctx,
-		Client:                 client,
-		HttpClient:             httpClient,
+		Token:               token,
+		GiteaURL:            giteaURL,
+		Artifacts:           artifacts,
+		ConfidenceFilter:    confidenceFilter,
+		MaxScanGoRoutines:   maxScanGoRoutines,
+		SecretsVerification: secretsVerification,
+		Owned:               owned,
+		Organization:        organization,
+		Repository:          repository,
+		Cookie:              cookie,
+		RunsLimit:           runsLimit,
+		StartRunID:          startRunID,
+		MaxArtifactSize:     byteSize,
+		HitTimeout:          hitTimeout,
+		Context:             ctx,
+		Client:              client,
+		HttpClient:          httpClient,
 	}, nil
 }
 

@@ -34,7 +34,7 @@ func TestInitializeOptions_Valid(t *testing.T) {
 	assert.Equal(t, []string{"high"}, opts.ConfidenceFilter)
 	assert.Equal(t, 30*time.Second, opts.HitTimeout)
 	assert.Equal(t, "/tmp/queue", opts.QueueFolder)
-	assert.True(t, opts.TruffleHogVerification)
+	assert.True(t, opts.SecretsVerification)
 }
 
 func TestInitializeOptions_InvalidURL(t *testing.T) {

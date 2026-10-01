@@ -113,7 +113,7 @@ func TestCommandLevelOverrideWithFlagPriority(t *testing.T) {
 	configContent := `
 common:
   threads: 4
-  trufflehog_verification: true
+  secrets_verification: true
   
 gitlab:
   url: https://gitlab.example.com
@@ -159,7 +159,7 @@ gitlab:
 
 	// Test 4: Other command-level settings should coexist
 	assert.Equal(t, int64(52428800), GetViper().GetInt64("gitlab.scan.max_artifact_size"))
-	assert.Equal(t, true, GetBool("common.trufflehog_verification"))
+	assert.Equal(t, true, GetBool("common.secrets_verification"))
 }
 
 func TestEnvironmentVariableOverridesConfig(t *testing.T) {

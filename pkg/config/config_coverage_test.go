@@ -30,12 +30,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "token", "cookie",
 				"search", "member", "repo", "namespace", "job-limit", "queue", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "token",
 				"search", "repo", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 		"github_scan": {
@@ -43,12 +43,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "token",
 				"org", "user", "search", "repo", "public", "max-workflows", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "token",
 				"org", "user", "search", "repo", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 		"bitbucket_scan": {
@@ -56,12 +56,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "email", "token", "cookie",
 				"workspace", "max-pipelines", "public", "after", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "email", "token",
 				"workspace", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 		"devops_scan": {
@@ -69,12 +69,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "token", "username",
 				"organization", "project", "max-builds", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "token",
 				"organization", "project", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 		"gitea_scan": {
@@ -82,12 +82,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "token", "cookie",
 				"organization", "repository", "runs-limit", "start-run-id", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "token",
 				"organization", "repository", "artifacts", "owned",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 		"jenkins_scan": {
@@ -95,12 +95,12 @@ func TestScanCommandFlagCoverage(t *testing.T) {
 			expectedFlags: []string{
 				"url", "username", "token",
 				"folder", "job", "max-builds", "artifacts",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 			criticalFlags: []string{
 				"url", "token",
 				"artifacts",
-				"threads", "truffle-hog-verification", "max-artifact-size", "confidence", "hit-timeout",
+				"threads", "secrets-verification", "max-artifact-size", "confidence", "hit-timeout",
 			},
 		},
 	}

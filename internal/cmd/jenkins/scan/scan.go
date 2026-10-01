@@ -27,17 +27,17 @@ var options = JenkinsScanOptions{
 var maxArtifactSize string
 
 var flagBindings = map[string]string{
-	"url":                      "jenkins.url",
-	"username":                 "jenkins.username",
-	"token":                    "jenkins.token",
-	"folder":                   "jenkins.scan.folder",
-	"job":                      "jenkins.scan.job",
-	"max-builds":               "jenkins.scan.max_builds",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "jenkins.url",
+	"username":             "jenkins.username",
+	"token":                "jenkins.token",
+	"folder":               "jenkins.scan.folder",
+	"job":                  "jenkins.scan.job",
+	"max-builds":           "jenkins.scan.max_builds",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -85,7 +85,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Job = config.GetString("jenkins.scan.job")
 	options.MaxBuilds = config.GetInt("jenkins.scan.max_builds")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 
@@ -110,7 +110,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		options.Job,
 		maxArtifactSize,
 		options.Artifacts,
-		options.TruffleHogVerification,
+		options.SecretsVerification,
 		options.MaxBuilds,
 		options.MaxScanGoRoutines,
 		options.ConfidenceFilter,

@@ -82,11 +82,11 @@ type JenkinsConfig struct {
 
 // CommonConfig contains common configuration settings
 type CommonConfig struct {
-	Threads                int      `mapstructure:"threads"`
-	TruffleHogVerification bool     `mapstructure:"trufflehog_verification"`
-	MaxArtifactSize        string   `mapstructure:"max_artifact_size"`
-	ConfidenceFilter       []string `mapstructure:"confidence_filter"`
-	HitTimeout             string   `mapstructure:"hit_timeout"`
+	Threads             int      `mapstructure:"threads"`
+	SecretsVerification bool     `mapstructure:"secrets_verification"`
+	MaxArtifactSize     string   `mapstructure:"max_artifact_size"`
+	ConfidenceFilter    []string `mapstructure:"confidence_filter"`
+	HitTimeout          string   `mapstructure:"hit_timeout"`
 }
 
 var globalViper *viper.Viper
@@ -207,7 +207,7 @@ func UnmarshalConfig() (*Config, error) {
 
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("common.threads", 4)
-	v.SetDefault("common.trufflehog_verification", true)
+	v.SetDefault("common.secrets_verification", true)
 	v.SetDefault("common.max_artifact_size", "500Mb")
 	v.SetDefault("common.confidence_filter", []string{})
 	v.SetDefault("common.hit_timeout", "60s")

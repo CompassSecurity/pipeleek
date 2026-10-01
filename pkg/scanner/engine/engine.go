@@ -22,21 +22,47 @@ import (
 var findingsDeduplicationList []string
 var deduplicationMutex sync.Mutex
 
-func DetectHits(text []byte, maxThreads int, enableTruffleHogVerification bool, timeout time.Duration) ([]types.Finding, error) {
+const (
+	EngineRules       = "rules"
+	EngineBetterleaks = "betterleaks"
+	EngineTruffleHog  = "trufflehog"
+	EngineGitLab      = "gitlab"
+)
+
+type DetectionOptions struct {
+	Path      string
+	GitLabURL string
+	Timeout   time.Duration
+}
+
+func DetectHits(text []byte, maxThreads int, enableSecretsVerification bool, timeout time.Duration) ([]types.Finding, error) {
+	return DetectHitsWithOptions(text, maxThreads, enableSecretsVerification, DetectionOptions{GitLabURL: detectors.GetGitLabURL(), Timeout: timeout})
+}
+
+func DetectHitsWithOptions(text []byte, maxThreads int, enableSecretsVerification bool, options DetectionOptions) ([]types.Finding, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
+	defer cancel()
+
 	result := make(chan types.DetectionResult, 1)
 	go func() {
-		result <- DetectHitsWithTimeout(text, maxThreads, enableTruffleHogVerification)
+		result <- detectHits(ctx, text, maxThreads, enableSecretsVerification, options)
 	}()
 	select {
-	case <-time.After(timeout):
-		return nil, errors.New("hit detection timed out (" + timeout.String() + ")")
+	case <-ctx.Done():
+		return nil, errors.New("hit detection timed out (" + options.Timeout.String() + ")")
 	case result := <-result:
+		if ctx.Err() != nil {
+			return nil, errors.New("hit detection timed out (" + options.Timeout.String() + ")")
+		}
 		return result.Findings, result.Error
 	}
 }
 
-func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerification bool) types.DetectionResult {
-	ctx := context.Background()
+func DetectHitsWithTimeout(text []byte, maxThreads int, enableSecretsVerification bool) types.DetectionResult {
+	return detectHits(context.Background(), text, maxThreads, enableSecretsVerification, DetectionOptions{GitLabURL: detectors.GetGitLabURL()})
+}
+
+func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsVerification bool, options DetectionOptions) types.DetectionResult {
 	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
 
 	secretsPatterns := rules.GetSecretsPatterns()
@@ -60,7 +86,7 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 				}
 
 				if hitStr != "" {
-					findingsYml = append(findingsYml, types.Finding{Pattern: pattern, Text: hitStr})
+					findingsYml = append(findingsYml, types.Finding{Pattern: pattern, Text: hitStr, Engine: EngineRules})
 				}
 			}
 
@@ -69,11 +95,22 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 	}
 
 	resultsYml, err := group.Wait()
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		log.Error().Stack().Err(err).Msg("Failed waiting for parallel hit detection")
+	}
+	if err := ctx.Err(); err != nil {
+		return types.DetectionResult{Error: err}
 	}
 
 	findingsCombined := slices.Concat(resultsYml...)
+
+	findingsBetterleaks, err := detectBetterleaks(ctx, text, maxThreads, enableSecretsVerification, options)
+	if err != nil && ctx.Err() == nil {
+		log.Warn().Err(err).Msg("Betterleaks detection failed")
+	}
+	if err := ctx.Err(); err != nil {
+		return types.DetectionResult{Error: err}
+	}
 
 	trGroup := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
 
@@ -81,7 +118,7 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 	gitlabDetector := detectors.GetGitLabURLDetector()
 	trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
 		findingsTr := []types.Finding{}
-		glHits, err := gitlabDetector.FromData(ctx, enableTruffleHogVerification, text)
+		glHits, err := gitlabDetector.FromData(ctx, enableSecretsVerification, text)
 		if err != nil {
 			log.Error().Err(err).Msg("GitLab URL detector failed")
 			return []types.Finding{}, err
@@ -96,7 +133,7 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 			if result.Verified {
 				confidence = "high-verified"
 			}
-			finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorName, Confidence: confidence}}, Text: string(secret)}
+			finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorName, Confidence: confidence}}, Text: string(secret), Engine: EngineGitLab}
 			findingsTr = append(findingsTr, finding)
 		}
 		return findingsTr, nil
@@ -105,7 +142,7 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 	for _, detector := range defaults.DefaultDetectors() {
 		trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
 			findingsTr := []types.Finding{}
-			trHits, err := detector.FromData(ctx, enableTruffleHogVerification, text)
+			trHits, err := detector.FromData(ctx, enableSecretsVerification, text)
 			if err != nil {
 				log.Error().Msg("Truffelhog Detector Failed " + err.Error())
 				return []types.Finding{}, err
@@ -116,13 +153,13 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 				if len(result.RawV2) > 0 {
 					secret = result.RawV2
 				}
-				finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorType.String(), Confidence: "high-verified"}}, Text: string(secret)}
+				finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorType.String(), Confidence: "high-verified"}}, Text: string(secret), Engine: EngineTruffleHog}
 
 				if result.Verified {
 					findingsTr = append(findingsTr, finding)
 				}
 
-				if !enableTruffleHogVerification {
+				if !enableSecretsVerification {
 					finding.Pattern.Pattern.Confidence = "trufflehog-unverified"
 					findingsTr = append(findingsTr, finding)
 				}
@@ -132,12 +169,15 @@ func DetectHitsWithTimeout(text []byte, maxThreads int, enableTruffleHogVerifica
 	}
 
 	resultsTr, err := trGroup.Wait()
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		log.Error().Stack().Err(err).Msg("Failed waiting for trufflehog parallel hit detection")
+	}
+	if err := ctx.Err(); err != nil {
+		return types.DetectionResult{Error: err}
 	}
 
 	findingsTr := slices.Concat(resultsTr...)
-	totalFindings := slices.Concat(findingsCombined, findingsTr)
+	totalFindings := slices.Concat(findingsCombined, findingsBetterleaks, findingsTr)
 	return types.DetectionResult{Findings: deduplicateFindings(totalFindings), Error: nil}
 }
 

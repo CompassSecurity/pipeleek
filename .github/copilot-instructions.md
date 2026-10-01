@@ -469,7 +469,7 @@ Update Copilot docs when one of the following changes occurs:
 - Secret detection is handled by TruffleHog
 - Custom rules can be defined in `rules.yml` (user-generated)
 - Confidence levels: low, medium, high, high-verified
-- Verification can be disabled with `--truffle-hog-verification=false`
+- Verification can be disabled with `--secrets-verification=false`
 
 ## CI/CD
 

@@ -21,11 +21,11 @@ type flagMeta struct {
 }
 
 var commonFlagNames = map[string]struct{}{
-	"threads":                  {},
-	"truffle-hog-verification": {},
-	"max-artifact-size":        {},
-	"confidence":               {},
-	"hit-timeout":              {},
+	"threads":              {},
+	"secrets-verification": {},
+	"max-artifact-size":    {},
+	"confidence":           {},
+	"hit-timeout":          {},
 }
 
 var rootFlagsToSkip = map[string]struct{}{
@@ -279,11 +279,7 @@ func commandName(cmd *cobra.Command) string {
 
 func normalizeSegment(value string) string {
 	replacer := strings.NewReplacer("-", "_", " ", "_")
-	normalized := replacer.Replace(strings.TrimSpace(value))
-	if normalized == "truffle_hog_verification" {
-		return "trufflehog_verification"
-	}
-	return normalized
+	return replacer.Replace(strings.TrimSpace(value))
 }
 
 func envVarForPath(path []string) string {

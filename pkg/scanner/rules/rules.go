@@ -21,6 +21,7 @@ var ruleFileName = "rules.yml"
 
 var secretsPatterns = types.SecretsPatterns{}
 var truffelhogRules []detectors.Detector
+var activeConfidenceFilter []string
 
 func DownloadRules() {
 	if _, err := os.Stat(ruleFileName); errors.Is(err, os.ErrNotExist) {
@@ -48,6 +49,7 @@ func downloadFile(url string, filepath string, client *resty.Client) error {
 }
 
 func InitRules(confidenceFilter []string) {
+	activeConfidenceFilter = slices.Clone(confidenceFilter)
 	DownloadRules()
 
 	if len(secretsPatterns.Patterns) == 0 {
@@ -140,4 +142,8 @@ func GetSecretsPatterns() types.SecretsPatterns {
 
 func GetTruffleHogRules() []detectors.Detector {
 	return truffelhogRules
+}
+
+func GetConfidenceFilter() []string {
+	return slices.Clone(activeConfidenceFilter)
 }

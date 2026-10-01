@@ -43,7 +43,7 @@ func TestNewScanCmd(t *testing.T) {
 		"artifacts",
 		"owned",
 		"threads",
-		"truffle-hog-verification",
+		"secrets-verification",
 		"max-artifact-size",
 		"confidence",
 		"hit-timeout",

@@ -18,13 +18,13 @@ type TFCommandOptions struct {
 
 var options = TFCommandOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
 var flagBindings = map[string]string{
-	"url":                      "gitlab.url",
-	"token":                    "gitlab.token",
-	"output-dir":               "gitlab.tf.output_dir",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "gitlab.url",
+	"token":                "gitlab.token",
+	"output-dir":           "gitlab.tf.output_dir",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewTFCmd() *cobra.Command {
@@ -73,7 +73,7 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.OutputDir = config.GetString("gitlab.tf.output_dir")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
 	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
 	if err != nil {
@@ -82,13 +82,13 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.HitTimeout = hitTimeout
 
 	tfOptions := tfpkg.TFOptions{
-		GitlabUrl:              gitlabUrl,
-		GitlabApiToken:         gitlabApiToken,
-		OutputDir:              options.OutputDir,
-		Threads:                options.MaxScanGoRoutines,
-		ConfidenceFilter:       options.ConfidenceFilter,
-		TruffleHogVerification: options.TruffleHogVerification,
-		HitTimeout:             options.HitTimeout,
+		GitlabUrl:           gitlabUrl,
+		GitlabApiToken:      gitlabApiToken,
+		OutputDir:           options.OutputDir,
+		Threads:             options.MaxScanGoRoutines,
+		ConfidenceFilter:    options.ConfidenceFilter,
+		SecretsVerification: options.SecretsVerification,
+		HitTimeout:          options.HitTimeout,
 	}
 
 	tfpkg.ScanTerraformStates(tfOptions)

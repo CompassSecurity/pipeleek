@@ -37,26 +37,26 @@ var options = CircleScanOptions{
 
 var maxArtifactSize string
 var flagBindings = map[string]string{
-	"url":                      "circle.url",
-	"token":                    "circle.token",
-	"org":                      "circle.scan.org",
-	"project":                  "circle.scan.project",
-	"vcs":                      "circle.scan.vcs",
-	"branch":                   "circle.scan.branch",
-	"status":                   "circle.scan.status",
-	"workflow":                 "circle.scan.workflow",
-	"job":                      "circle.scan.job",
-	"since":                    "circle.scan.since",
-	"until":                    "circle.scan.until",
-	"max-pipelines":            "circle.scan.max_pipelines",
-	"tests":                    "circle.scan.tests",
-	"insights":                 "circle.scan.insights",
-	"artifacts":                "circle.scan.artifacts",
-	"threads":                  "common.threads",
-	"truffle-hog-verification": "common.trufflehog_verification",
-	"max-artifact-size":        "common.max_artifact_size",
-	"confidence":               "common.confidence_filter",
-	"hit-timeout":              "common.hit_timeout",
+	"url":                  "circle.url",
+	"token":                "circle.token",
+	"org":                  "circle.scan.org",
+	"project":              "circle.scan.project",
+	"vcs":                  "circle.scan.vcs",
+	"branch":               "circle.scan.branch",
+	"status":               "circle.scan.status",
+	"workflow":             "circle.scan.workflow",
+	"job":                  "circle.scan.job",
+	"since":                "circle.scan.since",
+	"until":                "circle.scan.until",
+	"max-pipelines":        "circle.scan.max_pipelines",
+	"tests":                "circle.scan.tests",
+	"insights":             "circle.scan.insights",
+	"artifacts":            "circle.scan.artifacts",
+	"threads":              "common.threads",
+	"secrets-verification": "common.secrets_verification",
+	"max-artifact-size":    "common.max_artifact_size",
+	"confidence":           "common.confidence_filter",
+	"hit-timeout":          "common.hit_timeout",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -121,7 +121,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.Insights = config.GetBool("circle.scan.insights")
 	options.Artifacts = config.GetBool("circle.scan.artifacts")
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.TruffleHogVerification = config.GetBool("common.trufflehog_verification")
+	options.SecretsVerification = config.GetBool("common.secrets_verification")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
@@ -132,26 +132,26 @@ func Scan(cmd *cobra.Command, args []string) {
 	options.HitTimeout = hitTimeout
 
 	scanOpts, err := circlescan.InitializeOptions(circlescan.InitializeOptionsInput{
-		Token:                  options.Token,
-		CircleURL:              options.CircleURL,
-		Organization:           options.Organization,
-		Projects:               options.Projects,
-		VCS:                    options.VCS,
-		Branch:                 options.Branch,
-		Statuses:               options.Statuses,
-		WorkflowNames:          options.Workflows,
-		JobNames:               options.Jobs,
-		Since:                  options.Since,
-		Until:                  options.Until,
-		MaxPipelines:           options.MaxPipelines,
-		IncludeTests:           options.IncludeTests,
-		IncludeInsights:        options.Insights,
-		Artifacts:              options.Artifacts,
-		MaxArtifactSize:        maxArtifactSize,
-		ConfidenceFilter:       options.ConfidenceFilter,
-		MaxScanGoRoutines:      options.MaxScanGoRoutines,
-		TruffleHogVerification: options.TruffleHogVerification,
-		HitTimeout:             options.HitTimeout,
+		Token:               options.Token,
+		CircleURL:           options.CircleURL,
+		Organization:        options.Organization,
+		Projects:            options.Projects,
+		VCS:                 options.VCS,
+		Branch:              options.Branch,
+		Statuses:            options.Statuses,
+		WorkflowNames:       options.Workflows,
+		JobNames:            options.Jobs,
+		Since:               options.Since,
+		Until:               options.Until,
+		MaxPipelines:        options.MaxPipelines,
+		IncludeTests:        options.IncludeTests,
+		IncludeInsights:     options.Insights,
+		Artifacts:           options.Artifacts,
+		MaxArtifactSize:     maxArtifactSize,
+		ConfidenceFilter:    options.ConfidenceFilter,
+		MaxScanGoRoutines:   options.MaxScanGoRoutines,
+		SecretsVerification: options.SecretsVerification,
+		HitTimeout:          options.HitTimeout,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed initializing CircleCI scan options")

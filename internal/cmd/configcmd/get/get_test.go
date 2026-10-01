@@ -68,7 +68,7 @@ func TestGetCmd_LegacyKeyAliasFromDefaults(t *testing.T) {
 	t.Setenv("PIPELEEK_NO_CONFIG", "1")
 
 	root := newRootWithConfig()
-	root.SetArgs([]string{"config", "get", "common.truffle_hog_verification"})
+	root.SetArgs([]string{"config", "get", "common.secrets_verification"})
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
@@ -127,9 +127,9 @@ func newRootWithConfig() *cobra.Command {
 	gl.PersistentFlags().StringVarP(&token, "token", "t", "", "GitLab token")
 	scanCmd := &cobra.Command{Use: "scan"}
 	var threads int
-	var truffleHogVerification bool
+	var secretsVerification bool
 	scanCmd.Flags().IntVar(&threads, "threads", 4, "threads")
-	scanCmd.Flags().BoolVar(&truffleHogVerification, "truffle-hog-verification", true, "trufflehog verification")
+	scanCmd.Flags().BoolVar(&secretsVerification, "secrets-verification", true, "trufflehog verification")
 	gl.AddCommand(scanCmd)
 	root.AddCommand(gl)
 

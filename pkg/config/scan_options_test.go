@@ -9,8 +9,8 @@ func TestDefaultCommonScanOptions(t *testing.T) {
 		t.Errorf("Expected MaxScanGoRoutines to be 4, got %d", opts.MaxScanGoRoutines)
 	}
 
-	if !opts.TruffleHogVerification {
-		t.Error("Expected TruffleHogVerification to be true")
+	if !opts.SecretsVerification {
+		t.Error("Expected SecretsVerification to be true")
 	}
 
 	if opts.Artifacts {
