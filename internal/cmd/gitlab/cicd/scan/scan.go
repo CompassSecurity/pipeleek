@@ -9,6 +9,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
+	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -40,6 +41,7 @@ var flagBindings = map[string]string{
 	"secrets-verification": "common.secrets_verification",
 	"confidence":           "common.confidence_filter",
 	"hit-timeout":          "common.hit_timeout",
+	"webui":                "common.webui",
 }
 
 func NewScanCmd() *cobra.Command {
@@ -103,8 +105,15 @@ func Scan(cmd *cobra.Command, args []string) {
 			HitTimeout:          hitTimeout,
 		},
 	}
+	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	if ui != nil {
+		defer ui.Close()
+	}
 
 	runScan(opts)
+	if ui != nil {
+		ui.Wait()
+	}
 }
 
 func runScan(opts scanOptions) {

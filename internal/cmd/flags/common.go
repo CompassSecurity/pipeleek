@@ -17,6 +17,8 @@ func addBaseScanFlags(cmd *cobra.Command, opts *config.CommonScanOptions) {
 		"Filter for confidence level, separate by comma if multiple. See readme for more info.")
 	cmd.Flags().DurationVarP(&opts.HitTimeout, "hit-timeout", "", 60*time.Second,
 		"Maximum time to wait for hit detection per scan item (e.g., 30s, 2m, 1h)")
+	cmd.Flags().BoolVarP(&opts.WebUI, "webui", "", false,
+		"Serve a local web UI for live findings on 127.0.0.1 with a random token")
 }
 
 // AddCommonScanFlags adds the standard scanning flags that are common across all platforms.

@@ -26,6 +26,7 @@ var commonFlagNames = map[string]struct{}{
 	"max-artifact-size":    {},
 	"confidence":           {},
 	"hit-timeout":          {},
+	"webui":                {},
 }
 
 var rootFlagsToSkip = map[string]struct{}{

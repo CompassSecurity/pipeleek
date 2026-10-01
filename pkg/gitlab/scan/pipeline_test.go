@@ -3,6 +3,8 @@ package scan
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -56,5 +58,42 @@ func TestGetQueueStatus_NilQueue(t *testing.T) {
 	status := GetQueueStatus()
 	if status != 0 {
 		t.Fatalf("expected 0 when queue is nil, got %d", status)
+	}
+}
+
+func TestCleanUpIsConcurrentSafe(t *testing.T) {
+	queueDir := t.TempDir()
+	queue, filename := setupQueue(&ScanOptions{QueueFolder: queueDir})
+
+	cleanupMu.Lock()
+	originalQueue, originalFilename, originalDone := globQueue, queueFileName, cleanupDone
+	globQueue, queueFileName, cleanupDone = queue, filename, false
+	cleanupMu.Unlock()
+	t.Cleanup(func() {
+		cleanupMu.Lock()
+		globQueue, queueFileName, cleanupDone = originalQueue, originalFilename, originalDone
+		cleanupMu.Unlock()
+	})
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for range 2 {
+		go func() {
+			defer wg.Done()
+			<-start
+			cleanUp()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	cleanUp()
+
+	entries, err := os.ReadDir(queueDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected cleanup to remove queue files, found %v", entries)
 	}
 }

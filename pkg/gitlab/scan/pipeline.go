@@ -22,6 +22,8 @@ import (
 var globQueue diskqueue.Interface
 var waitGroup *sync.WaitGroup
 var queueFileName string
+var cleanupMu sync.Mutex
+var cleanupDone bool
 
 type ScanOptions struct {
 	GitlabUrl           string
@@ -48,7 +50,11 @@ func ScanGitLabPipelines(options *ScanOptions) {
 	detectors.SetGitLabURL(options.GitlabUrl)
 	defer detectors.ClearGitLabURL()
 
-	globQueue, queueFileName = setupQueue(options)
+	queue, filename := setupQueue(options)
+	cleanupMu.Lock()
+	globQueue, queueFileName = queue, filename
+	cleanupDone = false
+	cleanupMu.Unlock()
 	system.RegisterGracefulShutdownHandler(cleanUp)
 
 	if isUnauthenticatedMode(options) {
@@ -162,10 +168,18 @@ func scanNamespace(git *gitlab.Client, options *ScanOptions, wg *sync.WaitGroup)
 }
 
 func cleanUp() {
+	cleanupMu.Lock()
+	defer cleanupMu.Unlock()
+	if cleanupDone {
+		return
+	}
+	cleanupDone = true
+
 	log.Debug().Msg("Cleaning up")
-	err := globQueue.Delete()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error deleteing queue on shutdown")
+	if globQueue != nil {
+		if err := globQueue.Delete(); err != nil {
+			log.Fatal().Err(err).Msg("Error deleteing queue on shutdown")
+		}
 	}
 
 	files, err := filepath.Glob(queueFileName + "*")

@@ -4,6 +4,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	giteascan "github.com/CompassSecurity/pipeleek/pkg/gitea/scan"
+	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,7 @@ var flagBindings = map[string]string{
 	"max-artifact-size":    "common.max_artifact_size",
 	"confidence":           "common.confidence_filter",
 	"hit-timeout":          "common.hit_timeout",
+	"webui":                "common.webui",
 }
 
 var maxArtifactSize string
@@ -112,6 +114,10 @@ func Scan(cmd *cobra.Command, args []string) {
 	scanOptions.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	scanOptions.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	if ui != nil {
+		defer ui.Close()
+	}
 
 	if scanOptions.StartRunID > 0 && scanOptions.Repository == "" {
 		log.Fatal().Msg("--start-run-id can only be used with --repository flag")
@@ -156,5 +162,8 @@ func Scan(cmd *cobra.Command, args []string) {
 	scanner := giteascan.NewScanner(scanOpts)
 	if err := scanner.Scan(); err != nil {
 		log.Fatal().Err(err).Msg("Scan failed")
+	}
+	if ui != nil {
+		ui.Wait()
 	}
 }

@@ -15,6 +15,8 @@ type CommonScanOptions struct {
 	SecretsVerification bool
 	// Artifacts enables/disables artifact scanning
 	Artifacts bool
+	// WebUI starts a local web UI with live findings for scan runs.
+	WebUI bool
 	// MaxArtifactSize is the maximum size of artifacts to scan (in bytes)
 	MaxArtifactSize int64
 	// Owned filters to only owned repositories
@@ -30,6 +32,7 @@ func DefaultCommonScanOptions() CommonScanOptions {
 		MaxScanGoRoutines:   4,
 		SecretsVerification: true,
 		Artifacts:           false,
+		WebUI:               false,
 		MaxArtifactSize:     500 * 1024 * 1024, // 500MB
 		Owned:               false,
 		HitTimeout:          60 * time.Second,

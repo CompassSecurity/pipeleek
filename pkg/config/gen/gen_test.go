@@ -26,6 +26,7 @@ func testRootCommand() *cobra.Command {
 	var maxArtifactSize string
 	var confidence []string
 	var hitTimeout string
+	var webui bool
 	scan.Flags().StringVarP(&search, "search", "s", "", "Search query")
 	scan.Flags().BoolVarP(&artifacts, "artifacts", "a", false, "Scan artifacts")
 	scan.Flags().IntVarP(&threads, "threads", "", 4, "Threads")
@@ -33,6 +34,7 @@ func testRootCommand() *cobra.Command {
 	scan.Flags().StringVarP(&maxArtifactSize, "max-artifact-size", "", "500Mb", "Max artifact size")
 	scan.Flags().StringSliceVarP(&confidence, "confidence", "", []string{}, "Confidence filter")
 	scan.Flags().StringVarP(&hitTimeout, "hit-timeout", "", "60s", "Per-hit timeout")
+	scan.Flags().BoolVar(&webui, "webui", false, "Serve a local findings UI")
 	gl.AddCommand(scan)
 
 	gh := &cobra.Command{Use: "gh [command]"}
@@ -78,6 +80,7 @@ func TestGenerateExampleConfig_ContainsExpectedSections(t *testing.T) {
 	required := []string{
 		"common:",
 		"secrets_verification:",
+		"webui: false",
 		"gitlab:",
 		"github:",
 		"scan:",
@@ -95,6 +98,7 @@ func TestGenerateExampleConfig_ContainsDynamicEnvVars(t *testing.T) {
 	requiredEnvVars := []string{
 		"PIPELEEK_COMMON_THREADS",
 		"PIPELEEK_COMMON_MAX_ARTIFACT_SIZE",
+		"PIPELEEK_COMMON_WEBUI",
 		"PIPELEEK_GITLAB_URL",
 		"PIPELEEK_GITLAB_SCAN_SEARCH",
 		"PIPELEEK_GITHUB_URL",

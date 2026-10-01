@@ -992,6 +992,11 @@ func sanitizeEmbeddedSVG(svg string) string {
 	return svg
 }
 
+func PipeleekLogoHTML() template.HTML {
+	// #nosec G203 -- This is a trusted SVG embedded at build time and stripped of its XML/doctype declarations.
+	return template.HTML(sanitizeEmbeddedSVG(pipeleekLogoSVG))
+}
+
 func reportMinAccessLevelLabel(filterApplied bool, level int) string {
 	if !filterApplied || level <= 0 {
 		return "No filter (all associations)"

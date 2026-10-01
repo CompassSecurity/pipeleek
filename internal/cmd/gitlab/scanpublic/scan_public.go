@@ -9,6 +9,7 @@ import (
 	gitlabscan "github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
+	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -42,6 +43,7 @@ var flagBindings = map[string]string{
 	"max-artifact-size":    "common.max_artifact_size",
 	"confidence":           "common.confidence_filter",
 	"hit-timeout":          "common.hit_timeout",
+	"webui":                "common.webui",
 }
 
 func NewScanPublicCmd() *cobra.Command {
@@ -99,6 +101,10 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 	secretsVerification := config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	confidenceFilter := config.GetStringSlice("common.confidence_filter")
+	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	if ui != nil {
+		defer ui.Close()
+	}
 	hitTimeoutRaw := config.GetString("common.hit_timeout")
 	hitTimeout, err := time.ParseDuration(hitTimeoutRaw)
 	if err != nil {
@@ -144,5 +150,8 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 
 	if err := scanner.Scan(); err != nil {
 		log.Fatal().Err(err).Msg("Public scan failed")
+	}
+	if ui != nil {
+		ui.Wait()
 	}
 }
