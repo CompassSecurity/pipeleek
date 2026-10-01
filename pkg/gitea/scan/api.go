@@ -27,6 +27,8 @@ type GiteaScanOptions struct {
 	Cookie              string
 	RunsLimit           int
 	StartRunID          int64
+	RepositorySort      string
+	RepositoryOrder     string
 	MaxArtifactSize     int64
 	HitTimeout          time.Duration
 	Context             context.Context

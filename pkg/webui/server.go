@@ -25,14 +25,15 @@ import (
 )
 
 type Finding struct {
-	ID         string            `json:"id"`
-	Time       string            `json:"time"`
-	Type       string            `json:"type"`
-	Confidence string            `json:"confidence"`
-	RuleName   string            `json:"ruleName"`
-	Value      string            `json:"value"`
-	URL        string            `json:"url,omitempty"`
-	Details    map[string]string `json:"details,omitempty"`
+	ID              string            `json:"id"`
+	Time            string            `json:"time"`
+	TimestampMillis int64             `json:"timestampMillis"`
+	Type            string            `json:"type"`
+	Confidence      string            `json:"confidence"`
+	RuleName        string            `json:"ruleName"`
+	Value           string            `json:"value"`
+	URL             string            `json:"url,omitempty"`
+	Details         map[string]string `json:"details,omitempty"`
 }
 
 type Server struct {
@@ -46,6 +47,8 @@ type Server struct {
 	server            *http.Server
 	done              chan struct{}
 	once              sync.Once
+	startedAt         time.Time
+	completedAt       time.Time
 	completed         bool
 	unregisterHitSink func()
 }
@@ -151,6 +154,8 @@ var pageTemplate = strings.Join([]string{
 	"      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);",
 	"    }",
 	"    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }",
+	"    .header-copy { min-width: 0; }",
+	"    .elapsed-time { display: block; font-size: .875rem; font-variant-numeric: tabular-nums; }",
 	"    h1 { margin: 0; font-size: 2rem; font-weight: 400; color: #3c4043; }",
 	"    .status { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .35rem .75rem; border: 1px solid var(--line); background: #f3f5ef; font-size: .85rem; font-weight: 600; }",
 	"    .dot { width: .6rem; height: .6rem; border-radius: 50%; background: #4cae5d; display: inline-block; }",
@@ -159,9 +164,13 @@ var pageTemplate = strings.Join([]string{
 	"    .metric { border: 1px solid var(--line); border-radius: 10px; padding: .75rem; background: linear-gradient(180deg, #fff, #f7f9f5); }",
 	"    .metric strong { display: block; font-size: 1.45rem; line-height: 1.2; margin-top: .15rem; }",
 	"    .metric label { color: var(--muted); font-size: .8rem; }",
-	"    .filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }",
+	"    .filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }",
+	"    .filters > .control-btn { align-self: flex-start; margin-top: 1.5rem; }",
 	"    .filter-field { display: flex; flex-direction: column; gap: .35rem; min-width: 150px; }",
 	"    .filter-field label { color: var(--muted); font-size: .8rem; font-weight: 600; }",
+	"    .notification-field { min-width: 12rem; }",
+	"    .notification-status { min-height: 1.2em; font-size: .8rem; }",
+	"    .single-select-picker .filter-check { border-radius: 50%; }",
 	"    .filter-picker { position: relative; min-width: 10rem; }",
 	"    .filter-trigger { display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: 100%; min-height: 2.4rem; border: 1px solid #c8d6b2; border-radius: 8px; background: #f7f9f4; padding: .35rem .55rem; color: var(--ink); cursor: pointer; text-align: left; }",
 	"    .filter-trigger:hover, .filter-trigger[aria-expanded=\"true\"] { background: #edf4e8; }",
@@ -193,6 +202,7 @@ var pageTemplate = strings.Join([]string{
 	"    .secret:hover { border-color: rgba(64,107,54,.5); background: #f1f6eb; }",
 	"    .secret:active { transform: translateY(1px); }",
 	"    .muted { color: var(--muted); }",
+	"    .empty-state { padding: 2rem 1rem; text-align: center; }",
 	"    .details-list { margin: 0; padding-left: 1rem; }",
 	"    .details-list a { text-decoration: underline; }",
 	"    table th:nth-child(1), table td:nth-child(1) { width: 14%; }",
@@ -221,7 +231,10 @@ var pageTemplate = strings.Join([]string{
 	"  <main id=\"top\" class=\"main-default\">",
 	"    <div class=\"card\">",
 	"      <div class=\"row\">",
-	"        <h1 style=\"margin:0; font-weight:400; font-size:2rem;\">Live secret findings</h1>",
+	"        <div class=\"header-copy\">",
+	"          <h1 style=\"margin:0; font-weight:400; font-size:2rem;\">Live secret findings</h1>",
+	"          <span id=\"elapsed-time\" class=\"muted elapsed-time\" aria-live=\"off\">Elapsed 00:00:00</span>",
+	"        </div>",
 	"        <div class=\"status\"><span class=\"dot\" id=\"connection-dot\"></span><span id=\"connection-state\">connecting</span></div>",
 	"      </div>",
 	"    </div>",
@@ -260,6 +273,23 @@ var pageTemplate = strings.Join([]string{
 	"          <label for=\"search-filter\">Search</label>",
 	"          <input id=\"search-filter\" type=\"search\" placeholder=\"rule, secret, url, job, build\" />",
 	"        </div>",
+	"        <div class=\"filter-field notification-field\">",
+	"          <label id=\"notification-threshold-label\">Notify from</label>",
+	"          <input id=\"notification-threshold\" type=\"hidden\" value=\"high-verified\" />",
+	"          <div class=\"filter-picker single-select-picker\" id=\"notification-threshold-picker\">",
+	"            <button class=\"filter-trigger\" id=\"notification-threshold-trigger\" type=\"button\" aria-haspopup=\"listbox\" aria-expanded=\"false\" aria-controls=\"notification-threshold-options\" aria-labelledby=\"notification-threshold-label notification-threshold-selected\"><span class=\"filter-selected\" id=\"notification-threshold-selected\"></span><span class=\"filter-chevron\" aria-hidden=\"true\"></span></button>",
+	"            <div class=\"filter-options\" id=\"notification-threshold-options\" role=\"listbox\" aria-multiselectable=\"false\" aria-labelledby=\"notification-threshold-label\" hidden>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"high-verified\" aria-selected=\"true\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge high-verified\">high-verified</span></div>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"high\" aria-selected=\"false\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge high\">high and above</span></div>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"medium\" aria-selected=\"false\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge medium\">medium and above</span></div>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"low\" aria-selected=\"false\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge low\">low and above</span></div>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"any\" aria-selected=\"false\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge all\">Any finding</span></div>",
+	"              <div class=\"filter-option\" role=\"option\" tabindex=\"-1\" data-value=\"none\" aria-selected=\"false\"><span class=\"filter-check\" aria-hidden=\"true\"></span><span class=\"badge all\">None</span></div>",
+	"            </div>",
+	"          </div>",
+	"          <button class=\"control-btn\" id=\"enable-notifications\" type=\"button\" hidden>Enable notifications</button>",
+	"          <span id=\"notification-status\" class=\"muted notification-status\" role=\"status\"></span>",
+	"        </div>",
 	"        <button class=\"control-btn\" id=\"reset-filters\" type=\"button\">Reset</button>",
 	"        <button class=\"control-btn\" id=\"export-csv\" type=\"button\">Export CSV</button>",
 	"      </div>",
@@ -273,7 +303,7 @@ var pageTemplate = strings.Join([]string{
 	"  </main>",
 	"  <div id=\"toast\" aria-live=\"polite\">Secret copied to clipboard</div>",
 	"  <script>",
-	"    const state = { all: [], severity: ['all'], type: ['all'], search: '' };",
+	"    const state = { all: [], severity: ['all'], type: ['all'], search: '', completed: {{.Completed}}, notificationsReady: false };",
 	"    const severityFilter = document.getElementById('severity-filter');",
 	"    const typeFilter = document.getElementById('type-filter');",
 	"    const searchFilter = document.getElementById('search-filter');",
@@ -284,7 +314,21 @@ var pageTemplate = strings.Join([]string{
 	"    const connectionState = document.getElementById('connection-state');",
 	"    const connectionDot = document.getElementById('connection-dot');",
 	"    const toast = document.getElementById('toast');",
+	"    const notificationThreshold = document.getElementById('notification-threshold');",
+	"    const enableNotificationsButton = document.getElementById('enable-notifications');",
+	"    const notificationStatus = document.getElementById('notification-status');",
+	"    var notificationsSince = Date.now();",
+	"    var activeNotifications = [];",
+	"    const elapsedTime = document.getElementById('elapsed-time');",
+	"    var elapsedBase = {{.ElapsedMillis}};",
+	"    var elapsedStartedAt = Date.now();",
+	"    function updateElapsedTime() { var totalSeconds = Math.floor(Math.max(0, elapsedBase + (state.completed ? 0 : Date.now() - elapsedStartedAt)) / 1000); var hours = Math.floor(totalSeconds / 3600); var minutes = Math.floor((totalSeconds % 3600) / 60); var seconds = totalSeconds % 60; elapsedTime.textContent = 'Elapsed ' + [hours, minutes, seconds].map(function(value) { return String(value).padStart(2, '0'); }).join(':'); }",
 	"    const normalize = function(value) { return (value || '').toLowerCase(); };",
+	"    function updateNotificationStatus() { if (!('Notification' in window)) { enableNotificationsButton.hidden = true; notificationStatus.textContent = 'Browser notifications are not supported.'; return; } if (Notification.permission === 'granted') { enableNotificationsButton.hidden = true; notificationStatus.textContent = notificationThreshold.value === 'none' ? 'Notifications are off.' : 'Browser notifications enabled.'; return; } if (Notification.permission === 'denied') { enableNotificationsButton.hidden = true; notificationStatus.textContent = 'Notifications are blocked in browser settings.'; return; } enableNotificationsButton.hidden = notificationThreshold.value === 'none'; notificationStatus.textContent = notificationThreshold.value === 'none' ? 'Notifications are off.' : 'Allow notifications for matching findings.'; }",
+	"    function requestNotificationPermission() { if (!('Notification' in window)) { updateNotificationStatus(); return; } try { Notification.requestPermission().then(updateNotificationStatus).catch(updateNotificationStatus); } catch (_) { updateNotificationStatus(); } }",
+	"    function meetsNotificationThreshold(confidence) { var threshold = notificationThreshold.value; if (threshold === 'none') return false; if (threshold === 'any') return true; var levels = ['high-verified', 'high', 'medium', 'low']; var findingLevel = levels.indexOf(normalize(confidence)); return findingLevel >= 0 && findingLevel <= levels.indexOf(threshold); }",
+	"    function closeActiveNotifications() { activeNotifications.forEach(function(notification) { notification.close(); }); activeNotifications = []; }",
+	"    function notifyFinding(item) { var findingTime = Number(item.timestampMillis); if (!state.notificationsReady || (findingTime > 0 && findingTime < notificationsSince) || !('Notification' in window) || Notification.permission !== 'granted' || !meetsNotificationThreshold(item.confidence)) return; try { var title = item.confidence === 'high-verified' ? 'Verified credential found' : 'Credential finding detected'; var notification = new Notification(title, { body: 'Confidence: ' + (item.confidence || 'unknown') + '. Open Pipeleek to review.' }); activeNotifications.push(notification); notification.onclose = function() { activeNotifications = activeNotifications.filter(function(openNotification) { return openNotification !== notification; }); }; notification.onclick = function() { window.focus(); notification.close(); }; } catch (_) {} }",
 	"    function severityClass(value) { return String(value || 'unknown').toLowerCase().replace(/\\s+/g, '-'); }",
 	"    function typeClass(value) { return String(value || 'log').toLowerCase().replace(/\\s+/g, '-'); }",
 	"    function showToast(message) { toast.textContent = message; toast.classList.add('visible'); clearTimeout(showToast.timeout); showToast.timeout = setTimeout(function() { toast.classList.remove('visible'); }, 1200); }",
@@ -311,7 +355,7 @@ var pageTemplate = strings.Join([]string{
 	"    }",
 	"    function renderRows() {",
 	"      var list = filteredFindings(); var fragment = document.createDocumentFragment();",
-	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted'; emptyCell.textContent = 'No findings match the current filters.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
+	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted empty-state'; emptyCell.textContent = state.all.length ? 'No findings match the current filters.' : state.completed ? 'No findings were detected.' : 'No findings yet. Results will appear here as the scan runs.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
 	"      list.forEach(function(item) {",
 	"        var row = document.createElement('tr'); var confidence = (item.confidence || 'unknown').toLowerCase(); var typeName = item.type || 'log';",
 	"        var severityCell = document.createElement('td'); var severityBadge = document.createElement('span'); severityBadge.className = 'badge ' + severityClass(confidence); severityBadge.textContent = item.confidence || 'unknown'; severityCell.appendChild(severityBadge); row.appendChild(severityCell);",
@@ -329,7 +373,7 @@ var pageTemplate = strings.Join([]string{
 	"      fetch('/api/export.csv', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(findings) }).then(function(response) { if (!response.ok) throw new Error('export'); return response.blob(); }).then(function(blob) { var url = URL.createObjectURL(blob); var link = document.createElement('a'); link.href = url; link.download = 'pipeleek-findings.csv'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function() { URL.revokeObjectURL(url); }, 0); showToast('Exported ' + findings.length + ' findings to CSV'); }).catch(function() { showToast('CSV export failed'); });",
 	"    }",
 	"    function applyFilters() { state.severity = severityFilter.value.split(',').filter(Boolean); state.type = typeFilter.value.split(',').filter(Boolean); state.search = searchFilter.value; renderRows(); }",
-	"    function setupFilterPicker(id, input) {",
+	"    function setupFilterPicker(id, input, allowMultiple, onChange) {",
 	"      var picker = document.getElementById(id);",
 	"      var trigger = picker.querySelector('.filter-trigger');",
 	"      var selected = picker.querySelector('.filter-selected');",
@@ -337,8 +381,8 @@ var pageTemplate = strings.Join([]string{
 	"      var options = Array.prototype.slice.call(menu.querySelectorAll('[role=\"option\"]'));",
 	"      function values() { return input.value.split(',').filter(Boolean); }",
 	"      function update(values) {",
-	"        if (!values.length) values = ['all'];",
-	"        if (values.indexOf('all') >= 0) values = ['all'];",
+	"        if (!values.length) values = [allowMultiple === false ? options[0].getAttribute('data-value') : 'all'];",
+	"        if (allowMultiple === false) values = [values[0]]; else if (values.indexOf('all') >= 0) values = ['all'];",
 	"        input.value = values.join(',');",
 	"        selected.textContent = '';",
 	"        options.forEach(function(option) { var value = option.getAttribute('data-value'); var active = values.indexOf(value) >= 0; option.setAttribute('aria-selected', active ? 'true' : 'false'); if (active) selected.appendChild(option.querySelector('.badge').cloneNode(true)); });",
@@ -347,14 +391,15 @@ var pageTemplate = strings.Join([]string{
 	"      function open(index) { menu.hidden = false; trigger.setAttribute('aria-expanded', 'true'); options[index].focus(); }",
 	"      function toggle(option) {",
 	"        var value = option.getAttribute('data-value');",
+	"        if (allowMultiple === false) { update([value]); close(true); if (onChange) onChange(); return; }",
 	"        var next = values();",
 	"        if (value === 'all') next = ['all']; else { next = next.filter(function(item) { return item !== 'all'; }); if (next.indexOf(value) >= 0) next = next.filter(function(item) { return item !== value; }); else next.push(value); }",
 	"        update(next);",
-	"        applyFilters();",
+	"        if (onChange) onChange(); else applyFilters();",
 	"      }",
 	"      trigger.addEventListener('click', function() { if (menu.hidden) { var active = options.findIndex(function(option) { return values().indexOf(option.getAttribute('data-value')) >= 0; }); open(Math.max(active, 0)); } else { close(false); } });",
 	"      trigger.addEventListener('keydown', function(event) { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); open(event.key === 'ArrowUp' ? options.length - 1 : 0); } });",
-	"      menu.addEventListener('click', function(event) { var option = event.target.closest('[role=\"option\"]'); if (option) { toggle(option); option.focus(); } });",
+	"      menu.addEventListener('click', function(event) { var option = event.target.closest('[role=\"option\"]'); if (option) { toggle(option); if (!menu.hidden) option.focus(); } });",
 	"      menu.addEventListener('keydown', function(event) { var current = options.indexOf(document.activeElement); if (event.key === 'Escape') { event.preventDefault(); close(true); } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') { event.preventDefault(); var next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length; options[next].focus(); } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (options[current]) toggle(options[current]); } });",
 	"      document.addEventListener('click', function(event) { if (!picker.contains(event.target)) close(false); });",
 	"      update(values());",
@@ -369,10 +414,19 @@ var pageTemplate = strings.Join([]string{
 	"    searchFilter.addEventListener('input', applyFilters);",
 	"    resetButton.addEventListener('click', resetFilters);",
 	"    exportCSVButton.addEventListener('click', exportCSV);",
+	"    var notificationThresholdPicker = setupFilterPicker('notification-threshold-picker', notificationThreshold, false, function() { notificationsSince = Date.now(); closeActiveNotifications(); updateNotificationStatus(); if (notificationThreshold.value !== 'none' && 'Notification' in window && Notification.permission === 'default') requestNotificationPermission(); });",
+	"    updateNotificationStatus();",
+	"    if (notificationThreshold.value !== 'none' && 'Notification' in window && Notification.permission === 'default') requestNotificationPermission();",
+	"    enableNotificationsButton.addEventListener('click', requestNotificationPermission);",
+	"    renderSummary();",
+	"    renderRows();",
+	"    updateElapsedTime();",
+	"    var elapsedTimer = state.completed ? null : window.setInterval(updateElapsedTime, 1000);",
 	"    var source = new EventSource('/events');",
-	"    source.onopen = function() { connectionState.textContent = 'live'; connectionDot.classList.remove('offline'); };",
-	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); });",
-	"    source.addEventListener('done', function() { connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); source.close(); });",
+	"    source.onopen = function() { state.notificationsReady = false; connectionState.textContent = 'live'; connectionDot.classList.remove('offline'); };",
+	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var notify = state.notificationsReady; var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); if (notify) notifyFinding(item); });",
+	"    source.addEventListener('replay-complete', function() { state.notificationsReady = true; });",
+	"    source.addEventListener('done', function(event) { var completion = JSON.parse(event.data); elapsedBase = Math.max(0, Number(completion.elapsedMillis) || 0); state.completed = true; updateElapsedTime(); window.clearInterval(elapsedTimer); connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); renderRows(); source.close(); });",
 	"    source.onerror = function() { if (connectionState.textContent !== 'complete') { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); } };",
 	"  </script>",
 	"</body>",
@@ -404,10 +458,11 @@ func Start() (*Server, error) {
 	}
 
 	server := &Server{
-		clients: make(map[chan string]struct{}),
-		token:   token,
-		done:    make(chan struct{}),
-		port:    fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
+		clients:   make(map[chan string]struct{}),
+		token:     token,
+		done:      make(chan struct{}),
+		port:      fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
+		startedAt: time.Now(),
 	}
 	server.url = fmt.Sprintf("http://127.0.0.1:%s/?token=%s", server.port, server.token)
 	server.server = &http.Server{
@@ -468,9 +523,11 @@ func (s *Server) Complete() {
 		return
 	}
 	s.completed = true
+	s.completedAt = time.Now()
+	doneEvent := s.doneEventLocked()
 	for client := range s.clients {
 		select {
-		case client <- "event: done\ndata: complete\n\n":
+		case client <- doneEvent:
 		default:
 			delete(s.clients, client)
 			close(client)
@@ -478,17 +535,36 @@ func (s *Server) Complete() {
 	}
 }
 
+func (s *Server) elapsedMillisAtLocked(endTime time.Time) int64 {
+	if s.startedAt.IsZero() {
+		return 0
+	}
+	elapsed := endTime.Sub(s.startedAt).Milliseconds()
+	if elapsed < 0 {
+		return 0
+	}
+	return elapsed
+}
+
+func (s *Server) doneEventLocked() string {
+	payload, _ := json.Marshal(struct {
+		ElapsedMillis int64 `json:"elapsedMillis"`
+	}{ElapsedMillis: s.elapsedMillisAtLocked(s.completedAt)})
+	return "event: done\ndata: " + string(payload) + "\n\n"
+}
+
 func (s *Server) handleHit(record logging.HitRecord) {
 	s.mu.Lock()
 	s.nextID++
 	finding := Finding{
-		ID:         fmt.Sprintf("%d", s.nextID),
-		Time:       record.Time.Format(time.RFC3339),
-		Type:       record.Type,
-		Confidence: record.Confidence,
-		RuleName:   record.RuleName,
-		Value:      record.Value,
-		Details:    make(map[string]string),
+		ID:              fmt.Sprintf("%d", s.nextID),
+		Time:            record.Time.Format(time.RFC3339),
+		TimestampMillis: record.Time.UnixMilli(),
+		Type:            record.Type,
+		Confidence:      record.Confidence,
+		RuleName:        record.RuleName,
+		Value:           record.Value,
+		Details:         make(map[string]string),
 	}
 	if finding.Type == "" {
 		finding.Type = "log"
@@ -562,6 +638,10 @@ func (s *Server) isAuthorized(r *http.Request) bool {
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	s.handleRootAt(w, r, time.Now())
+}
+
+func (s *Server) handleRootAt(w http.ResponseWriter, r *http.Request, now time.Time) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
@@ -585,9 +665,23 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
+	s.mu.RLock()
+	completed := s.completed
+	endTime := now
+	if completed && !s.completedAt.IsZero() {
+		endTime = s.completedAt
+	}
+	elapsedMillis := s.elapsedMillisAtLocked(endTime)
+	s.mu.RUnlock()
 	view := struct {
-		PipeleekLogo template.HTML
-	}{PipeleekLogo: gitlabenum.PipeleekLogoHTML()}
+		PipeleekLogo  template.HTML
+		ElapsedMillis int64
+		Completed     bool
+	}{
+		PipeleekLogo:  gitlabenum.PipeleekLogoHTML(),
+		ElapsedMillis: elapsedMillis,
+		Completed:     completed,
+	}
 	if err := template.Must(template.New("page").Parse(pageTemplate)).Execute(w, view); err != nil {
 		zerologlog.Error().Err(err).Msg("Failed to render findings UI")
 	}
@@ -684,6 +778,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	findings := append([]Finding(nil), s.findings...)
 	completed := s.completed
+	doneEvent := ""
+	if completed {
+		doneEvent = s.doneEventLocked()
+	}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -703,8 +801,12 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		flusher.Flush()
 	}
+	if _, err := fmt.Fprint(w, "event: replay-complete\ndata: complete\n\n"); err != nil {
+		return
+	}
+	flusher.Flush()
 	if completed {
-		_, _ = fmt.Fprint(w, "event: done\ndata: complete\n\n")
+		_, _ = fmt.Fprint(w, doneEvent)
 		flusher.Flush()
 		return
 	}

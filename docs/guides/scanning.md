@@ -31,6 +31,25 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 
 As shown, Pipeleek can detect secrets in job logs and build artifacts using its YAML patterns, Betterleaks rules, and TruffleHog detectors. Security findings are logged at the custom `hit` level to distinguish them from regular warnings. Manually review the hits to verify if they're valid credentials. If you see `confidence=high-verified`, TruffleHog or Betterleaks confirmed the credential with its provider; enabling `--secrets-verification` can make outbound validation requests.
 
+### Live Findings Web UI
+
+Add `--webui` to serve findings in a live web UI while the scan runs. Pipeleek binds the UI to `127.0.0.1` on an available local port and prints a URL with a random access token. The UI is only reachable from the local machine by default. Open the printed URL in a browser to watch findings arrive, filter and search them, and export them as CSV. Results remain available after the scan completes, and the command keeps serving the UI until you press Ctrl+C. The URL grants access to scan findings; treat it as sensitive and redact its token before sharing logs.
+
+Use `-v` with `--webui` to see debug-level startup details:
+
+```bash
+pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] --artifacts --job-limit 15 -v --webui
+2026-10-01T11:50:13Z debug Log level set to debug (-v)
+2026-10-01T11:50:13Z debug Searching for config file in standard locations
+2026-10-01T11:50:13Z info Loaded config file file=/home/user/.config/pipeleek/pipeleek.yaml
+2026-10-01T11:50:13Z info Findings web UI started token=[redacted] url=http://127.0.0.1:42957/?token=[redacted]
+2026-10-01T11:50:13Z debug Loading rules.yml from filesystem
+```
+
+The `Findings web UI started` message appears near the start of the scan. Use the URL from your own run; its port and token are generated dynamically.
+
+![Live findings web UI showing scan status, confidence counts, filters, and detected findings](findings-webui.png)
+
 If you find a repository that looks particularly interesting e.g. `secret-pipelines`, you can scan all its job logs, not just the most recent ones:
 
 ```bash

@@ -94,14 +94,7 @@ func (s *giteaScanner) scanSingleRepository(repoFullName string) {
 }
 
 func (s *giteaScanner) scanAllRepositories() {
-	opt := gitea.SearchRepoOptions{
-		Sort:  "updated",
-		Order: "desc",
-		ListOptions: gitea.ListOptions{
-			Page:     1,
-			PageSize: 50,
-		},
-	}
+	opt := repositorySearchOptions(s.options, 1)
 
 	for {
 		repos, resp, err := s.options.Client.SearchRepos(opt)
@@ -119,6 +112,26 @@ func (s *giteaScanner) scanAllRepositories() {
 			break
 		}
 		opt.Page++
+	}
+}
+
+func repositorySearchOptions(options ScanOptions, page int) gitea.SearchRepoOptions {
+	sort := options.RepositorySort
+	if sort == "" {
+		sort = "updated"
+	}
+	order := options.RepositoryOrder
+	if order == "" {
+		order = "desc"
+	}
+
+	return gitea.SearchRepoOptions{
+		Sort:  sort,
+		Order: order,
+		ListOptions: gitea.ListOptions{
+			Page:     page,
+			PageSize: 50,
+		},
 	}
 }
 
