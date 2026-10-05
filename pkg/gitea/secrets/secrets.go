@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/rs/zerolog/log"
 )
 
@@ -58,7 +59,8 @@ func ListAllSecrets(cfg Config) error {
 }
 
 func createClientContext(cfg Config) (*clientContext, error) {
-	client, err := gitea.NewClient(cfg.URL, gitea.SetToken(cfg.Token))
+	client, err := gitea.NewClient(cfg.URL, gitea.SetToken(cfg.Token),
+		gitea.SetHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
 	if err != nil {
 		return nil, err
 	}
