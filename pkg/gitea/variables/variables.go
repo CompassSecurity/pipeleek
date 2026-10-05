@@ -60,7 +60,8 @@ func ListAllVariables(cfg Config) error {
 }
 
 func createClientContext(cfg Config) (*clientContext, error) {
-	client, err := gitea.NewClient(cfg.URL, gitea.SetToken(cfg.Token))
+	client, err := gitea.NewClient(cfg.URL, gitea.SetToken(cfg.Token),
+		gitea.SetHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
 	if err != nil {
 		return nil, err
 	}

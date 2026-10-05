@@ -100,6 +100,23 @@ func TestGiteaVariables_Success(t *testing.T) {
 	assert.Contains(t, output, "REPO_VAR_2", "Should output repo variable 2")
 	assert.Contains(t, output, "test-org", "Should output organization name")
 	assert.Contains(t, output, "test-repo", "Should output repository name")
+
+	t.Run("explicit proxy", func(t *testing.T) {
+		before := len(getRequests())
+		stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+			"gitea", "variables",
+			"--url", "http://gitea.invalid",
+			"--token", "test-token",
+			"--proxy", server.URL,
+			"--ignore-proxy",
+		}, nil, 10*time.Second)
+		assert.Nil(t, exitErr, "Variables command should succeed through the proxy")
+		assert.GreaterOrEqual(t, len(getRequests())-before, 4)
+		output := stdout + stderr
+		for _, value := range []string{"ORG_VAR_1", "ORG_VAR_2", "REPO_VAR_1", "REPO_VAR_2", "org_value_1", "repo_value_1"} {
+			assert.Contains(t, output, value)
+		}
+	})
 }
 
 func TestGiteaVariables_Pagination(t *testing.T) {

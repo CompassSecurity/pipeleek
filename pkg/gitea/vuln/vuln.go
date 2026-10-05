@@ -14,7 +14,8 @@ import (
 // RunCheckVulns checks the Gitea instance for vulnerabilities
 func RunCheckVulns(giteaUrl, giteaApiToken string) {
 	version := "none"
-	giteaClient, err := gitea.NewClient(giteaUrl, gitea.SetToken(giteaApiToken))
+	giteaClient, err := gitea.NewClient(giteaUrl, gitea.SetToken(giteaApiToken),
+		gitea.SetHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed creating Gitea client")
 	} else {

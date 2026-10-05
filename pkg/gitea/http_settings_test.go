@@ -1,6 +1,7 @@
 package gitea_test
 
 import (
+	"bytes"
 	"errors"
 	"net"
 	"net/http"
@@ -11,7 +12,11 @@ import (
 
 	giteaenum "github.com/CompassSecurity/pipeleek/pkg/gitea/enum"
 	"github.com/CompassSecurity/pipeleek/pkg/gitea/secrets"
+	"github.com/CompassSecurity/pipeleek/pkg/gitea/variables"
+	"github.com/CompassSecurity/pipeleek/pkg/gitea/vuln"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,8 +52,93 @@ func TestCommandsHTTPSettings(t *testing.T) {
 				return secrets.ListAllSecrets(secrets.Config{URL: url, Token: "test-token"})
 			},
 		},
+		{
+			name: "variables",
+			run: func(url string) error {
+				return variables.ListAllVariables(variables.Config{URL: url, Token: "test-token"})
+			},
+		},
 	}
 
+	runCommandsHTTPSettings(t, commands)
+}
+
+func TestVulnHTTPSettings(t *testing.T) {
+	httpclient.SetIgnoreProxy(true)
+	t.Cleanup(func() {
+		httpclient.SetProxy("")
+		httpclient.SetIgnoreProxy(false)
+		httpclient.SetInsecureSkipVerify(true)
+		httpclient.SetHTTPTimeout(0)
+	})
+	nist := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"totalResults":0,"vulnerabilities":[]}`))
+	}))
+	defer nist.Close()
+	t.Setenv("PIPELEEK_NIST_BASE_URL", nist.URL)
+
+	for _, mode := range []string{"explicit proxy", "self-signed TLS", "enforced TLS", "timeout"} {
+		t.Run(mode, func(t *testing.T) {
+			httpclient.SetProxy("")
+			httpclient.SetInsecureSkipVerify(true)
+			httpclient.SetHTTPTimeout(0)
+			var output bytes.Buffer
+			savedLogger := log.Logger
+			log.Logger = zerolog.New(&output)
+			defer func() { log.Logger = savedLogger }()
+
+			var versionRequests atomic.Int32
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/nist" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"totalResults":0,"vulnerabilities":[]}`))
+					return
+				}
+				versionRequests.Add(1)
+				if mode == "timeout" {
+					time.Sleep(100 * time.Millisecond)
+				}
+				serveGitea(w, r)
+			})
+			var target *httptest.Server
+			if mode == "self-signed TLS" || mode == "enforced TLS" {
+				target = httptest.NewTLSServer(handler)
+			} else {
+				target = httptest.NewServer(handler)
+			}
+			defer target.Close()
+			url := target.URL
+			switch mode {
+			case "explicit proxy":
+				httpclient.SetProxy(target.URL)
+				t.Setenv("PIPELEEK_NIST_BASE_URL", "http://nist.invalid/nist")
+				url = "http://gitea.invalid"
+			case "enforced TLS":
+				httpclient.SetInsecureSkipVerify(false)
+			case "timeout":
+				httpclient.SetHTTPTimeout(20 * time.Millisecond)
+			}
+
+			vuln.RunCheckVulns(url, "test-token")
+			assert.Contains(t, output.String(), "Finished vuln scan")
+			if mode == "enforced TLS" || mode == "timeout" {
+				assert.Contains(t, output.String(), "Failed creating Gitea client")
+				assert.Contains(t, output.String(), `"version":"none"`)
+			} else {
+				assert.Contains(t, output.String(), `"version":"1.20.0"`)
+				assert.NotContains(t, output.String(), "Failed creating Gitea client")
+				assert.Positive(t, versionRequests.Load())
+			}
+		})
+	}
+}
+
+func runCommandsHTTPSettings(t *testing.T, commands []struct {
+	name string
+	run  func(string) error
+}) {
+	t.Helper()
 	for _, command := range commands {
 		t.Run(command.name, func(t *testing.T) {
 			httpclient.SetProxy("")

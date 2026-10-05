@@ -36,7 +36,7 @@ HTTP_PROXY=socks5://127.0.0.1:1080 pipeleek gl scan -u https://gitlab.internal.c
 
 Alternatively, use the `--proxy` flag to set any proxy from the command line without relying on `HTTP_PROXY`. It accepts both HTTP and SOCKS5 URLs and takes precedence over the environment variable:
 
-Gitea `enum` and `secrets` commands use these shared HTTP settings too, including `--ignore-proxy`, `--tls-verification`, and `--http-timeout`.
+All Gitea commands (`scan`, `enum`, `secrets`, `variables`, and `vuln`) use these shared HTTP settings, including `--ignore-proxy`, `--tls-verification`, and `--http-timeout`. For `vuln`, the settings apply to both the Gitea version lookup and NIST requests.
 
 ```bash
 # HTTP proxy
