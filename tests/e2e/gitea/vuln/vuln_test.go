@@ -109,6 +109,47 @@ func TestGiteaVuln_MissingToken(t *testing.T) {
 	assert.Contains(t, stdout, "required configuration missing", "Should mention missing required configuration")
 }
 
+func TestGiteaVuln_Proxy(t *testing.T) {
+	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/version":
+			_, _ = w.Write([]byte(`{"version":"1.20.0"}`))
+		case "/nist":
+			assert.Contains(t, r.URL.Query().Get("cpeName"), ":gitea:1.20.0:")
+			_, _ = w.Write([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2023-1234","descriptions":[{"value":"Test vulnerability"}]}}]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	defer cleanup()
+
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gitea", "vuln",
+		"--url", "http://gitea.invalid",
+		"--token", "test-token",
+		"--proxy", server.URL,
+		"--ignore-proxy",
+	}, []string{"PIPELEEK_NIST_BASE_URL=http://nist.invalid/nist"}, 15*time.Second)
+
+	assert.Nil(t, exitErr)
+	output := stdout + stderr
+	assert.Contains(t, output, "1.20.0")
+	assert.Contains(t, output, "CVE-2023-1234")
+	assert.NotContains(t, output, "Failed creating Gitea client")
+	var versionSeen, nistSeen bool
+	for _, request := range getRequests() {
+		switch request.Path {
+		case "/api/v1/version":
+			versionSeen = true
+		case "/nist":
+			nistSeen = true
+		}
+	}
+	assert.True(t, versionSeen, "Gitea version lookup must use the proxy")
+	assert.True(t, nistSeen, "NIST lookup must use the proxy")
+}
+
 func TestGiteaVuln_MissingGitea(t *testing.T) {
 	stdout, _, exitErr := testutil.RunCLI(t, []string{
 		"gitea", "vuln",

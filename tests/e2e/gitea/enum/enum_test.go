@@ -58,19 +58,26 @@ func TestGiteaEnum(t *testing.T) {
 	})
 	defer cleanup()
 
-	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gitea", "enum",
-		"--url", server.URL,
-		"--token", "gitea-token",
-	}, nil, 10*time.Second)
+	for _, mode := range []string{"direct", "explicit proxy"} {
+		t.Run(mode, func(t *testing.T) {
+			args := []string{"gitea", "enum", "--token", "gitea-token"}
+			if mode == "explicit proxy" {
+				args = append(args, "--url", "http://gitea.invalid", "--proxy", server.URL, "--ignore-proxy")
+			} else {
+				args = append(args, "--url", server.URL)
+			}
+			before := len(getRequests())
+			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 10*time.Second)
 
-	assert.Nil(t, exitErr, "Enum command should succeed")
-
-	requests := getRequests()
-	assert.True(t, len(requests) >= 1, "Should make API requests")
-
-	t.Logf("STDOUT:\n%s", stdout)
-	t.Logf("STDERR:\n%s", stderr)
+			assert.Nil(t, exitErr, "Enum command should succeed")
+			assert.Greater(t, len(getRequests()), before, "Should make API requests")
+			output := stdout + stderr
+			assert.Contains(t, output, "testuser")
+			assert.Contains(t, output, "repo1")
+			assert.Contains(t, output, "repo2")
+			assert.Contains(t, output, "my-org")
+		})
+	}
 }
 
 // TestGitea_APIErrors tests various API error responses

@@ -72,28 +72,28 @@ func TestGiteaSecrets_Success(t *testing.T) {
 	})
 	defer cleanup()
 
-	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gitea", "secrets",
-		"--url", server.URL,
-		"--token", "test-token",
-	}, nil, 10*time.Second)
+	for _, mode := range []string{"direct", "explicit proxy"} {
+		t.Run(mode, func(t *testing.T) {
+			args := []string{"gitea", "secrets", "--token", "test-token"}
+			if mode == "explicit proxy" {
+				args = append(args, "--url", "http://gitea.invalid", "--proxy", server.URL, "--ignore-proxy")
+			} else {
+				args = append(args, "--url", server.URL)
+			}
+			before := len(getRequests())
+			stdout, stderr, exitErr := testutil.RunCLI(t, args, nil, 10*time.Second)
 
-	assert.Nil(t, exitErr, "Secrets command should succeed")
-
-	output := stdout + stderr
-	t.Logf("Output:\n%s", output)
-
-	// Verify expected API calls were made
-	requests := getRequests()
-	assert.True(t, len(requests) >= 4, "Should make multiple API requests")
-
-	// Verify output contains secrets
-	assert.Contains(t, output, "ORG_SECRET_1", "Should output org secret 1")
-	assert.Contains(t, output, "ORG_SECRET_2", "Should output org secret 2")
-	assert.Contains(t, output, "REPO_SECRET_1", "Should output repo secret 1")
-	assert.Contains(t, output, "REPO_SECRET_2", "Should output repo secret 2")
-	assert.Contains(t, output, "test-org", "Should output organization name")
-	assert.Contains(t, output, "test-repo", "Should output repository name")
+			assert.Nil(t, exitErr, "Secrets command should succeed")
+			assert.GreaterOrEqual(t, len(getRequests())-before, 4, "Should make multiple API requests")
+			output := stdout + stderr
+			assert.Contains(t, output, "ORG_SECRET_1", "Should output org secret 1")
+			assert.Contains(t, output, "ORG_SECRET_2", "Should output org secret 2")
+			assert.Contains(t, output, "REPO_SECRET_1", "Should output repo secret 1")
+			assert.Contains(t, output, "REPO_SECRET_2", "Should output repo secret 2")
+			assert.Contains(t, output, "test-org", "Should output organization name")
+			assert.Contains(t, output, "test-repo", "Should output repository name")
+		})
+	}
 }
 
 func TestGiteaSecrets_OrgPagination(t *testing.T) {

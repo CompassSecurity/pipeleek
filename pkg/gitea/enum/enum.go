@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/rs/zerolog/log"
 )
 
 // RunEnum performs the enumeration of Gitea access rights.
 func RunEnum(giteaURL, apiToken string) error {
-	client, err := gitea.NewClient(giteaURL, gitea.SetToken(apiToken))
+	client, err := gitea.NewClient(giteaURL, gitea.SetToken(apiToken),
+		gitea.SetHTTPClient(httpclient.GetPipeleekStandardHTTPClient()))
 	if err != nil {
 		return err
 	}
