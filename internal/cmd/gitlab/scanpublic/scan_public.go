@@ -9,7 +9,6 @@ import (
 	gitlabscan "github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
-	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -101,7 +100,7 @@ func ScanPublic(cmd *cobra.Command, args []string) {
 	secretsVerification := config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	confidenceFilter := config.GetStringSlice("common.confidence_filter")
-	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	ui := flags.StartScanWebUI(cmd, gitlabURL, flagBindings)
 	if ui != nil {
 		defer ui.Close()
 	}

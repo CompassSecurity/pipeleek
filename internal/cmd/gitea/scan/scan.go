@@ -6,7 +6,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	giteascan "github.com/CompassSecurity/pipeleek/pkg/gitea/scan"
-	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -126,7 +125,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	scanOptions.SecretsVerification = config.GetBool("common.secrets_verification")
 	maxArtifactSize = config.GetString("common.max_artifact_size")
 	scanOptions.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
-	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	ui := flags.StartScanWebUI(cmd, giteaURL, flagBindings)
 	if ui != nil {
 		defer ui.Close()
 	}

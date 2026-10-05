@@ -8,7 +8,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	snippetscan "github.com/CompassSecurity/pipeleek/pkg/gitlab/snippets/scan"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
-	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -91,7 +90,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	threads := config.GetInt("common.threads")
 	secretsVerification := config.GetBool("common.secrets_verification")
 	confidenceFilter := config.GetStringSlice("common.confidence_filter")
-	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	ui := flags.StartScanWebUI(cmd, gitlabURL, flagBindings)
 	if ui != nil {
 		defer ui.Close()
 	}
