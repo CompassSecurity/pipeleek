@@ -772,19 +772,12 @@ func sanitizeTargetURL(raw string) string {
 }
 
 func isSensitiveOption(name string) bool {
-	normalized := strings.ToLower(strings.TrimLeft(name, "-"))
-	if strings.Contains(normalized, "secrets-verification") {
+	switch strings.ToLower(strings.TrimLeft(name, "-")) {
+	case "token", "cookie", "password", "proxy":
+		return true
+	default:
 		return false
 	}
-	for _, marker := range []string{
-		"token", "cookie", "password", "passwd", "credential", "authorization",
-		"secret", "api-key", "api_key", "apikey", "private-key", "private_key",
-	} {
-		if strings.Contains(normalized, marker) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Server) handleExportCSV(w http.ResponseWriter, r *http.Request) {

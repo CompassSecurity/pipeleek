@@ -2,6 +2,7 @@ package flags
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,7 +83,7 @@ func scanContextFromCommand(cmd *cobra.Command, targetURL string, flagBindings m
 					effectiveValue = configuredValue
 				}
 			}
-			if !isEnabledScanFlag(effectiveValue) {
+			if !isEnabledScanFlag(flag, effectiveValue) {
 				return
 			}
 			scanContext.Options = append(scanContext.Options, webui.ScanOption{
@@ -91,8 +92,7 @@ func scanContextFromCommand(cmd *cobra.Command, targetURL string, flagBindings m
 			})
 		})
 	}
-	addFlags(cmd.Flags(), true)
-	addFlags(cmd.PersistentFlags(), true)
+	addFlags(cmd.LocalNonPersistentFlags(), true)
 	addFlags(cmd.InheritedFlags(), false)
 	sort.Slice(scanContext.Options, func(i, j int) bool {
 		return scanContext.Options[i].Name < scanContext.Options[j].Name
@@ -100,67 +100,32 @@ func scanContextFromCommand(cmd *cobra.Command, targetURL string, flagBindings m
 	return scanContext
 }
 
-func isEnabledScanFlag(value interface{}) bool {
-	switch value := value.(type) {
-	case nil:
+func isEnabledScanFlag(flag *pflag.Flag, value interface{}) bool {
+	if value == nil {
 		return false
-	case bool:
-		return value
-	case time.Duration:
-		return value != 0
-	case []string:
-		for _, item := range value {
-			if strings.TrimSpace(item) != "" {
-				return true
-			}
-		}
-		return false
-	case []interface{}:
-		return len(value) > 0
-	case int:
-		return value != 0
-	case int8:
-		return value != 0
-	case int16:
-		return value != 0
-	case int32:
-		return value != 0
-	case int64:
-		return value != 0
-	case uint:
-		return value != 0
-	case uint8:
-		return value != 0
-	case uint16:
-		return value != 0
-	case uint32:
-		return value != 0
-	case uint64:
-		return value != 0
-	case float32:
-		return value != 0
-	case float64:
-		return value != 0
-	case string:
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			return false
-		}
-		if parsed, err := strconv.ParseBool(trimmed); err == nil {
-			return parsed
-		}
-		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
-			return parsed != 0
-		}
-		if parsed, err := strconv.ParseFloat(trimmed, 64); err == nil {
-			return parsed != 0
-		}
-		if parsed, err := time.ParseDuration(trimmed); err == nil {
-			return parsed != 0
-		}
-		return true
+	}
+	text := strings.TrimSpace(fmt.Sprint(value))
+	switch flag.Value.Type() {
+	case "bool":
+		enabled, err := strconv.ParseBool(text)
+		return err == nil && enabled
+	case "duration":
+		duration, err := time.ParseDuration(text)
+		return err == nil && duration != 0
+	case "int", "int8", "int16", "int32", "int64":
+		number, err := strconv.ParseInt(text, 0, 64)
+		return err == nil && number != 0
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+		number, err := strconv.ParseUint(text, 0, 64)
+		return err == nil && number != 0
+	case "float32", "float64":
+		number, err := strconv.ParseFloat(text, 64)
+		return err == nil && number != 0
+	case "stringSlice", "stringArray", "intSlice", "int64Slice", "uintSlice", "uint64Slice":
+		reflected := reflect.ValueOf(value)
+		return reflected.IsValid() && (reflected.Kind() != reflect.Slice && reflected.Kind() != reflect.Array || reflected.Len() > 0)
 	default:
-		return strings.TrimSpace(fmt.Sprint(value)) != ""
+		return text != ""
 	}
 }
 

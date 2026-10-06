@@ -25,6 +25,9 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 	cmd.Flags().Bool("artifacts", false, "")
 	cmd.Flags().Int("max-builds", 0, "")
 	cmd.Flags().Duration("hit-timeout", time.Minute, "")
+	cmd.Flags().String("branch", "", "")
+	cmd.Flags().String("search", "", "")
+	cmd.Flags().String("job", "", "")
 	cmd.Flags().Bool("webui", false, "")
 	cmd.Flags().String("unset-option", "", "")
 	cmd.Flags().String("local-filter", "default", "")
@@ -39,6 +42,9 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 		"artifacts":            "gitea.scan.artifacts",
 		"max-builds":           "gitea.scan.max_builds",
 		"hit-timeout":          "common.hit_timeout",
+		"branch":               "gitea.scan.branch",
+		"search":               "gitea.scan.search",
+		"job":                  "gitea.scan.job",
 		"webui":                "common.webui",
 	}
 	for name, key := range bindings {
@@ -56,6 +62,9 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 	v.Set("gitea.scan.artifacts", false)
 	v.Set("gitea.scan.max_builds", 0)
 	v.Set("common.hit_timeout", "0s")
+	v.Set("gitea.scan.branch", "false")
+	v.Set("gitea.scan.search", "0")
+	v.Set("gitea.scan.job", "1m")
 	if err := cmd.Flags().Set("local-filter", "selected"); err != nil {
 		t.Fatal(err)
 	}
@@ -69,9 +78,12 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 	}
 
 	wantNames := []string{
+		"--branch",
 		"--cookie",
+		"--job",
 		"--local-filter",
 		"--repository",
+		"--search",
 		"--secrets-verification",
 		"--threads",
 		"--token",
@@ -81,8 +93,11 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 	}
 	wantValues := map[string]string{
 		"--cookie":               "config-cookie",
+		"--branch":               "false",
+		"--job":                  "1m",
 		"--local-filter":         "selected",
 		"--repository":           "owner/project",
+		"--search":               "0",
 		"--secrets-verification": "true",
 		"--threads":              "8",
 		"--token":                "config-token",
@@ -93,26 +108,50 @@ func TestScanContextFromCommandUsesBoundValuesAndIncludesLocalFlags(t *testing.T
 }
 
 func TestIsEnabledScanFlag(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool("enabled-bool", false, "")
+	cmd.Flags().Int("enabled-int", 0, "")
+	cmd.Flags().String("string", "", "")
+	cmd.Flags().Duration("duration", 0, "")
 	tests := []struct {
-		name  string
-		value interface{}
-		want  bool
+		name     string
+		flagName string
+		value    interface{}
+		want     bool
 	}{
-		{name: "true boolean", value: true, want: true},
-		{name: "false boolean", value: false},
-		{name: "non-empty string", value: "selected", want: true},
-		{name: "empty string", value: ""},
-		{name: "false string", value: "false"},
-		{name: "zero integer", value: 0},
-		{name: "positive integer", value: 4, want: true},
-		{name: "zero duration", value: time.Duration(0)},
-		{name: "positive duration", value: time.Minute, want: true},
+		{name: "true boolean", flagName: "enabled-bool", value: true, want: true},
+		{name: "false boolean", flagName: "enabled-bool", value: false},
+		{name: "zero integer", flagName: "enabled-int", value: 0},
+		{name: "positive integer", flagName: "enabled-int", value: 4, want: true},
+		{name: "non-empty string", flagName: "string", value: "selected", want: true},
+		{name: "false string is enabled", flagName: "string", value: "false", want: true},
+		{name: "zero string is enabled", flagName: "string", value: "0", want: true},
+		{name: "duration-looking string is enabled", flagName: "string", value: "1m", want: true},
+		{name: "empty string", flagName: "string", value: ""},
+		{name: "zero duration", flagName: "duration", value: time.Duration(0)},
+		{name: "positive duration", flagName: "duration", value: time.Minute, want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := isEnabledScanFlag(test.value); got != test.want {
+			flag := cmd.Flags().Lookup(test.flagName)
+			if got := isEnabledScanFlag(flag, test.value); got != test.want {
 				t.Fatalf("isEnabledScanFlag(%#v) = %t, want %t", test.value, got, test.want)
 			}
 		})
+	}
+}
+
+func TestScanContextOmitsUnboundInheritedFlags(t *testing.T) {
+	root := &cobra.Command{Use: "pipeleek"}
+	root.PersistentFlags().Bool("color", true, "")
+	root.PersistentFlags().String("proxy", "https://user:pass@proxy.test", "")
+
+	cmd := &cobra.Command{Use: "scan"}
+	cmd.Flags().Bool("artifacts", true, "")
+	root.AddCommand(cmd)
+
+	got := scanContextFromCommand(cmd, "https://instance.test", nil)
+	if len(got.Options) != 1 || got.Options[0].Name != "--artifacts" {
+		t.Fatalf("scan options = %#v, want only the local --artifacts flag", got.Options)
 	}
 }

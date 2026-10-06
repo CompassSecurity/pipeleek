@@ -42,7 +42,7 @@ func TestHandleRootRendersSanitizedScanContext(t *testing.T) {
 	}
 	contextHTML := body[contextStart : contextStart+contextEnd]
 	if heading := strings.Index(body, "Live secret findings"); heading < 0 || contextStart < heading ||
-		strings.Index(body[contextStart+contextEnd:], `id="summary-cards"`) < 0 {
+		!strings.Contains(body[contextStart+contextEnd:], `id="summary-cards"`) {
 		t.Fatal("expected scan context immediately after the heading and before the findings summary")
 	}
 	for _, expected := range []string{
