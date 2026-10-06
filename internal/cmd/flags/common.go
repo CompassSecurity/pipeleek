@@ -2,7 +2,6 @@ package flags
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,7 +103,7 @@ func isEnabledScanFlag(flag *pflag.Flag, value interface{}) bool {
 	if value == nil {
 		return false
 	}
-	text := strings.TrimSpace(fmt.Sprint(value))
+	text := strings.TrimSpace(formatScanOptionValue(value))
 	switch flag.Value.Type() {
 	case "bool":
 		enabled, err := strconv.ParseBool(text)
@@ -112,18 +111,11 @@ func isEnabledScanFlag(flag *pflag.Flag, value interface{}) bool {
 	case "duration":
 		duration, err := time.ParseDuration(text)
 		return err == nil && duration != 0
-	case "int", "int8", "int16", "int32", "int64":
-		number, err := strconv.ParseInt(text, 0, 64)
-		return err == nil && number != 0
-	case "uint", "uint8", "uint16", "uint32", "uint64":
-		number, err := strconv.ParseUint(text, 0, 64)
-		return err == nil && number != 0
-	case "float32", "float64":
+	case "stringSlice", "stringArray":
+		return text != "" && text != "[]"
+	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64":
 		number, err := strconv.ParseFloat(text, 64)
 		return err == nil && number != 0
-	case "stringSlice", "stringArray", "intSlice", "int64Slice", "uintSlice", "uint64Slice":
-		reflected := reflect.ValueOf(value)
-		return reflected.IsValid() && (reflected.Kind() != reflect.Slice && reflected.Kind() != reflect.Array || reflected.Len() > 0)
 	default:
 		return text != ""
 	}

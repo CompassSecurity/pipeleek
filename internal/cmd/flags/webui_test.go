@@ -113,6 +113,9 @@ func TestIsEnabledScanFlag(t *testing.T) {
 	cmd.Flags().Int("enabled-int", 0, "")
 	cmd.Flags().String("string", "", "")
 	cmd.Flags().Duration("duration", 0, "")
+	cmd.Flags().StringSlice("list", nil, "")
+	cmd.Flags().Uint("unsigned", 0, "")
+	cmd.Flags().Float64("float", 0, "")
 	tests := []struct {
 		name     string
 		flagName string
@@ -130,6 +133,14 @@ func TestIsEnabledScanFlag(t *testing.T) {
 		{name: "empty string", flagName: "string", value: ""},
 		{name: "zero duration", flagName: "duration", value: time.Duration(0)},
 		{name: "positive duration", flagName: "duration", value: time.Minute, want: true},
+		{name: "empty list", flagName: "list", value: []string{}},
+		{name: "empty raw list", flagName: "list", value: "[]"},
+		{name: "configured list", flagName: "list", value: []interface{}{"high"}, want: true},
+		{name: "false list item", flagName: "list", value: []string{"false"}, want: true},
+		{name: "zero unsigned", flagName: "unsigned", value: uint(0)},
+		{name: "positive unsigned", flagName: "unsigned", value: uint(4), want: true},
+		{name: "zero float", flagName: "float", value: 0.0},
+		{name: "positive float", flagName: "float", value: 0.5, want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
