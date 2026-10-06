@@ -4,6 +4,7 @@
 
 ![GitHub Release](https://img.shields.io/github/v/release/CompassSecurity/pipeleek)
 ![GitHub commits since latest release](https://img.shields.io/github/commits-since/CompassSecurity/pipeleek/latest)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/pipeleek.svg)](https://repology.org/project/pipeleek/versions)
 
 # Pipeleek
 
