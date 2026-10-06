@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sort"
@@ -36,6 +37,18 @@ type Finding struct {
 	Details         map[string]string `json:"details,omitempty"`
 }
 
+// ScanContext describes the target and effective settings for one scan.
+type ScanContext struct {
+	TargetURL string
+	Options   []ScanOption
+}
+
+// ScanOption is a non-positional scan flag and its effective value.
+type ScanOption struct {
+	Name  string
+	Value string
+}
+
 type Server struct {
 	mu                sync.RWMutex
 	findings          []Finding
@@ -50,6 +63,7 @@ type Server struct {
 	startedAt         time.Time
 	completedAt       time.Time
 	completed         bool
+	scanContext       ScanContext
 	unregisterHitSink func()
 }
 
@@ -59,6 +73,7 @@ var pageTemplate = strings.Join([]string{
 	"<head>",
 	"  <meta charset=\"utf-8\" />",
 	"  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />",
+	"  <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" />",
 	"  <title>Pipeleek Findings</title>",
 	"  <style>",
 	"    :root {",
@@ -156,6 +171,14 @@ var pageTemplate = strings.Join([]string{
 	"    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }",
 	"    .header-copy { min-width: 0; }",
 	"    .elapsed-time { display: block; font-size: .875rem; font-variant-numeric: tabular-nums; }",
+	"    .scan-context { display: grid; gap: .75rem; }",
+	"    .scan-context-target { display: grid; gap: .2rem; min-width: 0; }",
+	"    .scan-context-label { color: var(--muted); font-size: .8rem; font-weight: 600; }",
+	"    .scan-context-target code { overflow-wrap: anywhere; }",
+	"    .scan-options { display: flex; flex-wrap: wrap; gap: .5rem; }",
+	"    .scan-option { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; min-width: 0; padding: .35rem .6rem; border: 1px solid #dce5d2; border-radius: 7px; background: linear-gradient(180deg, #fff, #f4f7f0); box-shadow: 0 1px 2px rgba(42,74,37,.06); }",
+	"    .scan-option-name { color: var(--accent-dark); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .78rem; font-weight: 700; }",
+	"    .scan-option-value { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; overflow-wrap: anywhere; }",
 	"    h1 { margin: 0; font-size: 2rem; font-weight: 400; color: #3c4043; }",
 	"    .status { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .35rem .75rem; border: 1px solid var(--line); background: #f3f5ef; font-size: .85rem; font-weight: 600; }",
 	"    .dot { width: .6rem; height: .6rem; border-radius: 50%; background: #4cae5d; display: inline-block; }",
@@ -238,6 +261,16 @@ var pageTemplate = strings.Join([]string{
 	"        <div class=\"status\"><span class=\"dot\" id=\"connection-dot\"></span><span id=\"connection-state\">connecting</span></div>",
 	"      </div>",
 	"    </div>",
+	"    {{if .ScanContext.TargetURL}}",
+	"    <section class=\"card scan-context\" aria-label=\"Scan context\">",
+	"      <div class=\"scan-context-target\"><span class=\"scan-context-label\">Target instance</span><code>{{.ScanContext.TargetURL}}</code></div>",
+	"      {{if .ScanContext.Options}}",
+	"      <div><div class=\"scan-context-label\">Effective scan flags</div><div class=\"scan-options\">",
+	"        {{range .ScanContext.Options}}<div class=\"scan-option\"><span class=\"scan-option-name\">{{.Name}}</span><span class=\"scan-option-value\">{{.Value}}</span></div>{{end}}",
+	"      </div></div>",
+	"      {{end}}",
+	"    </section>",
+	"    {{end}}",
 	"    <div class=\"card summary\" id=\"summary-cards\"></div>",
 	"    <div class=\"card\">",
 	"      <div class=\"filters\">",
@@ -434,10 +467,16 @@ var pageTemplate = strings.Join([]string{
 }, "")
 
 func StartIfEnabled(enabled bool) *Server {
+	return StartWithContextIfEnabled(enabled, ScanContext{})
+}
+
+// StartWithContextIfEnabled starts the findings UI with scan context when enabled.
+func StartWithContextIfEnabled(enabled bool, scanContext ScanContext) *Server {
 	if !enabled {
 		return nil
 	}
-	server, err := Start()
+
+	server, err := StartWithContext(scanContext)
 	if err != nil {
 		zerologlog.Error().Err(err).Msg("Failed to start findings web UI")
 		return nil
@@ -446,6 +485,11 @@ func StartIfEnabled(enabled bool) *Server {
 }
 
 func Start() (*Server, error) {
+	return StartWithContext(ScanContext{})
+}
+
+// StartWithContext starts a findings UI server and attaches sanitized scan context.
+func StartWithContext(scanContext ScanContext) (*Server, error) {
 	tokenBytes := make([]byte, 16)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, err
@@ -458,11 +502,12 @@ func Start() (*Server, error) {
 	}
 
 	server := &Server{
-		clients:   make(map[chan string]struct{}),
-		token:     token,
-		done:      make(chan struct{}),
-		port:      fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
-		startedAt: time.Now(),
+		clients:     make(map[chan string]struct{}),
+		token:       token,
+		done:        make(chan struct{}),
+		port:        fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port),
+		startedAt:   time.Now(),
+		scanContext: sanitizeScanContext(scanContext),
 	}
 	server.url = fmt.Sprintf("http://127.0.0.1:%s/?token=%s", server.port, server.token)
 	server.server = &http.Server{
@@ -607,9 +652,17 @@ func (s *Server) handleHit(record logging.HitRecord) {
 func (s *Server) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleRoot)
+	mux.HandleFunc("/favicon.svg", s.requireAuth(s.handleFavicon))
 	mux.HandleFunc("/api/export.csv", s.requireAuth(s.handleExportCSV))
 	mux.HandleFunc("/events", s.requireAuth(s.handleEvents))
 	return mux
+}
+
+func (s *Server) handleFavicon(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = io.WriteString(w, string(gitlabenum.PipeleekLogoHTML()))
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -677,13 +730,53 @@ func (s *Server) handleRootAt(w http.ResponseWriter, r *http.Request, now time.T
 		PipeleekLogo  template.HTML
 		ElapsedMillis int64
 		Completed     bool
+		ScanContext   ScanContext
 	}{
 		PipeleekLogo:  gitlabenum.PipeleekLogoHTML(),
 		ElapsedMillis: elapsedMillis,
 		Completed:     completed,
+		ScanContext:   sanitizeScanContext(s.scanContext),
 	}
 	if err := template.Must(template.New("page").Parse(pageTemplate)).Execute(w, view); err != nil {
 		zerologlog.Error().Err(err).Msg("Failed to render findings UI")
+	}
+}
+
+func sanitizeScanContext(scanContext ScanContext) ScanContext {
+	scanContext.TargetURL = sanitizeTargetURL(scanContext.TargetURL)
+	options := make([]ScanOption, len(scanContext.Options))
+	for i, option := range scanContext.Options {
+		options[i] = option
+		if isSensitiveOption(option.Name) {
+			options[i].Value = "[redacted]"
+		}
+	}
+	scanContext.Options = options
+	return scanContext
+}
+
+func sanitizeTargetURL(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "Unavailable"
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.ForceQuery = false
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
+	return parsed.String()
+}
+
+func isSensitiveOption(name string) bool {
+	switch strings.ToLower(strings.TrimLeft(name, "-")) {
+	case "token", "cookie", "password", "proxy":
+		return true
+	default:
+		return false
 	}
 }
 

@@ -251,6 +251,7 @@ func TestProtectedRoutesRejectMissingOrInvalidCookies(t *testing.T) {
 		body   string
 	}{
 		{name: "page", method: http.MethodGet, path: "/"},
+		{name: "favicon", method: http.MethodGet, path: "/favicon.svg"},
 		{name: "events", method: http.MethodGet, path: "/events"},
 		{name: "csv export", method: http.MethodPost, path: "/api/export.csv", body: "[]"},
 	}

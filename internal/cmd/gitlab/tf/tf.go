@@ -7,7 +7,6 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	tfpkg "github.com/CompassSecurity/pipeleek/pkg/gitlab/tf"
-	"github.com/CompassSecurity/pipeleek/pkg/webui"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -76,7 +75,7 @@ func tfRun(cmd *cobra.Command, args []string) {
 	options.MaxScanGoRoutines = config.GetInt("common.threads")
 	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
 	options.SecretsVerification = config.GetBool("common.secrets_verification")
-	ui := webui.StartIfEnabled(config.GetBool("common.webui"))
+	ui := flags.StartScanWebUI(cmd, gitlabUrl, flagBindings)
 	if ui != nil {
 		defer ui.Close()
 	}
