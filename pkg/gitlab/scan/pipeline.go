@@ -273,7 +273,7 @@ jobOut:
 		jobs, resp, err := git.Jobs.ListProjectJobs(project.ID, opts)
 
 		if err != nil {
-			if len(options.JobStatuses) > 0 {
+			if len(options.JobStatuses) > 0 && hasHTTPStatus(resp, http.StatusBadRequest) {
 				log.Fatal().Stack().Err(err).Str("project", project.PathWithNamespace).Msg("Failed fetching jobs with requested status filter")
 			}
 			log.Debug().Stack().Err(err).Msg("Failed fetching project jobs")

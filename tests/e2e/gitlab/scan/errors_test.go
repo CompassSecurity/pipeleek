@@ -11,7 +11,55 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestGitLabScan_JobStatusSkipsProjectErrors(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			server, requests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v4/metadata":
+					_, _ = w.Write([]byte(`{"version":"18.0.0"}`))
+				case "/api/v4/projects":
+					_, _ = w.Write([]byte(`[{"id":1,"path_with_namespace":"group/restricted"},{"id":2,"path_with_namespace":"group/accessible"}]`))
+				case "/api/v4/projects/1/jobs":
+					assert.Equal(t, []string{"failed"}, r.URL.Query()["scope[]"])
+					w.WriteHeader(status)
+					_, _ = w.Write([]byte(`{"message":"project jobs inaccessible"}`))
+				case "/api/v4/projects/2/jobs":
+					assert.Equal(t, []string{"failed"}, r.URL.Query()["scope[]"])
+					_, _ = w.Write([]byte(`[{"id":20,"name":"build","status":"failed"}]`))
+				case "/api/v4/projects/2/jobs/20/trace":
+					w.Header().Set("Content-Type", "text/plain")
+					_, _ = w.Write([]byte("Build failed, no secrets\n"))
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			})
+			defer cleanup()
+
+			stdout, stderr, err := testutil.RunCLI(t, []string{
+				"gl", "scan", "--url", server.URL, "--token", "glpat-test-token",
+				"--job-status", "failed",
+			}, nil, 30*time.Second)
+			require.NoError(t, err, "%s\n%s", stdout, stderr)
+			assert.NotContains(t, stdout+stderr, "Failed fetching jobs with requested status filter")
+			var jobPaths, tracePaths []string
+			for _, request := range requests() {
+				if strings.HasSuffix(request.Path, "/jobs") {
+					jobPaths = append(jobPaths, request.Path)
+				}
+				if strings.HasSuffix(request.Path, "/trace") {
+					tracePaths = append(tracePaths, request.Path)
+				}
+			}
+			assert.ElementsMatch(t, []string{"/api/v4/projects/1/jobs", "/api/v4/projects/2/jobs"}, jobPaths)
+			assert.Equal(t, []string{"/api/v4/projects/2/jobs/20/trace"}, tracePaths)
+		})
+	}
+}
 
 func TestGitLabScan_InvalidToken(t *testing.T) {
 
