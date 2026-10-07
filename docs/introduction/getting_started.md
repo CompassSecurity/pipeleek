@@ -41,6 +41,14 @@ Alternatively, install using Go:
 go install github.com/CompassSecurity/pipeleek/cmd/pipeleek@latest
 ```
 
+### Install on Alpine Linux
+
+Pipeleek is packaged in the Alpine [edge/testing repository](https://pkgs.alpinelinux.org/packages?name=pipeleek):
+
+```bash
+apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing pipeleek
+```
+
 ### Linux
 
 1. Visit the [Pipeleek GitHub Releases](https://github.com/CompassSecurity/pipeleek/releases) page.
