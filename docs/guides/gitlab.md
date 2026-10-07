@@ -178,8 +178,9 @@ There are many reasons why credentials might be included in the job output. More
 [Pipeleek](https://github.com/CompassSecurity/pipeleek) can be used to scan for credentials in the job outputs.
 
 Use `--job-status success,failed` to filter job logs and artifacts (default: all
-statuses). `--job-limit` counts matching jobs; CI/CD YAML scanning is unchanged.
-See `pipeleek gl scan --help` for allowed statuses.
+statuses), and `--pipeline-source schedule` to select pipelines by source
+(default: all sources). `--job-limit` counts matching jobs; CI/CD YAML scanning
+is unchanged. See `pipeleek gl scan --help` for allowed values.
 
 ```bash
 $ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence high-verified,high

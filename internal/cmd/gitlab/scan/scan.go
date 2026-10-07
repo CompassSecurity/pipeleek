@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
@@ -35,6 +36,7 @@ var flagBindings = map[string]string{
 	"namespace":            "gitlab.scan.namespace",
 	"job-limit":            "gitlab.scan.job_limit",
 	"job-status":           "gitlab.scan.job_status",
+	"pipeline-source":      "gitlab.scan.pipeline_source",
 	"queue":                "gitlab.scan.queue",
 	"artifacts":            "gitlab.scan.artifacts",
 	"owned":                "gitlab.scan.owned",
@@ -83,6 +85,9 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --re
 # Scan only successful or failed jobs
 pipeleek gl scan --token [redacted] --url https://gitlab.example.com --job-status success,failed
 
+# Scan failed jobs from scheduled pipelines
+pipeleek gl scan --token [redacted] --url https://gitlab.example.com --pipeline-source schedule --job-status failed
+
 # Scan all repositories in a namespace
 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
@@ -97,6 +102,7 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --na
 	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
 	scanCmd.Flags().StringSlice("job-status", []string{}, "Filter jobs by status (comma-separated or repeated): created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled. Default: all statuses.")
+	scanCmd.Flags().String("pipeline-source", "", "Filter pipelines by source: api, chat, external, external_pull_request_event, merge_request_event, ondemand_dast_scan, ondemand_dast_validation, parent_pipeline, pipeline, push, schedule, security_orchestration_policy, trigger, web, webide. Default: all sources.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
 	return scanCmd
@@ -114,7 +120,11 @@ func Scan(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Invalid job status filter")
 	}
-	hitTimeout, err := time.ParseDuration(config.GetString("common.hit_timeout"))
+	pipelineSource, err := scan.ParsePipelineSource(config.GetString("gitlab.scan.pipeline_source"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Invalid pipeline source filter")
+	}
+	hitTimeout, err := parseHitTimeout(config.GetString("common.hit_timeout"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Invalid hit timeout")
 	}
@@ -175,6 +185,7 @@ func Scan(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Failed initializing scan options")
 	}
 	scanOpts.JobStatuses = jobStatuses
+	scanOpts.PipelineSource = pipelineSource
 
 	scanner := scan.NewScanner(scanOpts)
 	logging.RegisterStatusHook(func() *zerolog.Event {
@@ -188,4 +199,11 @@ func Scan(cmd *cobra.Command, args []string) {
 	if ui != nil {
 		ui.Wait()
 	}
+}
+
+func parseHitTimeout(value string) (time.Duration, error) {
+	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
+		value += "s"
+	}
+	return time.ParseDuration(value)
 }

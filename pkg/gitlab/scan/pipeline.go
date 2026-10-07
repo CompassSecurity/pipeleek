@@ -37,6 +37,7 @@ type ScanOptions struct {
 	Namespace           string
 	JobLimit            int
 	JobStatuses         []gitlab.BuildStateValue
+	PipelineSource      gitlab.PipelineSource
 	ConfidenceFilter    []string
 	MaxArtifactSize     int64
 	MaxScanGoRoutines   int
@@ -252,6 +253,11 @@ func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOption
 		return
 	}
 
+	if options.PipelineSource != "" {
+		getAllJobsViaPipelines(git, project, options)
+		return
+	}
+
 	opts := &gitlab.ListJobsOptions{
 		Scope: &options.JobStatuses,
 		ListOptions: gitlab.ListOptions{
@@ -277,30 +283,7 @@ jobOut:
 
 		for _, job := range jobs {
 			currentJobCtr += 1
-			log.Trace().Str("url", getJobUrl(git, project, job)).Msg("Enqueue job for scanning")
-
-			// Get artifact size if available
-			var artifactSize int64 = 0
-			if job.ArtifactsFile.Size > 0 {
-				artifactSize = int64(job.ArtifactsFile.Size)
-			}
-
-			meta := QueueMeta{
-				JobId:                    int(job.ID),
-				ProjectId:                int(project.ID),
-				JobWebUrl:                getJobUrl(git, project, job),
-				JobName:                  job.Name,
-				ProjectPathWithNamespace: project.PathWithNamespace,
-				ArtifactSize:             artifactSize,
-			}
-			enqueueItem(globQueue, QueueItemJobTrace, meta, waitGroup)
-
-			if options.Artifacts {
-				enqueueItem(globQueue, QueueItemArtifact, meta, waitGroup)
-				if len(options.GitlabCookie) > 1 {
-					enqueueItem(globQueue, QueueItemDotenv, meta, waitGroup)
-				}
-			}
+			enqueueJob(git, project, job, options)
 
 			if options.JobLimit > 0 && currentJobCtr >= options.JobLimit {
 				break jobOut
@@ -316,6 +299,26 @@ jobOut:
 
 }
 
+func enqueueJob(git *gitlab.Client, project *gitlab.Project, job *gitlab.Job, options *ScanOptions) {
+	jobURL := getJobUrl(git, project, job)
+	log.Trace().Str("url", jobURL).Msg("Enqueue job for scanning")
+	meta := QueueMeta{
+		JobId:                    int(job.ID),
+		ProjectId:                int(project.ID),
+		JobWebUrl:                jobURL,
+		JobName:                  job.Name,
+		ProjectPathWithNamespace: project.PathWithNamespace,
+		ArtifactSize:             max(int64(job.ArtifactsFile.Size), 0),
+	}
+	enqueueItem(globQueue, QueueItemJobTrace, meta, waitGroup)
+	if options.Artifacts {
+		enqueueItem(globQueue, QueueItemArtifact, meta, waitGroup)
+		if !isUnauthenticatedMode(options) && len(options.GitlabCookie) > 1 {
+			enqueueItem(globQueue, QueueItemDotenv, meta, waitGroup)
+		}
+	}
+}
+
 func isUnauthenticatedMode(options *ScanOptions) bool {
 	return strings.TrimSpace(options.GitlabApiToken) == ""
 }
@@ -328,14 +331,17 @@ func scanTargetLabel(options *ScanOptions) string {
 	return "pipelines"
 }
 
-// getAllJobsViaPipelines enqueues jobs by iterating pipelines then their jobs.
-// Used as a fallback for unauthenticated mode where the project-level jobs API is restricted.
+// Pipeline traversal supports source filtering and unauthenticated scanning,
+// where the project-level jobs API is restricted.
 func getAllJobsViaPipelines(git *gitlab.Client, project *gitlab.Project, options *ScanOptions) {
 	pipelineOpts := &gitlab.ListProjectPipelinesOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 			Page:    1,
 		},
+	}
+	if options.PipelineSource != "" {
+		pipelineOpts.Source = gitlab.Ptr(string(options.PipelineSource))
 	}
 
 	currentJobCtr := 0
@@ -344,14 +350,18 @@ pipelineOut:
 	for {
 		pipelines, resp, err := git.Pipelines.ListProjectPipelines(project.ID, pipelineOpts)
 		if hasHTTPStatus(resp, http.StatusUnauthorized, http.StatusForbidden) {
-			log.Trace().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Pipelines not publicly accessible, skipping")
+			if isUnauthenticatedMode(options) {
+				log.Trace().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Pipelines not publicly accessible, skipping")
+			} else {
+				log.Warn().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Pipelines not accessible, skipping")
+			}
 			break
 		}
 		if err != nil {
-			log.Fatal().Stack().Err(err).Str("project", project.PathWithNamespace).Msg("Failed listing public pipelines")
+			log.Fatal().Stack().Err(err).Str("project", project.PathWithNamespace).Msg("Failed listing pipelines")
 		}
 		if hasUnexpectedStatus(resp, http.StatusOK) {
-			log.Fatal().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Unexpected status while listing public pipelines")
+			log.Fatal().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Unexpected status while listing pipelines")
 		}
 
 		for _, pipeline := range pipelines {
@@ -362,40 +372,27 @@ pipelineOut:
 					Page:    1,
 				},
 			}
+			if !isUnauthenticatedMode(options) {
+				jobOpts.IncludeRetried = gitlab.Ptr(true)
+			}
 			for {
 				jobs, jresp, jerr := git.Jobs.ListPipelineJobs(project.ID, pipeline.ID, jobOpts)
 				if hasHTTPStatus(jresp, http.StatusUnauthorized, http.StatusForbidden) {
+					if !isUnauthenticatedMode(options) {
+						log.Warn().Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Int("status", jresp.StatusCode).Msg("Pipeline jobs not accessible, skipping")
+					}
 					break
 				}
 				if jerr != nil {
-					log.Fatal().Stack().Err(jerr).Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Msg("Failed listing public pipeline jobs")
+					log.Fatal().Stack().Err(jerr).Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Msg("Failed listing pipeline jobs")
 				}
 				if hasUnexpectedStatus(jresp, http.StatusOK) {
-					log.Fatal().Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Int("status", jresp.StatusCode).Msg("Unexpected status while listing public pipeline jobs")
+					log.Fatal().Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Int("status", jresp.StatusCode).Msg("Unexpected status while listing pipeline jobs")
 				}
 
 				for _, job := range jobs {
 					currentJobCtr++
-					log.Trace().Str("url", getJobUrl(git, project, job)).Msg("Enqueue job for scanning (via pipelines)")
-
-					var artifactSize int64
-					if job.ArtifactsFile.Size > 0 {
-						artifactSize = int64(job.ArtifactsFile.Size)
-					}
-
-					meta := QueueMeta{
-						JobId:                    int(job.ID),
-						ProjectId:                int(project.ID),
-						JobWebUrl:                getJobUrl(git, project, job),
-						JobName:                  job.Name,
-						ProjectPathWithNamespace: project.PathWithNamespace,
-						ArtifactSize:             artifactSize,
-					}
-					enqueueItem(globQueue, QueueItemJobTrace, meta, waitGroup)
-
-					if options.Artifacts {
-						enqueueItem(globQueue, QueueItemArtifact, meta, waitGroup)
-					}
+					enqueueJob(git, project, job, options)
 
 					if options.JobLimit > 0 && currentJobCtr >= options.JobLimit {
 						break pipelineOut
