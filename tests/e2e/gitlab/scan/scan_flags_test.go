@@ -181,9 +181,18 @@ func TestGitLabScan_InvalidJobStatus(t *testing.T) {
 			stdout, stderr, err := testutil.RunCLI(t, args, overrides, 15*time.Second)
 			require.Error(t, err)
 			assert.Contains(t, stdout+stderr, `Failed fetching jobs with requested status filter`)
-			recorded := requests()
-			require.NotEmpty(t, recorded)
-			assert.Equal(t, "/api/v4/projects/1/jobs", recorded[len(recorded)-1].Path)
+			jobRequests := 0
+			for _, request := range requests() {
+				if request.Path != "/api/v4/projects/1/jobs" {
+					continue
+				}
+				jobRequests++
+				assert.Equal(t, http.MethodGet, request.Method)
+				query, err := url.ParseQuery(request.RawQuery)
+				require.NoError(t, err)
+				assert.Equal(t, []string{"invalid"}, query["scope[]"])
+			}
+			assert.Equal(t, 1, jobRequests)
 		})
 	}
 }
