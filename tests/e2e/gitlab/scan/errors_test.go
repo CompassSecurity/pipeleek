@@ -61,6 +61,72 @@ func TestGitLabScan_JobStatusSkipsProjectErrors(t *testing.T) {
 	}
 }
 
+func TestGitLabScan_PipelineSourceSkipsDeletedResources(t *testing.T) {
+	for _, resource := range []string{"project", "pipeline"} {
+		t.Run(resource, func(t *testing.T) {
+			server, requests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v4/metadata":
+					_, _ = w.Write([]byte(`{"version":"18.0.0"}`))
+				case "/api/v4/projects":
+					_, _ = w.Write([]byte(`[{"id":1,"path_with_namespace":"group/first"},{"id":2,"path_with_namespace":"group/second"}]`))
+				case "/api/v4/projects/1/pipelines":
+					assert.Equal(t, "schedule", r.URL.Query().Get("source"))
+					if resource == "project" {
+						w.WriteHeader(http.StatusNotFound)
+						_, _ = w.Write([]byte(`{"message":"project deleted"}`))
+					} else {
+						_, _ = w.Write([]byte(`[{"id":10},{"id":11}]`))
+					}
+				case "/api/v4/projects/1/pipelines/10/jobs":
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = w.Write([]byte(`{"message":"pipeline deleted"}`))
+				case "/api/v4/projects/1/pipelines/11/jobs":
+					_, _ = w.Write([]byte(`[{"id":11,"name":"build","status":"failed"}]`))
+				case "/api/v4/projects/2/pipelines":
+					assert.Equal(t, "schedule", r.URL.Query().Get("source"))
+					_, _ = w.Write([]byte(`[{"id":20}]`))
+				case "/api/v4/projects/2/pipelines/20/jobs":
+					_, _ = w.Write([]byte(`[{"id":20,"name":"build","status":"failed"}]`))
+				case "/api/v4/projects/1/jobs/11/trace", "/api/v4/projects/2/jobs/20/trace":
+					w.Header().Set("Content-Type", "text/plain")
+					_, _ = w.Write([]byte("Build failed, no secrets\n"))
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			})
+			defer cleanup()
+
+			stdout, stderr, err := testutil.RunCLI(t, []string{
+				"gl", "scan", "--url", server.URL, "--token", "glpat-test-token",
+				"--pipeline-source", "schedule", "--job-status", "failed",
+			}, nil, 30*time.Second)
+			require.NoError(t, err, "%s\n%s", stdout, stderr)
+			var pipelinePaths, jobPaths, tracePaths []string
+			for _, request := range requests() {
+				switch {
+				case strings.HasSuffix(request.Path, "/pipelines"):
+					pipelinePaths = append(pipelinePaths, request.Path)
+				case strings.HasSuffix(request.Path, "/jobs"):
+					jobPaths = append(jobPaths, request.Path)
+				case strings.HasSuffix(request.Path, "/trace"):
+					tracePaths = append(tracePaths, request.Path)
+				}
+			}
+			assert.ElementsMatch(t, []string{"/api/v4/projects/1/pipelines", "/api/v4/projects/2/pipelines"}, pipelinePaths)
+			wantJobs := []string{"/api/v4/projects/2/pipelines/20/jobs"}
+			wantTraces := []string{"/api/v4/projects/2/jobs/20/trace"}
+			if resource == "pipeline" {
+				wantJobs = append(wantJobs, "/api/v4/projects/1/pipelines/10/jobs", "/api/v4/projects/1/pipelines/11/jobs")
+				wantTraces = append(wantTraces, "/api/v4/projects/1/jobs/11/trace")
+			}
+			assert.ElementsMatch(t, wantJobs, jobPaths)
+			assert.ElementsMatch(t, wantTraces, tracePaths)
+		})
+	}
+}
+
 func TestGitLabScan_InvalidToken(t *testing.T) {
 
 	// Mock server that returns 401 Unauthorized

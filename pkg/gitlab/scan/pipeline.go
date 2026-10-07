@@ -352,7 +352,7 @@ func getAllJobsViaPipelines(git *gitlab.Client, project *gitlab.Project, options
 pipelineOut:
 	for {
 		pipelines, resp, err := git.Pipelines.ListProjectPipelines(project.ID, pipelineOpts)
-		if hasHTTPStatus(resp, http.StatusUnauthorized, http.StatusForbidden) {
+		if hasHTTPStatus(resp, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound) {
 			if isUnauthenticatedMode(options) {
 				log.Trace().Str("project", project.PathWithNamespace).Int("status", resp.StatusCode).Msg("Pipelines not publicly accessible, skipping")
 			} else {
@@ -380,7 +380,7 @@ pipelineOut:
 			}
 			for {
 				jobs, jresp, jerr := git.Jobs.ListPipelineJobs(project.ID, pipeline.ID, jobOpts)
-				if hasHTTPStatus(jresp, http.StatusUnauthorized, http.StatusForbidden) {
+				if hasHTTPStatus(jresp, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound) {
 					if !isUnauthenticatedMode(options) {
 						log.Warn().Str("project", project.PathWithNamespace).Int64("pipeline", pipeline.ID).Int("status", jresp.StatusCode).Msg("Pipeline jobs not accessible, skipping")
 					}
