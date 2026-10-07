@@ -36,6 +36,7 @@ type ScanOptions struct {
 	Repository          string
 	Namespace           string
 	JobLimit            int
+	JobStatuses         []gitlab.BuildStateValue
 	ConfidenceFilter    []string
 	MaxArtifactSize     int64
 	MaxScanGoRoutines   int
@@ -252,6 +253,7 @@ func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOption
 	}
 
 	opts := &gitlab.ListJobsOptions{
+		Scope: &options.JobStatuses,
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 			Page:    1,
@@ -354,6 +356,7 @@ pipelineOut:
 
 		for _, pipeline := range pipelines {
 			jobOpts := &gitlab.ListJobsOptions{
+				Scope: &options.JobStatuses,
 				ListOptions: gitlab.ListOptions{
 					PerPage: 100,
 					Page:    1,

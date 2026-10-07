@@ -5,13 +5,125 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestGitLabScan_JobStatus(t *testing.T) {
+	tests := []struct {
+		name      string
+		flags     []string
+		env       []string
+		wantScope []string
+		wantJobs  []string
+	}{
+		{name: "default scans all", wantJobs: []string{"1", "2", "3"}},
+		{name: "comma separated", flags: []string{"--job-status", "success,failed"}, wantScope: []string{"success", "failed"}, wantJobs: []string{"1", "2"}},
+		{name: "repeated", flags: []string{"--job-status", "success", "--job-status", "failed"}, wantScope: []string{"success", "failed"}, wantJobs: []string{"1", "2"}},
+		{name: "environment", env: []string{"PIPELEEK_GITLAB_SCAN_JOB_STATUS=failed"}, wantScope: []string{"failed"}, wantJobs: []string{"2"}},
+		{name: "CLI overrides environment", flags: []string{"--job-status", "success"}, env: []string{"PIPELEEK_GITLAB_SCAN_JOB_STATUS=failed"}, wantScope: []string{"success"}, wantJobs: []string{"1"}},
+		{name: "job limit counts matches", flags: []string{"--job-status", "failed", "--job-limit", "1"}, wantScope: []string{"failed"}, wantJobs: []string{"2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PIPELEEK_GITLAB_SCAN_JOB_STATUS", "")
+			var artifact bytes.Buffer
+			require.NoError(t, zip.NewWriter(&artifact).Close())
+			server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.URL.Path == "/api/v4/version":
+					_, _ = w.Write([]byte(`{"version":"18.0.0"}`))
+				case r.URL.Path == "/api/v4/projects":
+					_, _ = w.Write([]byte(`[{"id":1,"path_with_namespace":"group/project"}]`))
+				case r.URL.Path == "/api/v4/projects/1/jobs":
+					scope := r.URL.Query()["scope[]"]
+					var jobs []map[string]interface{}
+					for i, status := range []string{"success", "failed", "running"} {
+						if len(scope) > 0 && !slices.Contains(scope, status) {
+							continue
+						}
+						jobs = append(jobs, map[string]interface{}{
+							"id": i + 1, "name": status, "status": status,
+							"artifacts_file": map[string]interface{}{"filename": "artifacts.zip", "size": artifact.Len()},
+						})
+					}
+					assert.NoError(t, json.NewEncoder(w).Encode(jobs))
+				case strings.HasSuffix(r.URL.Path, "/trace"):
+					w.Header().Set("Content-Type", "text/plain")
+					_, _ = w.Write([]byte("Build complete, no secrets\n"))
+				case strings.HasSuffix(r.URL.Path, "/artifacts"):
+					w.Header().Set("Content-Type", "application/zip")
+					_, _ = w.Write(artifact.Bytes())
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			})
+			defer cleanup()
+
+			args := append([]string{"gl", "scan", "--url", server.URL, "--token", "glpat-test-token", "--artifacts"}, tt.flags...)
+			stdout, stderr, err := testutil.RunCLI(t, args, tt.env, 30*time.Second)
+			require.NoError(t, err, "%s\n%s", stdout, stderr)
+			var traces, artifacts []string
+			jobRequests := 0
+			for _, req := range getRequests() {
+				if req.Path == "/api/v4/projects/1/jobs" {
+					jobRequests++
+					query, err := url.ParseQuery(req.RawQuery)
+					require.NoError(t, err)
+					assert.Equal(t, tt.wantScope, query["scope[]"])
+				}
+				for _, id := range []int{1, 2, 3} {
+					jobID := strconv.Itoa(id)
+					if req.Path == "/api/v4/projects/1/jobs/"+jobID+"/trace" {
+						traces = append(traces, jobID)
+					}
+					if req.Path == "/api/v4/projects/1/jobs/"+jobID+"/artifacts" {
+						artifacts = append(artifacts, jobID)
+					}
+				}
+			}
+			assert.Equal(t, 1, jobRequests)
+			assert.ElementsMatch(t, tt.wantJobs, traces)
+			assert.ElementsMatch(t, tt.wantJobs, artifacts)
+		})
+	}
+}
+
+func TestGitLabScan_InvalidJobStatus(t *testing.T) {
+	for _, env := range []bool{false, true} {
+		name := "flag"
+		if env {
+			name = "environment"
+		}
+		t.Run(name, func(t *testing.T) {
+			server, requests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("invalid status must be rejected before API requests: %s", r.URL)
+				w.WriteHeader(http.StatusNotFound)
+			})
+			defer cleanup()
+			args := []string{"gl", "scan", "--url", server.URL, "--token", "glpat-test-token"}
+			var overrides []string
+			if env {
+				overrides = []string{"PIPELEEK_GITLAB_SCAN_JOB_STATUS=invalid"}
+			} else {
+				args = append(args, "--job-status", "invalid")
+			}
+			stdout, stderr, err := testutil.RunCLI(t, args, overrides, 15*time.Second)
+			require.Error(t, err)
+			assert.Contains(t, stdout+stderr, `invalid job status`)
+			assert.Empty(t, requests())
+		})
+	}
+}
 
 // TestGitLabScan_ConfidenceFilter tests the --confidence flag
 func TestGitLabScan_ConfidenceFilter(t *testing.T) {

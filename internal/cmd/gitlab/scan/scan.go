@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"time"
+
 	"github.com/CompassSecurity/pipeleek/internal/cmd/flags"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/scan"
@@ -22,11 +24,6 @@ type ScanOptions struct {
 	QueueFolder        string
 }
 
-var options = ScanOptions{
-	CommonScanOptions: config.DefaultCommonScanOptions(),
-}
-var maxArtifactSize string
-
 // flagBindings maps CLI flags to configuration keys for binding and testing
 var flagBindings = map[string]string{
 	"url":                  "gitlab.url",
@@ -37,6 +34,7 @@ var flagBindings = map[string]string{
 	"repo":                 "gitlab.scan.repo",
 	"namespace":            "gitlab.scan.namespace",
 	"job-limit":            "gitlab.scan.job_limit",
+	"job-status":           "gitlab.scan.job_status",
 	"queue":                "gitlab.scan.queue",
 	"artifacts":            "gitlab.scan.artifacts",
 	"owned":                "gitlab.scan.owned",
@@ -49,6 +47,8 @@ var flagBindings = map[string]string{
 }
 
 func NewScanCmd() *cobra.Command {
+	options := ScanOptions{CommonScanOptions: config.DefaultCommonScanOptions()}
+	var maxArtifactSize string
 	scanCmd := &cobra.Command{
 		Use:   "scan",
 		Short: "Scan a GitLab instance",
@@ -80,6 +80,9 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --jo
 # Scan a single repository
 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --repo mygroup/myproject
 
+# Scan only successful or failed jobs
+pipeleek gl scan --token [redacted] --url https://gitlab.example.com --job-status success,failed
+
 # Scan all repositories in a namespace
 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
@@ -93,6 +96,7 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --na
 	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single repository to scan, format: namespace/repo")
 	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
+	scanCmd.Flags().StringSlice("job-status", []string{}, "Filter jobs by status (comma-separated or repeated): created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled. Default: all statuses.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
 	return scanCmd
@@ -106,17 +110,32 @@ func Scan(cmd *cobra.Command, args []string) {
 
 	gitlabUrl := config.GetString("gitlab.url")
 	gitlabApiToken := config.GetString("gitlab.token")
-	options.GitlabCookie = config.GetString("gitlab.cookie")
-	options.ProjectSearchQuery = config.GetString("gitlab.scan.search")
-	options.Member = config.GetBool("gitlab.scan.member")
-	options.Repository = config.GetString("gitlab.scan.repo")
-	options.Namespace = config.GetString("gitlab.scan.namespace")
-	options.QueueFolder = config.GetString("gitlab.scan.queue")
-	options.JobLimit = config.GetInt("gitlab.scan.job_limit")
-	options.MaxScanGoRoutines = config.GetInt("common.threads")
-	options.SecretsVerification = config.GetBool("common.secrets_verification")
-	maxArtifactSize = config.GetString("common.max_artifact_size")
-	options.ConfidenceFilter = config.GetStringSlice("common.confidence_filter")
+	jobStatuses, err := scan.ParseJobStatuses(config.GetStringSlice("gitlab.scan.job_status"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Invalid job status filter")
+	}
+	hitTimeout, err := time.ParseDuration(config.GetString("common.hit_timeout"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Invalid hit timeout")
+	}
+	options := ScanOptions{
+		GitlabCookie:       config.GetString("gitlab.cookie"),
+		ProjectSearchQuery: config.GetString("gitlab.scan.search"),
+		Member:             config.GetBool("gitlab.scan.member"),
+		Repository:         config.GetString("gitlab.scan.repo"),
+		Namespace:          config.GetString("gitlab.scan.namespace"),
+		QueueFolder:        config.GetString("gitlab.scan.queue"),
+		JobLimit:           config.GetInt("gitlab.scan.job_limit"),
+		CommonScanOptions: config.CommonScanOptions{
+			Artifacts:           config.GetBool("gitlab.scan.artifacts"),
+			Owned:               config.GetBool("gitlab.scan.owned"),
+			MaxScanGoRoutines:   config.GetInt("common.threads"),
+			SecretsVerification: config.GetBool("common.secrets_verification"),
+			ConfidenceFilter:    config.GetStringSlice("common.confidence_filter"),
+			HitTimeout:          hitTimeout,
+		},
+	}
+	maxArtifactSize := config.GetString("common.max_artifact_size")
 	ui := flags.StartScanWebUI(cmd, gitlabUrl, flagBindings)
 	if ui != nil {
 		defer ui.Close()
@@ -155,6 +174,7 @@ func Scan(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed initializing scan options")
 	}
+	scanOpts.JobStatuses = jobStatuses
 
 	scanner := scan.NewScanner(scanOpts)
 	logging.RegisterStatusHook(func() *zerolog.Event {

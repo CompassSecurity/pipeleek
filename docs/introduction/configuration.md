@@ -85,6 +85,7 @@ Override per-command:
 gitlab:
   scan:
     threads: 20 # Override common.threads for gl scan
+    job_status: [success, failed] # Optional; default [] scans all job statuses
 
 gitea:
   scan:
