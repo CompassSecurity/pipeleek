@@ -106,8 +106,8 @@ github.com/aws/smithy-go v1.27.9/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqx
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/betterleaks/betterleaks/v2 v2.0.0-20260929212625-fa62e6aaad9d h1:bUo9yjkmQLgw4R+x5lAmCBr4zA67vL+js4AIXE6Bitg=
-github.com/betterleaks/betterleaks/v2 v2.0.0-20260929212625-fa62e6aaad9d/go.mod h1:rstTKOo8SCpY4eEe8HTNmQV3j5AICEh0nMkPnUtFrw0=
+github.com/betterleaks/betterleaks/v2 v2.0.0-rc.1 h1:aI2ch3gGpsTGI/Jiy8qHbRAP173Ug0nAWOOU0IALqek=
+github.com/betterleaks/betterleaks/v2 v2.0.0-rc.1/go.mod h1:rstTKOo8SCpY4eEe8HTNmQV3j5AICEh0nMkPnUtFrw0=
 github.com/betterleaks/go-re2 v1.11.0-betterleaks.3 h1:89efHsGJOOCl1KH6GxBtixZNBkNzYIlKPtmQJizCBXU=
 github.com/betterleaks/go-re2 v1.11.0-betterleaks.3/go.mod h1:UzEofSJPdMG4B9tgB7ExxybS/jEV4nZxVdd2T5PcsEY=
 github.com/bmatcuk/doublestar/v4 v4.10.0 h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=
