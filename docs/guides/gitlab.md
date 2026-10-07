@@ -180,7 +180,7 @@ There are many reasons why credentials might be included in the job output. More
 Use `--job-status success,failed` to filter job logs and artifacts (default: all
 statuses), and `--pipeline-source schedule` to select pipelines by source
 (default: all sources). `--job-limit` counts matching jobs; CI/CD YAML scanning
-is unchanged. See `pipeleek gl scan --help` for allowed values.
+is unchanged. Job-status values are validated by GitLab.
 
 ```bash
 $ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence high-verified,high

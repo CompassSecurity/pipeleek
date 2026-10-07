@@ -34,6 +34,7 @@ func TestGitLabScan_JobStatus(t *testing.T) {
 		{name: "job limit counts matches", flags: []string{"--job-status", "failed", "--job-limit", "1"}, wantScope: []string{"failed"}, wantJobs: []string{"2"}},
 		{name: "numeric hit timeout", env: []string{"PIPELEEK_COMMON_HIT_TIMEOUT=120"}, wantJobs: []string{"1", "2", "3"}},
 		{name: "duration hit timeout", flags: []string{"--hit-timeout", "2m"}, wantJobs: []string{"1", "2", "3"}},
+		{name: "future job status", flags: []string{"--job-status", "future_status"}, wantScope: []string{"future_status"}},
 		{name: "pipeline source", flags: []string{"--pipeline-source", "schedule"}, wantSource: "schedule", wantJobs: []string{"2"}},
 		{name: "pipeline source and status", flags: []string{"--pipeline-source", "push", "--job-status", "success"}, wantSource: "push", wantScope: []string{"success"}, wantJobs: []string{"1"}},
 		{name: "no matching jobs", flags: []string{"--pipeline-source", "schedule", "--job-status", "success"}, wantSource: "schedule", wantScope: []string{"success"}},
@@ -154,7 +155,19 @@ func TestGitLabScan_InvalidJobStatus(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			server, requests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
-				t.Errorf("invalid status must be rejected before API requests: %s", r.URL)
+				if r.URL.Path == "/api/v4/version" {
+					_, _ = w.Write([]byte(`{"version":"18.0.0"}`))
+					return
+				}
+				if r.URL.Path == "/api/v4/projects" {
+					_, _ = w.Write([]byte(`[{"id":1,"path_with_namespace":"group/project"}]`))
+					return
+				}
+				if r.URL.Path == "/api/v4/projects/1/jobs" {
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"message":"invalid scope"}`))
+					return
+				}
 				w.WriteHeader(http.StatusNotFound)
 			})
 			defer cleanup()
@@ -167,8 +180,10 @@ func TestGitLabScan_InvalidJobStatus(t *testing.T) {
 			}
 			stdout, stderr, err := testutil.RunCLI(t, args, overrides, 15*time.Second)
 			require.Error(t, err)
-			assert.Contains(t, stdout+stderr, `invalid job status`)
-			assert.Empty(t, requests())
+			assert.Contains(t, stdout+stderr, `Failed fetching jobs with requested status filter`)
+			recorded := requests()
+			require.NotEmpty(t, recorded)
+			assert.Equal(t, "/api/v4/projects/1/jobs", recorded[len(recorded)-1].Path)
 		})
 	}
 }

@@ -101,7 +101,7 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --na
 	scanCmd.Flags().StringVarP(&options.Repository, "repo", "r", "", "Single repository to scan, format: namespace/repo")
 	scanCmd.Flags().StringVarP(&options.Namespace, "namespace", "n", "", "Namespace to scan (all repos in the namespace will be scanned)")
 	scanCmd.Flags().IntVarP(&options.JobLimit, "job-limit", "j", 0, "Scan a max number of pipeline jobs - trade speed vs coverage. 0 scans all and is the default.")
-	scanCmd.Flags().StringSlice("job-status", []string{}, "Filter jobs by status (comma-separated or repeated): created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled. Default: all statuses.")
+	scanCmd.Flags().StringSlice("job-status", []string{}, "Filter jobs by GitLab status (comma-separated or repeated). Values are validated by GitLab. Default: all statuses.")
 	scanCmd.Flags().String("pipeline-source", "", "Filter pipelines by source: api, chat, external, external_pull_request_event, merge_request_event, ondemand_dast_scan, ondemand_dast_validation, parent_pipeline, pipeline, push, schedule, security_orchestration_policy, trigger, web, webide. Default: all sources.")
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 

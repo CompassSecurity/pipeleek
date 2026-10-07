@@ -23,7 +23,7 @@ func TestParseJobStatuses(t *testing.T) {
 			input: []string{"created", "waiting_for_resource", "preparing", "pending", "running", "success", "failed", "canceled", "skipped", "manual", "scheduled"},
 			want:  []gitlab.BuildStateValue{gitlab.Created, gitlab.WaitingForResource, gitlab.Preparing, gitlab.Pending, gitlab.Running, gitlab.Success, gitlab.Failed, gitlab.Canceled, gitlab.Skipped, gitlab.Manual, gitlab.Scheduled},
 		},
-		{name: "invalid", input: []string{"success", "failure"}, errMsg: `invalid job status "failure"`},
+		{name: "future SDK status", input: []string{"future_status"}, want: []gitlab.BuildStateValue{"future_status"}},
 		{name: "empty status", input: []string{""}, errMsg: `invalid job status ""`},
 		{name: "trailing comma", input: []string{"success,"}, errMsg: `invalid job status ""`},
 	}
