@@ -22,7 +22,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.19.0
-	github.com/trufflesecurity/trufflehog/v3 v3.97.9
+	github.com/trufflesecurity/trufflehog/v3 v3.99.0
 	gitlab.com/gitlab-org/api/client-go v1.46.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
 	golang.org/x/net v0.59.0
@@ -187,7 +187,7 @@ require (
 	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/trufflesecurity/ldap-verify v0.0.0-20260824144701-aa52b4613a85 // indirect
+	github.com/trufflesecurity/ldap-verify v0.0.0-20260924192009-3142cc951070 // indirect
 	github.com/ulikunitz/xz v0.5.17 // indirect
 	github.com/wasilibs/go-re2 v1.12.0 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20250123031827-cd30c44769bb // indirect

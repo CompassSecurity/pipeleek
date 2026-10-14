@@ -592,10 +592,10 @@ github.com/tklauser/go-sysconf v0.4.0 h1:7H0uAN+7RkwWRaxhYXDLqa5V3LPrJeV8wmD9dRU
 github.com/tklauser/go-sysconf v0.4.0/go.mod h1:8mTNWyog7H+MpKijp4VmKJAd2bbYQ2zuUwkYRbUArPI=
 github.com/tklauser/numcpus v0.12.0 h1:NR85qdvHA9pFse3x3weVZ0r0ST8R6l5RHbZrlRaqob4=
 github.com/tklauser/numcpus v0.12.0/go.mod h1:ABHeXzJnr/qqwguhClkZKT1/8VABcYrsyUiUGobwWJg=
-github.com/trufflesecurity/ldap-verify v0.0.0-20260824144701-aa52b4613a85 h1:q/R6mqRs1l/A/5pGTMG7bf+lIP9j8C06xcwcl+r/kkI=
-github.com/trufflesecurity/ldap-verify v0.0.0-20260824144701-aa52b4613a85/go.mod h1:HAlNn3YFAr/3fgyPu/sLh+w6wYuabX39zvmj/02ARx8=
-github.com/trufflesecurity/trufflehog/v3 v3.97.9 h1:UoG4zDFSFqBzBDAr0WIrC4kNSyZkyDvnXGePRLgSq4I=
-github.com/trufflesecurity/trufflehog/v3 v3.97.9/go.mod h1:K6QbBJw/KDz2RpdaH9iw1UkEfqdvlrJh60oYlkGLpso=
+github.com/trufflesecurity/ldap-verify v0.0.0-20260924192009-3142cc951070 h1:Poq+Z6/uKeNJwSKE8ErQlIVf2b3L3Zyzpw6mQbJ784A=
+github.com/trufflesecurity/ldap-verify v0.0.0-20260924192009-3142cc951070/go.mod h1:VQbB7BbEEjTfPqN9dT/3jksvk1p1uj5YQZLMZ8Unu6E=
+github.com/trufflesecurity/trufflehog/v3 v3.99.0 h1:jt9UbJKYt9bU0FfAT6KahWBBGCoCNif+msHwZRtGQUs=
+github.com/trufflesecurity/trufflehog/v3 v3.99.0/go.mod h1:iNo5bWknbm8qqqUt/ChDTih+ovy3gzgD5k0Q7zFcLW0=
 github.com/ugorji/go/codec v1.2.7 h1:YPXUKf7fYbp/y8xloBqZOw2qaVggbfwMlI8WM3wZUJ0=
 github.com/ugorji/go/codec v1.2.7/go.mod h1:WGN1fab3R1fzQlVQTkfxVtIBhWDRqOviHU95kRgeqEY=
 github.com/ulikunitz/xz v0.5.8/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
