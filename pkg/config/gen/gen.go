@@ -51,6 +51,7 @@ var platformNameByCommand = map[string]string{
 	"gitea":   "gitea",
 	"jenkins": "jenkins",
 	"circle":  "circle",
+	"rules":   "rules",
 }
 
 // GenerateExampleConfig builds a YAML template from the currently registered CLI commands and flags.
@@ -152,7 +153,7 @@ func captureFlags(flagSet *pflag.FlagSet, keyPrefix []string, node *configNode, 
 	}
 
 	flagSet.VisitAll(func(flag *pflag.Flag) {
-		if _, skip := rootFlagsToSkip[flag.Name]; skip {
+		if _, skip := rootFlagsToSkip[flag.Name]; skip && !(flag.Name == "output" && strings.Join(keyPrefix, ".") == "rules.download") {
 			return
 		}
 

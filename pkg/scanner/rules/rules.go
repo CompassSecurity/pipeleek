@@ -1,149 +1,188 @@
 package rules
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/engine/defaults"
 	"gopkg.in/yaml.v3"
-	"resty.dev/v3"
 )
 
-var ruleFile = "https://raw.githubusercontent.com/mazen160/secrets-patterns-db/master/db/rules-stable.yml"
-var ruleFileName = "rules.yml"
+const ruleFileName = "rules.yml"
 
-var secretsPatterns = types.SecretsPatterns{}
-var truffelhogRules []detectors.Detector
-var activeConfidenceFilter []string
+//go:embed rules.yaml
+var builtinYAML []byte
 
-func DownloadRules() {
-	if _, err := os.Stat(ruleFileName); errors.Is(err, os.ErrNotExist) {
-		log.Debug().Msg("No rules file found, downloading")
-		err := downloadFile(ruleFile, ruleFileName, httpclient.GetPipeleekHTTPClient("", nil, nil))
-		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("Failed downloading rules file")
-			os.Exit(1)
-		}
-	}
+type CompiledPattern struct {
+	Pattern types.PatternElement
+	regex   *regexp.Regexp
+	token   bool
 }
 
-func downloadFile(url string, filepath string, client *resty.Client) error {
-	resp, err := client.R().Get(url)
+func (p CompiledPattern) FindAllIndex(text []byte) [][]int {
+	hits := p.regex.FindAllIndex(text, -1)
+	if !p.token {
+		return hits
+	}
+	return slices.DeleteFunc(hits, func(hit []int) bool {
+		start, end := hit[0], hit[1]
+		if start > 0 && isTokenByte(text[start-1]) && text[start-1] != '=' {
+			return true
+		}
+		if end < len(text) && isTokenByte(text[end]) {
+			return true
+		}
+		// A dot followed by token characters is a format segment, not punctuation.
+		return end+1 < len(text) && text[end] == '.' && isTokenByte(text[end+1])
+	})
+}
+
+func isTokenByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '-' || b == '_' || b == '='
+}
+
+var loadBuiltins = sync.OnceValues(func() ([]CompiledPattern, error) {
+	return parseRules(builtinYAML, "embedded rules.yaml")
+})
+
+func BuiltinPatterns() []CompiledPattern {
+	patterns, err := loadBuiltins()
 	if err != nil {
-		return err
+		log.Fatal().Err(err).Msg("Invalid embedded rules")
 	}
+	return slices.Clone(patterns)
+}
 
-	if resp.StatusCode() != 200 {
-		return fmt.Errorf("unexpected status %d downloading rules file", resp.StatusCode())
+var state = struct {
+	sync.RWMutex
+	patterns  []CompiledPattern
+	detectors []detectors.Detector
+	filter    []string
+}{}
+
+func parseRules(data []byte, source string) ([]CompiledPattern, error) {
+	var definitions types.SecretsPatterns
+	if err := yaml.Unmarshal(data, &definitions); err != nil {
+		return nil, fmt.Errorf("%s: invalid YAML: %w", source, err)
 	}
+	patterns := make([]CompiledPattern, 0, len(definitions.Patterns))
+	names := make(map[string]bool)
+	for _, element := range definitions.Patterns {
+		p := element.Pattern
+		if strings.TrimSpace(p.Name) == "" || strings.TrimSpace(p.Regex) == "" || strings.TrimSpace(p.Confidence) == "" {
+			return nil, fmt.Errorf("%s: rule %q requires a name, regex, and confidence", source, p.Name)
+		}
+		if names[p.Name] {
+			return nil, fmt.Errorf("%s: duplicate rule name %q", source, p.Name)
+		}
+		names[p.Name] = true
+		regex, err := regexp.Compile(p.Regex)
+		if err != nil {
+			return nil, fmt.Errorf("%s: rule %q: invalid regex: %w", source, p.Name, err)
+		}
+		patterns = append(patterns, CompiledPattern{
+			Pattern: element,
+			regex:   regex,
+			token:   source == "embedded rules.yaml" && p.Confidence == "high",
+		})
+	}
+	return patterns, nil
+}
 
-	// #nosec G304 - Writing rules download at controlled internal temp path
-	return os.WriteFile(filepath, resp.Bytes(), 0600)
+func loadRules(path string) ([]CompiledPattern, error) {
+	builtins, err := loadBuiltins()
+	if err != nil {
+		return nil, err
+	}
+	patterns := slices.Clone(builtins)
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return patterns, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("opening %s: %w", path, err)
+	}
+	custom, err := parseRules(data, path)
+	if err != nil {
+		return nil, err
+	}
+	for _, pattern := range custom {
+		index := slices.IndexFunc(patterns, func(builtin CompiledPattern) bool {
+			return builtin.Pattern.Pattern.Name == pattern.Pattern.Pattern.Name
+		})
+		if index >= 0 {
+			patterns[index] = pattern
+		} else {
+			patterns = append(patterns, pattern)
+		}
+	}
+	return patterns, nil
 }
 
 func InitRules(confidenceFilter []string) {
-	activeConfidenceFilter = slices.Clone(confidenceFilter)
-	DownloadRules()
-
-	if len(secretsPatterns.Patterns) == 0 {
-		log.Debug().Msg("Loading rules.yml from filesystem")
-		yamlFile, err := os.ReadFile(ruleFileName)
-		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("Failed opening rules file")
-		}
-		err = yaml.Unmarshal(yamlFile, &secretsPatterns)
-		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("Failed unmarshalling rules file")
-		}
-
-		patterns := AppendPipeleekRules(secretsPatterns.Patterns)
-
-		if len(confidenceFilter) > 0 {
-			log.Debug().Str("filter", strings.Join(confidenceFilter, ",")).Msg("Applying confidence filter")
-			filterdPatterns := []types.PatternElement{}
-			for _, pattern := range patterns {
-				if slices.Contains(confidenceFilter, pattern.Pattern.Confidence) {
-					filterdPatterns = append(filterdPatterns, pattern)
-				}
-			}
-			secretsPatterns.Patterns = filterdPatterns
-
-			totalRules := len(secretsPatterns.Patterns)
-			if totalRules == 0 {
-				log.Info().Int("count", totalRules).Msg("Your confidence filter removed all rules, are you sure? TruffleHog Rules will still detect secrets. This equals --confidence high-verified")
-			}
-
-			log.Debug().Int("count", totalRules).Msg("Loaded filtered rules")
-		} else {
-			secretsPatterns.Patterns = patterns
-			log.Debug().Int("count", len(secretsPatterns.Patterns)).Msg("Loaded rules.yml rules")
-		}
+	patterns, err := loadRules(ruleFileName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed loading rules")
+		return
 	}
-
-	truffelhogRules = defaults.DefaultDetectors()
-	if len(truffelhogRules) < 1 {
-		log.Fatal().Msg("No trufflehog rules have been loaded, this is a bug")
-	} else {
-		log.Debug().Int("count", len(truffelhogRules)).Msg("Loaded TruffleHog rules")
+	trufflehog := defaults.DefaultDetectors()
+	if len(trufflehog) == 0 {
+		log.Fatal().Msg("No TruffleHog detectors loaded")
+		return
 	}
+	state.Lock()
+	state.patterns = patterns
+	state.detectors = trufflehog
+	state.filter = slices.Clone(confidenceFilter)
+	state.Unlock()
+	log.Debug().Int("count", len(patterns)).Msg("Loaded embedded and local rules")
+	log.Debug().Int("count", len(trufflehog)).Msg("Loaded TruffleHog rules")
 }
 
-func AppendPipeleekRules(rules []types.PatternElement) []types.PatternElement {
-	customRules := []types.PatternElement{}
-	customRules = append(customRules, types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Predefined Environment Variable", Regex: `(GITLAB_USER_ID|KUBECONFIG|CI_SERVER_TLS_KEY_FILE|CI_REPOSITORY_URL|CI_REGISTRY_PASSWORD|DOCKER_AUTH_CONFIG)=.*`, Confidence: "medium"}})
+func AppendPipeleekRules(patterns []types.PatternElement) []types.PatternElement {
+	result := slices.Clone(patterns)
+	for _, builtin := range BuiltinPatterns() {
+		if !slices.ContainsFunc(result, func(p types.PatternElement) bool {
+			return p.Pattern.Name == builtin.Pattern.Pattern.Name
+		}) {
+			result = append(result, builtin.Pattern)
+		}
+	}
+	return result
+}
 
-	// Built-in rules for GitLab token types to ensure detection regardless of
-	// TruffleHog verification (which only verifies against gitlab.com and
-	// therefore misses tokens for self-hosted GitLab instances).
-	customRules = append(customRules,
-		// https://github.com/trufflesecurity/trufflehog/blob/main/pkg/detectors/gitlab/v2/gitlab_v2.go
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v2", Regex: `glpat-[a-zA-Z0-9\-=_]{20,22}`, Confidence: "high"}},
-		// https://github.com/trufflesecurity/trufflehog/blob/afd5336caad0f61da51750ffe39869974b27b0db/pkg/detectors/gitlab/v3/gitlab_v3.go#L34
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Personal Access Token v3", Regex: `\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/trigger.rb
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Pipeline Trigger Token", Regex: `glptt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/runner.rb (CREATED_RUNNER_TOKEN_PREFIX)
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Authentication Token", Regex: `glrt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/runner.rb (REGISTRATION_RUNNER_TOKEN_PREFIX)
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Registration Token", Regex: `glrtr-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/deploy_token.rb
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Deploy Token", Regex: `gldt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/ci/build.rb
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - CI Build Token", Regex: `glcbt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/spec/lib/authn/tokens/oauth_application_secret_spec.rb
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - OAuth Application Secret", Regex: `gloas-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://docs.gitlab.com/security/token_overview/
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - SCIM/OAuth Access Token", Regex: `glsoat-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://docs.gitlab.com/security/token_overview/
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feed Token", Regex: `glft-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://docs.gitlab.com/security/token_overview/
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Incoming Mail Token", Regex: `glimt-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://docs.gitlab.com/security/token_overview/
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Feature Flags Client Token", Regex: `glffct-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://docs.gitlab.com/security/token_overview/
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Agent for Kubernetes Token", Regex: `glagent-[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-		// https://github.com/gitlabhq/gitlabhq/blob/master/app/models/concerns/runners_token_prefixable.rb
-		types.PatternElement{Pattern: types.PatternPattern{Name: "Gitlab - Runner Token (Legacy)", Regex: `GR1348941[a-zA-Z0-9\-=_]{20,}`, Confidence: "high"}},
-	)
-
-	return slices.Concat(rules, customRules)
+func GetCompiledPatterns() []CompiledPattern {
+	state.RLock()
+	defer state.RUnlock()
+	return slices.Clone(state.patterns)
 }
 
 func GetSecretsPatterns() types.SecretsPatterns {
-	return secretsPatterns
+	patterns := GetCompiledPatterns()
+	result := types.SecretsPatterns{Patterns: make([]types.PatternElement, 0, len(patterns))}
+	for _, pattern := range patterns {
+		result.Patterns = append(result.Patterns, pattern.Pattern)
+	}
+	return result
 }
 
 func GetTruffleHogRules() []detectors.Detector {
-	return truffelhogRules
+	state.RLock()
+	defer state.RUnlock()
+	return slices.Clone(state.detectors)
 }
 
 func GetConfidenceFilter() []string {
-	return slices.Clone(activeConfidenceFilter)
+	state.RLock()
+	defer state.RUnlock()
+	return slices.Clone(state.filter)
 }

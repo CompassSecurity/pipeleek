@@ -72,12 +72,36 @@ common:
   threads: 2
   secrets_verification: true
   max_artifact_size: 100Mb
-  confidence_filter: medium # low, medium, high, high-verified
+  confidence_filter: [verified, high] # [] includes all; also medium, low, trufflehog, custom labels
   hit_timeout: 120 # Seconds
   webui: false # Serve a local authenticated findings UI during scans
 ```
 
 `secrets_verification` replaces the deprecated `trufflehog_verification` key. The old key (and `PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION`) is still read, with a warning, when the new key is not set.
+
+With verification enabled, TruffleHog reports only successfully verified findings as `verified`; non-verified candidates, including verification errors, are suppressed. With verification disabled, returned non-verified candidates use `trufflehog`. Confidence filtering applies to every engine. Migrate old filters from `high-verified` to `verified` and `trufflehog-unverified` to `trufflehog`; these old names are not aliases.
+
+The 15 Pipeleek built-in rules are embedded locally, including identifier/path rules. Optional working-directory `rules.yml` adds custom rules or overrides built-ins by exact name in the YAML engine. No rules are downloaded or written automatically; existing files remain unchanged. See [secret verification and custom rules](secrets_verification.md) for details.
+
+### Optional Rules Download
+
+`pipeleek rules download` explicitly downloads the Secrets Patterns Database stable
+ruleset using Pipeleek's HTTP client (including global proxy, TLS, and timeout settings).
+These additional regex rules may increase false positives and do not verify credentials.
+Scans never download rules automatically.
+
+```yaml
+rules:
+  download:
+    output: rules.yml # --output; PIPELEEK_RULES_DOWNLOAD_OUTPUT
+    force: false # --force; PIPELEEK_RULES_DOWNLOAD_FORCE
+```
+
+By default, existing files are not overwritten. Use `--force` to replace one.
+`--output` changes the download destination only; scans still load `rules.yml`
+from their working directory.
+
+### Per-command Overrides
 
 Override per-command:
 

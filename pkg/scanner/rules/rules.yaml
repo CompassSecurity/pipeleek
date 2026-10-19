@@ -1,0 +1,61 @@
+patterns:
+  - pattern:
+      name: Gitlab - Predefined Environment Variable
+      regex: '(GITLAB_USER_ID|KUBECONFIG|CI_SERVER_TLS_KEY_FILE|CI_REPOSITORY_URL|CI_REGISTRY_PASSWORD|DOCKER_AUTH_CONFIG)=.*'
+      confidence: medium
+  - pattern:
+      name: Gitlab - Personal Access Token v2
+      regex: 'glpat-[a-zA-Z0-9\-=_]{20,22}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Personal Access Token v3
+      regex: 'glpat-[a-zA-Z0-9\-=_]{27,300}\.[0-9a-z]{2}\.[a-z0-9]{9}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Pipeline Trigger Token
+      regex: 'glptt-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Runner Authentication Token
+      regex: 'glrt-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Runner Registration Token
+      regex: 'glrtr-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Deploy Token
+      regex: 'gldt-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - CI Build Token
+      regex: 'glcbt-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - OAuth Application Secret
+      regex: 'gloas-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - SCIM/OAuth Access Token
+      regex: 'glsoat-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Feed Token
+      regex: 'glft-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Incoming Mail Token
+      regex: 'glimt-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Feature Flags Client Token
+      regex: 'glffct-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Agent for Kubernetes Token
+      regex: 'glagent-[a-zA-Z0-9\-=_]{20,}'
+      confidence: high
+  - pattern:
+      name: Gitlab - Runner Token (Legacy)
+      regex: 'GR1348941[a-zA-Z0-9\-=_]{20,}'
+      confidence: high

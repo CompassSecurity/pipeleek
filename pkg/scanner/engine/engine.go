@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -15,7 +14,7 @@ import (
 	"github.com/acarl005/stripansi"
 	"github.com/rs/zerolog/log"
 	"github.com/rxwycdh/rxhash"
-	"github.com/trufflesecurity/trufflehog/v3/pkg/engine/defaults"
+	trdetectors "github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	"github.com/wandb/parallel"
 )
 
@@ -68,18 +67,10 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 	}
 	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
 
-	secretsPatterns := rules.GetSecretsPatterns()
-
-	for _, pattern := range secretsPatterns.Patterns {
+	for _, pattern := range rules.GetCompiledPatterns() {
 		group.Go(func(ctx context.Context) ([]types.Finding, error) {
 			findingsYml := []types.Finding{}
-			m, err := regexp.Compile(pattern.Pattern.Regex)
-			if err != nil {
-				log.Trace().Err(err).Str("name", pattern.Pattern.Name).Str("regex", pattern.Pattern.Regex).Msg("Failed compiling regex expression")
-				return findingsYml, nil
-			}
-
-			hits := m.FindAllIndex(text, -1)
+			hits := pattern.FindAllIndex(text)
 
 			for _, hit := range hits {
 				hitStr := extractHitWithSurroundingText(text, hit, 50)
@@ -89,7 +80,7 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 				}
 
 				if hitStr != "" {
-					findingsYml = append(findingsYml, types.Finding{Pattern: pattern, Text: hitStr, Engine: EngineRules})
+					findingsYml = append(findingsYml, types.Finding{Pattern: pattern.Pattern, Text: hitStr, Engine: EngineRules})
 				}
 			}
 
@@ -134,7 +125,7 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 			}
 			confidence := "high"
 			if result.Verified {
-				confidence = "high-verified"
+				confidence = "verified"
 			}
 			finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorName, Confidence: confidence}}, Text: string(secret), Engine: EngineGitLab}
 			findingsTr = append(findingsTr, finding)
@@ -142,32 +133,9 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 		return findingsTr, nil
 	})
 
-	for _, detector := range defaults.DefaultDetectors() {
+	for _, detector := range rules.GetTruffleHogRules() {
 		trGroup.Go(func(ctx context.Context) ([]types.Finding, error) {
-			findingsTr := []types.Finding{}
-			trHits, err := detector.FromData(ctx, enableSecretsVerification, text)
-			if err != nil {
-				log.Error().Msg("Truffelhog Detector Failed " + err.Error())
-				return []types.Finding{}, err
-			}
-
-			for _, result := range trHits {
-				secret := result.Raw
-				if len(result.RawV2) > 0 {
-					secret = result.RawV2
-				}
-				finding := types.Finding{Pattern: types.PatternElement{Pattern: types.PatternPattern{Name: result.DetectorType.String(), Confidence: "high-verified"}}, Text: string(secret), Engine: EngineTruffleHog}
-
-				if result.Verified {
-					findingsTr = append(findingsTr, finding)
-				}
-
-				if !enableSecretsVerification {
-					finding.Pattern.Pattern.Confidence = "trufflehog-unverified"
-					findingsTr = append(findingsTr, finding)
-				}
-			}
-			return findingsTr, nil
+			return detectTruffleHog(ctx, detector, enableSecretsVerification, text), nil
 		})
 	}
 
@@ -181,7 +149,45 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 
 	findingsTr := slices.Concat(resultsTr...)
 	totalFindings := slices.Concat(findingsCombined, findingsBetterleaks, findingsTr)
-	return types.DetectionResult{Findings: deduplicateFindings(totalFindings), Error: nil}
+	return types.DetectionResult{Findings: deduplicateFindings(filterFindings(totalFindings, rules.GetConfidenceFilter())), Error: nil}
+}
+
+func detectTruffleHog(ctx context.Context, detector trdetectors.Detector, verify bool, text []byte) []types.Finding {
+	results, err := detector.FromData(ctx, verify, text)
+	if err != nil && ctx.Err() == nil {
+		// Detector errors may contain credentials; log the type, not the raw error.
+		log.Error().Str("detector", detector.Type().String()).Msg("TruffleHog detector failed")
+	}
+	findings := make([]types.Finding, 0, len(results))
+	for _, result := range results {
+		if verify && !result.Verified {
+			continue
+		}
+		secret := result.Raw
+		if len(result.RawV2) > 0 {
+			secret = result.RawV2
+		}
+		confidence := "trufflehog"
+		if result.Verified {
+			confidence = "verified"
+		}
+		findings = append(findings, types.Finding{
+			Pattern: types.PatternElement{Pattern: types.PatternPattern{
+				Name: result.DetectorType.String(), Confidence: confidence,
+			}},
+			Text: string(secret), Engine: EngineTruffleHog,
+		})
+	}
+	return findings
+}
+
+func filterFindings(findings []types.Finding, filter []string) []types.Finding {
+	if len(filter) == 0 {
+		return findings
+	}
+	return slices.DeleteFunc(findings, func(finding types.Finding) bool {
+		return !slices.Contains(filter, finding.Pattern.Pattern.Confidence)
+	})
 }
 
 func deduplicateFindings(totalFindings []types.Finding) []types.Finding {
