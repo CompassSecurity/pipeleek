@@ -20,14 +20,14 @@ func TestGLCicdScan_HappyPath(t *testing.T) {
 		case "/api/v4/projects":
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"id": 1, "name": "test-project", "path_with_namespace": "group/test-project"},
+				{"id": 1, "name": "test-project", "path_with_namespace": "group/test-project", "web_url": "https://gitlab.example/group/test-project"},
 			})
 
 		case "/api/v4/projects/1/ci/lint":
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{
 				"valid": true,
-				"merged_yaml": "deploy:\n  script:\n    - echo AKIAIOSFODNN7EXAMPLE\n",
+				"merged_yaml": "deploy:\n  script:\n    - echo GITLAB_USER_ID=19357\n",
 				"warnings": [],
 				"errors": []
 			}`))
@@ -43,10 +43,16 @@ func TestGLCicdScan_HappyPath(t *testing.T) {
 		"gl", "cicd", "scan",
 		"--url", server.URL,
 		"--token", "glpat-test-token-123",
+		"--secrets-verification=false",
+		"--confidence=medium",
+		"--json",
 	}, nil, 10*time.Second)
 
 	assert.Nil(t, exitErr, "Command should succeed")
-	assert.Contains(t, stdout, "AKIAIOSFODNN7EXAMPLE", "Should detect the secret embedded in the CI/CD YAML")
+	assert.Contains(t, stdout, "GITLAB_USER_ID=19357", "Should detect the indicator embedded in the CI/CD YAML")
+	assert.Contains(t, stdout, `"type":"cicd-yaml"`)
+	assert.Contains(t, stdout, `"url":"https://gitlab.example/group/test-project/-/blob/HEAD/.gitlab-ci.yml"`)
+	assert.NotContains(t, stdout, `"type":"log"`)
 
 	requests := getRequests()
 	for _, req := range requests {

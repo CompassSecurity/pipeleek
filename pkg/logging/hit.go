@@ -22,7 +22,8 @@ const (
 	// NestedArchive indicates a secret found in a nested archive.
 	SecretTypeNestedArchive SecretType = "nested-archive"
 	// SecretTypeDotenv indicates a secret found in a dotenv file.
-	SecretTypeDotenv SecretType = "dotenv"
+	SecretTypeDotenv   SecretType = "dotenv"
+	SecretTypeCICDYaml SecretType = "cicd-yaml"
 )
 
 // HitLevel defines a custom log level for security finding hits.

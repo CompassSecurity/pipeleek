@@ -157,6 +157,9 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "Live secret findings") {
 		t.Fatalf("expected rendered page body, got %q", body)
 	}
+	if !strings.Contains(body, `data-value="cicd-yaml"`) || !strings.Contains(body, ".badge.type-cicd-yaml") {
+		t.Fatal("missing CI/CD YAML source filter or badge")
+	}
 	if !strings.Contains(body, `data-value="trufflehog"`) || !strings.Contains(body, ".badge.trufflehog") || !strings.Contains(body, "trufflehog: 0") || !strings.Contains(body, "['verified', 'high', 'medium', 'low', 'trufflehog']") {
 		t.Fatal("expected a neutral TruffleHog candidate filter, badge and summary count")
 	}

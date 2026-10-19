@@ -1,6 +1,6 @@
 ---
-title: Secret Verification with TruffleHog
-description: Learn how Pipeleek uses TruffleHog to automatically verify detected secrets, understand confidence levels, and how to disable verification for operational security.
+title: Secret Detection, Verification, and Rules
+description: Understand Pipeleek's detection engines, confidence levels, custom rules, and optional rule downloads.
 keywords:
   - secret verification
   - TruffleHog
@@ -12,50 +12,44 @@ keywords:
   - opsec
 ---
 
-Pipeleek uses [TruffleHog](https://github.com/trufflesecurity/trufflehog) and [Betterleaks](https://github.com/betterleaks/betterleaks) to detect secrets in CI/CD logs and artifacts. When verification is enabled, both engines can check supported credentials against their providers.
+# Secret Detection, Verification, and Rules
 
-### How It Works
+Pipeleek scans CI/CD logs and artifacts using:
 
-When Pipeleek scans logs or artifacts, it uses three detection sources:
+- **YAML rules:** 15 embedded Pipeleek rules plus optional working-directory `rules.yml`.
+- **[Betterleaks](https://github.com/betterleaks/betterleaks):** embedded rules with false-positive filtering.
+- **[TruffleHog](https://github.com/trufflesecurity/trufflehog):** specialized credential detectors.
+- **GitLab URL-aware detector:** checks supported tokens against your configured GitLab instance.
 
-1. **Pattern-based detection**: 15 embedded Pipeleek YAML rules plus optional custom rules from local `rules.yml`. Scans never download rules automatically.
-2. **Betterleaks rules**: Embedded default rules with keyword, path, capture, and false-positive filtering
-3. **TruffleHog detectors**: Specialized detectors with active verification
+## Verification
 
-The `--secrets-verification` option controls provider verification for both TruffleHog and Betterleaks. With verification enabled, either engine may make outbound requests to credential providers for supported credentials. Disable verification to scan without those provider checks; findings are still reported, but their confidence depends on the detection source:
+Verification is enabled by default. `--secrets-verification` controls provider checks for TruffleHog, Betterleaks, and the GitLab detector. These checks can send detected credentials to provider APIs.
 
-- With verification enabled, TruffleHog reports only successfully verified hits as `verified`. Other candidates, including those with verification errors, are suppressed. With verification disabled, returned non-verified candidates are reported as `trufflehog`.
-- Betterleaks reports a validation result of `valid` as `verified`. Without verification, all Betterleaks detections are reported at their rule confidence (`high`, `medium`, or `low`); Betterleaks has no separate unverified confidence level.
-- The GitLab URL-aware detector uses `verified` for successful verification against your configured instance and `high` for retained non-verified detections. Existing GitLab rejection behavior and Betterleaks invalid/revoked suppression are unchanged.
+| Source | Verification enabled | Verification disabled |
+| ------ | -------------------- | --------------------- |
+| TruffleHog | Only successfully verified findings (`verified`) | Returned candidates (`trufflehog`) |
+| Betterleaks | Valid credentials use `verified`; invalid/revoked results are suppressed; other retained findings use rule confidence | Rule confidence (`high`, `medium`, or `low`) |
+| GitLab detector | Verified credentials use `verified`; retained non-verified findings use `high` | Retained findings use `high` |
+| YAML rules | Rule confidence; no provider checks | Unchanged |
 
-Disabling verification exposes more TruffleHog candidates and may mean more false positives; `trufflehog` indicates a detection source, not a confidence ranking or a working credential. A failed verification request does not prove that a credential is invalid, but the candidate is suppressed when verification is enabled.
+A verification error does not prove a credential is invalid. TruffleHog findings with verification errors are suppressed when verification is enabled. Disabling verification can expose more false positives.
 
-### Confidence Levels
-
-Pipeleek assigns confidence levels to all detected secrets:
-
-| Level | Source | Description | Verified |
-| ----- | ------ | ----------- | -------- |
-| **verified** | TruffleHog, Betterleaks, GitLab detector | Successfully verified against a provider | Yes |
-| **trufflehog** | TruffleHog | Non-verified detection reported when verification is disabled | No |
-| **high** | Embedded/custom YAML, Betterleaks, GitLab detector | High confidence pattern match | No |
-| **medium** | Embedded/custom YAML, Betterleaks | Medium confidence pattern match | No |
-| **low** | Custom YAML, Betterleaks | Low confidence pattern match | No |
-| **custom** | Custom YAML | User-defined confidence label | No |
-
-### Disabling Verification
-
-For operational security (OpSec) or privacy, disable verification to prevent TruffleHog and Betterleaks from sending credential checks to provider APIs.
-
-Use the `--secrets-verification=false` flag:
+To skip provider checks:
 
 ```bash
 pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verification=false
 ```
 
-### Confidence Filtering
+## Confidence and Filtering
 
-Results from every engine can be filtered using the `--confidence` flag. An empty filter reports all levels. Filtering does not disable provider verification.
+| Level | Meaning |
+| ----- | ------- |
+| `verified` | Successfully verified credential |
+| `trufflehog` | Non-verified TruffleHog candidate; not a confidence ranking |
+| `high`, `medium`, `low` | Pattern confidence, not proof that a credential works |
+| User-defined label | Confidence assigned by a custom YAML rule |
+
+`--confidence` filters results from every engine. An empty filter includes all levels reported under the verification policy above. Filtering does not disable provider checks.
 
 ```bash
 # Higher-confidence findings, including verified credentials
@@ -72,8 +66,7 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verificatio
 
 ### Optional external rules download
 
-To explicitly install the Secrets Patterns Database stable ruleset from
-`mazen160/secrets-patterns-db`, run:
+To install the [Secrets Patterns Database](https://github.com/mazen160/secrets-patterns-db) stable ruleset:
 
 ```bash
 pipeleek rules download
@@ -98,44 +91,24 @@ files unchanged.
 
 ### Local customization
 
-The built-in definitions live in `pkg/scanner/rules/rules.yaml` and are embedded in the binary. They include GitLab token patterns and the predefined-variable rule, which intentionally also matches identifiers and paths such as `GITLAB_USER_ID` and `KUBECONFIG`. These matches are indicators to review, not proof of a leaked credential.
+Built-in rules include GitLab token patterns and predefined variables such as `GITLAB_USER_ID` and `KUBECONFIG`. Identifier/path matches are indicators to review, not proof of a leaked credential.
 
-To add a rule, create `rules.yml` in your working directory. Pipeleek neither downloads nor creates this file. A rule with the same exact name as a built-in overrides that built-in in the YAML detection engine; other names add rules. Overrides do not alter the separate GitLab verifier or other engines.
+Create `rules.yml` in your working directory to add rules. An exact-name match overrides a built-in in the YAML engine; other names add rules. Overrides do not affect the separate GitLab detector or other engines. Without this file, scans use the embedded defaults.
 
-For example:
-
-```yaml
-patterns:
-  - pattern:
-      name: AWS API Key
-      regex: AKIA[0-9A-Z]{16}
-      confidence: high
-```
-
-Each rule requires a nonempty name, valid Go regex, and nonempty confidence label. Duplicate names within one file, invalid YAML/regexes, and unreadable files fail initialization with an error. A missing file is normal and uses embedded defaults. Regexes are compiled during initialization rather than for each scanned item.
-
-> **💡Tip:** Test your regexes at [regex101.com](https://regex101.com/) (select Golang flavor).
-
-A simple example that detects strings that follow the Regex pattern `PIPELEEK_.*` and that are logged with a custom confidence:
+For example, to report `PIPELEEK_` markers with a custom confidence:
 
 ```yaml
 patterns:
   - pattern:
       name: Pipeleek Custom Rule
-      regex: PIPELEEK_.*
+      regex: PIPELEEK_[A-Z0-9_]+
       confidence: custom-confidence
 ```
 
-When you run Pipeleek, you'll see results for your custom rule and any built-in rules:
-
-```bash
-pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verification=false --verbose
-2025-09-30T11:39:08Z hit SECRET confidence=custom-confidence type=log jobName=build-job-hidden ruleName="Pipeleek Custom Rule" url=gitlab.com/testgroup/project/-/jobs/11547853360 value="PIPELEEK_HIT=secret"
-```
+Each rule needs a nonempty name, valid Go regex, and nonempty confidence label. Duplicate names, invalid YAML/regexes, and unreadable files fail initialization.
 
 ## Migration
 
 - Update scripts and confidence filters: `high-verified` is now `verified`; `trufflehog-unverified` is now `trufflehog`. Legacy filter names are not aliases. Custom YAML confidence labels remain user-defined.
 - Existing local `rules.yml` files are preserved and loaded as custom rules. A previously downloaded Secrets Patterns Database will therefore still contribute its patterns. Back up and remove or curate that file if you want only the 15 embedded defaults.
-- Automatic rule downloads and the old Go helpers (`rules.DownloadRules` and `scanner.DownloadRules`) have been removed. Use `pipeleek rules download` for an explicit external rules download. Go callers should initialize the embedded/local rules with `InitRules`.
-- The live UI includes a `trufflehog` filter and count. These candidates are outside the verified/high severity ranking; the existing “any” notification threshold includes them.
+- Scans no longer download rules automatically. Use the optional download command above.

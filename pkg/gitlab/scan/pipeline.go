@@ -244,7 +244,7 @@ func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOption
 
 	enqueueItem(globQueue, QueueItemCICDYaml, QueueMeta{
 		ProjectId:                int(project.ID),
-		JobWebUrl:                project.WebURL,
+		JobWebUrl:                strings.TrimRight(project.WebURL, "/") + "/-/blob/HEAD/.gitlab-ci.yml",
 		JobName:                  ".gitlab-ci.yml",
 		ProjectPathWithNamespace: project.PathWithNamespace,
 	}, waitGroup)

@@ -78,7 +78,10 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 					globQueue, waitGroup = oldQueue, oldWG
 				}()
 
-				getAllJobs(client, &gitlab.Project{ID: 1, PathWithNamespace: "group/project"}, opts)
+				getAllJobs(client, &gitlab.Project{
+					ID: 1, PathWithNamespace: "group/project",
+					WebURL: "https://gitlab.example/group/project/",
+				}, opts)
 				assert.Equal(t, int32(2), jobPages.Load(), "job-limit should stop pagination after two matching jobs")
 				wantItems := 4
 				if authenticated {
@@ -98,6 +101,7 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 							artifacts = append(artifacts, item.Meta.JobId)
 						case QueueItemCICDYaml:
 							yamlItems++
+							assert.Equal(t, "https://gitlab.example/group/project/-/blob/HEAD/.gitlab-ci.yml", item.Meta.JobWebUrl)
 						}
 						waitGroup.Done()
 					case <-time.After(2 * time.Second):

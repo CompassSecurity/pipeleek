@@ -29,7 +29,9 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 2025-09-30T09:53:37Z hit SECRET confidence=high type=artifact file=an_artifact.txt jobName=artifact-job ruleName="Generic - 1719" url=gitlab.com/testgroup/project/-/jobs/11484162833 value="datadog_api_key=secret_artifact_value "
 ```
 
-As shown, Pipeleek can detect secrets in job logs and build artifacts using its embedded/custom YAML patterns, Betterleaks rules, and TruffleHog detectors. The example above uses custom patterns; the external pattern database is no longer downloaded. Security findings are logged at the custom `hit` level to distinguish them from regular warnings. Manually review the hits to verify if they're valid credentials. If you see `confidence=verified`, TruffleHog, Betterleaks, or the GitLab detector confirmed the credential with its provider; enabling `--secrets-verification` can make outbound validation requests. With verification enabled, TruffleHog reports only successfully verified findings. With `--secrets-verification=false`, returned non-verified TruffleHog candidates are reported as `confidence=trufflehog`. Use `--confidence=verified` to show only successfully verified credentials across all engines.
+Findings use the `hit` log level. The sample output above uses additional YAML rules; your findings depend on the rules and credentials present. Review non-verified hits manually, or use `--confidence=verified` to show only successfully verified credentials. See [detection, verification, and rules](../introduction/secrets_verification.md) for reporting behavior and optional rule downloads.
+
+Job-log (`type=log`) and artifact (`type=archive`) findings link to the job. Findings labeled `.gitlab-ci.yml` use `type=cicd-yaml` and link to that file on the default branch. The scanned content is GitLab's merged CI configuration, so a match may originate from an included file.
 
 ### Live Findings Web UI
 

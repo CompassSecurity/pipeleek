@@ -240,6 +240,7 @@ func analyzeCICDYaml(git *gitlab.Client, item QueueItem, options *ScanOptions) {
 	result.ReportFindings(logResult.Findings, result.ReportOptions{
 		LocationURL: item.Meta.JobWebUrl,
 		JobName:     item.Meta.JobName,
+		Type:        logging.SecretTypeCICDYaml,
 	})
 }
 
