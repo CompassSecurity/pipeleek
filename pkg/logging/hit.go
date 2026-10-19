@@ -23,7 +23,7 @@ const (
 	SecretTypeNestedArchive SecretType = "nested-archive"
 	// SecretTypeDotenv indicates a secret found in a dotenv file.
 	SecretTypeDotenv   SecretType = "dotenv"
-	SecretTypeCICDYaml SecretType = "cicd-yaml"
+	SecretTypeCICDYaml SecretType = "cicd-yaml" // #nosec G101 -- Finding source label, not a credential.
 )
 
 // HitLevel defines a custom log level for security finding hits.

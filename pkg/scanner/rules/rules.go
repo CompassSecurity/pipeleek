@@ -104,7 +104,7 @@ func loadRules(path string) ([]CompiledPattern, error) {
 		return nil, err
 	}
 	patterns := slices.Clone(builtins)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- InitRules supplies the fixed local rules.yml path; alternate paths are used only by tests.
 	if errors.Is(err, os.ErrNotExist) {
 		return patterns, nil
 	}
