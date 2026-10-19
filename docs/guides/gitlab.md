@@ -183,14 +183,14 @@ statuses), and `--pipeline-source schedule` to select pipelines by source
 is unchanged. Job-status values are validated by GitLab.
 
 ```bash
-$ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence high-verified,high
+$ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c [gitlab session cookie]]  -v -a -j 5 --confidence verified,high
 2024-09-26T13:47:09+02:00 debug Verbose log output enabled
 2024-09-26T13:47:10+02:00 info Gitlab Version Check revision=2e166256199 version=17.5.0-pre
 2024-09-26T13:47:10+02:00 debug Setting up queue on disk
 2024-09-26T13:47:10+02:00 debug Using DB file file=file:///tmp/pipeleek-queue-db-60689531:?_journal=WAL&_timeout=5000&_fk=true
-2024-09-26T13:47:10+02:00 debug Loading rules.yml from filesystem
-2024-09-26T13:47:10+02:00 debug Applying confidence filter filter=high-verified,high
-2024-09-26T13:47:10+02:00 debug Loaded filtered rules count=882
+2024-09-26T13:47:10+02:00 debug Loaded embedded and local rules count=15
+2024-09-26T13:47:10+02:00 debug Loaded TruffleHog rules count=858
+2024-09-26T13:47:10+02:00 debug Applying confidence filter filter=["verified","high"]
 2024-09-26T13:47:10+02:00 info Fetching projects
 2024-09-26T13:47:10+02:00 info Provided GitLab session cookie is valid
 2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.example.com/legendaryleo/WebRTC_Source

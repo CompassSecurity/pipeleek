@@ -23,6 +23,7 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 			if authenticated {
 				name = "authenticated"
 			}
+
 			if filtered {
 				name += "/filtered"
 			} else {
@@ -78,7 +79,10 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 					globQueue, waitGroup = oldQueue, oldWG
 				}()
 
-				getAllJobs(client, &gitlab.Project{ID: 1, PathWithNamespace: "group/project"}, opts)
+				getAllJobs(client, &gitlab.Project{
+					ID: 1, PathWithNamespace: "group/project",
+					WebURL: "https://gitlab.example/group/project/",
+				}, opts)
 				assert.Equal(t, int32(2), jobPages.Load(), "job-limit should stop pagination after two matching jobs")
 				wantItems := 4
 				if authenticated {
@@ -98,6 +102,7 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 							artifacts = append(artifacts, item.Meta.JobId)
 						case QueueItemCICDYaml:
 							yamlItems++
+							assert.Equal(t, "https://gitlab.example/group/project/-/blob/HEAD/.gitlab-ci.yml", item.Meta.JobWebUrl)
 						}
 						waitGroup.Done()
 					case <-time.After(2 * time.Second):
@@ -109,6 +114,44 @@ func TestGetAllJobs_StatusScope(t *testing.T) {
 				assert.Equal(t, wantItems-4, yamlItems)
 			})
 		}
+	}
+}
+
+func TestGetAllJobsCICDYamlSource(t *testing.T) {
+	for _, tc := range []struct {
+		path, name, wantURL string
+	}{
+		{"", ".gitlab-ci.yml", "https://gitlab.example/group/project/-/blob/HEAD/.gitlab-ci.yml"},
+		{"ci/build.yml", "ci/build.yml", "https://gitlab.example/group/project/-/blob/HEAD/ci/build.yml"},
+		{"/ci/build.yml", "/ci/build.yml", "https://gitlab.example/group/project/-/blob/HEAD/ci/build.yml"},
+		{"ci/build #1.yml", "ci/build #1.yml", "https://gitlab.example/group/project/-/blob/HEAD/ci/build%20%231.yml"},
+		{"https://example.test/build.yml", "https://example.test/build.yml", "https://gitlab.example/group/project/"},
+		{"ci/build.yml@group/other:main", "ci/build.yml@group/other:main", "https://gitlab.example/group/project/"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			opts := &ScanOptions{CICDYamlOnly: true, GitlabApiToken: "test-token", QueueFolder: t.TempDir()}
+			queue, _ := setupQueue(opts)
+			oldQueue, oldWG := globQueue, waitGroup
+			globQueue, waitGroup = queue, new(sync.WaitGroup)
+			defer func() {
+				assert.NoError(t, queue.Delete())
+				globQueue, waitGroup = oldQueue, oldWG
+			}()
+			getAllJobs(nil, &gitlab.Project{
+				ID: 1, WebURL: "https://gitlab.example/group/project/", CIConfigPath: tc.path,
+			}, opts)
+			select {
+			case data := <-queue.ReadChan():
+				var item QueueItem
+				require.NoError(t, json.Unmarshal(data, &item))
+				assert.Equal(t, QueueItemCICDYaml, item.Type)
+				assert.Equal(t, tc.name, item.Meta.JobName)
+				assert.Equal(t, tc.wantURL, item.Meta.JobWebUrl)
+				waitGroup.Done()
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out reading queued CI/CD YAML")
+			}
+		})
 	}
 }
 

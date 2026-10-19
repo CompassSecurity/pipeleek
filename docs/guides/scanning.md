@@ -29,7 +29,9 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 2025-09-30T09:53:37Z hit SECRET confidence=high type=artifact file=an_artifact.txt jobName=artifact-job ruleName="Generic - 1719" url=gitlab.com/testgroup/project/-/jobs/11484162833 value="datadog_api_key=secret_artifact_value "
 ```
 
-As shown, Pipeleek can detect secrets in job logs and build artifacts using its YAML patterns, Betterleaks rules, and TruffleHog detectors. Security findings are logged at the custom `hit` level to distinguish them from regular warnings. Manually review the hits to verify if they're valid credentials. If you see `confidence=high-verified`, TruffleHog or Betterleaks confirmed the credential with its provider; enabling `--secrets-verification` can make outbound validation requests.
+Findings use the `hit` log level. The sample output above uses additional YAML rules; your findings depend on the rules and credentials present. Review non-verified hits manually, or use `--confidence=verified` to show only successfully verified credentials. See [detection, verification, and rules](../introduction/secrets_verification.md) for reporting behavior and optional rule downloads.
+
+Job-log (`type=log`) and artifact (`type=archive`) findings link to the job.
 
 ### Live Findings Web UI
 
@@ -45,7 +47,7 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 2026-10-01T11:50:13Z debug Searching for config file in standard locations
 2026-10-01T11:50:13Z info Loaded config file file=/home/user/.config/pipeleek/pipeleek.yaml
 2026-10-01T11:50:13Z info Findings web UI started token=[redacted] url=http://127.0.0.1:42957/?token=[redacted]
-2026-10-01T11:50:13Z debug Loading rules.yml from filesystem
+2026-10-01T11:50:13Z debug Loaded embedded and local rules count=15
 ```
 
 The `Findings web UI started` message appears near the start of the scan. Use the URL from your own run; its port and token are generated dynamically.

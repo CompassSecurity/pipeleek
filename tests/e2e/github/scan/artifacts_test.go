@@ -13,6 +13,7 @@ import (
 )
 
 func TestGitHubScan_Artifacts_WithDotEnv(t *testing.T) {
+	testutil.UseTestRules(t)
 
 	// Create artifact zip with a .env file
 	var artifactZipBuf bytes.Buffer
@@ -302,6 +303,7 @@ AWS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 // TestGitHubScan_Artifacts_NestedArchive tests nested zip handling
 
 func TestGitHubScan_Artifacts_NestedArchive(t *testing.T) {
+	testutil.UseTestRules(t)
 
 	// Create inner zip with secret
 	var innerZipBuf bytes.Buffer

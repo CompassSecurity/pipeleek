@@ -125,7 +125,6 @@ func TestDetectionResultTypeAlias(t *testing.T) {
 func TestExportedFunctionReferences(t *testing.T) {
 	// Verify that function aliases are not nil
 	assert.NotNil(t, InitRules, "InitRules should be exported")
-	assert.NotNil(t, DownloadRules, "DownloadRules should be exported")
 	assert.NotNil(t, AppendPipeleekRules, "AppendPipeleekRules should be exported")
 	assert.NotNil(t, DetectHits, "DetectHits should be exported")
 	assert.NotNil(t, DetectFileHits, "DetectFileHits should be exported")

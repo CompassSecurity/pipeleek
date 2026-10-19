@@ -39,7 +39,6 @@ var rootFlagsToSkip = map[string]struct{}{
 	"ignore-proxy": {},
 	"help":         {},
 	"version":      {},
-	"output":       {},
 }
 
 var platformNameByCommand = map[string]string{
@@ -51,6 +50,7 @@ var platformNameByCommand = map[string]string{
 	"gitea":   "gitea",
 	"jenkins": "jenkins",
 	"circle":  "circle",
+	"rules":   "rules",
 }
 
 // GenerateExampleConfig builds a YAML template from the currently registered CLI commands and flags.

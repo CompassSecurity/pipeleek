@@ -204,8 +204,8 @@ func TestGitHubScan_RateLimit(t *testing.T) {
 }
 
 // TestGitHubScan_ConfidenceFilter tests multiple confidence levels
-// SKIP: Test intermittently times out - needs investigation of zip handling in mock environment
 func TestGitHubScan_ConfidenceFilter(t *testing.T) {
+	testutil.UseTestRules(t)
 
 	// Prepare zipped logs with secrets
 	var logsZip bytes.Buffer

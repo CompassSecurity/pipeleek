@@ -1,0 +1,22 @@
+# Deterministic fixture matchers, not production credential detectors.
+patterns:
+  - pattern:
+      name: Password in URL
+      regex: '(postgres|postgresql|mysql)://[^\s"<>]+'
+      confidence: high
+  - pattern:
+      name: Github Personal Access Token
+      regex: 'ghp_[A-Za-z0-9]+'
+      confidence: high
+  - pattern:
+      name: Stripe Secret Key
+      regex: 'sk_(live|test)_[A-Za-z0-9]+'
+      confidence: high
+  - pattern:
+      name: AWS Fixture
+      regex: '(AKIA[A-Z0-9]{16}|AWS_SECRET_ACCESS_KEY[^\r\n]+)'
+      confidence: high
+  - pattern:
+      name: Assignment Fixture
+      regex: '(DATABASE_PASSWORD|GITLAB_TOKEN|JWT_SECRET|ENCRYPTION_KEY)=[^\r\n]+'
+      confidence: medium

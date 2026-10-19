@@ -30,6 +30,8 @@ jobs:
           FOUND=$(jq '.Stats.found // 0' results.json)
           echo "Gosec found $FOUND issue(s)"
           if [ "$FOUND" -gt 0 ]; then
+            jq -r '.Issues[] |
+              "\n[\(.rule_id)] \(.severity) severity / \(.confidence) confidence\n\(.file):\(.line):\(.column)\n\(.details)\n\(.code)"' results.json
             echo "❌ Security issues detected! Please fix them before merging."
             exit 1
           else

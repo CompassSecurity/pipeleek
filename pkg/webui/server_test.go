@@ -51,6 +51,30 @@ func TestHandleHitAssignsUniqueIDs(t *testing.T) {
 	}
 }
 
+func TestHandleHitPreservesDetectionLevels(t *testing.T) {
+	for _, confidence := range []string{"verified", "trufflehog"} {
+		s := &Server{clients: make(map[chan string]struct{})}
+		s.handleHit(logging.HitRecord{
+			Time: time.Now(), Confidence: confidence, Value: "fixture",
+			Fields: map[string]interface{}{"engine": "trufflehog"},
+		})
+		if len(s.findings) != 1 || s.findings[0].Confidence != confidence || s.findings[0].Details["engine"] != "trufflehog" {
+			t.Fatal("expected the live finding to preserve its detection level and engine")
+		}
+		data, err := json.Marshal(s.findings[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded Finding
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if decoded.Confidence != confidence || decoded.Details["engine"] != "trufflehog" {
+			t.Fatal("expected SSE JSON to preserve detection metadata")
+		}
+	}
+}
+
 func TestCompletedEventsReplayFindingsAndDone(t *testing.T) {
 	startedAt := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
 	s := &Server{token: "abc", clients: make(map[chan string]struct{}), startedAt: startedAt}
@@ -133,14 +157,23 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "Live secret findings") {
 		t.Fatalf("expected rendered page body, got %q", body)
 	}
+	if !strings.Contains(body, `data-value="cicd-yaml"`) || !strings.Contains(body, ".badge.type-cicd-yaml") {
+		t.Fatal("missing CI/CD YAML source filter or badge")
+	}
+	if !strings.Contains(body, `data-value="trufflehog"`) || !strings.Contains(body, ".badge.trufflehog") || !strings.Contains(body, "trufflehog: 0") || !strings.Contains(body, "['verified', 'high', 'medium', 'low', 'trufflehog']") {
+		t.Fatal("expected a neutral TruffleHog candidate filter, badge and summary count")
+	}
+	if !strings.Contains(body, "var levels = ['verified', 'high', 'medium', 'low']") || strings.Contains(body, "high-verified") || strings.Contains(body, "trufflehog-unverified") {
+		t.Fatal("expected migrated notification ranking without ranking TruffleHog candidates as verified")
+	}
 	if !strings.Contains(body, "No findings yet. Results will appear here as the scan runs.") || !strings.Contains(body, "No findings were detected.") || !strings.Contains(body, "No findings match the current filters.") {
 		t.Fatal("expected distinct empty states for an active scan, a completed scan, and filtered results")
 	}
 	if !strings.Contains(body, "id=\"elapsed-time\"") || !strings.Contains(body, "var elapsedBase = ") || !strings.Contains(body, "window.setInterval(updateElapsedTime, 1000)") {
 		t.Fatal("expected elapsed timer element, server-provided baseline, and periodic updates")
 	}
-	if !strings.Contains(body, `id="notification-threshold-picker"`) || !strings.Contains(body, `aria-multiselectable="false"`) || !strings.Contains(body, `data-value="high-verified" aria-selected="true"`) || !strings.Contains(body, `data-value="none" aria-selected="false"`) || !strings.Contains(body, `class="badge high-verified">high-verified</span>`) || !strings.Contains(body, `id="enable-notifications"`) {
-		t.Fatal("expected single-select badge picker with high-verified default, None option, and permission fallback control")
+	if !strings.Contains(body, `id="notification-threshold-picker"`) || !strings.Contains(body, `aria-multiselectable="false"`) || !strings.Contains(body, `data-value="verified" aria-selected="true"`) || !strings.Contains(body, `data-value="none" aria-selected="false"`) || !strings.Contains(body, `class="badge verified">verified</span>`) || !strings.Contains(body, `id="enable-notifications"`) {
+		t.Fatal("expected single-select badge picker with verified default, None option, and permission fallback control")
 	}
 	if strings.Index(body, `id="notification-status"`) < strings.Index(body, `id="notification-threshold-picker"`) {
 		t.Fatal("expected notification status to appear after its threshold picker")
@@ -151,8 +184,8 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, "notificationsSince = Date.now(); closeActiveNotifications()") || !strings.Contains(body, "Number(item.timestampMillis)") || !strings.Contains(body, "findingTime < notificationsSince") || !strings.Contains(body, "function closeActiveNotifications()") {
 		t.Fatal("expected threshold changes to close and suppress already-queued notifications")
 	}
-	if !strings.Contains(body, `id="notification-threshold" type="hidden" value="high-verified"`) || strings.Contains(body, "document.cookie") || strings.Contains(body, "localStorage") {
-		t.Fatal("expected the notification threshold to reset to high-verified for each new WebUI page")
+	if !strings.Contains(body, `id="notification-threshold" type="hidden" value="verified"`) || strings.Contains(body, "document.cookie") || strings.Contains(body, "localStorage") {
+		t.Fatal("expected the notification threshold to reset to verified for each new WebUI page")
 	}
 	if strings.Contains(body, "tableBody.innerHTML") || !strings.Contains(body, "function appendDetailValue") || !strings.Contains(body, "parsed.protocol === 'http:' || parsed.protocol === 'https:'") {
 		t.Fatal("expected finding values to render via DOM text APIs with HTTP(S)-only links")
@@ -169,7 +202,7 @@ func TestHandleRootAllowsInlineScript(t *testing.T) {
 	if !strings.Contains(body, ".filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }") || !strings.Contains(body, ".filters > .control-btn { align-self: flex-start; margin-top: 1.5rem; }") {
 		t.Fatal("expected filter labels to align at the top while action buttons align with the controls")
 	}
-	if strings.Count(body, `aria-multiselectable="true"`) != 2 || !strings.Contains(body, `class="badge high-verified">high-verified</span>`) {
+	if strings.Count(body, `aria-multiselectable="true"`) != 2 || !strings.Contains(body, `class="badge verified">verified</span>`) {
 		t.Fatal("expected severity and type filters to render badge-style multi-select options")
 	}
 	if !strings.Contains(body, `id="toggle-full-width"`) || !strings.Contains(body, "main.main-wide") {
@@ -305,7 +338,7 @@ func TestExportCSVPreservesSpecialValues(t *testing.T) {
 		{
 			Time:       "2026-10-01T12:34:56Z",
 			Type:       "log",
-			Confidence: "high",
+			Confidence: "trufflehog",
 			RuleName:   `rule, with "quotes"`,
 			Value:      "first line,\r\nsecond line \"quoted\" 雪",
 			Details: map[string]string{
@@ -316,7 +349,7 @@ func TestExportCSVPreservesSpecialValues(t *testing.T) {
 		{
 			Time:       "2026-10-01T12:35:00Z",
 			Type:       "dotenv",
-			Confidence: "low",
+			Confidence: "verified",
 			RuleName:   "formula value",
 			Value:      "\t=1+1",
 		},
@@ -344,6 +377,9 @@ func TestExportCSVPreservesSpecialValues(t *testing.T) {
 	}
 	if len(records) != 3 {
 		t.Fatalf("expected header and two findings, got %d records", len(records))
+	}
+	if records[1][0] != "trufflehog" || records[2][0] != "verified" {
+		t.Fatal("expected CSV export to preserve the detection levels")
 	}
 	if got, want := records[1][1], findings[0].RuleName; got != want {
 		t.Errorf("rule name mismatch: got %q, want %q", got, want)

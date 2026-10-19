@@ -13,6 +13,7 @@ import (
 )
 
 func TestBitBucketScan_HappyPath(t *testing.T) {
+	testutil.UseTestRules(t)
 
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

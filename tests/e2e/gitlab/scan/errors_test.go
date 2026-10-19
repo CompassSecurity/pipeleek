@@ -61,6 +61,22 @@ func TestGitLabScan_JobStatusSkipsProjectErrors(t *testing.T) {
 	}
 }
 
+func TestGitLabScan_RejectsSpaceSeparatedBooleanValue(t *testing.T) {
+	server, requests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("Invalid arguments must not trigger API requests: %s", r.URL)
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	defer cleanup()
+	stdout, stderr, err := testutil.RunCLI(t, []string{
+		"gl", "scan", "--url", server.URL, "--token", "fixture-token",
+		"--secrets-verification", "false",
+	}, nil, 10*time.Second)
+	require.Error(t, err)
+	assert.Contains(t, stdout+stderr, "--secrets-verification=false")
+	assert.NotContains(t, stdout+stderr, "Setting up queue")
+	assert.Empty(t, requests(), "Argument validation must happen before any provider checks")
+}
+
 func TestGitLabScan_PipelineSourceSkipsDeletedResources(t *testing.T) {
 	for _, resource := range []string{"project", "pipeline"} {
 		t.Run(resource, func(t *testing.T) {

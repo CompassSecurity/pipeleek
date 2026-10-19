@@ -15,7 +15,6 @@ type DetectionResult = types.DetectionResult
 type DetectionOptions = engine.DetectionOptions
 
 var InitRules = rules.InitRules
-var DownloadRules = rules.DownloadRules
 var AppendPipeleekRules = rules.AppendPipeleekRules
 
 var DetectHits = engine.DetectHits

@@ -3,14 +3,12 @@ package engine
 import (
 	"bytes"
 	"context"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/detectors"
-	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
 	blanalyze "github.com/betterleaks/betterleaks/v2/analyze"
 	blconfig "github.com/betterleaks/betterleaks/v2/config"
@@ -161,20 +159,17 @@ func detectBetterleaks(ctx context.Context, content []byte, workers int, verify 
 	}
 
 	findings, err := runtime.scan(ctx, content, options.Path)
-	return mapBetterleaksFindings(findings, rules.GetConfidenceFilter()), err
+	return mapBetterleaksFindings(findings), err
 }
 
-func mapBetterleaksFindings(findings []blreport.Finding, confidenceFilter []string) []types.Finding {
+func mapBetterleaksFindings(findings []blreport.Finding) []types.Finding {
 	mapped := make([]types.Finding, 0, len(findings))
 	for _, finding := range findings {
 		confidence := finding.Confidence
 		switch finding.Analysis.Status {
 		case blreport.ValidationStatusValid:
-			confidence = "high-verified"
+			confidence = "verified"
 		case blreport.ValidationStatusInvalid, blreport.ValidationStatusRevoked:
-			continue
-		}
-		if len(confidenceFilter) > 0 && !slices.Contains(confidenceFilter, confidence) {
 			continue
 		}
 		value := finding.Match.Value

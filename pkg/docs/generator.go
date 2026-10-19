@@ -170,7 +170,7 @@ func writeMkdocsYaml(rootCmd *cobra.Command, outputDir string, githubPages bool)
 		"Introduction": []map[string]interface{}{
 			{"Getting Started": prefix + "/introduction/getting_started/"},
 			{"Logging": prefix + "/introduction/logging/"},
-			{"Secrets Verification": prefix + "/introduction/secrets_verification/"},
+			{"Secrets Detection": prefix + "/introduction/secrets_verification/"},
 			{"Proxying": prefix + "/introduction/proxying/"},
 			{"Configuration": prefix + "/introduction/configuration/"},
 		},

@@ -12,6 +12,7 @@ type PatternPattern struct {
 	Name       string `json:"name"`
 	Regex      string `json:"regex"`
 	Confidence string `json:"confidence"`
+	Token      bool   `json:"token,omitempty" yaml:"token,omitempty"`
 }
 
 type Finding struct {

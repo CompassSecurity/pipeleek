@@ -508,7 +508,7 @@ func TestDetectBetterleaks_ValidatesGitLabOnPublicAndSelfHosted(t *testing.T) {
 			if found == nil {
 				t.Fatalf("validated Betterleaks GitLab PAT finding not found: %v", findings)
 			}
-			if found.Text != token || found.Pattern.Pattern.Confidence != "high-verified" {
+			if found.Text != token || found.Pattern.Pattern.Confidence != "verified" {
 				t.Fatalf("unexpected validated finding: %+v", *found)
 			}
 		})
@@ -598,18 +598,18 @@ func TestMapBetterleaksFindings(t *testing.T) {
 		{RuleID: "revoked-token", Confidence: "high", Match: blreport.Match{Value: "revoked-value"}, Analysis: blreport.Analysis{Status: blreport.ValidationStatusRevoked}},
 	}
 
-	mapped := mapBetterleaksFindings(findings, nil)
+	mapped := mapBetterleaksFindings(findings)
 	if len(mapped) != 2 {
 		t.Fatalf("mapped %d findings, want 2", len(mapped))
 	}
-	if mapped[0].Pattern.Pattern.Name != "betterleaks/valid-token" || mapped[0].Text != "secret-value" || mapped[0].Pattern.Pattern.Confidence != "high-verified" || mapped[0].Engine != EngineBetterleaks {
+	if mapped[0].Pattern.Pattern.Name != "betterleaks/valid-token" || mapped[0].Text != "secret-value" || mapped[0].Pattern.Pattern.Confidence != "verified" || mapped[0].Engine != EngineBetterleaks {
 		t.Fatalf("unexpected validated finding mapping: %+v", mapped[0])
 	}
 	if mapped[1].Pattern.Pattern.Name != "betterleaks/unresolved-token" || mapped[1].Text != "other-value" || mapped[1].Pattern.Pattern.Confidence != "low" {
 		t.Fatalf("unexpected unresolved finding mapping: %+v", mapped[1])
 	}
 
-	verifiedOnly := mapBetterleaksFindings(findings, []string{"high-verified"})
+	verifiedOnly := filterFindings(mapBetterleaksFindings(findings), []string{"verified"})
 	if len(verifiedOnly) != 1 || verifiedOnly[0].Pattern.Pattern.Name != "betterleaks/valid-token" {
 		t.Fatalf("confidence filtering returned unexpected findings: %+v", verifiedOnly)
 	}

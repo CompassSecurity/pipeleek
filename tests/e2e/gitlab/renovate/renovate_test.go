@@ -573,7 +573,7 @@ func runRenovateProbeWithHostNpx(t *testing.T, repoDir, endpoint string) string 
 	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output)
+		t.Fatalf("host Renovate probe failed: %v\n%s", err, output)
 	}
 	return string(output)
 }
@@ -819,6 +819,9 @@ func tailForDiagnostics(value string, max int) string {
 
 func TestGLRenovateAutodiscovery_RenovateLatestPicksUpMavenWrapperExploit(t *testing.T) {
 	skipRenovateContainerProbeIfUnavailable(t)
+	if _, err := exec.LookPath("npx"); err != nil {
+		t.Skipf("Skipping host Renovate probe because npx is unavailable: %v", err)
+	}
 	filesSnapshot := captureAutodiscoveryRepoFiles(t)
 	repoDir := materializeAutodiscoveryRepoFixture(t, filesSnapshot)
 	cloneURL := startGitDaemonForRepo(t, repoDir)

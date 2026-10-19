@@ -254,6 +254,7 @@ func TestGitLabScan_FlagVariations(t *testing.T) {
 // TestGitLabScan_ScansCICDYaml verifies the scan command fetches and scans the
 // project's merged .gitlab-ci.yml for secrets via the CI lint API.
 func TestGitLabScan_ScansCICDYaml(t *testing.T) {
+	testutil.UseTestRules(t)
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

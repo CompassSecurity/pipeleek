@@ -2,10 +2,11 @@ package detectors
 
 import (
 	"context"
-	"regexp"
 	"sync"
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
+	"github.com/acarl005/stripansi"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -20,7 +21,7 @@ var (
 
 type gitlabPattern struct {
 	name     string
-	regex    *regexp.Regexp
+	pattern  rules.CompiledPattern
 	strategy verificationStrategy
 }
 
@@ -56,21 +57,32 @@ type GitLabURLDetector struct {
 }
 
 func NewGitLabURLDetector() *GitLabURLDetector {
-	patterns := []gitlabPattern{
-		{name: "Gitlab - Personal Access Token v2", regex: regexp.MustCompile(`glpat-[a-zA-Z0-9\-=_]{20,22}`), strategy: verifyUserAPI},
-		{name: "Gitlab - Personal Access Token v3", regex: regexp.MustCompile(`\b(glpat-[a-zA-Z0-9\-=_]{27,300}.[0-9a-z]{2}.[a-z0-9]{9})\b`), strategy: verifyUserAPI},
-		{name: "Gitlab - Pipeline Trigger Token", regex: regexp.MustCompile(`glptt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Runner Authentication Token", regex: regexp.MustCompile(`glrt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyRunnerAPI},
-		{name: "Gitlab - Runner Registration Token", regex: regexp.MustCompile(`glrtr-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Deploy Token", regex: regexp.MustCompile(`gldt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - CI Build Token", regex: regexp.MustCompile(`glcbt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - OAuth Application Secret", regex: regexp.MustCompile(`gloas-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - SCIM/OAuth Access Token", regex: regexp.MustCompile(`glsoat-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyUserAPI},
-		{name: "Gitlab - Feed Token", regex: regexp.MustCompile(`glft-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Incoming Mail Token", regex: regexp.MustCompile(`glimt-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Feature Flags Client Token", regex: regexp.MustCompile(`glffct-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Agent for Kubernetes Token", regex: regexp.MustCompile(`glagent-[a-zA-Z0-9\-=_]{20,}`), strategy: verifyNone},
-		{name: "Gitlab - Runner Token (Legacy)", regex: regexp.MustCompile(`GR1348941[a-zA-Z0-9\-=_]{20,}`), strategy: verifyRunnerAPI},
+	strategies := map[string]verificationStrategy{
+		"Gitlab - Personal Access Token v2":    verifyUserAPI,
+		"Gitlab - Personal Access Token v3":    verifyUserAPI,
+		"Gitlab - SCIM/OAuth Access Token":     verifyUserAPI,
+		"Gitlab - Runner Authentication Token": verifyRunnerAPI,
+		"Gitlab - Runner Token (Legacy)":       verifyRunnerAPI,
+		"Gitlab - Pipeline Trigger Token":      verifyNone,
+		"Gitlab - Runner Registration Token":   verifyNone,
+		"Gitlab - Deploy Token":                verifyNone,
+		"Gitlab - CI Build Token":              verifyNone,
+		"Gitlab - OAuth Application Secret":    verifyNone,
+		"Gitlab - Feed Token":                  verifyNone,
+		"Gitlab - Incoming Mail Token":         verifyNone,
+		"Gitlab - Feature Flags Client Token":  verifyNone,
+		"Gitlab - Agent for Kubernetes Token":  verifyNone,
+	}
+	var patterns []gitlabPattern
+	for _, pattern := range rules.BuiltinPatterns() {
+		name := pattern.Pattern.Pattern.Name
+		if strategy, ok := strategies[name]; ok {
+			patterns = append(patterns, gitlabPattern{name: name, pattern: pattern, strategy: strategy})
+			delete(strategies, name)
+		}
+	}
+	if len(strategies) != 0 {
+		log.Fatal().Msg("Missing built-in GitLab token definitions")
 	}
 
 	return &GitLabURLDetector{patterns: patterns}
@@ -89,6 +101,7 @@ func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []by
 
 // FromDataWithURL verifies matches against url instead of the package-global URL.
 func (d *GitLabURLDetector) FromDataWithURL(ctx context.Context, verify bool, data []byte, url string) ([]detectors.Result, error) {
+	data = []byte(stripansi.Strip(string(data)))
 	var results []detectors.Result
 
 	for _, pattern := range d.patterns {
@@ -96,13 +109,14 @@ func (d *GitLabURLDetector) FromDataWithURL(ctx context.Context, verify bool, da
 			return results, err
 		}
 
-		matches := pattern.regex.FindAll(data, -1)
+		matches := pattern.pattern.FindAllIndex(data)
 		seenMatches := make(map[string]struct{}, len(matches))
-		for _, matchBytes := range matches {
+		for _, index := range matches {
 			if err := ctx.Err(); err != nil {
 				return results, err
 			}
 
+			matchBytes := data[index[0]:index[1]]
 			match := string(matchBytes)
 			if _, seen := seenMatches[match]; seen {
 				continue

@@ -16,6 +16,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/internal/cmd/github"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/gitlab"
 	"github.com/CompassSecurity/pipeleek/internal/cmd/jenkins"
+	"github.com/CompassSecurity/pipeleek/internal/cmd/rules"
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
@@ -90,6 +91,7 @@ func init() {
 	rootCmd.AddCommand(circle.NewCircleRootCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd(rootCmd))
 	rootCmd.AddCommand(configcmd.NewConfigRootCmd())
+	rootCmd.AddCommand(rules.NewRulesCmd())
 	rootCmd.PersistentFlags().StringVar(&ConfigFile, "config", "", "Config file path. Example: ~/.config/pipeleek/pipeleek.yaml")
 	rootCmd.PersistentFlags().BoolVarP(&JsonLogoutput, "json", "", false, "Use JSON as log output format")
 	rootCmd.PersistentFlags().StringVarP(&LogFile, "logfile", "l", "", "Log output to a file")

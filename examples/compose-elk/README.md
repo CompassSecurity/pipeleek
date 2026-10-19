@@ -80,7 +80,7 @@ Once you've run `bash start-elk.sh`, the Kibana data view is automatically confi
 3. You will see:
 
 - `Pipeleek - High Hits` (count of `scan.confidence: high` hits)
-- `Pipeleek - High-Verified Hits` (count of `scan.confidence: high-verified` hits)
+- `Pipeleek - Verified Hits` (count of `scan.confidence: verified` hits)
 - `Pipeleek - Log Intake Over Time` (bar chart over the last 4 hours with fixed 10-minute buckets)
 - `Pipeleek - Hits by Asset Type` (pie chart, for example hit logs vs hit artifacts)
 - `Pipeleek - Hits by Confidence` (pie chart of confidence ratings)

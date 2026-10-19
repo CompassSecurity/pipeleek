@@ -1,353 +1,191 @@
 package rules
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAppendPipeleekRules(t *testing.T) {
-	tests := []struct {
-		name          string
-		inputRules    []types.PatternElement
-		expectedCount int
-	}{
-		{
-			name:          "empty rules",
-			inputRules:    []types.PatternElement{},
-			expectedCount: 15,
-		},
-		{
-			name: "with existing rules",
-			inputRules: []types.PatternElement{
-				{Pattern: types.PatternPattern{Name: "Test Rule", Regex: "test", Confidence: "high"}},
-			},
-			expectedCount: 16,
-		},
+func TestBuiltinRules(t *testing.T) {
+	builtins := BuiltinPatterns()
+	require.Len(t, builtins, 15)
+	assert.Equal(t, "medium", builtins[0].Pattern.Pattern.Confidence)
+	for _, assignment := range []string{
+		"GITLAB_USER_ID=12345", "KUBECONFIG=/tmp/config", "CI_SERVER_TLS_KEY_FILE=/tmp/key",
+		"CI_REPOSITORY_URL=https://example.test/repo", "CI_REGISTRY_PASSWORD=secret",
+		"DOCKER_AUTH_CONFIG={}", "CI_REGISTRY_PASSWORD=", "CI_REGISTRY_PASSWORD=****",
+	} {
+		t.Run(assignment, func(t *testing.T) {
+			require.Len(t, builtins[0].FindAllIndex([]byte(assignment)), 1)
+		})
 	}
+	for _, pattern := range builtins[1:] {
+		require.Equal(t, "high", pattern.Pattern.Pattern.Confidence)
+		assert.True(t, pattern.Pattern.Pattern.Token)
+		var token string
+		switch pattern.Pattern.Pattern.Name {
+		case "Gitlab - Personal Access Token v2":
+			token = "glpat-" + strings.Repeat("a", 20)
+		case "Gitlab - Personal Access Token v3":
+			token = "glpat-" + strings.Repeat("a", 27) + ".ab.123456789"
+		default:
+			token = strings.Split(pattern.Pattern.Pattern.Regex, "[")[0] + strings.Repeat("a", 20)
+		}
+		t.Run(pattern.Pattern.Pattern.Name, func(t *testing.T) {
+			data := []byte("token='" + token + "'")
+			hits := pattern.FindAllIndex(data)
+			require.Len(t, hits, 1)
+			assert.Equal(t, token, string(data[hits[0][0]:hits[0][1]]))
+		})
+	}
+	for _, text := range []string{"ordinary text", "arn:aws:iam::123456789012:role/test", "s3://bucket/path", "https://example.test", "/tmp/config"} {
+		for _, pattern := range builtins {
+			assert.Empty(t, pattern.FindAllIndex([]byte(text)), "%s on %q", pattern.Pattern.Pattern.Name, text)
+		}
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := AppendPipeleekRules(tt.inputRules)
-			if len(result) != tt.expectedCount {
-				t.Errorf("Expected %d rules, got %d", tt.expectedCount, len(result))
-			}
+func TestPATBoundaries(t *testing.T) {
+	v2, v3 := BuiltinPatterns()[1], BuiltinPatterns()[2]
+	pat := "glpat-" + strings.Repeat("a", 20)
+	for _, text := range []string{pat, "TOKEN=" + pat, "(" + pat + ")", pat + ".", pat + ",", " " + pat + " " + pat} {
+		assert.NotEmpty(t, v2.FindAllIndex([]byte(text)), text)
+	}
+	for _, text := range []string{
+		"glpat-" + strings.Repeat("a", 19), "glpat-" + strings.Repeat("a", 23),
+		"x" + pat, pat + ".ab.123456789",
+		"glpat-" + strings.Repeat("a", 27) + "XabX123456789",
+	} {
+		assert.Empty(t, v2.FindAllIndex([]byte(text)), text)
+		assert.Empty(t, v3.FindAllIndex([]byte(text)), text)
+	}
+	for _, length := range []int{27, 100, 300} {
+		pat3 := "glpat-" + strings.Repeat("a", length) + ".ab.123456789"
+		assert.Empty(t, v2.FindAllIndex([]byte(pat3)))
+		hits := v3.FindAllIndex([]byte(pat3))
+		require.Len(t, hits, 1)
+		assert.Equal(t, []int{0, len(pat3)}, hits[0])
+		assert.Empty(t, v3.FindAllIndex([]byte(pat3+"x")))
+	}
+}
 
-			found := false
-			for _, rule := range result {
-				if rule.Pattern.Name == "Gitlab - Predefined Environment Variable" {
-					found = true
-					if rule.Pattern.Confidence != "medium" {
-						t.Errorf("Expected confidence 'medium', got %q", rule.Pattern.Confidence)
-					}
-					break
-				}
+func TestPATBoundariesWithANSIFormatting(t *testing.T) {
+	pattern := BuiltinPatterns()[1]
+	token := "glpat-" + strings.Repeat("a", 20)
+	for _, tc := range []struct {
+		name, text string
+		wantMatch  bool
+	}{
+		{name: "colored token", text: "\x1b[32m" + token + "\x1b[0m", wantMatch: true},
+		{name: "colored token in assignment", text: "TOKEN=\x1b[32m" + token + "\x1b[0m", wantMatch: true},
+		{name: "token preceded by a word", text: "x\x1b[32m" + token},
+		{name: "colored token followed by token", text: "\x1b[32m" + token + "\x1b[0m " + token, wantMatch: true},
+		{name: "colored token followed by word", text: token + "\x1b[0mX"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := []byte(tc.text)
+			hits := pattern.FindAllIndex(data)
+			if !tc.wantMatch {
+				assert.Empty(t, hits)
+				return
 			}
-			if !found {
-				t.Error("Custom GitLab rule not found in appended rules")
-			}
+			require.NotEmpty(t, hits)
+			assert.Equal(t, token, string(data[hits[0][0]:hits[0][1]]))
 		})
 	}
 }
 
-func TestGetSecretsPatterns(t *testing.T) {
-	patterns := GetSecretsPatterns()
-	t.Logf("Patterns count: %d", len(patterns.Patterns))
-}
-
-func TestGetTruffleHogRules(t *testing.T) {
-	rules := GetTruffleHogRules()
-	t.Logf("TruffleHog rules count: %d", len(rules))
-}
-
-func TestDownloadRules(t *testing.T) {
-	tmpDir := t.TempDir()
-	origWd, _ := os.Getwd()
-	defer func() {
-		_ = os.Chdir(origWd)
-	}()
-
-	_ = os.Chdir(tmpDir)
-
-	t.Run("rules file does not exist", func(t *testing.T) {
-		if _, err := os.Stat(ruleFileName); err == nil {
-			_ = os.Remove(ruleFileName)
-		}
-
-		DownloadRules()
-
-		if _, err := os.Stat(ruleFileName); os.IsNotExist(err) {
-			t.Error("Expected rules file to be downloaded")
-		}
-	})
-
-	t.Run("rules file already exists", func(t *testing.T) {
-		if _, err := os.Stat(ruleFileName); os.IsNotExist(err) {
-			_ = os.WriteFile(ruleFileName, []byte("dummy"), 0644)
-		}
-
-		DownloadRules()
-
-		if _, err := os.Stat(ruleFileName); os.IsNotExist(err) {
-			t.Error("Expected rules file to exist")
-		}
-	})
-}
-
-func TestInitRules(t *testing.T) {
-	tmpDir := t.TempDir()
-	origWd, _ := os.Getwd()
-	defer func() {
-		_ = os.Chdir(origWd)
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-	}()
-
-	_ = os.Chdir(tmpDir)
-
-	// Create a minimal valid rules file
-	rulesYAML := `patterns:
-  - pattern:
-      name: Test Pattern
-      regex: "test"
-      confidence: high
-  - pattern:
-      name: Medium Pattern
-      regex: "medium"
-      confidence: medium
-  - pattern:
-      name: Low Pattern
-      regex: "low"
-      confidence: low
-`
-	_ = os.WriteFile(ruleFileName, []byte(rulesYAML), 0644)
-
-	t.Run("no filter", func(t *testing.T) {
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-
-		InitRules([]string{})
-
-		if len(secretsPatterns.Patterns) == 0 {
-			t.Error("Expected patterns to be loaded")
-		}
-
-		if len(truffelhogRules) == 0 {
-			t.Error("Expected TruffleHog rules to be loaded")
-		}
-
-		// Should include custom GitLab rule
-		found := false
-		for _, p := range secretsPatterns.Patterns {
-			if p.Pattern.Name == "Gitlab - Predefined Environment Variable" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("Expected custom GitLab rule to be appended")
-		}
-	})
-
-	t.Run("with confidence filter high", func(t *testing.T) {
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-
-		InitRules([]string{"high"})
-
-		// Should only have high confidence patterns
-		for _, p := range secretsPatterns.Patterns {
-			if p.Pattern.Confidence != "high" {
-				t.Errorf("Expected only high confidence patterns, got %q", p.Pattern.Confidence)
-			}
-		}
-	})
-
-	t.Run("with multiple confidence filters", func(t *testing.T) {
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-
-		InitRules([]string{"high", "medium"})
-
-		// Should have high and medium confidence patterns
-		for _, p := range secretsPatterns.Patterns {
-			if p.Pattern.Confidence != "high" && p.Pattern.Confidence != "medium" {
-				t.Errorf("Expected only high/medium confidence patterns, got %q", p.Pattern.Confidence)
-			}
-		}
-	})
-
-	t.Run("filter removes all rules", func(t *testing.T) {
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-
-		InitRules([]string{"nonexistent"})
-
-		// Should have zero patterns after filtering
-		if len(secretsPatterns.Patterns) != 0 {
-			t.Errorf("Expected 0 patterns after filtering, got %d", len(secretsPatterns.Patterns))
-		}
-	})
-
-	t.Run("already initialized", func(t *testing.T) {
-		// First initialize patterns
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-		InitRules([]string{})
-		initialCount := len(secretsPatterns.Patterns)
-
-		if initialCount == 0 {
-			t.Error("Expected patterns to be initialized")
-		}
-
-		// Call InitRules again - should not reload since patterns exist
-		InitRules([]string{})
-
-		// Should not have changed
-		if len(secretsPatterns.Patterns) != initialCount {
-			t.Errorf("Expected patterns count %d to remain unchanged, got %d", initialCount, len(secretsPatterns.Patterns))
-		}
-	})
-}
-
-func TestGetSecretsPatterns_AfterInit(t *testing.T) {
-	tmpDir := t.TempDir()
-	origWd, _ := os.Getwd()
-	defer func() {
-		_ = os.Chdir(origWd)
-		secretsPatterns = types.SecretsPatterns{}
-	}()
-
-	_ = os.Chdir(tmpDir)
-
-	rulesYAML := `patterns:
-  - pattern:
-      name: Test Pattern
-      regex: "test"
-      confidence: high
-`
-	_ = os.WriteFile(ruleFileName, []byte(rulesYAML), 0644)
-
-	secretsPatterns = types.SecretsPatterns{}
-	InitRules([]string{})
-
-	patterns := GetSecretsPatterns()
-
-	if len(patterns.Patterns) == 0 {
-		t.Error("Expected non-empty patterns")
-	}
-}
-
-func TestGetTruffleHogRules_AfterInit(t *testing.T) {
-	tmpDir := t.TempDir()
-	origWd, _ := os.Getwd()
-	defer func() {
-		_ = os.Chdir(origWd)
-		secretsPatterns = types.SecretsPatterns{}
-		truffelhogRules = nil
-	}()
-
-	_ = os.Chdir(tmpDir)
-
-	rulesYAML := `patterns:
-  - pattern:
-      name: Test Pattern
-      regex: "test"
-      confidence: high
-`
-	_ = os.WriteFile(ruleFileName, []byte(rulesYAML), 0644)
-
-	secretsPatterns = types.SecretsPatterns{}
-	truffelhogRules = nil
-	InitRules([]string{})
-
-	rules := GetTruffleHogRules()
-
-	if len(rules) == 0 {
-		t.Error("Expected non-empty TruffleHog rules")
-	}
-}
-
-func TestDownloadFile_Success(t *testing.T) {
-	content := "rules file content from mock"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(content))
-	}))
-	defer srv.Close()
-
-	tmpDir := t.TempDir()
-	destFile := filepath.Join(tmpDir, "rules.yml")
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	err := downloadFile(srv.URL, destFile, client)
+func TestLoadRulesMissingFile(t *testing.T) {
+	dir := t.TempDir()
+	patterns, err := loadRules(filepath.Join(dir, ruleFileName))
 	require.NoError(t, err)
-
-	data, err := os.ReadFile(destFile)
+	assert.Len(t, patterns, 15)
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Equal(t, content, string(data))
+	assert.Empty(t, entries, "Loading embedded defaults must not write or download files")
 }
 
-func TestDownloadFile_HTTPError(t *testing.T) {
-	tmpDir := t.TempDir()
-	destFile := filepath.Join(tmpDir, "rules.yml")
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	client.SetRetryCount(0)
-
-	err := downloadFile("http://127.0.0.1:0", destFile, client)
-	assert.Error(t, err)
+func TestLoadRulesCustomOverrides(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ruleFileName)
+	data := []byte(`patterns:
+  - pattern:
+      name: Gitlab - Predefined Environment Variable
+      regex: CUSTOM_ONLY
+      confidence: custom-confidence
+  - pattern:
+      name: Additional
+      regex: EXTRA
+      confidence: high
+      token: true
+`)
+	require.NoError(t, os.WriteFile(path, data, 0600))
+	patterns, err := loadRules(path)
+	require.NoError(t, err)
+	require.Len(t, patterns, 16)
+	assert.Equal(t, "custom-confidence", patterns[0].Pattern.Pattern.Confidence)
+	assert.Empty(t, patterns[0].FindAllIndex([]byte("GITLAB_USER_ID=1")))
+	assert.Len(t, patterns[0].FindAllIndex([]byte("CUSTOM_ONLY")), 1)
+	assert.Len(t, patterns[15].FindAllIndex([]byte("EXTRA")), 1)
+	assert.Empty(t, patterns[15].FindAllIndex([]byte("PREFIX_EXTRA")))
+	unchanged, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, data, unchanged)
+	appended := AppendPipeleekRules([]types.PatternElement{patterns[0].Pattern})
+	assert.Len(t, appended, 15)
+	assert.Equal(t, patterns[0].Pattern, appended[0])
 }
 
-func TestDownloadFile_BadOutputPath(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data"))
-	}))
-	defer srv.Close()
-
-	client := httpclient.GetPipeleekHTTPClient("", nil, nil)
-	// Attempting to write to a path inside a non-existent directory should fail
-	err := downloadFile(srv.URL, "/nonexistent-dir/rules.yml", client)
-	assert.Error(t, err)
-}
-
-func TestAppendPipeleekRules_GitLabTokenRules(t *testing.T) {
-	result := AppendPipeleekRules([]types.PatternElement{})
-
-	expectedTokenRules := []string{
-		"Gitlab - Personal Access Token v2",
-		"Gitlab - Personal Access Token v3",
-		"Gitlab - Pipeline Trigger Token",
-		"Gitlab - Runner Authentication Token",
-		"Gitlab - Runner Registration Token",
-		"Gitlab - Deploy Token",
-		"Gitlab - CI Build Token",
-		"Gitlab - OAuth Application Secret",
-		"Gitlab - SCIM/OAuth Access Token",
-		"Gitlab - Feed Token",
-		"Gitlab - Incoming Mail Token",
-		"Gitlab - Feature Flags Client Token",
-		"Gitlab - Agent for Kubernetes Token",
-		"Gitlab - Runner Token (Legacy)",
+func TestInvalidLocalRules(t *testing.T) {
+	for _, test := range []struct {
+		name, yaml, errorText string
+	}{
+		{"YAML", "patterns: [", "invalid YAML"},
+		{"regex", "patterns:\n- pattern: {name: Bad, regex: '[', confidence: high}", `rule "Bad": invalid regex`},
+		{"missing name", "patterns:\n- pattern: {regex: ok, confidence: high}", "requires"},
+		{"missing regex", "patterns:\n- pattern: {name: Bad, confidence: high}", "requires"},
+		{"missing confidence", "patterns:\n- pattern: {name: Bad, regex: ok}", "requires"},
+		{"duplicates", "patterns:\n- pattern: {name: Bad, regex: ok, confidence: high}\n- pattern: {name: Bad, regex: other, confidence: low}", `duplicate rule name "Bad"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), ruleFileName)
+			require.NoError(t, os.WriteFile(path, []byte(test.yaml), 0600))
+			_, err := loadRules(path)
+			require.ErrorContains(t, err, test.errorText)
+			assert.ErrorContains(t, err, path)
+		})
 	}
+	_, err := loadRules(t.TempDir())
+	require.ErrorContains(t, err, "opening")
+}
 
-	for _, expectedName := range expectedTokenRules {
-		found := false
-		for _, rule := range result {
-			if rule.Pattern.Name == expectedName {
-				found = true
-				assert.Equal(t, "high", rule.Pattern.Confidence, "GitLab token rule %q should have high confidence", expectedName)
-				break
-			}
-		}
-		assert.True(t, found, "Expected GitLab token rule %q to be present", expectedName)
+func TestInitRulesRepeatedFilters(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Cleanup(func() {
+		state.Lock()
+		state.patterns, state.detectors, state.filter = nil, nil, nil
+		state.Unlock()
+	})
+	for _, filter := range [][]string{{"high"}, {"medium"}, {"verified"}, {}} {
+		InitRules(filter)
+		assert.Len(t, GetSecretsPatterns().Patterns, 15, "Filtering is performed on final findings, not cached definitions")
+		assert.NotEmpty(t, GetTruffleHogRules())
+		assert.Equal(t, filter, GetConfidenceFilter())
 	}
+	filter := GetConfidenceFilter()
+	filter = append(filter, "changed")
+	assert.Empty(t, GetConfidenceFilter())
+	assert.Equal(t, []string{"changed"}, filter)
+	assert.Len(t, AppendPipeleekRules(nil), 15)
+	require.NoError(t, os.WriteFile(ruleFileName, []byte("patterns:\n- pattern: {name: Reloaded, regex: RELOADED, confidence: custom}\n"), 0600))
+	InitRules([]string{"custom"})
+	assert.Len(t, GetCompiledPatterns(), 16)
+	assert.Equal(t, "Reloaded", GetSecretsPatterns().Patterns[15].Pattern.Name)
+	require.NoError(t, os.WriteFile(ruleFileName, []byte("patterns: []\n"), 0600))
+	InitRules(nil)
+	assert.Len(t, GetCompiledPatterns(), 15)
 }

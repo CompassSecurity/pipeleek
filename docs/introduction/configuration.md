@@ -72,14 +72,23 @@ common:
   threads: 2
   secrets_verification: true
   max_artifact_size: 100Mb
-  confidence_filter: medium # low, medium, high, high-verified
+  confidence_filter: [verified, high] # [] includes all; also medium, low, trufflehog, custom labels
   hit_timeout: 120 # Seconds
   webui: false # Serve a local authenticated findings UI during scans
 ```
 
-`secrets_verification` replaces the deprecated `trufflehog_verification` key. The old key (and `PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION`) is still read, with a warning, when the new key is not set.
+### Optional Rules Download
 
-Override per-command:
+Settings for [`pipeleek rules download`](secrets_verification.md#optional-external-rules-download):
+
+```yaml
+rules:
+  download:
+    output: rules.yml # --output; PIPELEEK_RULES_DOWNLOAD_OUTPUT
+    force: false # --force; PIPELEEK_RULES_DOWNLOAD_FORCE
+```
+
+### Per-command Overrides
 
 ```yaml
 gitlab:

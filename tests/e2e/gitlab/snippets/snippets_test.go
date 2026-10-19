@@ -15,6 +15,7 @@ import (
 const awsSnippetContent = "[default]\naws_access_key_id = AKIAT4GVSAXXEK64O6KD\naws_secret_access_key = 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\n"
 
 func TestGitLabSnippetsScan_PublicSnippets(t *testing.T) {
+	testutil.UseTestRules(t)
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -69,6 +70,7 @@ func TestGitLabSnippetsScan_PublicSnippets(t *testing.T) {
 }
 
 func TestGitLabSnippetsScan_MemberFilter(t *testing.T) {
+	testutil.UseTestRules(t)
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -131,6 +133,7 @@ func TestGitLabSnippetsScan_MemberFilter(t *testing.T) {
 }
 
 func TestGitLabSnippetsScan_ProjectFilter(t *testing.T) {
+	testutil.UseTestRules(t)
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -192,6 +195,7 @@ func TestGitLabSnippetsScan_ProjectFilter(t *testing.T) {
 }
 
 func TestGitLabSnippetsScan_GroupFilter(t *testing.T) {
+	testutil.UseTestRules(t)
 	server, getRequests, cleanup := testutil.StartMockServerWithRecording(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
