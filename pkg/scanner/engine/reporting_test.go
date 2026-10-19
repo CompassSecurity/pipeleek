@@ -77,7 +77,7 @@ func TestTruffleHogPreservesPartialResultsWithoutLeakingErrors(t *testing.T) {
 			result,
 			{DetectorType: detector_typepb.DetectorType_Gitlab, Raw: []byte("verified-candidate"), Verified: true},
 		},
-		err:     errors.New("detector error containing sensitive-fixture"),
+		err: errors.New("detector error containing sensitive-fixture"),
 	}
 	findings := detectTruffleHog(context.Background(), detector, true, nil)
 	require.Len(t, findings, 1)
@@ -151,5 +151,31 @@ func TestDetectHitsConfidenceSelectionBeforeDeduplication(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1, "An excluded result must not enter the deduplication state")
 	assert.Equal(t, EngineRules, findings[0].Engine)
+	assert.Equal(t, "medium", findings[0].Pattern.Pattern.Confidence)
+}
+
+func TestYAMLConfidenceFilterSkipsExcludedPatterns(t *testing.T) {
+	// A nil compiled regex would panic if an excluded pattern were evaluated.
+	excluded := rules.CompiledPattern{
+		Pattern: types.PatternElement{Pattern: types.PatternPattern{
+			Name: "Excluded", Confidence: "excluded-confidence",
+		}},
+	}
+	patterns := append(rules.BuiltinPatterns(), excluded)
+	findings, err := detectYAML(context.Background(), []byte("GITLAB_USER_ID=19357"), 1, patterns, []string{"verified"})
+	require.NoError(t, err)
+	assert.Empty(t, findings)
+
+	findings, err = detectYAML(context.Background(), []byte("GITLAB_USER_ID=19357"), 1, patterns, []string{"medium"})
+	require.NoError(t, err)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "medium", findings[0].Pattern.Pattern.Confidence)
+	assert.Equal(t, EngineRules, findings[0].Engine)
+}
+
+func TestYAMLConfidenceFilterIncludesAllWhenEmpty(t *testing.T) {
+	findings, err := detectYAML(context.Background(), []byte("GITLAB_USER_ID=19357"), 1, rules.BuiltinPatterns(), nil)
+	require.NoError(t, err)
+	require.Len(t, findings, 1)
 	assert.Equal(t, "medium", findings[0].Pattern.Pattern.Confidence)
 }

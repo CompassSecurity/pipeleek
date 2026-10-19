@@ -65,38 +65,14 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 	if options.GitLabURL == "" {
 		options.GitLabURL = detectors.GetGitLabURL()
 	}
-	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
-
-	for _, pattern := range rules.GetCompiledPatterns() {
-		group.Go(func(ctx context.Context) ([]types.Finding, error) {
-			findingsYml := []types.Finding{}
-			hits := pattern.FindAllIndex(text)
-
-			for _, hit := range hits {
-				hitStr := extractHitWithSurroundingText(text, hit, 50)
-				hitStr = cleanHitLine(hitStr)
-				if len(hitStr) > 1024 {
-					hitStr = hitStr[0:1024]
-				}
-
-				if hitStr != "" {
-					findingsYml = append(findingsYml, types.Finding{Pattern: pattern.Pattern, Text: hitStr, Engine: EngineRules})
-				}
-			}
-
-			return findingsYml, nil
-		})
-	}
-
-	resultsYml, err := group.Wait()
+	confidenceFilter := rules.GetConfidenceFilter()
+	findingsCombined, err := detectYAML(ctx, text, maxThreads, rules.GetCompiledPatterns(), confidenceFilter)
 	if err != nil && ctx.Err() == nil {
 		log.Error().Stack().Err(err).Msg("Failed waiting for parallel hit detection")
 	}
 	if err := ctx.Err(); err != nil {
 		return types.DetectionResult{Error: err}
 	}
-
-	findingsCombined := slices.Concat(resultsYml...)
 
 	findingsBetterleaks, err := detectBetterleaks(ctx, text, maxThreads, enableSecretsVerification, options)
 	if err != nil && ctx.Err() == nil {
@@ -149,7 +125,31 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 
 	findingsTr := slices.Concat(resultsTr...)
 	totalFindings := slices.Concat(findingsCombined, findingsBetterleaks, findingsTr)
-	return types.DetectionResult{Findings: deduplicateFindings(filterFindings(totalFindings, rules.GetConfidenceFilter())), Error: nil}
+	return types.DetectionResult{Findings: deduplicateFindings(filterFindings(totalFindings, confidenceFilter)), Error: nil}
+}
+
+func detectYAML(ctx context.Context, text []byte, maxThreads int, patterns []rules.CompiledPattern, confidenceFilter []string) ([]types.Finding, error) {
+	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
+	for _, pattern := range patterns {
+		if len(confidenceFilter) > 0 && !slices.Contains(confidenceFilter, pattern.Pattern.Pattern.Confidence) {
+			continue
+		}
+		group.Go(func(ctx context.Context) ([]types.Finding, error) {
+			findings := []types.Finding{}
+			for _, hit := range pattern.FindAllIndex(text) {
+				hitStr := cleanHitLine(extractHitWithSurroundingText(text, hit, 50))
+				if len(hitStr) > 1024 {
+					hitStr = hitStr[:1024]
+				}
+				if hitStr != "" {
+					findings = append(findings, types.Finding{Pattern: pattern.Pattern, Text: hitStr, Engine: EngineRules})
+				}
+			}
+			return findings, nil
+		})
+	}
+	results, err := group.Wait()
+	return slices.Concat(results...), err
 }
 
 func detectTruffleHog(ctx context.Context, detector trdetectors.Detector, verify bool, text []byte) []types.Finding {

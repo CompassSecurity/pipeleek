@@ -19,7 +19,6 @@ Pipeleek scans CI/CD logs and artifacts using:
 - **YAML rules:** 15 embedded Pipeleek rules plus optional working-directory `rules.yml`.
 - **[Betterleaks](https://github.com/betterleaks/betterleaks):** embedded rules with false-positive filtering.
 - **[TruffleHog](https://github.com/trufflesecurity/trufflehog):** specialized credential detectors.
-- **GitLab URL-aware detector:** checks supported tokens against your configured GitLab instance.
 
 ## Verification
 
@@ -29,10 +28,11 @@ Verification is enabled by default. `--secrets-verification` controls provider c
 | ------ | -------------------- | --------------------- |
 | TruffleHog | Only successfully verified findings (`verified`) | Returned candidates (`trufflehog`) |
 | Betterleaks | Valid credentials use `verified`; invalid/revoked results are suppressed; other retained findings use rule confidence | Rule confidence (`high`, `medium`, or `low`) |
-| GitLab detector | Verified credentials use `verified`; retained non-verified findings use `high` | Retained findings use `high` |
 | YAML rules | Rule confidence; no provider checks | Unchanged |
 
 A verification error does not prove a credential is invalid. TruffleHog findings with verification errors are suppressed when verification is enabled. Disabling verification can expose more false positives.
+
+Unverified TruffleHog results never receive `high`. The separate Pipeleek GitLab detector and YAML rules can report the same token at `high` based on its pattern.
 
 To skip provider checks:
 
@@ -106,9 +106,3 @@ patterns:
 ```
 
 Each rule needs a nonempty name, valid Go regex, and nonempty confidence label. Duplicate names, invalid YAML/regexes, and unreadable files fail initialization.
-
-## Migration
-
-- Update scripts and confidence filters: `high-verified` is now `verified`; `trufflehog-unverified` is now `trufflehog`. Legacy filter names are not aliases. Custom YAML confidence labels remain user-defined.
-- Existing local `rules.yml` files are preserved and loaded as custom rules. A previously downloaded Secrets Patterns Database will therefore still contribute its patterns. Back up and remove or curate that file if you want only the 15 embedded defaults.
-- Scans no longer download rules automatically. Use the optional download command above.

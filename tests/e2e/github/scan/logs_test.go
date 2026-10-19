@@ -112,6 +112,7 @@ func TestGitHubScan_HappyPath(t *testing.T) {
 // TestGitHubScan_MissingToken tests missing required flags
 
 func TestGitHubScan_WithLogs(t *testing.T) {
+	testutil.UseTestRules(t)
 
 	// prepare zipped logs (single file inside ZIP)
 	var logsZip bytes.Buffer

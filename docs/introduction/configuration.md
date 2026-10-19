@@ -79,7 +79,7 @@ common:
 
 `secrets_verification` replaces the deprecated `trufflehog_verification` key. The old key (and `PIPELEEK_COMMON_TRUFFLEHOG_VERIFICATION`) is still read, with a warning, when the new key is not set.
 
-See [verification and confidence filtering](secrets_verification.md#verification) for engine-specific reporting behavior and migration notes.
+See [verification and confidence filtering](secrets_verification.md#verification) for engine-specific reporting behavior.
 
 ### Optional Rules Download
 
