@@ -23,27 +23,93 @@ const ruleFileName = "rules.yml"
 var builtinYAML []byte
 
 type CompiledPattern struct {
-	Pattern types.PatternElement
-	regex   *regexp.Regexp
-	token   bool
+	Pattern                types.PatternElement
+	regex                  *regexp.Regexp
+	enforceTokenBoundaries bool
 }
 
 func (p CompiledPattern) FindAllIndex(text []byte) [][]int {
 	hits := p.regex.FindAllIndex(text, -1)
-	if !p.token {
+	if !p.enforceTokenBoundaries {
 		return hits
 	}
+	// ANSI CSI sequences around a token are formatting, not token characters.
 	return slices.DeleteFunc(hits, func(hit []int) bool {
 		start, end := hit[0], hit[1]
-		if start > 0 && isTokenByte(text[start-1]) && text[start-1] != '=' {
+		if previous, ok := previousVisibleByte(text, start); ok && isTokenByte(previous) && previous != '=' {
 			return true
 		}
-		if end < len(text) && isTokenByte(text[end]) {
+		next, nextIndex, ok := nextVisibleByte(text, end)
+		if ok && isTokenByte(next) {
 			return true
 		}
 		// A dot followed by token characters is a format segment, not punctuation.
-		return end+1 < len(text) && text[end] == '.' && isTokenByte(text[end+1])
+		if ok && next == '.' {
+			afterDot, _, hasAfterDot := nextVisibleByte(text, nextIndex+1)
+			return hasAfterDot && isTokenByte(afterDot)
+		}
+		return false
 	})
+}
+
+func previousVisibleByte(text []byte, index int) (byte, bool) {
+	for index > 0 {
+		if start, ok := ansiCSIEndingAt(text, index); ok {
+			index = start
+			continue
+		}
+		return text[index-1], true
+	}
+	return 0, false
+}
+
+func nextVisibleByte(text []byte, index int) (byte, int, bool) {
+	for index < len(text) {
+		if end, ok := ansiCSIStartingAt(text, index); ok {
+			index = end
+			continue
+		}
+		return text[index], index, true
+	}
+	return 0, 0, false
+}
+
+func ansiCSIEndingAt(text []byte, end int) (int, bool) {
+	if end == 0 || text[end-1] < 0x40 || text[end-1] > 0x7e {
+		return 0, false
+	}
+	for start := end - 2; start >= 0; start-- {
+		if text[start] == '[' {
+			if start == 0 || text[start-1] != 0x1b {
+				return 0, false
+			}
+			for i := start + 2; i < end-1; i++ {
+				if text[i] < 0x20 || text[i] > 0x3f {
+					return 0, false
+				}
+			}
+			return start - 1, true
+		}
+		if text[start] < 0x20 || text[start] > 0x3f {
+			return 0, false
+		}
+	}
+	return 0, false
+}
+
+func ansiCSIStartingAt(text []byte, start int) (int, bool) {
+	if start+1 >= len(text) || text[start] != 0x1b || text[start+1] != '[' {
+		return 0, false
+	}
+	for end := start + 2; end < len(text); end++ {
+		if text[end] >= 0x40 && text[end] <= 0x7e {
+			return end + 1, true
+		}
+		if text[end] < 0x20 || text[end] > 0x3f {
+			return 0, false
+		}
+	}
+	return 0, false
 }
 
 func isTokenByte(b byte) bool {
@@ -90,9 +156,9 @@ func parseRules(data []byte, source string) ([]CompiledPattern, error) {
 			return nil, fmt.Errorf("%s: rule %q: invalid regex: %w", source, p.Name, err)
 		}
 		patterns = append(patterns, CompiledPattern{
-			Pattern: element,
-			regex:   regex,
-			token:   source == "embedded rules.yaml" && p.Confidence == "high",
+			Pattern:                element,
+			regex:                  regex,
+			enforceTokenBoundaries: p.Token,
 		})
 	}
 	return patterns, nil
@@ -146,6 +212,9 @@ func InitRules(confidenceFilter []string) {
 	state.Unlock()
 	log.Debug().Int("count", len(patterns)).Msg("Loaded embedded and local rules")
 	log.Debug().Int("count", len(trufflehog)).Msg("Loaded TruffleHog rules")
+	if len(confidenceFilter) > 0 {
+		log.Debug().Strs("filter", confidenceFilter).Msg("Applying confidence filter")
+	}
 }
 
 func AppendPipeleekRules(patterns []types.PatternElement) []types.PatternElement {

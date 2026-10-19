@@ -26,6 +26,7 @@ func TestBuiltinRules(t *testing.T) {
 	}
 	for _, pattern := range builtins[1:] {
 		require.Equal(t, "high", pattern.Pattern.Pattern.Confidence)
+		assert.True(t, pattern.Pattern.Pattern.Token)
 		var token string
 		switch pattern.Pattern.Pattern.Name {
 		case "Gitlab - Personal Access Token v2":
@@ -73,6 +74,32 @@ func TestPATBoundaries(t *testing.T) {
 	}
 }
 
+func TestPATBoundariesWithANSIFormatting(t *testing.T) {
+	pattern := BuiltinPatterns()[1]
+	token := "glpat-" + strings.Repeat("a", 20)
+	for _, tc := range []struct {
+		name, text string
+		wantMatch  bool
+	}{
+		{name: "colored token", text: "\x1b[32m" + token + "\x1b[0m", wantMatch: true},
+		{name: "colored token in assignment", text: "TOKEN=\x1b[32m" + token + "\x1b[0m", wantMatch: true},
+		{name: "token preceded by a word", text: "x\x1b[32m" + token},
+		{name: "colored token followed by token", text: "\x1b[32m" + token + "\x1b[0m " + token, wantMatch: true},
+		{name: "colored token followed by word", text: token + "\x1b[0mX"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := []byte(tc.text)
+			hits := pattern.FindAllIndex(data)
+			if !tc.wantMatch {
+				assert.Empty(t, hits)
+				return
+			}
+			require.NotEmpty(t, hits)
+			assert.Equal(t, token, string(data[hits[0][0]:hits[0][1]]))
+		})
+	}
+}
+
 func TestLoadRulesMissingFile(t *testing.T) {
 	dir := t.TempDir()
 	patterns, err := loadRules(filepath.Join(dir, ruleFileName))
@@ -94,6 +121,7 @@ func TestLoadRulesCustomOverrides(t *testing.T) {
       name: Additional
       regex: EXTRA
       confidence: high
+      token: true
 `)
 	require.NoError(t, os.WriteFile(path, data, 0600))
 	patterns, err := loadRules(path)
@@ -103,6 +131,7 @@ func TestLoadRulesCustomOverrides(t *testing.T) {
 	assert.Empty(t, patterns[0].FindAllIndex([]byte("GITLAB_USER_ID=1")))
 	assert.Len(t, patterns[0].FindAllIndex([]byte("CUSTOM_ONLY")), 1)
 	assert.Len(t, patterns[15].FindAllIndex([]byte("EXTRA")), 1)
+	assert.Empty(t, patterns[15].FindAllIndex([]byte("PREFIX_EXTRA")))
 	unchanged, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, data, unchanged)

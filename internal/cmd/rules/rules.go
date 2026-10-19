@@ -16,7 +16,7 @@ func NewRulesCmd() *cobra.Command {
 	}
 	download := &cobra.Command{
 		Use: "download", Short: "Download the optional Secrets Patterns Database stable rules",
-		Long: "Download additional regex rules. These rules may substantially increase false positives and do not verify credentials. Scans never download rules automatically.",
+		Long: "Download additional regex rules. These rules may substantially increase false positives and do not verify credentials.",
 		Args: cobra.NoArgs, RunE: RunDownload, SilenceUsage: true,
 	}
 	download.Flags().String("output", "rules.yml", "Destination file (scans load rules.yml from the working directory)")

@@ -65,6 +65,18 @@ func TestNewScanCmd(t *testing.T) {
 	}
 }
 
+func TestScanRejectsSpaceSeparatedBooleanValue(t *testing.T) {
+	cmd := NewScanCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--secrets-verification", "false"}))
+	err := cmd.Args(cmd, cmd.Flags().Args())
+	require.ErrorContains(t, err, "--secrets-verification=false")
+
+	cmd = NewScanCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--secrets-verification=false"}))
+	require.NoError(t, cmd.Args(cmd, cmd.Flags().Args()))
+	require.Equal(t, "false", cmd.Flags().Lookup("secrets-verification").Value.String())
+}
+
 func TestJobStatusConfig(t *testing.T) {
 	tests := []struct {
 		name  string

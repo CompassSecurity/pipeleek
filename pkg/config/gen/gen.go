@@ -39,7 +39,6 @@ var rootFlagsToSkip = map[string]struct{}{
 	"ignore-proxy": {},
 	"help":         {},
 	"version":      {},
-	"output":       {},
 }
 
 var platformNameByCommand = map[string]string{
@@ -153,7 +152,7 @@ func captureFlags(flagSet *pflag.FlagSet, keyPrefix []string, node *configNode, 
 	}
 
 	flagSet.VisitAll(func(flag *pflag.Flag) {
-		if _, skip := rootFlagsToSkip[flag.Name]; skip && !(flag.Name == "output" && strings.Join(keyPrefix, ".") == "rules.download") {
+		if _, skip := rootFlagsToSkip[flag.Name]; skip {
 			return
 		}
 

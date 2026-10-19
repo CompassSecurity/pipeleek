@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -91,7 +92,8 @@ pipeleek gl scan --token [redacted] --url https://gitlab.example.com --pipeline-
 # Scan all repositories in a namespace
 pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --namespace mygroup
 		`,
-		Run: Scan,
+		Args: validateScanArgs,
+		Run:  Scan,
 	}
 
 	flags.AddCommonScanFlags(scanCmd, &options.CommonScanOptions, &maxArtifactSize)
@@ -106,6 +108,13 @@ pipeleek gl scan --token glpat-xxxxxxxxxxx --url https://gitlab.example.com --na
 	scanCmd.Flags().StringVarP(&options.QueueFolder, "queue", "q", "", "Relative or absolute folderpath where the queue files will be stored. Defaults to system tmp. Non-existing folders will be created.")
 
 	return scanCmd
+}
+
+func validateScanArgs(cmd *cobra.Command, args []string) error {
+	if err := cobra.NoArgs(cmd, args); err != nil {
+		return fmt.Errorf("%w; boolean flags require '=' for explicit values, e.g. --secrets-verification=false (not --secrets-verification false)", err)
+	}
+	return nil
 }
 
 func Scan(cmd *cobra.Command, args []string) {

@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 )
@@ -39,14 +38,9 @@ func download(ctx context.Context, client *http.Client, source, output string, f
 	if response.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("downloading rules: unexpected HTTP status %d", response.StatusCode)
 	}
-	// Limit external input before parsing or writing it.
-	const maxSize = 16 << 20
-	data, err := io.ReadAll(io.LimitReader(response.Body, maxSize+1))
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return 0, fmt.Errorf("reading downloaded rules: %w", err)
-	}
-	if len(data) > maxSize {
-		return 0, fmt.Errorf("downloaded rules exceed %d bytes", maxSize)
 	}
 	patterns, err := parseRules(data, source)
 	if err != nil {
@@ -55,26 +49,21 @@ func download(ctx context.Context, client *http.Client, source, output string, f
 	if len(patterns) == 0 {
 		return 0, fmt.Errorf("downloaded rules contain no patterns")
 	}
-	temp, err := os.CreateTemp(filepath.Dir(output), ".pipeleek-rules-*")
-	if err != nil {
-		return 0, fmt.Errorf("creating rules temporary file: %w", err)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	}
-	defer os.Remove(temp.Name())
-	if _, err := temp.Write(data); err != nil {
-		_ = temp.Close()
+	// #nosec G304 -- output is the explicit destination selected by the user through CLI/config.
+	file, err := os.OpenFile(output, flags, 0600)
+	if err != nil {
+		return 0, fmt.Errorf("opening rules output %s: %w", output, err)
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
 		return 0, fmt.Errorf("writing rules: %w", err)
 	}
-	if err := temp.Close(); err != nil {
+	if err := file.Close(); err != nil {
 		return 0, fmt.Errorf("closing rules: %w", err)
-	}
-	if force {
-		err = os.Rename(temp.Name(), output)
-	} else {
-		// Publish without replacing a file created while the download was running.
-		err = os.Link(temp.Name(), output)
-	}
-	if err != nil {
-		return 0, fmt.Errorf("saving rules to %s: %w", output, err)
 	}
 	return len(patterns), nil
 }

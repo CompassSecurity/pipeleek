@@ -24,13 +24,13 @@ func TestDownload(t *testing.T) {
 		wantError bool
 	}{
 		{name: "success", body: downloadFixture, status: 200},
+		{name: "larger than former limit", body: "# " + strings.Repeat(" ", 16<<20) + "\n" + downloadFixture, status: 200},
 		{name: "existing", body: downloadFixture, status: 200, existing: true, wantError: true},
 		{name: "force", body: downloadFixture, status: 200, existing: true, force: true},
 		{name: "http error", status: 404, wantError: true},
 		{name: "http error preserves existing", status: 404, existing: true, force: true, wantError: true},
 		{name: "yaml error", body: "[", status: 200, wantError: true},
 		{name: "empty", body: "patterns: []", status: 200, wantError: true},
-		{name: "oversized", body: strings.Repeat(" ", (16<<20)+1), status: 200, wantError: true},
 		{name: "invalid regex", body: "patterns: [{pattern: {name: test, regex: '[', confidence: high}}]", status: 200, existing: true, force: true, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

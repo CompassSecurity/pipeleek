@@ -40,6 +40,8 @@ To skip provider checks:
 pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verification=false
 ```
 
+> **Important:** Use `--secrets-verification=false` with `=`. Writing `--secrets-verification false` enables verification: the flag is interpreted as `true`, and the separate `false` is treated as a positional argument.
+
 ## Confidence and Filtering
 
 | Level | Meaning |
@@ -88,6 +90,8 @@ pipeleek rules download --output additional-rules.yml
 `rules.yml`. Downloads are validated for nonempty rule sets, required fields, duplicate
 names, and valid Go regexes before saving. Failed downloads or validation leave existing
 files unchanged.
+Validated rules are written directly to the destination; a filesystem write failure
+can leave a partial file, including when replacing a file with `--force`.
 
 ### Local customization
 
@@ -106,3 +110,4 @@ patterns:
 ```
 
 Each rule needs a nonempty name, valid Go regex, and nonempty confidence label. Duplicate names, invalid YAML/regexes, and unreadable files fail initialization.
+Set `token: true` for token patterns to reject matches embedded inside larger tokens.

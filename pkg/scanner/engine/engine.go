@@ -129,6 +129,7 @@ func detectHits(ctx context.Context, text []byte, maxThreads int, enableSecretsV
 }
 
 func detectYAML(ctx context.Context, text []byte, maxThreads int, patterns []rules.CompiledPattern, confidenceFilter []string) ([]types.Finding, error) {
+	text = []byte(stripansi.Strip(string(text)))
 	group := parallel.Collect[[]types.Finding](parallel.Limited(ctx, maxThreads))
 	for _, pattern := range patterns {
 		if len(confidenceFilter) > 0 && !slices.Contains(confidenceFilter, pattern.Pattern.Pattern.Confidence) {

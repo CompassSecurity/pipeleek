@@ -189,7 +189,8 @@ $ pipeleek gl scan --token glpat-[redacted] --url https://gitlab.example.com -c 
 2024-09-26T13:47:10+02:00 debug Setting up queue on disk
 2024-09-26T13:47:10+02:00 debug Using DB file file=file:///tmp/pipeleek-queue-db-60689531:?_journal=WAL&_timeout=5000&_fk=true
 2024-09-26T13:47:10+02:00 debug Loaded embedded and local rules count=15
-2024-09-26T13:47:10+02:00 debug Loaded filtered rules count=882
+2024-09-26T13:47:10+02:00 debug Loaded TruffleHog rules count=858
+2024-09-26T13:47:10+02:00 debug Applying confidence filter filter=["verified","high"]
 2024-09-26T13:47:10+02:00 info Fetching projects
 2024-09-26T13:47:10+02:00 info Provided GitLab session cookie is valid
 2024-09-26T13:47:15+02:00 debug Fetch Project jobs for url=https://gitlab.example.com/legendaryleo/WebRTC_Source

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -178,4 +179,22 @@ func TestYAMLConfidenceFilterIncludesAllWhenEmpty(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
 	assert.Equal(t, "medium", findings[0].Pattern.Pattern.Confidence)
+}
+
+func TestYAMLColoredTokens(t *testing.T) {
+	token := "glpat-" + strings.Repeat("a", 20)
+	for _, text := range []string{
+		"\x1b[32m" + token + "\x1b[0m",
+		"TOKEN=\x1b[32m" + token + "\x1b[0m",
+		"\x1b[32m" + token + "\x1b[0m " + token,
+	} {
+		findings, err := detectYAML(context.Background(), []byte(text), 1, rules.BuiltinPatterns(), []string{"high"})
+		require.NoError(t, err)
+		require.Len(t, findings, strings.Count(text, token))
+		for _, finding := range findings {
+			assert.Equal(t, "Gitlab - Personal Access Token v2", finding.Pattern.Pattern.Name)
+			assert.Contains(t, finding.Text, token)
+			assert.NotContains(t, finding.Text, "\x1b")
+		}
+	}
 }

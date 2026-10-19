@@ -6,6 +6,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/rules"
+	"github.com/acarl005/stripansi"
 	"github.com/rs/zerolog/log"
 	"github.com/trufflesecurity/trufflehog/v3/pkg/detectors"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -100,6 +101,7 @@ func (d *GitLabURLDetector) FromData(ctx context.Context, verify bool, data []by
 
 // FromDataWithURL verifies matches against url instead of the package-global URL.
 func (d *GitLabURLDetector) FromDataWithURL(ctx context.Context, verify bool, data []byte, url string) ([]detectors.Result, error) {
+	data = []byte(stripansi.Strip(string(data)))
 	var results []detectors.Result
 
 	for _, pattern := range d.patterns {

@@ -31,7 +31,7 @@ pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --cookie [redacted] -
 
 Findings use the `hit` log level. The sample output above uses additional YAML rules; your findings depend on the rules and credentials present. Review non-verified hits manually, or use `--confidence=verified` to show only successfully verified credentials. See [detection, verification, and rules](../introduction/secrets_verification.md) for reporting behavior and optional rule downloads.
 
-Job-log (`type=log`) and artifact (`type=archive`) findings link to the job. Findings labeled `.gitlab-ci.yml` use `type=cicd-yaml` and link to that file on the default branch. The scanned content is GitLab's merged CI configuration, so a match may originate from an included file.
+Job-log (`type=log`) and artifact (`type=archive`) findings link to the job.
 
 ### Live Findings Web UI
 

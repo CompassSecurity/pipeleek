@@ -242,10 +242,20 @@ func getAllJobs(git *gitlab.Client, project *gitlab.Project, options *ScanOption
 		return
 	}
 
+	configPath := project.CIConfigPath
+	if configPath == "" {
+		configPath = ".gitlab-ci.yml"
+	}
+	configURL := project.WebURL
+	// GitLab also accepts remote URLs and file@project[:ref] configurations.
+	if !strings.ContainsAny(configPath, "@:") && !strings.HasPrefix(configPath, "//") {
+		configURL = strings.TrimRight(project.WebURL, "/") + "/-/blob/HEAD/" +
+			(&url.URL{Path: strings.TrimLeft(configPath, "/")}).EscapedPath()
+	}
 	enqueueItem(globQueue, QueueItemCICDYaml, QueueMeta{
 		ProjectId:                int(project.ID),
-		JobWebUrl:                strings.TrimRight(project.WebURL, "/") + "/-/blob/HEAD/.gitlab-ci.yml",
-		JobName:                  ".gitlab-ci.yml",
+		JobWebUrl:                configURL,
+		JobName:                  configPath,
 		ProjectPathWithNamespace: project.PathWithNamespace,
 	}, waitGroup)
 
