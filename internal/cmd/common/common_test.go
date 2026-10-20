@@ -1,8 +1,6 @@
 package common
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,32 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestTerminalRestoringWriter_FatalRestoresAfterWriting(t *testing.T) {
-	var output bytes.Buffer
-	var calls []string
-	writer := &TerminalRestoringWriter{
-		underlying: writerFunc(func(p []byte) (int, error) {
-			calls = append(calls, "write")
-			return output.Write(p)
-		}),
-		restore: func() { calls = append(calls, "restore") },
-		exit:    func(code int) { calls = append(calls, fmt.Sprintf("exit:%d", code)) },
-	}
-
-	n, err := writer.Write([]byte(`{"level":"fatal","message":"failure"}`))
-
-	require.NoError(t, err)
-	assert.Equal(t, len(`{"level":"fatal","message":"failure"}`), n)
-	assert.Equal(t, []string{"write", "restore", "exit:1"}, calls)
-	assert.Contains(t, output.String(), "failure")
-}
-
-type writerFunc func([]byte) (int, error)
-
-func (f writerFunc) Write(p []byte) (int, error) {
-	return f(p)
-}
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -361,31 +333,5 @@ func TestInitLogger_NoLogFile(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	assert.NotPanics(t, func() {
 		InitLogger(cmd)
-	})
-}
-
-// TestSaveAndRestoreTerminalState verifies that SaveTerminalState and RestoreTerminalState
-// do not panic regardless of whether stdin is a terminal.
-func TestSaveAndRestoreTerminalState(t *testing.T) {
-	origState := originalTermState
-	defer func() { originalTermState = origState }()
-
-	assert.NotPanics(t, func() {
-		SaveTerminalState()
-	})
-
-	assert.NotPanics(t, func() {
-		RestoreTerminalState()
-	})
-}
-
-// TestRestoreTerminalState_NilState verifies no panic when terminal state was never saved.
-func TestRestoreTerminalState_NilState(t *testing.T) {
-	origState := originalTermState
-	defer func() { originalTermState = origState }()
-
-	originalTermState = nil
-	assert.NotPanics(t, func() {
-		RestoreTerminalState()
 	})
 }

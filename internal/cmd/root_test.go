@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -138,57 +136,6 @@ func TestGlobalJSONFlagRegistered(t *testing.T) {
 
 func TestPersistentPreRunRegistered(t *testing.T) {
 	assert.NotNil(t, rootCmd.PersistentPreRun, "PersistentPreRun should be registered")
-}
-
-func TestTerminalRestorer(t *testing.T) {
-	t.Run("TerminalRestorer_can_be_set", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		TerminalRestorer()
-		assert.True(t, called, "TerminalRestorer should be callable")
-	})
-
-	t.Run("TerminalRestorer_nil_safe", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		TerminalRestorer = nil
-		assert.NotPanics(t, func() {
-			if TerminalRestorer != nil {
-				TerminalRestorer()
-			}
-		})
-	})
-}
-
-func TestTerminalRestoringWriter_FatalRestoresAfterWriting(t *testing.T) {
-	var output bytes.Buffer
-	var calls []string
-	writer := &terminalRestoringWriter{
-		underlying: writerFunc(func(p []byte) (int, error) {
-			calls = append(calls, "write")
-			return output.Write(p)
-		}),
-		restore: func() { calls = append(calls, "restore") },
-		exit:    func(code int) { calls = append(calls, fmt.Sprintf("exit:%d", code)) },
-	}
-
-	n, err := writer.Write([]byte(`{"level":"fatal","message":"failure"}`))
-
-	require.NoError(t, err)
-	assert.Equal(t, len(`{"level":"fatal","message":"failure"}`), n)
-	assert.Equal(t, []string{"write", "restore", "exit:1"}, calls)
-	assert.Contains(t, output.String(), "failure")
-}
-
-type writerFunc func([]byte) (int, error)
-
-func (f writerFunc) Write(p []byte) (int, error) {
-	return f(p)
 }
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {

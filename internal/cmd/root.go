@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"runtime"
@@ -26,9 +25,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
-
-// TerminalRestorer is a function that can be called to restore terminal state
-var TerminalRestorer func()
 
 // Version information - set via ldflags during build
 var (
@@ -55,7 +51,7 @@ var (
 			httpclient.SetInsecureSkipVerify(!TLSVerification)
 			httpclient.SetProxy(Proxy)
 			httpclient.SetHTTPTimeout(HTTPTimeout)
-			go logging.ShortcutListeners(nil)
+			logging.ShortcutListeners(nil)
 		},
 	}
 	JsonLogoutput   bool
@@ -150,24 +146,6 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	return originalLen, nil
 }
 
-type terminalRestoringWriter struct {
-	underlying io.Writer
-	restore    func()
-	exit       func(int)
-}
-
-func (w *terminalRestoringWriter) Write(p []byte) (n int, err error) {
-	n, err = w.underlying.Write(p)
-	var logEntry map[string]interface{}
-	if json.Unmarshal(p, &logEntry) == nil && logEntry["level"] == "fatal" {
-		if w.restore != nil {
-			w.restore()
-		}
-		w.exit(1)
-	}
-	return n, err
-}
-
 func initLogger(cmd *cobra.Command) {
 	defaultOut := &CustomWriter{Writer: os.Stdout}
 	colorEnabled := LogColor
@@ -197,11 +175,7 @@ func initLogger(cmd *cobra.Command) {
 	if JsonLogoutput {
 		// For JSON output, wrap with HitLevelWriter to transform level field
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&terminalRestoringWriter{
-			underlying: defaultOut,
-			restore:    TerminalRestorer,
-			exit:       os.Exit,
-		})
+		hitWriter.SetOutput(defaultOut)
 		logging.SetGlobalHitWriter(hitWriter)
 		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	} else {
@@ -214,11 +188,7 @@ func initLogger(cmd *cobra.Command) {
 		}
 		// Wrap with HitLevelWriter to transform JSON before ConsoleWriter processes it
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&terminalRestoringWriter{
-			underlying: &output,
-			restore:    TerminalRestorer,
-			exit:       os.Exit,
-		})
+		hitWriter.SetOutput(&output)
 		logging.SetGlobalHitWriter(hitWriter)
 		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	}

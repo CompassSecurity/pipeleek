@@ -3,7 +3,6 @@ package common
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"runtime"
@@ -15,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // Version information - set via ldflags during build
@@ -27,19 +25,15 @@ var (
 
 // Log configuration
 var (
-	originalTermState *term.State
-	JsonLogoutput     bool
-	LogFile           string
-	LogColor          bool
-	LogDebug          bool
-	LogLevel          string
-	IgnoreProxy       bool
+	JsonLogoutput bool
+	LogFile       string
+	LogColor      bool
+	LogDebug      bool
+	LogLevel      string
+	IgnoreProxy   bool
 	// logFileCloser holds the currently open log file so it can be closed on cleanup.
 	logFileCloser io.Closer
 )
-
-// TerminalRestorer is a function that can be called to restore terminal state
-var TerminalRestorer func()
 
 // CustomWriter wraps an os.File with proper cross-platform newline handling
 type CustomWriter struct {
@@ -73,46 +67,6 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	return originalLen, nil
 }
 
-// TerminalRestoringWriter wraps an io.Writer to restore terminal state on fatal logs
-type TerminalRestoringWriter struct {
-	underlying io.Writer
-	restore    func()
-	exit       func(int)
-}
-
-func (w *TerminalRestoringWriter) Write(p []byte) (n int, err error) {
-	n, err = w.underlying.Write(p)
-	var logEntry map[string]interface{}
-	if json.Unmarshal(p, &logEntry) == nil && logEntry["level"] == "fatal" {
-		if w.restore != nil {
-			w.restore()
-		}
-		w.exit(1)
-	}
-	return n, err
-}
-
-// SaveTerminalState saves the current terminal state for later restoration
-func SaveTerminalState() {
-	// #nosec G115 -- os.Stdin file descriptor is provided by the runtime and fits into int on supported platforms
-	stdinFD := int(os.Stdin.Fd())
-	if term.IsTerminal(stdinFD) {
-		state, err := term.GetState(stdinFD)
-		if err == nil {
-			originalTermState = state
-		}
-	}
-}
-
-// RestoreTerminalState restores the terminal to its saved state
-func RestoreTerminalState() {
-	if originalTermState != nil {
-		// #nosec G115 -- os.Stdin file descriptor is provided by the runtime and fits into int on supported platforms
-		stdinFD := int(os.Stdin.Fd())
-		_ = term.Restore(stdinFD, originalTermState)
-	}
-}
-
 // InitLogger initializes the zerolog logger with the configured options
 func InitLogger(cmd *cobra.Command) {
 	defaultOut := &CustomWriter{Writer: os.Stdout}
@@ -140,11 +94,7 @@ func InitLogger(cmd *cobra.Command) {
 	if JsonLogoutput {
 		// For JSON output, wrap with HitLevelWriter to transform level field
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&TerminalRestoringWriter{
-			underlying: defaultOut,
-			restore:    RestoreTerminalState,
-			exit:       os.Exit,
-		})
+		hitWriter.SetOutput(defaultOut)
 		logging.SetGlobalHitWriter(hitWriter)
 		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	} else {
@@ -157,11 +107,7 @@ func InitLogger(cmd *cobra.Command) {
 		}
 		// Wrap with HitLevelWriter to transform JSON before ConsoleWriter processes it
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&TerminalRestoringWriter{
-			underlying: &output,
-			restore:    RestoreTerminalState,
-			exit:       os.Exit,
-		})
+		hitWriter.SetOutput(&output)
 		logging.SetGlobalHitWriter(hitWriter)
 		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	}
@@ -261,19 +207,17 @@ func SetupPersistentPreRun(cmd *cobra.Command) {
 		InitLogger(c)
 		SetGlobalLogLevel(c)
 		httpclient.SetIgnoreProxy(IgnoreProxy)
-		go logging.ShortcutListeners(nil)
+		logging.ShortcutListeners(nil)
 	}
 }
 
 // Run executes the common startup sequence and runs the provided root command
 func Run(rootCmd *cobra.Command) {
-	SaveTerminalState()
-	defer RestoreTerminalState()
-
-	TerminalRestorer = RestoreTerminalState
+	logging.InstallExitHandler()
+	defer logging.StopShortcutListeners()
 
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		logging.Exit(1)
 	}
 }
