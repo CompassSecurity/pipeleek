@@ -4,11 +4,13 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
 	scannerartifact "github.com/CompassSecurity/pipeleek/pkg/scanner/artifact"
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/engine"
 	"github.com/h2non/filetype"
 	"github.com/rs/zerolog/log"
 	"github.com/wandb/parallel"
@@ -86,7 +88,14 @@ func processZipFile(file *zip.File, opts ProcessOptions) FileProcessingResult {
 	}
 
 	processed, err := ProcessSingleFile(content, file.Name, opts)
-	processed.Error = err
+	if err != nil {
+		event := log.Error()
+		if errors.Is(err, engine.ErrHitTimeout) {
+			event = log.Warn()
+		}
+		event.Err(err).Str("file", file.Name).Str("url", opts.BuildURL).
+			Str("artifact", opts.ArtifactName).Msg("Failed scanning artifact file")
+	}
 	return *processed
 }
 

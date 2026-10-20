@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
 	scannerartifact "github.com/CompassSecurity/pipeleek/pkg/scanner/artifact"
 	"github.com/h2non/filetype"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -114,6 +117,70 @@ func TestDetermineFileTypeDoesNotTreatDocumentsAsArchives(t *testing.T) {
 
 func init() {
 	scanner.InitRules([]string{})
+}
+
+func TestProcessZipArtifactLogsFileFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		content []byte
+		timeout time.Duration
+		level   string
+	}{
+		{"broken.zip", []byte("PK\x03\x04invalid archive"), time.Minute, "error"},
+		{"timeout.txt", []byte("ordinary text"), time.Nanosecond, "warn"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			original, level := log.Logger, zerolog.GlobalLevel()
+			log.Logger = zerolog.New(zerolog.SyncWriter(&output))
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			t.Cleanup(func() {
+				log.Logger = original
+				zerolog.SetGlobalLevel(level)
+			})
+			var buf bytes.Buffer
+			w := zip.NewWriter(&buf)
+			for _, file := range []struct {
+				name    string
+				content []byte
+			}{
+				{tc.name, tc.content}, {"after.txt", []byte("another file")},
+			} {
+				f, err := w.Create(file.name)
+				require.NoError(t, err)
+				_, err = f.Write(file.content)
+				require.NoError(t, err)
+			}
+			require.NoError(t, w.Close())
+
+			results, err := ProcessZipArtifact(buf.Bytes(), ProcessOptions{
+				MaxGoRoutines: 2, HitTimeout: tc.timeout,
+				BuildURL: "https://ci.example.com/build/1", ArtifactName: "build.zip",
+			})
+			require.NoError(t, err, "per-file failures must not become ZIP-level errors")
+			require.Len(t, results, 2, "all sibling files must be processed")
+			for _, result := range results {
+				if result.FileName == tc.name {
+					assert.Error(t, result.Error)
+				} else if tc.level == "error" {
+					assert.NoError(t, result.Error)
+				}
+			}
+			var found bool
+			for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
+				var event map[string]interface{}
+				require.NoError(t, json.Unmarshal([]byte(line), &event))
+				if event["message"] == "Failed scanning artifact file" && event["file"] == tc.name {
+					found = true
+					assert.Equal(t, tc.level, event["level"])
+					assert.Equal(t, "https://ci.example.com/build/1", event["url"])
+					assert.Equal(t, "build.zip", event["artifact"])
+					assert.NotEmpty(t, event["error"])
+				}
+			}
+			assert.True(t, found, "expected per-file failure diagnostic")
+		})
+	}
 }
 
 func TestProcessZipArtifact(t *testing.T) {
