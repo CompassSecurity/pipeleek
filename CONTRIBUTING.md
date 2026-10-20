@@ -90,12 +90,6 @@ make test-e2e-devops
 make test-e2e-gitea
 ```
 
-The Web UI regression tests exercise a real browser with 2,000 findings, including replay, filtering, pagination, CSV export, and live updates. They run automatically with the unit tests when Chromium or Google Chrome is on `PATH`; otherwise the browser test reports a skip. To use a browser installed elsewhere:
-
-```bash
-PIPELEEK_WEBUI_BROWSER=/path/to/chromium go test ./pkg/webui -race -v
-```
-
 ### Linting
 
 ```bash
