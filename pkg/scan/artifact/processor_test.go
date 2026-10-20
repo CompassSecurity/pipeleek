@@ -1,14 +1,115 @@
 package artifact
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
+	"github.com/h2non/filetype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestProcessSingleFileExecutableAndUTF8(t *testing.T) {
+	for _, container := range []string{"standalone", "zip", "tar"} {
+		for _, binary := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/binary=%v", container, binary), func(t *testing.T) {
+				secret := fmt.Sprintf("credential-%s-%v", container, binary)
+				content := []byte("CI_REGISTRY_PASSWORD=" + secret + "\n")
+				name := "config.env"
+				if binary {
+					name = "program"
+					header := make([]byte, 64)
+					copy(header, "\x7fELF")
+					content = append(header, content...)
+					kind, err := filetype.Match(content)
+					require.NoError(t, err)
+					require.Equal(t, "elf", kind.Extension, "fixture must match the real ELF detector")
+				} else {
+					secret += "-p\u00e4ssw\u00f6rd"
+					content = []byte("CI_REGISTRY_PASSWORD=" + secret + "\n")
+				}
+				expectedFile := name
+				secondSecret := "after-" + secret
+				switch container {
+				case "zip":
+					var buf bytes.Buffer
+					w := zip.NewWriter(&buf)
+					for _, file := range []struct {
+						name    string
+						content []byte
+					}{
+						{name, content}, {"after.env", []byte("CI_REGISTRY_PASSWORD=" + secondSecret + "\n")},
+					} {
+						f, err := w.Create(file.name)
+						require.NoError(t, err)
+						_, err = f.Write(file.content)
+						require.NoError(t, err)
+					}
+					require.NoError(t, w.Close())
+					content, name = buf.Bytes(), "bundle.zip"
+				case "tar":
+					var buf bytes.Buffer
+					w := tar.NewWriter(&buf)
+					for _, file := range []struct {
+						name    string
+						content []byte
+					}{
+						{name, content}, {"after.env", []byte("CI_REGISTRY_PASSWORD=" + secondSecret + "\n")},
+					} {
+						require.NoError(t, w.WriteHeader(&tar.Header{Name: file.name, Mode: 0600, Size: int64(len(file.content))}))
+						_, err := w.Write(file.content)
+						require.NoError(t, err)
+					}
+					require.NoError(t, w.Close())
+					content, name = buf.Bytes(), "bundle.tar"
+				}
+				var found, after bool
+				_, err := ProcessSingleFile(content, name, ProcessOptions{
+					HitTimeout: time.Minute,
+					ReportFinding: func(f scanner.Finding, file, ancestry string) {
+						if strings.Contains(f.Text, "CI_REGISTRY_PASSWORD="+secret) {
+							found = true
+							assert.Equal(t, expectedFile, file)
+							if container != "standalone" {
+								assert.Equal(t, name, ancestry)
+							}
+						}
+						if file == "after.env" && strings.Contains(f.Text, secondSecret) {
+							after = true
+						}
+					},
+				})
+				require.NoError(t, err)
+				assert.True(t, found, "expected the complete credential, including UTF-8 bytes")
+				if container != "standalone" {
+					assert.True(t, after, "a binary member must not prevent subsequent text members being scanned")
+				}
+			})
+		}
+	}
+}
+
+func TestDetermineFileTypeDoesNotTreatDocumentsAsArchives(t *testing.T) {
+	for _, content := range [][]byte{
+		append([]byte("\x7fELF"), make([]byte, 64)...),
+		[]byte("MZ" + strings.Repeat("\x00", 70)),
+		[]byte("\xfe\xed\xfa\xcf" + strings.Repeat("\x00", 70)),
+		[]byte("%PDF-1.7\n"),
+		[]byte("SQLite format 3\x00" + strings.Repeat("\x00", 70)),
+	} {
+		kind, err := filetype.Match(content)
+		require.NoError(t, err)
+		require.NotEqual(t, filetype.Unknown, kind)
+		_, isArchive, _ := DetermineFileType(content)
+		assert.False(t, isArchive, kind.Extension)
+	}
+}
 
 func init() {
 	scanner.InitRules([]string{})

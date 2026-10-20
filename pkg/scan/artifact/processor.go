@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
+	scannerartifact "github.com/CompassSecurity/pipeleek/pkg/scanner/artifact"
 	"github.com/h2non/filetype"
 	"github.com/rs/zerolog/log"
 	"github.com/wandb/parallel"
@@ -20,6 +21,8 @@ type ProcessOptions struct {
 	ArtifactName      string
 	WorkflowRunName   string
 	HitTimeout        time.Duration
+	GitLabURL         string
+	ReportFinding     func(scanner.Finding, string, string)
 }
 
 type FileProcessingResult struct {
@@ -84,18 +87,9 @@ func processZipFile(file *zip.File, opts ProcessOptions) FileProcessingResult {
 		return result
 	}
 
-	kind, _ := filetype.Match(content)
-	result.FileType = kind.MIME.Value
-	result.IsUnknown = kind == filetype.Unknown
-	result.IsArchive = filetype.IsArchive(content)
-
-	if result.IsUnknown {
-		scanner.DetectFileHits(content, opts.BuildURL, opts.ArtifactName, file.Name, "", opts.VerifyCredentials, opts.HitTimeout)
-	} else if result.IsArchive {
-		scanner.HandleArchiveArtifact(file.Name, content, opts.BuildURL, opts.ArtifactName, opts.VerifyCredentials, opts.HitTimeout)
-	}
-
-	return result
+	processed, err := ProcessSingleFile(content, file.Name, opts)
+	processed.Error = err
+	return *processed
 }
 
 func ExtractZipFile(zf *zip.File) ([]byte, error) {
@@ -109,7 +103,7 @@ func ExtractZipFile(zf *zip.File) ([]byte, error) {
 
 func DetermineFileType(content []byte) (mimeType string, isArchive bool, isUnknown bool) {
 	kind, _ := filetype.Match(content)
-	return kind.MIME.Value, filetype.IsArchive(content), kind == filetype.Unknown
+	return kind.MIME.Value, scannerartifact.IsArchive(content), kind == filetype.Unknown
 }
 
 func ProcessSingleFile(content []byte, filename string, opts ProcessOptions) (*FileProcessingResult, error) {
@@ -122,11 +116,19 @@ func ProcessSingleFile(content []byte, filename string, opts ProcessOptions) (*F
 	result.IsArchive = isArchive
 	result.IsUnknown = isUnknown
 
-	if isUnknown {
-		scanner.DetectFileHits(content, opts.BuildURL, opts.ArtifactName, filename, "", opts.VerifyCredentials, opts.HitTimeout)
-	} else if isArchive {
-		scanner.HandleArchiveArtifact(filename, content, opts.BuildURL, opts.ArtifactName, opts.VerifyCredentials, opts.HitTimeout)
+	report := opts.ReportFinding
+	if report == nil {
+		report = func(finding scanner.Finding, file, ancestry string) {
+			scannerartifact.ReportFinding(finding, opts.BuildURL, opts.ArtifactName, file, ancestry)
+		}
 	}
-
-	return result, nil
+	if opts.HitTimeout == 0 {
+		opts.HitTimeout = time.Minute
+	}
+	err := scannerartifact.ScanFile(content, filename, scannerartifact.ScanOptions{
+		VerifyCredentials: opts.VerifyCredentials, HitTimeout: opts.HitTimeout,
+		GitLabURL: opts.GitLabURL, ReportFinding: report,
+	})
+	result.Error = err
+	return result, err
 }

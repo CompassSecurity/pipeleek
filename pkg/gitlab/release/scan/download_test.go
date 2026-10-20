@@ -13,11 +13,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testDownloader(t *testing.T, base string, limit int64) *downloader {
+type testAssetDownloader struct {
+	base  *url.URL
+	limit int64
+}
+
+func (d testAssetDownloader) resolve(raw string) (*url.URL, error) {
+	return resolveAssetURL(d.base, raw)
+}
+
+func (d testAssetDownloader) download(u *url.URL) ([]byte, error) {
+	return downloadAsset(u, d.base, "test-token", d.limit)
+}
+
+func testDownloader(t *testing.T, base string, limit int64) testAssetDownloader {
 	t.Helper()
 	u, err := url.Parse(base)
 	require.NoError(t, err)
-	return newDownloader(u, "test-token", limit)
+	return testAssetDownloader{u, limit}
 }
 
 func TestDownloadCredentials(t *testing.T) {
@@ -61,7 +74,9 @@ func TestDownloadLimitsAndFailures(t *testing.T) {
 		{"oversize", "123456", false, 200, errAssetTooLarge},
 		{"chunked-exact", "12345", true, 200, nil},
 		{"chunked-oversize", "123456", true, 200, errAssetTooLarge},
-		{"denied", "123", false, 403, errors.New("HTTP 403")},
+		{"denied", "123", false, 403, errAssetUnavailable},
+		{"not-found", "123", false, 404, errAssetUnavailable},
+		{"unauthorized", "123", false, 401, errors.New("HTTP 401")},
 		{"partial", "123", false, 206, errors.New("HTTP 206")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -82,6 +97,8 @@ func TestDownloadLimitsAndFailures(t *testing.T) {
 				assert.Equal(t, tc.body, string(content))
 			} else if errors.Is(tc.want, errAssetTooLarge) {
 				assert.ErrorIs(t, err, errAssetTooLarge)
+			} else if errors.Is(tc.want, errAssetUnavailable) {
+				assert.ErrorIs(t, err, errAssetUnavailable)
 			} else {
 				require.ErrorContains(t, err, tc.want.Error())
 			}
@@ -128,22 +145,19 @@ func TestAssetURLs(t *testing.T) {
 }
 
 func TestRedirectPolicy(t *testing.T) {
-	d := testDownloader(t, "https://gitlab.example.com", 10)
-	old, err := http.NewRequest(http.MethodGet, "https://gitlab.example.com/asset", nil)
-	require.NoError(t, err)
-	for _, raw := range []string{"http://example.com/file", "ftp://example.com/file"} {
-		req, err := http.NewRequest(http.MethodGet, raw, nil)
-		require.NoError(t, err)
-		require.Error(t, d.client.CheckRedirect(req, []*http.Request{old}))
+	for _, target := range []string{"http://example.com/file", "ftp://example.com/file"} {
+		t.Run(target, func(t *testing.T) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, target, http.StatusFound)
+			}))
+			defer srv.Close()
+			d := testDownloader(t, srv.URL, 10)
+			u, err := d.resolve("/asset")
+			require.NoError(t, err)
+			_, err = d.download(u)
+			require.ErrorContains(t, err, "asset request failed")
+		})
 	}
-	req, err := http.NewRequest(http.MethodGet, "https://other.example.com/file", nil)
-	require.NoError(t, err)
-	req.Header.Set("PRIVATE-TOKEN", "secret")
-	req.Header.Set("Authorization", "secret")
-	req.Header.Set("Cookie", "secret")
-	require.NoError(t, d.client.CheckRedirect(req, []*http.Request{old}))
-	assert.Empty(t, req.Header)
-	require.Error(t, d.client.CheckRedirect(req, make([]*http.Request, 10)))
 }
 
 func TestDownloadErrorRedactsQuery(t *testing.T) {

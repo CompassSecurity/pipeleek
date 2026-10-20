@@ -140,7 +140,7 @@ func TestDiscoveryContinuesAfterFailure(t *testing.T) {
 		case "/api/v4/projects":
 			_, _ = fmt.Fprint(w, `[{"id":1,"path_with_namespace":"g/one"},{"id":2,"path_with_namespace":"g/two"}]`)
 		case "/api/v4/projects/1/releases":
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/2/releases":
 			_, _ = fmt.Fprint(w, `[{"tag_name":"v1"}]`)
 		case "/api/v4/projects/2/releases/v1/assets/links":
@@ -154,7 +154,7 @@ func TestDiscoveryContinuesAfterFailure(t *testing.T) {
 	require.NoError(t, err)
 	o := validOptions()
 	s := NewScanner(o)
-	require.ErrorContains(t, s.scan(git, testDownloader(t, srv.URL, 100)), "incomplete")
+	require.ErrorContains(t, s.scan(git, testDownloader(t, srv.URL, 100).base), "incomplete")
 	assert.Equal(t, int64(2), s.projects.Load())
 	assert.Equal(t, int64(1), s.releases.Load())
 	assert.Equal(t, int64(1), s.failures.Load())
@@ -166,6 +166,21 @@ func TestPublished(t *testing.T) {
 	assert.True(t, published(&gitlab.Release{ReleasedAt: &past}))
 	assert.False(t, published(&gitlab.Release{ReleasedAt: &future}))
 	assert.False(t, published(&gitlab.Release{UpcomingRelease: true}))
+}
+
+func TestForbiddenReleaseListingIsIgnored(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+	git, err := util.GetGitlabClient("token", srv.URL)
+	require.NoError(t, err)
+	s := NewScanner(validOptions())
+	work := make(chan asset, 1)
+	require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1}, work))
+	assert.Empty(t, work)
+	assert.Zero(t, s.failures.Load())
+	assert.Zero(t, s.releases.Load())
 }
 
 func TestProjectPagination(t *testing.T) {

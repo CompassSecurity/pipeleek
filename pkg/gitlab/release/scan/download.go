@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,20 +12,21 @@ import (
 )
 
 var errAssetTooLarge = errors.New("asset exceeds maximum size")
+var errAssetUnavailable = errors.New("asset is forbidden or not found")
 
-type downloader struct {
-	base   *url.URL
-	token  string
-	limit  int64
-	client *http.Client
-}
-
-func newDownloader(base *url.URL, token string, limit int64) *downloader {
-	d := &downloader{
-		base: base, token: token, limit: limit,
-		client: httpclient.GetPipeleekStandardHTTPClient(),
+func downloadAsset(u, base *url.URL, token string, limit int64) ([]byte, error) {
+	client := httpclient.GetPipeleekStandardHTTPClient()
+	defer client.CloseIdleConnections()
+	authorize := func(req *http.Request) {
+		req.Header.Del("PRIVATE-TOKEN")
+		req.Header.Del("Authorization")
+		req.Header.Del("Cookie")
+		req.Header.Del("Referer")
+		if sameOrigin(base, req.URL) {
+			req.Header.Set("PRIVATE-TOKEN", token)
+		}
 	}
-	d.client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
 			return errors.New("too many asset redirects")
 		}
@@ -36,10 +36,37 @@ func newDownloader(base *url.URL, token string, limit int64) *downloader {
 		if via[len(via)-1].URL.Scheme == "https" && req.URL.Scheme == "http" {
 			return errors.New("asset redirect downgrades HTTPS to HTTP")
 		}
-		d.setCredentials(req)
+		authorize(req)
 		return nil
 	}
-	return d
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, errors.New("cannot create asset request")
+	}
+	authorize(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		// Request/redirect errors can include signed URLs; do not log their values.
+		return nil, errors.New("asset request failed (connection, URL, or redirect policy)")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
+		return nil, errAssetUnavailable
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("asset download returned HTTP %d", resp.StatusCode)
+	}
+	if resp.ContentLength > limit {
+		return nil, errAssetTooLarge
+	}
+	content, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("reading asset failed: %w", err)
+	}
+	if int64(len(content)) > limit {
+		return nil, errAssetTooLarge
+	}
+	return content, nil
 }
 
 func validateAssetURL(u *url.URL) error {
@@ -66,17 +93,7 @@ func sameOrigin(a, b *url.URL) bool {
 		strings.EqualFold(a.Hostname(), b.Hostname()) && port(a) == port(b)
 }
 
-func (d *downloader) setCredentials(req *http.Request) {
-	req.Header.Del("PRIVATE-TOKEN")
-	req.Header.Del("Authorization")
-	req.Header.Del("Cookie")
-	req.Header.Del("Referer")
-	if sameOrigin(d.base, req.URL) {
-		req.Header.Set("PRIVATE-TOKEN", d.token)
-	}
-}
-
-func (d *downloader) resolve(raw string) (*url.URL, error) {
+func resolveAssetURL(base *url.URL, raw string) (*url.URL, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, errors.New("empty asset URL")
 	}
@@ -84,7 +101,7 @@ func (d *downloader) resolve(raw string) (*url.URL, error) {
 	if err != nil {
 		return nil, errors.New("invalid asset URL")
 	}
-	u = d.base.ResolveReference(u)
+	u = base.ResolveReference(u)
 	if err := validateAssetURL(u); err != nil {
 		return nil, err
 	}
@@ -99,41 +116,4 @@ func displayURL(u *url.URL) string {
 	safe.ForceQuery = false
 	safe.Fragment = ""
 	return safe.String()
-}
-
-func (d *downloader) download(u *url.URL) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, errors.New("cannot create asset request")
-	}
-	d.setCredentials(req)
-	resp, err := d.client.Do(req)
-	if err != nil {
-		// url.Error includes the full request URL, potentially containing credentials.
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) {
-			err = urlErr.Err
-		}
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			return nil, errors.New("asset download timed out")
-		}
-		// Redirect parsing errors may also embed a signed Location URL.
-		return nil, errors.New("asset request failed (connection, URL, or redirect policy)")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("asset download returned HTTP %d", resp.StatusCode)
-	}
-	if resp.ContentLength > d.limit {
-		return nil, errAssetTooLarge
-	}
-	content, err := io.ReadAll(io.LimitReader(resp.Body, d.limit+1))
-	if err != nil {
-		return nil, fmt.Errorf("reading asset failed: %w", err)
-	}
-	if int64(len(content)) > d.limit {
-		return nil, errAssetTooLarge
-	}
-	return content, nil
 }

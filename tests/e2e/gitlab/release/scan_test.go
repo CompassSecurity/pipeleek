@@ -206,7 +206,9 @@ func TestReleaseScanTarAndBinary(t *testing.T) {
 	require.NoError(t, gz.Close())
 	f := newFixture(t, links("/archive.tar.gz", "/binary"), func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/binary" {
-			_, _ = w.Write(append([]byte{0x7f, 'E', 'L', 'F', 0, 1, 0}, []byte("DATABASE_PASSWORD=binaryfixture\n\x00")...))
+			header := make([]byte, 64)
+			copy(header, "\x7fELF")
+			_, _ = w.Write(append(header, []byte("DATABASE_PASSWORD=binaryfixture\n\x00")...))
 		} else {
 			_, _ = w.Write(archive.Bytes())
 		}
@@ -242,7 +244,7 @@ func TestReleaseScanExternalRedirectDoesNotLeakCredentials(t *testing.T) {
 func TestReleaseScanPartialFailures(t *testing.T) {
 	f := newFixture(t, links("/denied", "/good"), func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/denied" {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 		} else {
 			plainAsset(w, r)
 		}
@@ -253,6 +255,16 @@ func TestReleaseScanPartialFailures(t *testing.T) {
 	assert.Contains(t, output, `"failures":1`)
 	assert.Contains(t, output, `"scannedAssets":1`)
 	assert.Contains(t, output, "incomplete")
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		var event struct {
+			Level   string `json:"level"`
+			Message string `json:"message"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(line), &event))
+		if event.Message == "Failed scanning release asset" {
+			assert.Equal(t, "error", event.Level)
+		}
+	}
 }
 
 func TestReleaseScanSizeAndTimeout(t *testing.T) {
@@ -276,15 +288,85 @@ func TestReleaseScanSizeAndTimeout(t *testing.T) {
 				require.NoError(t, err, output)
 			}
 			assert.Contains(t, output, tc.want)
+			if tc.name == "timeout" {
+				found := false
+				for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+					var event struct {
+						Level   string `json:"level"`
+						Message string `json:"message"`
+					}
+					require.NoError(t, json.Unmarshal([]byte(line), &event))
+					if event.Message == "Failed scanning release asset" {
+						found = true
+						assert.Equal(t, "warn", event.Level)
+					}
+				}
+				assert.True(t, found, "expected asset timeout warning")
+				assert.Contains(t, output, `"failures":1`)
+			}
 			if tc.name == "size" {
 				assert.NotContains(t, output, `"level":"hit"`)
+				assert.NotContains(t, output, "Skipped release asset exceeding maximum size")
 			}
+
 			if tc.name == "confidence" {
 				assert.NotContains(t, output, `"confidence":"medium"`)
 				assert.Contains(t, output, `"confidence":"low"`)
 			}
 		})
 	}
+}
+
+func TestReleaseScanSizeSkipDebugLog(t *testing.T) {
+	f := newFixture(t, links("/asset"), plainAsset)
+	output, err := f.run(t, "--release-limit", "1", "--max-artifact-size", "1B", "--log-level", "debug")
+	require.NoError(t, err, output)
+	assert.Contains(t, output, `"level":"debug"`)
+	assert.Contains(t, output, "Skipped release asset exceeding maximum size")
+	assert.Contains(t, output, `"skippedAssets":1`)
+}
+
+func TestReleaseScanUnavailableAssetsAreSilent(t *testing.T) {
+	f := newFixture(t, links("/forbidden", "/missing", "/good"), func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/forbidden":
+			w.WriteHeader(http.StatusForbidden)
+		case "/missing":
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			plainAsset(w, r)
+		}
+	})
+	output, err := f.run(t, "--release-limit", "1")
+	require.NoError(t, err, output)
+	assert.NotContains(t, output, "Failed scanning release asset")
+	assert.NotContains(t, output, `"level":"error"`)
+	assert.NotContains(t, output, `"level":"warn"`)
+	assert.Contains(t, output, `"skippedAssets":2`)
+	assert.Contains(t, output, `"scannedAssets":1`)
+	assert.Contains(t, output, `"failures":0`)
+}
+
+func TestReleaseScanForbiddenListingIsIgnored(t *testing.T) {
+	testutil.UseTestRules(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v4/projects":
+			_, _ = fmt.Fprint(w, `[{"id":1,"path_with_namespace":"group/forbidden"}]`)
+		case "/api/v4/projects/1/releases":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = fmt.Fprint(w, `{"message":"403 Forbidden"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	output, err := (fixture{server: srv}).run(t)
+	require.NoError(t, err, output)
+	assert.NotContains(t, output, "Failed discovering release assets")
+	assert.NotContains(t, output, `"level":"error"`)
+	assert.Contains(t, output, `"failures":0`)
 }
 
 func TestReleaseScanWorkerBound(t *testing.T) {

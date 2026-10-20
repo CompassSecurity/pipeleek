@@ -103,52 +103,6 @@ gitea:
     repo_order: desc # asc or desc; default desc
 ```
 
-### GitLab Release Assets
-
-`pipeleek gl release scan` inherits `gitlab.url`, `gitlab.token`, and the common
-scan settings above. Release-specific settings live under `gitlab.release.scan`:
-
-```yaml
-gitlab:
-  url: https://gitlab.example.com
-  token: "[redacted]"
-  release:
-    scan:
-      repo: group/project # Optional; mutually exclusive with namespace
-      namespace: "" # Group and subgroups
-      search: "" # Project search, not release-tag search
-      owned: false
-      member: false # Applies to global project discovery
-      tag: "" # Exact tag; requires repo; cannot combine with a nonzero release_limit
-      release_limit: 0 # Published releases per project, newest first; 0 means all
-      include_sources: false # Also scan one generated source ZIP per release
-```
-
-`--repo` selects a project directly and takes precedence over project-list
-filters. Namespace discovery applies `owned` and `search` and includes shared
-projects and subgroups, matching `gl scan`. `member` applies only when neither
-`repo` nor `namespace` is set.
-
-Release scanning uses `common.max_artifact_size` (default `500Mb`) as the maximum
-downloaded and expanded bytes per asset. Larger assets are reported as skipped.
-`common.threads` (default `4`) bounds concurrent asset workers;
-`common.hit_timeout` accepts a duration such as `60s` or an integer number of
-seconds. Confidence filtering, credential verification, and the Web UI use the
-same common settings as other scans.
-
-For example:
-
-```bash
-export PIPELEEK_GITLAB_RELEASE_SCAN_RELEASE_LIMIT=5
-export PIPELEEK_GITLAB_RELEASE_SCAN_INCLUDE_SOURCES=true
-pipeleek gl release scan --repo group/project
-```
-
-Linked HTTP(S) assets on external hosts are scanned by default. The GitLab token
-is sent only to the configured GitLab origin, never to another origin or through
-a cross-origin redirect. See [release scanning](../guides/gitlab.md#secret-detection-in-release-assets)
-for coverage and failure behavior.
-
 ## Environment Variables
 
 Set any config key using `PIPELEEK_` prefix. Replace dots with underscores:

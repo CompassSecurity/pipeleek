@@ -114,53 +114,24 @@ Note: this only scans repositories you have access to. You can specify single re
 
 ## Secret Detection in Release Assets
 
-Release assets can contain credentials in configuration files, packaged
-applications, and embedded binary strings. Scan the linked assets of all
-published releases visible to your token:
+Use `gl release scan` to scan published release assets with the same project
+filters and secret-detection controls as `gl scan`.
 
 ```bash
 pipeleek gl release scan --url https://gitlab.example.com --token [redacted]
 
-# One project's exact release, including its generated source ZIP
 pipeleek gl release scan --url https://gitlab.example.com --token [redacted] \
   --repo group/project --tag v1.0 --include-sources
-
-# The newest five published releases per project in a group and its subgroups
-pipeleek gl release scan --url https://gitlab.example.com --token [redacted] \
-  --namespace group --release-limit 5 --threads 4 --max-artifact-size 100Mb
 ```
 
-Project selection follows `gl scan`: use `--repo`, `--namespace`, `--search`,
-`--owned`, or `--member`. `--repo` takes precedence over project-list filters;
-`--member` applies to global project discovery, not namespace discovery.
-`--tag` requires `--repo` and cannot be combined with a nonzero `--release-limit`.
-The default limit is `0` (all published releases); upcoming releases are excluded.
-
-Linked HTTP(S) assets are downloaded even when hosted outside GitLab. Ensure the
-linked hosts are within your authorized scan scope. The GitLab token is sent only
-to the configured GitLab origin, never to external hosts, different ports, or
-cross-origin redirect targets. HTTP(S) links containing user credentials and
-HTTPS-to-HTTP redirects are rejected. Signed URL query parameters are omitted from
-finding URLs and download-error output.
-
-Generated source archives are excluded by default. `--include-sources` downloads
-one ZIP per release, avoiding duplicate scans of the same source tree in multiple
-formats. Release descriptions, evidence files, and Git history are not scanned.
-Plain files, printable binary strings, and ZIP, TAR, gzip, and bzip2 archives
-(including nested combinations) are scanned without executing assets. Other
-archive formats are reported as unsupported. Findings retain project, release
-tag/name, asset, and file context.
-
-`--max-artifact-size` caps both downloaded and cumulative expanded bytes per asset,
-including intermediate archive content and extracted member data. Size-limit
-skips are reported but do not fail the command. Other download, discovery, archive,
-or detection failures leave coverage incomplete: scanning continues where possible,
-then exits nonzero with a summary. Unsupported URL schemes and archive formats
-are reported as incomplete coverage, not silently treated as successfully scanned.
-
-The standard `--confidence`, `--secrets-verification`, `--hit-timeout`, and
-`--webui` controls are available. Credential verification is enabled by default;
-`--secrets-verification=false` disables provider verification.
+`--tag` requires `--repo`; alternatively, `--release-limit N` scans the newest N
+published releases per project (`0` means all).
+`--include-sources` adds one generated source ZIP per release.
+External HTTP(S) assets are included, but GitLab credentials stay on the configured
+origin, so ensure linked hosts are authorized scan targets.
+`--max-artifact-size` limits downloaded bytes, not extracted archive size;
+oversized assets and HTTP 403/404 downloads are skipped, while other download or processing failures produce a
+nonzero exit after remaining assets are scanned.
 
 ## Secret Detection in Pipelines And Artifacts
 

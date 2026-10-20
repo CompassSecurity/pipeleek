@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -20,6 +21,8 @@ import (
 
 var findingsDeduplicationList []string
 var deduplicationMutex sync.Mutex
+
+var ErrHitTimeout = errors.New("hit detection timed out")
 
 const (
 	EngineRules       = "rules"
@@ -48,10 +51,10 @@ func DetectHitsWithOptions(text []byte, maxThreads int, enableSecretsVerificatio
 	}()
 	select {
 	case <-ctx.Done():
-		return nil, errors.New("hit detection timed out (" + options.Timeout.String() + ")")
+		return nil, fmt.Errorf("%w (%s)", ErrHitTimeout, options.Timeout)
 	case result := <-result:
 		if ctx.Err() != nil {
-			return nil, errors.New("hit detection timed out (" + options.Timeout.String() + ")")
+			return nil, fmt.Errorf("%w (%s)", ErrHitTimeout, options.Timeout)
 		}
 		return result.Findings, result.Error
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"path"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/scan/result"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/runner"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
+	"github.com/CompassSecurity/pipeleek/pkg/scanner/engine"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -112,16 +114,16 @@ func (s *Scanner) Scan() error {
 	if err != nil {
 		return errors.New("invalid GitLab URL")
 	}
-	return s.scan(git, newDownloader(base, s.options.Token, s.options.MaxBytes))
+	return s.scan(git, base)
 }
 
-func (s *Scanner) scan(git *gitlab.Client, d *downloader) error {
+func (s *Scanner) scan(git *gitlab.Client, base *url.URL) error {
 	work := make(chan asset, s.options.Threads)
 	var workers sync.WaitGroup
 	for range s.options.Threads {
 		workers.Go(func() {
 			for item := range work {
-				s.scanAsset(d, item)
+				s.scanAsset(base, item)
 			}
 		})
 	}
@@ -192,6 +194,9 @@ func (s *Scanner) projectReleases(git *gitlab.Client, project *gitlab.Project, w
 	for {
 		releases, resp, err := git.Releases.ListReleases(project.ID, opts)
 		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusForbidden {
+				return nil
+			}
 			return fmt.Errorf("listing releases: %w", err)
 		}
 		for _, release := range releases {
@@ -247,8 +252,8 @@ func (s *Scanner) releaseAssets(git *gitlab.Client, project *gitlab.Project, rel
 	}
 }
 
-func (s *Scanner) scanAsset(d *downloader, item asset) {
-	u, err := d.resolve(item.rawURL)
+func (s *Scanner) scanAsset(base *url.URL, item asset) {
+	u, err := resolveAssetURL(base, item.rawURL)
 	if err != nil {
 		s.assetFailure(item, err)
 		return
@@ -261,11 +266,11 @@ func (s *Scanner) scanAsset(d *downloader, item asset) {
 	if item.name == "" {
 		item.name = filename
 	}
-	content, err := d.download(u)
+	content, err := downloadAsset(u, base, s.options.Token, s.options.MaxBytes)
 	if err == nil {
-		err = artifactproc.ProcessReleaseAsset(content, filename, artifactproc.ReleaseProcessOptions{
-			MaxBytes: s.options.MaxBytes, VerifyCredentials: s.options.SecretsVerification,
-			HitTimeout: s.options.HitTimeout, GitLabURL: s.options.URL,
+		_, err = artifactproc.ProcessSingleFile(content, filename, artifactproc.ProcessOptions{
+			VerifyCredentials: s.options.SecretsVerification,
+			HitTimeout:        s.options.HitTimeout, GitLabURL: s.options.URL,
 			ReportFinding: func(finding scanner.Finding, file, archive string) {
 				sourceType := logging.SecretTypeArchive
 				if archive != "" {
@@ -279,9 +284,11 @@ func (s *Scanner) scanAsset(d *downloader, item asset) {
 			},
 		})
 	}
-	if errors.Is(err, errAssetTooLarge) || errors.Is(err, artifactproc.ErrReleaseAssetTooLarge) {
+	if errors.Is(err, errAssetUnavailable) {
 		s.skipped.Add(1)
-		log.Warn().Str("project", item.project).Str("tag", item.tag).Str("asset", item.name).
+	} else if errors.Is(err, errAssetTooLarge) {
+		s.skipped.Add(1)
+		log.Debug().Str("project", item.project).Str("tag", item.tag).Str("asset", item.name).
 			Msg("Skipped release asset exceeding maximum size")
 	} else if err != nil {
 		s.assetFailure(item, err)
@@ -292,6 +299,10 @@ func (s *Scanner) scanAsset(d *downloader, item asset) {
 
 func (s *Scanner) assetFailure(item asset, err error) {
 	s.failures.Add(1)
-	log.Error().Err(err).Str("project", item.project).Str("tag", item.tag).
+	event := log.Error()
+	if errors.Is(err, engine.ErrHitTimeout) {
+		event = log.Warn()
+	}
+	event.Err(err).Str("project", item.project).Str("tag", item.tag).
 		Str("asset", item.name).Msg("Failed scanning release asset")
 }

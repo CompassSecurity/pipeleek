@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -89,6 +90,9 @@ func TestDetectHits_ExplicitTimeout(t *testing.T) {
 	// With 1ns timeout, we expect this to always timeout
 	if err == nil {
 		t.Fatal("Expected timeout error with 1ns timeout, but got nil")
+	}
+	if !errors.Is(err, ErrHitTimeout) {
+		t.Errorf("Expected detectable hit timeout, got %v", err)
 	}
 
 	// Verify the error message contains the configured timeout value

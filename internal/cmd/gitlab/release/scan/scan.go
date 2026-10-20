@@ -32,7 +32,8 @@ By default, scan all releases of all token-visible projects, including HTTP(S)
 assets hosted outside GitLab. GitLab credentials are never sent to other origins.
 Use --include-sources to also scan one generated source ZIP per release.
 
-Assets exceeding --max-artifact-size (downloaded or expanded bytes) are skipped.
+Assets exceeding --max-artifact-size (downloaded bytes) are skipped.
+Extracted archive sizes are not limited.
 Other coverage failures are reported while scanning continues, with a nonzero exit.
 --member applies to global project discovery; --owned and --search also apply
 within --namespace, including subgroups. --repo takes precedence over list filters.`,
@@ -48,7 +49,7 @@ pipeleek gl release scan --url https://gitlab.example.com --token [redacted] --n
 	}
 	common := config.DefaultCommonScanOptions()
 	flags.AddCommonScanFlagsNoArtifacts(cmd, &common)
-	cmd.Flags().String("max-artifact-size", "500Mb", "Maximum downloaded and expanded bytes per asset; larger assets are skipped")
+	cmd.Flags().String("max-artifact-size", "500Mb", "Maximum downloaded bytes per asset; extracted archive sizes are not limited")
 	cmd.Flags().StringP("repo", "r", "", "Single repository to scan, format: namespace/repo")
 	cmd.Flags().StringP("namespace", "n", "", "Namespace to scan, including subgroup projects")
 	cmd.Flags().StringP("search", "s", "", "Query string for searching projects")
