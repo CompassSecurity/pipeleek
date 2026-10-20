@@ -39,4 +39,5 @@ func TestReleaseScanConfig(t *testing.T) {
 	assert.Zero(t, parsed.GitLab.Release.Scan.ReleaseLimit)
 	assert.False(t, parsed.GitLab.Release.Scan.IncludeSources)
 	assert.Contains(t, content, "PIPELEEK_GITLAB_RELEASE_SCAN_RELEASE_LIMIT")
+	assert.Contains(t, content, `hit_timeout: "2m0s"`)
 }

@@ -129,7 +129,8 @@ published releases per project (`0` means all).
 `--include-sources` adds one generated source ZIP per release.
 Downloads send the token only to the configured GitLab origin, not external
 assets or redirects; ensure linked hosts are authorized scan targets.
-`--max-artifact-size` limits downloaded bytes, not extracted archive size.
+`--max-artifact-size` limits downloaded bytes, not extracted archive size;
+release scans default to a two-minute `--hit-timeout`.
 
 ## Secret Detection in Pipelines And Artifacts
 

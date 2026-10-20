@@ -21,7 +21,7 @@ func TestNewScanCmd(t *testing.T) {
 	assert.Error(t, cmd.Args(cmd, []string{"extra"}))
 	for name, value := range map[string]string{
 		"release-limit": "0", "include-sources": "false", "max-artifact-size": "500Mb",
-		"threads": "4", "hit-timeout": "1m0s", "secrets-verification": "true",
+		"threads": "4", "hit-timeout": "2m0s", "secrets-verification": "true",
 	} {
 		require.NotNil(t, cmd.Flags().Lookup(name))
 		assert.Equal(t, value, cmd.Flags().Lookup(name).DefValue, name)
@@ -42,8 +42,11 @@ func TestOptionsFromConfig(t *testing.T) {
 	parent.AddCommand(cmd)
 	require.NoError(t, cmd.ParseFlags([]string{"--url", "https://gitlab.example.com", "--token", "test-token", "--tag", "v3"}))
 	require.NoError(t, config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind())
-	config.GetViper().Set("common.hit_timeout", "120")
 	opts, err := optionsFromConfig()
+	require.NoError(t, err)
+	assert.Equal(t, 2*time.Minute, opts.HitTimeout)
+	config.GetViper().Set("common.hit_timeout", "120")
+	opts, err = optionsFromConfig()
 	require.NoError(t, err)
 	assert.Equal(t, "v3", opts.Tag)
 	assert.Equal(t, "group/project", opts.Repo)
@@ -89,4 +92,31 @@ common:
 	opts, err = optionsFromConfig()
 	require.NoError(t, err)
 	assert.Equal(t, 5, opts.ReleaseLimit)
+}
+
+func TestHitTimeoutOverrides(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  string
+		args []string
+		want time.Duration
+	}{
+		{"default", "", nil, 2 * time.Minute},
+		{"environment", "45s", nil, 45 * time.Second},
+		{"flag", "45s", []string{"--hit-timeout", "30s"}, 30 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("PIPELEEK_NO_CONFIG", "1")
+			t.Setenv("PIPELEEK_GITLAB_URL", "https://gitlab.example.com")
+			t.Setenv("PIPELEEK_GITLAB_TOKEN", "test-token")
+			t.Setenv("PIPELEEK_COMMON_HIT_TIMEOUT", tc.env)
+			require.NoError(t, config.InitializeViper(""))
+			cmd := NewScanCmd()
+			require.NoError(t, cmd.ParseFlags(tc.args))
+			require.NoError(t, config.NewCommandSetup(cmd).WithFlagBindings(flagBindings).Bind())
+			opts, err := optionsFromConfig()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, opts.HitTimeout)
+		})
+	}
 }

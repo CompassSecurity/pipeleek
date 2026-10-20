@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -128,14 +129,13 @@ func (s *Scanner) scan(git *gitlab.Client, base *url.URL) error {
 	}
 	err := s.projectsForScan(git, func(project *gitlab.Project) error {
 		s.projects.Add(1)
-		projectURL := project.WebURL
-		if projectURL == "" {
-			projectURL = base.JoinPath(project.PathWithNamespace).String()
+		if project.WebURL == "" {
+			project.WebURL = base.JoinPath(project.PathWithNamespace).String()
 		}
-		log.Debug().Str("url", projectURL).Str("project", project.PathWithNamespace).Msg("Fetch project releases")
+		log.Debug().Str("project", project.WebURL).Msg("Fetch project releases")
 		if err := s.projectReleases(git, project, enqueue); err != nil {
 			s.failures.Add(1)
-			log.Error().Err(err).Str("project", project.PathWithNamespace).Msg("Failed discovering release assets")
+			log.Error().Err(err).Str("project", project.WebURL).Msg("Failed discovering release assets")
 		}
 		return nil
 	})
@@ -225,7 +225,7 @@ func published(release *gitlab.Release) bool {
 
 func (s *Scanner) releaseAssets(project *gitlab.Project, release *gitlab.Release, visit func(asset)) {
 	s.releases.Add(1)
-	item := asset{project: project.PathWithNamespace, tag: release.TagName, release: release.Name}
+	item := asset{project: project.WebURL, tag: release.TagName, release: release.Name}
 	for _, link := range release.Assets.Links {
 		item.name, item.rawURL, item.webURL = link.Name, link.URL, link.DirectAssetURL
 		visit(item)
@@ -258,7 +258,7 @@ func (s *Scanner) scanAsset(base *url.URL, item asset) {
 		item.name = filename
 	}
 	if item.webURL == "" {
-		item.webURL = base.JoinPath(item.project, "-", "releases", url.PathEscape(item.tag)).String()
+		item.webURL = strings.TrimRight(item.project, "/") + "/-/releases/" + url.PathEscape(item.tag)
 	}
 	content, err := downloadAsset(u.String(), base, s.options.Token, s.options.MaxBytes)
 	if err == nil {

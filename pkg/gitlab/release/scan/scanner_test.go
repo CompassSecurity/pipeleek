@@ -75,7 +75,9 @@ func TestReleasePaginationAndLimit(t *testing.T) {
 			o.ReleaseLimit = limit
 			s := NewScanner(o)
 			var assets []asset
-			require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1, PathWithNamespace: "g/p"}, func(item asset) {
+			require.NoError(t, s.projectReleases(git, &gitlab.Project{
+				ID: 1, PathWithNamespace: "g/p", WebURL: "https://gitlab.example.com/g/p",
+			}, func(item asset) {
 				assets = append(assets, item)
 			}))
 			expected := int64(2)
@@ -86,6 +88,7 @@ func TestReleasePaginationAndLimit(t *testing.T) {
 			assert.Equal(t, expected, releasePages.Load())
 			assert.Len(t, assets, int(expected))
 			for _, item := range assets {
+				assert.Equal(t, "https://gitlab.example.com/g/p", item.project)
 				assert.Equal(t, "https://assets.example.com/binary", item.rawURL)
 			}
 		})

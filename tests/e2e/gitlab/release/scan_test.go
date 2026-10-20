@@ -101,7 +101,7 @@ func TestReleaseScanDefaultAndProjectFilters(t *testing.T) {
 			output, err := f.run(t, tc.args...)
 			require.NoError(t, err, output)
 			assert.Contains(t, output, `"level":"hit"`)
-			assert.Contains(t, output, `"project":"group/project"`)
+			assert.Contains(t, output, `"project":"`+f.server.URL+`/group/project"`)
 			for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 				var event struct {
 					Level   string `json:"level"`
@@ -383,13 +383,13 @@ func TestReleaseScanProjectURLDebugLog(t *testing.T) {
 				var event struct {
 					Level   string `json:"level"`
 					Message string `json:"message"`
-					URL     string `json:"url"`
+					Project string `json:"project"`
 				}
 				require.NoError(t, json.Unmarshal([]byte(line), &event))
 				if event.Message == "Fetch project releases" {
 					found = true
 					assert.Equal(t, "debug", event.Level)
-					assert.Equal(t, f.server.URL+"/group/project", event.URL)
+					assert.Equal(t, f.server.URL+"/group/project", event.Project)
 				}
 			}
 			assert.Equal(t, level == "debug", found)
@@ -546,7 +546,7 @@ func TestReleaseScanWebUI(t *testing.T) {
 	}
 	require.NoError(t, events.Err())
 	assert.Contains(t, body.String(), "releasefixture")
-	assert.Contains(t, body.String(), `"project":"group/project"`)
+	assert.Contains(t, body.String(), `"project":"`+f.server.URL+`/group/project"`)
 	assert.Contains(t, body.String(), `"tag":"v2"`)
 	assert.Contains(t, body.String(), "event: done")
 }

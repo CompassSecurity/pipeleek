@@ -67,6 +67,9 @@ To view a full example of the available keys run `pipeleek config gen`.
 
 Scan commands inherit from `common`:
 
+The default hit-detection timeout is one minute, or two minutes for `gl release scan`.
+An explicit `common.hit_timeout`, `PIPELEEK_COMMON_HIT_TIMEOUT`, or `--hit-timeout` overrides that default.
+
 ```yaml
 common:
   threads: 2

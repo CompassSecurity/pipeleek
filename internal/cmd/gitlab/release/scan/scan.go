@@ -50,6 +50,8 @@ pipeleek gl release scan --url https://gitlab.example.com --token [redacted] --n
 	}
 	var common config.CommonScanOptions
 	flags.AddCommonScanFlagsNoArtifacts(cmd, &common)
+	common.HitTimeout = 2 * time.Minute
+	cmd.Flags().Lookup("hit-timeout").DefValue = common.HitTimeout.String()
 	cmd.Flags().String("max-artifact-size", "500Mb", "Maximum downloaded bytes per asset; extracted archive sizes are not limited")
 	cmd.Flags().StringP("repo", "r", "", "Single repository to scan, format: namespace/repo")
 	cmd.Flags().StringP("namespace", "n", "", "Namespace to scan, including subgroup projects")
@@ -63,6 +65,7 @@ pipeleek gl release scan --url https://gitlab.example.com --token [redacted] --n
 }
 
 func optionsFromConfig() (releasescan.Options, error) {
+	config.GetViper().SetDefault("common.hit_timeout", "120s")
 	maxBytes, err := config.ParseMaxArtifactSize(config.GetString("common.max_artifact_size"))
 	if err != nil {
 		return releasescan.Options{}, err
