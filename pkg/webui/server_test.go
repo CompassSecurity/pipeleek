@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -96,6 +97,63 @@ func TestCompletedEventsReplayFindingsAndDone(t *testing.T) {
 	}
 	if !strings.Contains(body[doneIndex:], `"elapsedMillis":`) {
 		t.Fatalf("expected completion event to contain server-computed elapsed time, got %q", body[doneIndex:])
+	}
+}
+
+type flushCountingRecorder struct {
+	*httptest.ResponseRecorder
+	flushes int
+}
+
+func (r *flushCountingRecorder) Flush() {
+	r.flushes++
+	r.ResponseRecorder.Flush()
+}
+
+func TestLargeReplayBatchesFlushesAndPreservesAllFindings(t *testing.T) {
+	const count = 2001
+	s := &Server{token: "abc", clients: make(map[chan string]struct{})}
+	for i := range count {
+		s.handleHit(logging.HitRecord{
+			Time: time.UnixMilli(int64(i)), Value: fmt.Sprintf("fixture-%d", i),
+		})
+	}
+	s.Complete()
+	req := httptest.NewRequest(http.MethodGet, "/events?token=abc", nil)
+	res := &flushCountingRecorder{ResponseRecorder: httptest.NewRecorder()}
+	s.handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected successful replay, got %d", res.Code)
+	}
+	events := strings.Split(res.Body.String(), "\n\n")
+	var findings []Finding
+	for _, event := range events {
+		event = strings.TrimSpace(event)
+		if !strings.HasPrefix(event, "event: finding\ndata: ") {
+			continue
+		}
+		var finding Finding
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(event, "event: finding\ndata: ")), &finding); err != nil {
+			t.Fatal(err)
+		}
+		findings = append(findings, finding)
+	}
+	if len(findings) != count {
+		t.Fatalf("replayed %d findings, want %d", len(findings), count)
+	}
+	for i, finding := range findings {
+		if finding.ID != fmt.Sprint(i+1) || finding.Value != fmt.Sprintf("fixture-%d", i) {
+			t.Fatalf("finding %d was lost or reordered: %#v", i, finding)
+		}
+	}
+	// Initial connection, full batches, replay completion, and scan completion.
+	if want := 1 + count/100 + 2; res.flushes != want {
+		t.Fatalf("flushed %d times, want %d instead of once per finding", res.flushes, want)
+	}
+	body := res.Body.String()
+	if strings.Index(body, "event: replay-complete") > strings.Index(body, "event: done") {
+		t.Fatal("scan completion preceded replay completion")
 	}
 }
 

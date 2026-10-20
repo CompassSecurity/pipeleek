@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/csv"
 	"encoding/hex"
@@ -238,6 +239,9 @@ var pageTemplate = strings.Join([]string{
 	"    table th:nth-child(6), table td:nth-child(6) { width: 14%; }",
 	"    .details-list li, .details-list a { overflow-wrap: anywhere; word-break: break-word; }",
 	"    .findings-table-card { overflow: hidden; }",
+	"    .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }",
+	"    .pagination-actions { display: flex; gap: .5rem; }",
+	"    .control-btn:disabled { opacity: .5; cursor: default; }",
 	"    #toast { position: fixed; right: 1rem; bottom: 1rem; background: rgba(42,74,37,.96); color: #fff; padding: .7rem .9rem; border-radius: 999px; font-size: .84rem; box-shadow: 0 8px 20px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .18s ease, transform .18s ease; z-index: 2000; }",
 	"    #toast.visible { opacity: 1; transform: translateY(0); }",
 	"    @media (max-width: 720px) { main { padding: 0 .5rem; } .top-nav-inner { padding: .6rem .75rem; } h1 { font-size: 1.6rem; } }",
@@ -332,6 +336,10 @@ var pageTemplate = strings.Join([]string{
 	"      </div>",
 	"    </div>",
 	"    <div class=\"card findings-table-card\">",
+	"      <nav class=\"pagination\" aria-label=\"Findings pages\">",
+	"        <span id=\"page-status\" class=\"muted\" role=\"status\"></span>",
+	"        <div class=\"pagination-actions\"><button id=\"previous-page\" class=\"control-btn\" type=\"button\" disabled>Previous</button><button id=\"next-page\" class=\"control-btn\" type=\"button\" disabled>Next</button></div>",
+	"      </nav>",
 	"      <table>",
 	"        <thead><tr><th>Severity</th><th>Rule</th><th>Secret</th><th>Type</th><th>Details</th><th>Time</th></tr></thead>",
 	"        <tbody id=\"findings-body\"></tbody>",
@@ -340,13 +348,18 @@ var pageTemplate = strings.Join([]string{
 	"  </main>",
 	"  <div id=\"toast\" aria-live=\"polite\">Secret copied to clipboard</div>",
 	"  <script>",
-	"    const state = { all: [], severity: ['all'], type: ['all'], search: '', completed: {{.Completed}}, notificationsReady: false };",
+	"    const state = { all: [], ids: new Set(), counts: { low: 0, medium: 0, high: 0, verified: 0, trufflehog: 0 }, sorted: true, filtered: null, page: 0, severity: ['all'], type: ['all'], search: '', completed: {{.Completed}}, notificationsReady: false };",
+	"    const pageSize = 100;",
+	"    var renderTimer = null;",
 	"    const severityFilter = document.getElementById('severity-filter');",
 	"    const typeFilter = document.getElementById('type-filter');",
 	"    const searchFilter = document.getElementById('search-filter');",
 	"    const resetButton = document.getElementById('reset-filters');",
 	"    const exportCSVButton = document.getElementById('export-csv');",
 	"    const tableBody = document.getElementById('findings-body');",
+	"    const pageStatus = document.getElementById('page-status');",
+	"    const previousPage = document.getElementById('previous-page');",
+	"    const nextPage = document.getElementById('next-page');",
 	"    const summaryCards = document.getElementById('summary-cards');",
 	"    const connectionState = document.getElementById('connection-state');",
 	"    const connectionDot = document.getElementById('connection-dot');",
@@ -361,6 +374,7 @@ var pageTemplate = strings.Join([]string{
 	"    var elapsedStartedAt = Date.now();",
 	"    function updateElapsedTime() { var totalSeconds = Math.floor(Math.max(0, elapsedBase + (state.completed ? 0 : Date.now() - elapsedStartedAt)) / 1000); var hours = Math.floor(totalSeconds / 3600); var minutes = Math.floor((totalSeconds % 3600) / 60); var seconds = totalSeconds % 60; elapsedTime.textContent = 'Elapsed ' + [hours, minutes, seconds].map(function(value) { return String(value).padStart(2, '0'); }).join(':'); }",
 	"    const normalize = function(value) { return (value || '').toLowerCase(); };",
+	"    const timestampFormatter = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });",
 	"    function updateNotificationStatus() { if (!('Notification' in window)) { enableNotificationsButton.hidden = true; notificationStatus.textContent = 'Browser notifications are not supported.'; return; } if (Notification.permission === 'granted') { enableNotificationsButton.hidden = true; notificationStatus.textContent = notificationThreshold.value === 'none' ? 'Notifications are off.' : 'Browser notifications enabled.'; return; } if (Notification.permission === 'denied') { enableNotificationsButton.hidden = true; notificationStatus.textContent = 'Notifications are blocked in browser settings.'; return; } enableNotificationsButton.hidden = notificationThreshold.value === 'none'; notificationStatus.textContent = notificationThreshold.value === 'none' ? 'Notifications are off.' : 'Allow notifications for matching findings.'; }",
 	"    function requestNotificationPermission() { if (!('Notification' in window)) { updateNotificationStatus(); return; } try { Notification.requestPermission().then(updateNotificationStatus).catch(updateNotificationStatus); } catch (_) { updateNotificationStatus(); } }",
 	"    function meetsNotificationThreshold(confidence) { var threshold = notificationThreshold.value; if (threshold === 'none') return false; if (threshold === 'any') return true; var levels = ['verified', 'high', 'medium', 'low']; var findingLevel = levels.indexOf(normalize(confidence)); return findingLevel >= 0 && findingLevel <= levels.indexOf(threshold); }",
@@ -373,17 +387,33 @@ var pageTemplate = strings.Join([]string{
 	"      if (!value) return '—';",
 	"      var date = new Date(value);",
 	"      if (Number.isNaN(date.getTime())) return value;",
-	"      return date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });",
+	"      return timestampFormatter.format(date);",
 	"    }",
 	"    function renderSummary() {",
-	"      var counts = { low: 0, medium: 0, high: 0, verified: 0, trufflehog: 0 };",
-	"      state.all.forEach(function(item) { var key = normalize(item.confidence || 'unknown'); if (key in counts) counts[key] += 1; });",
+	"      var counts = state.counts;",
 	"      summaryCards.replaceChildren();",
 	"      ['verified', 'high', 'medium', 'low', 'trufflehog'].forEach(function(key) { var metric = document.createElement('div'); metric.className = 'metric'; var label = document.createElement('label'); label.textContent = key.charAt(0).toUpperCase() + key.slice(1); if (key === 'trufflehog') label.title = 'TruffleHog detection without successful verification'; var count = document.createElement('strong'); count.textContent = String(counts[key] || 0); metric.append(label, count); summaryCards.appendChild(metric); });",
 	"    }",
+	"    function addFinding(item) {",
+	"      if (state.ids.has(item.id)) return false;",
+	"      state.ids.add(item.id);",
+	"      var severity = normalize(item.confidence || 'unknown');",
+	"      var timestamp = Number(item.timestampMillis) || Date.parse(item.time) || 0;",
+	"      state.all.push({ item: item, severity: severity, type: normalize(item.type), timestamp: timestamp, search: normalize([item.ruleName, item.value, item.url, item.type, JSON.stringify(item.details || {})].join(' ')) });",
+	"      if (Object.prototype.hasOwnProperty.call(state.counts, severity)) state.counts[severity] += 1;",
+	"      state.sorted = false; state.filtered = null;",
+	"      return true;",
+	"    }",
+	"    function scheduleRender() {",
+	"      if (renderTimer !== null) return;",
+	"      renderTimer = window.setTimeout(function() { renderTimer = null; renderSummary(); renderRows(); }, 50);",
+	"    }",
 	"    function filteredFindings() {",
-	"      var query = normalize(searchFilter.value);",
-	"      return state.all.filter(function(item) { var severity = normalize(item.confidence); var kind = normalize(item.type); var matchesSeverity = state.severity.indexOf('all') >= 0 || state.severity.indexOf(severity) >= 0; var matchesType = state.type.indexOf('all') >= 0 || state.type.indexOf(kind) >= 0; var haystack = normalize([item.ruleName, item.value, item.url, item.type, JSON.stringify(item.details || {})].join(' ')); var matchesQuery = !query || haystack.indexOf(query) >= 0; return matchesSeverity && matchesType && matchesQuery; }).sort(function(a, b) { return new Date(b.time).getTime() - new Date(a.time).getTime(); });",
+	"      if (state.filtered !== null) return state.filtered;",
+	"      if (!state.sorted) { state.all.sort(function(a, b) { return b.timestamp - a.timestamp; }); state.sorted = true; }",
+	"      var query = normalize(state.search);",
+	"      state.filtered = state.all.filter(function(entry) { return (state.severity.indexOf('all') >= 0 || state.severity.indexOf(entry.severity) >= 0) && (state.type.indexOf('all') >= 0 || state.type.indexOf(entry.type) >= 0) && (!query || entry.search.indexOf(query) >= 0); }).map(function(entry) { return entry.item; });",
+	"      return state.filtered;",
 	"    }",
 	"    function appendDetailValue(parent, key, value) {",
 	"      var item = document.createElement('li'); var label = document.createElement('strong'); label.textContent = key; item.append(label, document.createTextNode(': '));",
@@ -392,8 +422,12 @@ var pageTemplate = strings.Join([]string{
 	"    }",
 	"    function renderRows() {",
 	"      var list = filteredFindings(); var fragment = document.createDocumentFragment();",
+	"      state.page = Math.max(0, Math.min(state.page, Math.ceil(list.length / pageSize) - 1));",
+	"      var start = state.page * pageSize; var end = Math.min(start + pageSize, list.length);",
+	"      pageStatus.textContent = list.length ? 'Showing ' + (start + 1) + '-' + end + ' of ' + list.length + ' findings (' + state.all.length + ' total)' : '0 of ' + state.all.length + ' findings';",
+	"      previousPage.disabled = state.page === 0; nextPage.disabled = end >= list.length;",
 	"      if (!list.length) { var emptyRow = document.createElement('tr'); var emptyCell = document.createElement('td'); emptyCell.colSpan = 6; emptyCell.className = 'muted empty-state'; emptyCell.textContent = state.all.length ? 'No findings match the current filters.' : state.completed ? 'No findings were detected.' : 'No findings yet. Results will appear here as the scan runs.'; emptyRow.appendChild(emptyCell); fragment.appendChild(emptyRow); tableBody.replaceChildren(fragment); return; }",
-	"      list.forEach(function(item) {",
+	"      list.slice(start, end).forEach(function(item) {",
 	"        var row = document.createElement('tr'); var confidence = (item.confidence || 'unknown').toLowerCase(); var typeName = item.type || 'log';",
 	"        var severityCell = document.createElement('td'); var severityBadge = document.createElement('span'); severityBadge.className = 'badge ' + severityClass(confidence); severityBadge.textContent = item.confidence || 'unknown'; severityCell.appendChild(severityBadge); row.appendChild(severityCell);",
 	"        var ruleCell = document.createElement('td'); ruleCell.textContent = item.ruleName || '—'; row.appendChild(ruleCell);",
@@ -409,7 +443,7 @@ var pageTemplate = strings.Join([]string{
 	"      var findings = filteredFindings();",
 	"      fetch('/api/export.csv', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(findings) }).then(function(response) { if (!response.ok) throw new Error('export'); return response.blob(); }).then(function(blob) { var url = URL.createObjectURL(blob); var link = document.createElement('a'); link.href = url; link.download = 'pipeleek-findings.csv'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function() { URL.revokeObjectURL(url); }, 0); showToast('Exported ' + findings.length + ' findings to CSV'); }).catch(function() { showToast('CSV export failed'); });",
 	"    }",
-	"    function applyFilters() { state.severity = severityFilter.value.split(',').filter(Boolean); state.type = typeFilter.value.split(',').filter(Boolean); state.search = searchFilter.value; renderRows(); }",
+	"    function applyFilters() { state.severity = severityFilter.value.split(',').filter(Boolean); state.type = typeFilter.value.split(',').filter(Boolean); state.search = searchFilter.value; state.page = 0; state.filtered = null; scheduleRender(); }",
 	"    function setupFilterPicker(id, input, allowMultiple, onChange) {",
 	"      var picker = document.getElementById(id);",
 	"      var trigger = picker.querySelector('.filter-trigger');",
@@ -449,6 +483,8 @@ var pageTemplate = strings.Join([]string{
 	"    var fullWidthButton = document.getElementById('toggle-full-width');",
 	"    fullWidthButton.addEventListener('click', function() { var enabled = !mainContent.classList.contains('main-wide'); mainContent.classList.toggle('main-wide', enabled); mainContent.classList.toggle('main-default', !enabled); fullWidthButton.setAttribute('aria-pressed', enabled ? 'true' : 'false'); fullWidthButton.textContent = enabled ? 'Normal width' : 'Full width'; });",
 	"    searchFilter.addEventListener('input', applyFilters);",
+	"    previousPage.addEventListener('click', function() { if (state.page > 0) { state.page -= 1; renderRows(); } });",
+	"    nextPage.addEventListener('click', function() { if ((state.page + 1) * pageSize < filteredFindings().length) { state.page += 1; renderRows(); } });",
 	"    resetButton.addEventListener('click', resetFilters);",
 	"    exportCSVButton.addEventListener('click', exportCSV);",
 	"    var notificationThresholdPicker = setupFilterPicker('notification-threshold-picker', notificationThreshold, false, function() { notificationsSince = Date.now(); closeActiveNotifications(); updateNotificationStatus(); if (notificationThreshold.value !== 'none' && 'Notification' in window && Notification.permission === 'default') requestNotificationPermission(); });",
@@ -461,9 +497,9 @@ var pageTemplate = strings.Join([]string{
 	"    var elapsedTimer = state.completed ? null : window.setInterval(updateElapsedTime, 1000);",
 	"    var source = new EventSource('/events');",
 	"    source.onopen = function() { state.notificationsReady = false; connectionState.textContent = 'live'; connectionDot.classList.remove('offline'); };",
-	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); var notify = state.notificationsReady; var list = state.all.filter(function(entry) { return entry.id !== item.id; }); list.push(item); state.all = list; renderSummary(); renderRows(); if (notify) notifyFinding(item); });",
-	"    source.addEventListener('replay-complete', function() { state.notificationsReady = true; });",
-	"    source.addEventListener('done', function(event) { var completion = JSON.parse(event.data); elapsedBase = Math.max(0, Number(completion.elapsedMillis) || 0); state.completed = true; updateElapsedTime(); window.clearInterval(elapsedTimer); connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); renderRows(); source.close(); });",
+	"    source.addEventListener('finding', function(event) { var item = JSON.parse(event.data); if (!addFinding(item)) return; if (state.notificationsReady) { scheduleRender(); notifyFinding(item); } });",
+	"    source.addEventListener('replay-complete', function() { state.notificationsReady = true; scheduleRender(); });",
+	"    source.addEventListener('done', function(event) { var completion = JSON.parse(event.data); elapsedBase = Math.max(0, Number(completion.elapsedMillis) || 0); state.completed = true; updateElapsedTime(); window.clearInterval(elapsedTimer); connectionState.textContent = 'complete'; connectionDot.classList.add('offline'); scheduleRender(); source.close(); });",
 	"    source.onerror = function() { if (connectionState.textContent !== 'complete') { connectionState.textContent = 'reconnecting'; connectionDot.classList.add('offline'); } };",
 	"  </script>",
 	"</body>",
@@ -891,12 +927,21 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	flusher.Flush()
 
-	for _, finding := range findings {
+	replay := bufio.NewWriter(w)
+	for i, finding := range findings {
 		payload, _ := json.Marshal(finding)
-		if _, err := fmt.Fprintf(w, "event: finding\ndata: %s\n\n", string(payload)); err != nil {
+		if _, err := fmt.Fprintf(replay, "event: finding\ndata: %s\n\n", string(payload)); err != nil {
 			return
 		}
-		flusher.Flush()
+		if (i+1)%100 == 0 {
+			if err := replay.Flush(); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
+	if err := replay.Flush(); err != nil {
+		return
 	}
 	if _, err := fmt.Fprint(w, "event: replay-complete\ndata: complete\n\n"); err != nil {
 		return

@@ -39,6 +39,8 @@ Add `--webui` to serve findings in a live web UI while the scan runs. Pipeleek b
 
 Below **Live secret findings**, the UI shows the target instance and effective scan flags, including values from configuration and defaults. Credential values such as tokens and cookies are redacted, and credentials, query parameters, and fragments in the target URL are omitted.
 
+Findings are shown newest first, with 100 results per page. Use **Previous** and **Next** to browse large result sets. Severity, type, and search filters apply to all findings, not just the current page, and changing a filter returns to the first page. **Export CSV** exports every matching finding across all pages. Summary counts always cover the full scan. Incoming findings are rendered in batches to keep the controls responsive.
+
 Use `-v` with `--webui` to see debug-level startup details:
 
 ```bash
