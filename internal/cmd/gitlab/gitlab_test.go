@@ -23,6 +23,10 @@ func TestNewGitLabRootCmd(t *testing.T) {
 	assert.Equal(t, "gl [command]", cmd.Use)
 	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
 	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
+	releaseScan, remaining, err := cmd.Find([]string{"release", "scan"})
+	require.NoError(t, err)
+	require.Empty(t, remaining)
+	assert.Equal(t, "gl release scan", releaseScan.CommandPath())
 	assert.Equal(t, "GitLab", cmd.GroupID)
 	assert.GreaterOrEqual(t, len(cmd.Commands()), 8,
 		"should have at least 8 subcommands")
