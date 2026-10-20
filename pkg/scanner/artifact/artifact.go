@@ -1,10 +1,15 @@
 package artifact
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"os"
-	"path"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/CompassSecurity/pipeleek/pkg/archive"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
@@ -18,14 +23,57 @@ import (
 
 var skippableDirectoryNames = []string{"node_modules", ".yarn", ".yarn-cache", ".npm", "venv", "vendor", ".go/pkg/mod/"}
 
-func DetectFileHits(content []byte, jobWebUrl string, jobName string, fileName string, archiveName string, enableSecretsVerification bool, hitTimeout time.Duration) {
-	findings, err := engine.DetectHitsWithOptions(content, 1, enableSecretsVerification, engine.DetectionOptions{Path: fileName, Timeout: hitTimeout})
+type ScanOptions struct {
+	VerifyCredentials bool
+	HitTimeout        time.Duration
+	GitLabURL         string
+	ReportFinding     func(types.Finding, string, string)
+}
+
+func IsArchive(content []byte) bool {
+	kind, _ := filetype.Match(content)
+	return slices.Contains(xtractr.SupportedExtensions(), "."+kind.Extension)
+}
+
+func ScanFile(content []byte, filename string, opts ScanOptions) error {
+	if opts.ReportFinding == nil {
+		return errors.New("artifact finding reporter is required")
+	}
+	return scanFile(content, filename, "", opts, 1)
+}
+
+func scanFile(content []byte, filename, ancestry string, opts ScanOptions, depth int) error {
+	if IsArchive(content) {
+		return scanArchive(filename, content, ancestry, opts, depth)
+	}
+	return detectFile(content, filename, ancestry, opts)
+}
+
+func detectFile(content []byte, filename, ancestry string, opts ScanOptions) error {
+	if !utf8.Valid(content) || bytes.ContainsRune(content, '\x00') {
+		log.Debug().Str("file", filename).Msg("Binary artifact, extracting strings")
+		content = archive.ExtractPrintableStrings(content, archive.MinStringLength)
+	}
+	findings, err := engine.DetectHitsWithOptions(content, 1, opts.VerifyCredentials,
+		engine.DetectionOptions{Path: filename, GitLabURL: opts.GitLabURL, Timeout: opts.HitTimeout})
 	if err != nil {
-		log.Debug().Err(err).Str("job", jobWebUrl).Msg("Failed detecting secrets")
-		return
+		return err
 	}
 	for _, finding := range findings {
-		ReportFinding(finding, jobWebUrl, jobName, fileName, archiveName)
+		opts.ReportFinding(finding, filename, ancestry)
+	}
+	return nil
+}
+
+func DetectFileHits(content []byte, jobWebUrl string, jobName string, fileName string, archiveName string, enableSecretsVerification bool, hitTimeout time.Duration) {
+	opts := ScanOptions{
+		VerifyCredentials: enableSecretsVerification, HitTimeout: hitTimeout,
+		ReportFinding: func(finding types.Finding, file, ancestry string) {
+			ReportFinding(finding, jobWebUrl, jobName, file, ancestry)
+		},
+	}
+	if err := detectFile(content, fileName, archiveName, opts); err != nil {
+		log.Debug().Err(err).Str("job", jobWebUrl).Msg("Failed detecting secrets")
 	}
 }
 
@@ -34,42 +82,49 @@ func HandleArchiveArtifact(archivefileName string, content []byte, jobWebUrl str
 }
 
 func HandleArchiveArtifactWithDepth(archivefileName string, content []byte, jobWebUrl string, jobName string, enableSecretsVerification bool, hitTimeout time.Duration, depth int) {
+	opts := ScanOptions{
+		VerifyCredentials: enableSecretsVerification, HitTimeout: hitTimeout,
+		ReportFinding: func(finding types.Finding, file, ancestry string) {
+			ReportFinding(finding, jobWebUrl, jobName, file, ancestry)
+		},
+	}
+	if err := scanFile(content, archivefileName, "", opts, depth); err != nil {
+		log.Error().Err(err).Str("file", archivefileName).Msg("Failed scanning artifact")
+	}
+}
+
+func scanArchive(archivefileName string, content []byte, ancestry string, opts ScanOptions, depth int) error {
 	if depth > 10 {
-		log.Debug().Str("file", archivefileName).Int("recursionDepth", depth).Msg("Max archive recursion depth reached, skipping further extraction")
-		return
+		return errors.New("maximum archive nesting depth exceeded")
 	}
 
 	for _, skipKeyword := range skippableDirectoryNames {
 		if strings.Contains(archivefileName, skipKeyword) {
 			log.Debug().Str("file", archivefileName).Str("keyword", skipKeyword).Msg("Skipped archive due to blocklist entry")
-			return
+			return nil
 		}
 	}
 
 	fileType, err := filetype.Get(content)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Cannot determine file type")
-		return
+		return fmt.Errorf("determine archive type: %w", err)
 	}
 
 	tmpArchiveFile, err := os.CreateTemp("", "pipeleek-artifact-archive-*."+fileType.Extension)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Cannot create artifact archive temp file")
-		return
+		return fmt.Errorf("create archive file: %w", err)
 	}
 	defer func() { _ = tmpArchiveFile.Close() }()
 
 	_, err = tmpArchiveFile.Write(content)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Failed writing archive to disk")
-		return
+		return fmt.Errorf("write archive file: %w", err)
 	}
 	defer func() { _ = os.Remove(tmpArchiveFile.Name()) }()
 
 	tmpArchiveFilesDirectory, err := os.MkdirTemp("", "pipeleek-artifact-archive-out-")
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("Cannot create artifact archive temp directory")
-		return
+		return fmt.Errorf("create archive directory: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpArchiveFilesDirectory) }()
 
@@ -81,46 +136,39 @@ func HandleArchiveArtifactWithDepth(archivefileName string, content []byte, jobW
 	}
 
 	_, files, _, err := xtractr.ExtractFile(x)
-	if err != nil || files == nil {
-		if err != nil {
-			log.Debug().Err(err).Msg("Unable to handle archive in artifacts, extracting strings from unknown archive type")
-		} else {
-			log.Debug().Msg("No files extracted from archive in artifacts, extracting strings from unknown archive type")
-		}
-
-		// When archive extraction fails, extract printable strings and scan them
-		// This is useful for unknown archive formats or binary files
-		extractedStrings := archive.ExtractPrintableStrings(content, archive.MinStringLength)
-		if len(extractedStrings) > 0 {
-			log.Trace().Str("file", archivefileName).Int("stringBytes", len(extractedStrings)).Msg("Extracted strings from unknown archive type")
-			DetectFileHits(extractedStrings, jobWebUrl, jobName, archivefileName, "", enableSecretsVerification, hitTimeout)
-		}
-		return
+	if err != nil {
+		return fmt.Errorf("extract archive %q: %w", archivefileName, err)
 	}
 
+	if ancestry != "" {
+		ancestry += " -> "
+	}
+	ancestry += archivefileName
+	var failures []error
 	for _, fPath := range files {
+		// TAR returns member names; other extractors return absolute paths.
+		if !filepath.IsAbs(fPath) {
+			fPath = filepath.Join(tmpArchiveFilesDirectory, fPath)
+		}
 		if !format.IsDirectory(fPath) {
 			// #nosec G304 - Reading extracted artifact files from temp directory, path controlled by xtractr library
 			fileBytes, err := os.ReadFile(fPath)
 			if err != nil {
-				log.Debug().Str("file", fPath).Stack().Str("err", err.Error()).Msg("Cannot read temp artifact archive file content")
+				failures = append(failures, fmt.Errorf("read archive member: %w", err))
 				continue
 			}
 
-			currentFileName := path.Base(fPath)
-
-			if filetype.IsArchive(fileBytes) {
-				log.Trace().Str("fileName", currentFileName).Str("parentArchive", archivefileName).Int("depth", depth).Msg("Detected nested archive, recursing")
-				HandleArchiveArtifactWithDepth(currentFileName, fileBytes, jobWebUrl, jobName, enableSecretsVerification, hitTimeout, depth+1)
+			currentFileName, err := filepath.Rel(tmpArchiveFilesDirectory, fPath)
+			if err != nil {
+				failures = append(failures, err)
 				continue
 			}
-
-			kind, _ := filetype.Match(fileBytes)
-			if kind == filetype.Unknown {
-				DetectFileHits(fileBytes, jobWebUrl, jobName, currentFileName, archivefileName, enableSecretsVerification, hitTimeout)
+			if err := scanFile(fileBytes, filepath.ToSlash(currentFileName), ancestry, opts, depth+1); err != nil {
+				failures = append(failures, err)
 			}
 		}
 	}
+	return errors.Join(failures...)
 }
 
 func ReportFinding(finding types.Finding, url string, jobName string, fileName string, archiveName string) {

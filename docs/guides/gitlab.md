@@ -112,6 +112,26 @@ trufflehog gitlab --token=glpat-[redacted]
 
 Note: this only scans repositories you have access to. You can specify single repositories as well.
 
+## Secret Detection in Release Assets
+
+Use `gl release scan` to scan published release assets with the same project
+filters and secret-detection controls as `gl scan`.
+
+```bash
+pipeleek gl release scan --url https://gitlab.example.com --token [redacted]
+
+pipeleek gl release scan --url https://gitlab.example.com --token [redacted] \
+  --repo group/project --tag v1.0 --include-sources
+```
+
+`--tag` requires `--repo`; alternatively, `--release-limit N` scans the newest N
+published releases per project (`0` means all).
+`--include-sources` adds one generated source ZIP per release.
+Downloads send the token only to the configured GitLab origin, not external
+assets or redirects; ensure linked hosts are authorized scan targets.
+`--max-artifact-size` limits downloaded bytes, not extracted archive size;
+release scans default to a two-minute `--hit-timeout`.
+
 ## Secret Detection in Pipelines And Artifacts
 
 Nowadays most repositories make use of CI/CD pipelines. A config file per repository `.gitlab-ci.yml` defines what jobs are executed.
