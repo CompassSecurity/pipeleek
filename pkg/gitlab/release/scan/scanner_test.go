@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -49,7 +50,7 @@ func TestOptionsValidation(t *testing.T) {
 func TestReleasePaginationAndLimit(t *testing.T) {
 	for _, limit := range []int{0, 1, 2} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
-			var releasePages, linkPages atomic.Int64
+			var releasePages atomic.Int64
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				switch r.URL.Path {
@@ -58,17 +59,11 @@ func TestReleasePaginationAndLimit(t *testing.T) {
 					assert.Equal(t, "released_at", r.URL.Query().Get("order_by"))
 					assert.Equal(t, "desc", r.URL.Query().Get("sort"))
 					if r.URL.Query().Get("page") == "2" {
-						_, _ = fmt.Fprint(w, `[{"tag_name":"v1"}]`)
+						_, _ = fmt.Fprint(w, `[{"tag_name":"v1","assets":{"links":[{"name":"binary","url":"https://assets.example.com/binary"}]}}]`)
 					} else {
 						w.Header().Set("X-Next-Page", "2")
-						_, _ = fmt.Fprint(w, `[{"tag_name":"future","upcoming_release":true},{"tag_name":"v2"}]`)
+						_, _ = fmt.Fprint(w, `[{"tag_name":"future","upcoming_release":true},{"tag_name":"v2","assets":{"links":[{"name":"binary","url":"https://assets.example.com/binary"}]}}]`)
 					}
-				case "/api/v4/projects/1/releases/v2/assets/links", "/api/v4/projects/1/releases/v1/assets/links":
-					linkPages.Add(1)
-					if r.URL.Query().Get("page") != "2" {
-						w.Header().Set("X-Next-Page", "2")
-					}
-					_, _ = fmt.Fprint(w, `[{"name":"binary","url":"https://assets.example.com/binary"}]`)
 				default:
 					http.NotFound(w, r)
 				}
@@ -79,16 +74,20 @@ func TestReleasePaginationAndLimit(t *testing.T) {
 			o := validOptions()
 			o.ReleaseLimit = limit
 			s := NewScanner(o)
-			work := make(chan asset, 10)
-			require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1, PathWithNamespace: "g/p"}, work))
+			var assets []asset
+			require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1, PathWithNamespace: "g/p"}, func(item asset) {
+				assets = append(assets, item)
+			}))
 			expected := int64(2)
 			if limit == 1 {
 				expected = 1
 			}
 			assert.Equal(t, expected, s.releases.Load())
 			assert.Equal(t, expected, releasePages.Load())
-			assert.Equal(t, expected*2, linkPages.Load())
-			assert.Len(t, work, int(expected)*2)
+			assert.Len(t, assets, int(expected))
+			for _, item := range assets {
+				assert.Equal(t, "https://assets.example.com/binary", item.rawURL)
+			}
 		})
 	}
 }
@@ -103,12 +102,15 @@ func TestExactTagAndSources(t *testing.T) {
 					assert.Contains(t, r.URL.EscapedPath(), "version%2F1")
 					_ = json.NewEncoder(w).Encode(gitlab.Release{
 						TagName: "version/1", Name: "Release 1",
-						Assets: gitlab.ReleaseAssets{Sources: []gitlab.ReleaseAssetsSource{
-							{Format: "tar.gz", URL: "/source.tar.gz"}, {Format: "zip", URL: "/source.zip"},
-						}},
+						Assets: gitlab.ReleaseAssets{
+							Links: []*gitlab.ReleaseLink{
+								{Name: "binary", URL: "/binary", DirectAssetURL: "https://gitlab.example.com/downloads/binary"},
+							},
+							Sources: []gitlab.ReleaseAssetsSource{
+								{Format: "tar.gz", URL: "/source.tar.gz"}, {Format: "zip", URL: "/source.zip"},
+							},
+						},
 					})
-				case "/api/v4/projects/1/releases/version/1/assets/links":
-					_, _ = fmt.Fprint(w, `[]`)
 				default:
 					http.NotFound(w, r)
 				}
@@ -119,14 +121,21 @@ func TestExactTagAndSources(t *testing.T) {
 			o := validOptions()
 			o.Repo, o.Tag, o.IncludeSources = "g/p", "version/1", sources
 			s := NewScanner(o)
-			work := make(chan asset, 5)
-			require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1}, work))
+			var assets []asset
+			require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1}, func(item asset) {
+				assets = append(assets, item)
+			}))
+			require.NotEmpty(t, assets)
+			assert.Equal(t, "binary", assets[0].name)
+			assert.Equal(t, "/binary", assets[0].rawURL)
+			assert.Equal(t, "https://gitlab.example.com/downloads/binary", assets[0].webURL)
 			if sources {
-				require.Len(t, work, 1)
-				item := <-work
-				assert.Equal(t, "/source.zip", item.rawURL)
+				require.Len(t, assets, 2)
+				assert.Equal(t, "/source.zip", assets[1].rawURL)
+				assert.Equal(t, "version/1.zip", assets[1].name)
+				assert.Empty(t, assets[1].webURL)
 			} else {
-				assert.Empty(t, work)
+				assert.Len(t, assets, 1)
 			}
 			assert.Zero(t, s.failures.Load())
 		})
@@ -143,8 +152,6 @@ func TestDiscoveryContinuesAfterFailure(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/2/releases":
 			_, _ = fmt.Fprint(w, `[{"tag_name":"v1"}]`)
-		case "/api/v4/projects/2/releases/v1/assets/links":
-			_, _ = fmt.Fprint(w, `[]`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -154,7 +161,9 @@ func TestDiscoveryContinuesAfterFailure(t *testing.T) {
 	require.NoError(t, err)
 	o := validOptions()
 	s := NewScanner(o)
-	require.ErrorContains(t, s.scan(git, testDownloader(t, srv.URL, 100).base), "incomplete")
+	base, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	require.ErrorContains(t, s.scan(git, base), "incomplete")
 	assert.Equal(t, int64(2), s.projects.Load())
 	assert.Equal(t, int64(1), s.releases.Load())
 	assert.Equal(t, int64(1), s.failures.Load())
@@ -176,9 +185,9 @@ func TestForbiddenReleaseListingIsIgnored(t *testing.T) {
 	git, err := util.GetGitlabClient("token", srv.URL)
 	require.NoError(t, err)
 	s := NewScanner(validOptions())
-	work := make(chan asset, 1)
-	require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1}, work))
-	assert.Empty(t, work)
+	require.NoError(t, s.projectReleases(git, &gitlab.Project{ID: 1}, func(asset) {
+		t.Error("forbidden releases must not produce assets")
+	}))
 	assert.Zero(t, s.failures.Load())
 	assert.Zero(t, s.releases.Load())
 }
@@ -225,17 +234,13 @@ func TestProjectPagination(t *testing.T) {
 	}
 }
 
-func TestMissingSourcesAndLinkFailure(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	}))
-	defer srv.Close()
-	git, err := util.GetGitlabClient("token", srv.URL)
-	require.NoError(t, err)
+func TestMissingSources(t *testing.T) {
 	o := validOptions()
 	o.IncludeSources = true
 	s := NewScanner(o)
-	s.releaseAssets(git, &gitlab.Project{ID: 1}, &gitlab.Release{TagName: "v1"}, make(chan asset, 1))
-	assert.Equal(t, int64(2), s.failures.Load())
+	s.releaseAssets(&gitlab.Project{ID: 1}, &gitlab.Release{TagName: "v1"}, func(asset) {
+		t.Error("release without assets must not produce work")
+	})
+	assert.Equal(t, int64(1), s.failures.Load())
 	assert.Equal(t, int64(1), s.releases.Load())
 }

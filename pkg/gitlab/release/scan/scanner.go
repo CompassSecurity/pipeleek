@@ -1,26 +1,27 @@
 package scan
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"net/url"
 	"path"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/logging"
-	artifactproc "github.com/CompassSecurity/pipeleek/pkg/scan/artifact"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/result"
 	"github.com/CompassSecurity/pipeleek/pkg/scan/runner"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
+	scannerartifact "github.com/CompassSecurity/pipeleek/pkg/scanner/artifact"
 	"github.com/CompassSecurity/pipeleek/pkg/scanner/engine"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/wandb/parallel"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
@@ -99,6 +100,7 @@ type asset struct {
 	release string
 	name    string
 	rawURL  string
+	webURL  string
 }
 
 func (s *Scanner) Scan() error {
@@ -118,24 +120,20 @@ func (s *Scanner) Scan() error {
 }
 
 func (s *Scanner) scan(git *gitlab.Client, base *url.URL) error {
-	work := make(chan asset, s.options.Threads)
-	var workers sync.WaitGroup
-	for range s.options.Threads {
-		workers.Go(func() {
-			for item := range work {
-				s.scanAsset(base, item)
-			}
+	workers := parallel.Limited(context.Background(), s.options.Threads)
+	enqueue := func(item asset) {
+		workers.Go(func(context.Context) {
+			s.scanAsset(base, item)
 		})
 	}
 	err := s.projectsForScan(git, func(project *gitlab.Project) error {
 		s.projects.Add(1)
-		if err := s.projectReleases(git, project, work); err != nil {
+		if err := s.projectReleases(git, project, enqueue); err != nil {
 			s.failures.Add(1)
 			log.Error().Err(err).Str("project", project.PathWithNamespace).Msg("Failed discovering release assets")
 		}
 		return nil
 	})
-	close(work)
 	workers.Wait()
 	if err != nil {
 		s.failures.Add(1)
@@ -175,14 +173,14 @@ func (s *Scanner) projectsForScan(git *gitlab.Client, visit util.ProjectIterator
 	}, visit)
 }
 
-func (s *Scanner) projectReleases(git *gitlab.Client, project *gitlab.Project, work chan<- asset) error {
+func (s *Scanner) projectReleases(git *gitlab.Client, project *gitlab.Project, visit func(asset)) error {
 	if s.options.Tag != "" {
 		release, _, err := git.Releases.GetRelease(project.ID, s.options.Tag)
 		if err != nil {
 			return fmt.Errorf("fetching release: %w", err)
 		}
 		if published(release) {
-			s.releaseAssets(git, project, release, work)
+			s.releaseAssets(project, release, visit)
 		}
 		return nil
 	}
@@ -203,7 +201,7 @@ func (s *Scanner) projectReleases(git *gitlab.Client, project *gitlab.Project, w
 			if !published(release) {
 				continue
 			}
-			s.releaseAssets(git, project, release, work)
+			s.releaseAssets(project, release, visit)
 			count++
 			if s.options.ReleaseLimit > 0 && count >= s.options.ReleaseLimit {
 				return nil
@@ -220,45 +218,33 @@ func published(release *gitlab.Release) bool {
 	return !release.UpcomingRelease && (release.ReleasedAt == nil || !release.ReleasedAt.After(time.Now()))
 }
 
-func (s *Scanner) releaseAssets(git *gitlab.Client, project *gitlab.Project, release *gitlab.Release, work chan<- asset) {
+func (s *Scanner) releaseAssets(project *gitlab.Project, release *gitlab.Release, visit func(asset)) {
 	s.releases.Add(1)
-	opts := &gitlab.ListReleaseLinksOptions{ListOptions: gitlab.ListOptions{PerPage: 100, Page: 1}}
-	for {
-		links, resp, err := git.ReleaseLinks.ListReleaseLinks(project.ID, release.TagName, opts)
-		if err != nil {
-			s.failures.Add(1)
-			log.Error().Err(err).Str("project", project.PathWithNamespace).
-				Str("tag", release.TagName).Msg("Failed listing release links")
-			break
-		}
-		for _, link := range links {
-			work <- asset{project.PathWithNamespace, release.TagName, release.Name, link.Name, link.URL}
-		}
-		if resp == nil || resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
+	item := asset{project: project.PathWithNamespace, tag: release.TagName, release: release.Name}
+	for _, link := range release.Assets.Links {
+		item.name, item.rawURL, item.webURL = link.Name, link.URL, link.DirectAssetURL
+		visit(item)
 	}
-	if s.options.IncludeSources {
-		for _, source := range release.Assets.Sources {
-			if source.Format == "zip" {
-				work <- asset{project.PathWithNamespace, release.TagName, release.Name, release.TagName + ".zip", source.URL}
-				return
-			}
-		}
-		s.failures.Add(1)
-		log.Error().Str("project", project.PathWithNamespace).Str("tag", release.TagName).
-			Msg("Source ZIP unavailable for release")
+	if !s.options.IncludeSources {
+		return
 	}
+	for _, source := range release.Assets.Sources {
+		if source.Format == "zip" {
+			item.name, item.rawURL, item.webURL = release.TagName+".zip", source.URL, ""
+			visit(item)
+			return
+		}
+	}
+	s.failures.Add(1)
+	log.Error().Str("project", item.project).Str("tag", item.tag).Msg("Source ZIP unavailable for release")
 }
 
 func (s *Scanner) scanAsset(base *url.URL, item asset) {
-	u, err := resolveAssetURL(base, item.rawURL)
+	u, err := base.Parse(item.rawURL)
 	if err != nil {
-		s.assetFailure(item, err)
+		s.assetFailure(item, errors.New("invalid asset URL"))
 		return
 	}
-	item.rawURL = displayURL(u)
 	filename := path.Base(u.Path)
 	if filename == "." || filename == "/" {
 		filename = item.name
@@ -266,9 +252,12 @@ func (s *Scanner) scanAsset(base *url.URL, item asset) {
 	if item.name == "" {
 		item.name = filename
 	}
-	content, err := downloadAsset(u, base, s.options.Token, s.options.MaxBytes)
+	if item.webURL == "" {
+		item.webURL = base.JoinPath(item.project, "-", "releases", url.PathEscape(item.tag)).String()
+	}
+	content, err := downloadAsset(u.String(), base, s.options.Token, s.options.MaxBytes)
 	if err == nil {
-		_, err = artifactproc.ProcessSingleFile(content, filename, artifactproc.ProcessOptions{
+		err = scannerartifact.ScanFile(content, filename, scannerartifact.ScanOptions{
 			VerifyCredentials: s.options.SecretsVerification,
 			HitTimeout:        s.options.HitTimeout, GitLabURL: s.options.URL,
 			ReportFinding: func(finding scanner.Finding, file, archive string) {
@@ -277,8 +266,10 @@ func (s *Scanner) scanAsset(base *url.URL, item asset) {
 					sourceType = logging.SecretTypeNestedArchive
 				}
 				result.ReportFindingWithCustomFields(finding, map[string]string{
-					"type": string(sourceType), "url": item.rawURL, "project": item.project,
-					"tag": item.tag, "release": item.release, "asset": item.name,
+					"type":    string(sourceType),
+					"url":     item.webURL,
+					"project": item.project,
+					"tag":     item.tag, "release": item.release, "asset": item.name,
 					"file": file, "archive": archive,
 				})
 			},

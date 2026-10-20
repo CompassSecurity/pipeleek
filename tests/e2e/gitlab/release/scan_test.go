@@ -42,12 +42,17 @@ func newFixture(t *testing.T, links []map[string]any, assetHandler http.HandlerF
 			_, _ = fmt.Fprint(w, `{"id":1,"path_with_namespace":"group/project"}`)
 		case r.URL.Path == "/api/v4/groups/group":
 			_, _ = fmt.Fprint(w, `{"id":10}`)
-		case strings.HasSuffix(r.URL.Path, "/assets/links"):
-			_ = json.NewEncoder(w).Encode(links)
 		case r.URL.Path == "/api/v4/projects/1/releases":
-			_, _ = fmt.Fprint(w, `[{"tag_name":"v2","name":"Release 2","assets":{"sources":[{"format":"zip","url":"/source.zip"},{"format":"tar.gz","url":"/source.tar.gz"}]}},{"tag_name":"v1","name":"Release 1"}]`)
+			_ = json.NewEncoder(w).Encode([]map[string]any{
+				{"tag_name": "v2", "name": "Release 2", "assets": map[string]any{
+					"links": links, "sources": []map[string]string{{"format": "zip", "url": "/source.zip"}, {"format": "tar.gz", "url": "/source.tar.gz"}},
+				}},
+				{"tag_name": "v1", "name": "Release 1", "assets": map[string]any{"links": links}},
+			})
 		case r.URL.Path == "/api/v4/projects/1/releases/version/1":
-			_, _ = fmt.Fprint(w, `{"tag_name":"version/1","name":"Exact release"}`)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"tag_name": "version/1", "name": "Exact release", "assets": map[string]any{"links": links},
+			})
 		default:
 			assetHandler(w, r)
 		}
@@ -167,6 +172,10 @@ func zipAsset(t *testing.T, name string, content []byte) []byte {
 func TestReleaseScanSourcesAndNestedArchives(t *testing.T) {
 	nested := zipAsset(t, "nested.zip", zipAsset(t, "config.env", []byte("DATABASE_PASSWORD=nestedfixture\n")))
 	f := newFixture(t, links("/nested.zip"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Private-Token") != "test-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		switch r.URL.Path {
 		case "/nested.zip":
 			_, _ = w.Write(nested)
@@ -239,6 +248,43 @@ func TestReleaseScanExternalRedirectDoesNotLeakCredentials(t *testing.T) {
 	assert.Equal(t, int64(2), externalRequests.Load())
 	assert.Contains(t, output, `"scannedAssets":2`)
 	assert.NotContains(t, output, "do-not-log")
+}
+
+func TestReleaseScanPortalFindingURL(t *testing.T) {
+	for _, direct := range []bool{false, true} {
+		t.Run(fmt.Sprint(direct), func(t *testing.T) {
+			assets := links("/asset?signature=do-not-log")
+			portal := "https://gitlab.example.com/group/project/-/releases/version%2F1/downloads/asset"
+			if direct {
+				assets[0]["direct_asset_url"] = portal
+			}
+			f := newFixture(t, assets, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "do-not-log", r.URL.Query().Get("signature"))
+				assert.Equal(t, "test-token", r.Header.Get("Private-Token"))
+				assert.Empty(t, r.Header.Get("Authorization"))
+				plainAsset(w, r)
+			})
+			output, err := f.run(t, "--repo", "group/project", "--tag", "version/1")
+			require.NoError(t, err, output)
+			if !direct {
+				portal = f.server.URL + "/group/project/-/releases/version%2F1"
+			}
+			var found bool
+			for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+				var event struct {
+					Level string `json:"level"`
+					URL   string `json:"url"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(line), &event))
+				if event.Level == "hit" {
+					found = true
+					assert.Equal(t, portal, event.URL)
+				}
+			}
+			assert.True(t, found, "expected finding with portal URL")
+			assert.NotContains(t, output, "do-not-log")
+		})
+	}
 }
 
 func TestReleaseScanPartialFailures(t *testing.T) {

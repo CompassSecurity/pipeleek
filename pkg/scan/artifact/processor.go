@@ -21,8 +21,6 @@ type ProcessOptions struct {
 	ArtifactName      string
 	WorkflowRunName   string
 	HitTimeout        time.Duration
-	GitLabURL         string
-	ReportFinding     func(scanner.Finding, string, string)
 }
 
 type FileProcessingResult struct {
@@ -116,18 +114,14 @@ func ProcessSingleFile(content []byte, filename string, opts ProcessOptions) (*F
 	result.IsArchive = isArchive
 	result.IsUnknown = isUnknown
 
-	report := opts.ReportFinding
-	if report == nil {
-		report = func(finding scanner.Finding, file, ancestry string) {
-			scannerartifact.ReportFinding(finding, opts.BuildURL, opts.ArtifactName, file, ancestry)
-		}
-	}
 	if opts.HitTimeout == 0 {
 		opts.HitTimeout = time.Minute
 	}
 	err := scannerartifact.ScanFile(content, filename, scannerartifact.ScanOptions{
 		VerifyCredentials: opts.VerifyCredentials, HitTimeout: opts.HitTimeout,
-		GitLabURL: opts.GitLabURL, ReportFinding: report,
+		ReportFinding: func(finding scanner.Finding, file, ancestry string) {
+			scannerartifact.ReportFinding(finding, opts.BuildURL, opts.ArtifactName, file, ancestry)
+		},
 	})
 	result.Error = err
 	return result, err

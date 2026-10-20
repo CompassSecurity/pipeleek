@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -29,14 +30,9 @@ type ScanOptions struct {
 	ReportFinding     func(types.Finding, string, string)
 }
 
-// IsArchive excludes executable and document formats included in filetype.IsArchive.
 func IsArchive(content []byte) bool {
 	kind, _ := filetype.Match(content)
-	switch kind.Extension {
-	case "zip", "tar", "gz", "bz2", "7z", "rar", "xz", "zst", "lz", "lz4", "ar", "deb", "rpm", "cab", "iso":
-		return true
-	}
-	return false
+	return slices.Contains(xtractr.SupportedExtensions(), "."+kind.Extension)
 }
 
 func ScanFile(content []byte, filename string, opts ScanOptions) error {

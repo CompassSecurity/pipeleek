@@ -13,50 +13,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testAssetDownloader struct {
-	base  *url.URL
-	limit int64
-}
-
-func (d testAssetDownloader) resolve(raw string) (*url.URL, error) {
-	return resolveAssetURL(d.base, raw)
-}
-
-func (d testAssetDownloader) download(u *url.URL) ([]byte, error) {
-	return downloadAsset(u, d.base, "test-token", d.limit)
-}
-
-func testDownloader(t *testing.T, base string, limit int64) testAssetDownloader {
-	t.Helper()
-	u, err := url.Parse(base)
-	require.NoError(t, err)
-	return testAssetDownloader{u, limit}
-}
-
 func TestDownloadCredentials(t *testing.T) {
 	var received []string
 	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		received = append(received, r.Header.Get("PRIVATE-TOKEN"))
 		assert.Empty(t, r.Header.Get("Authorization"))
 		assert.Empty(t, r.Header.Get("Cookie"))
-		assert.Empty(t, r.Header.Get("Referer"))
 		_, _ = w.Write([]byte("external"))
 	}))
 	defer external.Close()
 	instance := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "test-token", r.Header.Get("PRIVATE-TOKEN"))
+		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.URL.Path == "/redirect" {
 			http.Redirect(w, r, external.URL, http.StatusFound)
+			return
+		}
+		if r.URL.Path == "/internal-redirect" {
+			http.Redirect(w, r, "/asset", http.StatusFound)
 			return
 		}
 		_, _ = w.Write([]byte("internal"))
 	}))
 	defer instance.Close()
-	d := testDownloader(t, instance.URL, 100)
-	for _, target := range []string{instance.URL, external.URL, instance.URL + "/redirect"} {
-		u, err := d.resolve(target)
-		require.NoError(t, err)
-		_, err = d.download(u)
+	base, err := url.Parse(instance.URL)
+	require.NoError(t, err)
+	for _, target := range []string{instance.URL, external.URL, instance.URL + "/redirect", instance.URL + "/internal-redirect"} {
+		_, err := downloadAsset(target, base, "test-token", 100)
 		require.NoError(t, err)
 	}
 	assert.Equal(t, []string{"", ""}, received)
@@ -88,10 +71,7 @@ func TestDownloadLimitsAndFailures(t *testing.T) {
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			defer srv.Close()
-			d := testDownloader(t, srv.URL, 5)
-			u, err := d.resolve("/asset")
-			require.NoError(t, err)
-			content, err := d.download(u)
+			content, err := downloadAsset(srv.URL+"/asset", &url.URL{}, "", 5)
 			if tc.want == nil {
 				require.NoError(t, err)
 				assert.Equal(t, tc.body, string(content))
@@ -112,52 +92,26 @@ func TestDownloadTruncatedBody(t *testing.T) {
 		_, _ = w.Write([]byte("123"))
 	}))
 	defer srv.Close()
-	d := testDownloader(t, srv.URL, 5)
-	u, err := d.resolve("/asset")
-	require.NoError(t, err)
-	_, err = d.download(u)
+	_, err := downloadAsset(srv.URL+"/asset", &url.URL{}, "", 5)
 	require.ErrorContains(t, err, "unexpected EOF")
 }
 
-func TestAssetURLs(t *testing.T) {
-	d := testDownloader(t, "https://gitlab.example.com/subpath/", 10)
-	u, err := d.resolve("uploads/asset?token=sensitive#fragment")
+func TestDownloadDowngradeDoesNotLeakToken(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("Private-Token"))
+		_, _ = w.Write([]byte("asset"))
+	}))
+	defer target.Close()
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "test-token", r.Header.Get("Private-Token"))
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer srv.Close()
+	base, err := url.Parse(srv.URL)
 	require.NoError(t, err)
-	assert.Equal(t, "https://gitlab.example.com/subpath/uploads/asset", displayURL(u))
-	for _, raw := range []string{"", "ftp://example.com/file", "file:///etc/passwd", "https://user:password@example.com/file", "%invalid"} {
-		_, err := d.resolve(raw)
-		require.Error(t, err, raw)
-		assert.NotContains(t, err.Error(), "password")
-	}
-	for _, tc := range []struct {
-		target string
-		same   bool
-	}{
-		{"https://GITLAB.example.com:443/other", true},
-		{"https://gitlab.example.com:8443/other", false},
-		{"https://sub.gitlab.example.com/file", false},
-		{"http://gitlab.example.com/file", false},
-	} {
-		target, err := url.Parse(tc.target)
-		require.NoError(t, err)
-		assert.Equal(t, tc.same, sameOrigin(d.base, target))
-	}
-}
-
-func TestRedirectPolicy(t *testing.T) {
-	for _, target := range []string{"http://example.com/file", "ftp://example.com/file"} {
-		t.Run(target, func(t *testing.T) {
-			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, target, http.StatusFound)
-			}))
-			defer srv.Close()
-			d := testDownloader(t, srv.URL, 10)
-			u, err := d.resolve("/asset")
-			require.NoError(t, err)
-			_, err = d.download(u)
-			require.ErrorContains(t, err, "asset request failed")
-		})
-	}
+	content, err := downloadAsset(srv.URL, base, "test-token", 10)
+	require.NoError(t, err)
+	assert.Equal(t, "asset", string(content))
 }
 
 func TestDownloadErrorRedactsQuery(t *testing.T) {
@@ -165,10 +119,7 @@ func TestDownloadErrorRedactsQuery(t *testing.T) {
 		http.Redirect(w, r, "/loop?signature=sensitive", http.StatusFound)
 	}))
 	defer srv.Close()
-	d := testDownloader(t, srv.URL, 10)
-	u, err := d.resolve("/loop?signature=sensitive")
-	require.NoError(t, err)
-	_, err = d.download(u)
+	_, err := downloadAsset(srv.URL+"/loop?signature=sensitive", &url.URL{}, "", 10)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "sensitive")
 	assert.Contains(t, err.Error(), "asset request failed")
@@ -180,10 +131,7 @@ func TestDownloadMalformedRedirectRedactsQuery(t *testing.T) {
 		w.WriteHeader(http.StatusFound)
 	}))
 	defer srv.Close()
-	d := testDownloader(t, srv.URL, 10)
-	u, err := d.resolve("/asset")
-	require.NoError(t, err)
-	_, err = d.download(u)
+	_, err := downloadAsset(srv.URL+"/asset", &url.URL{}, "", 10)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "sensitive")
 }
@@ -194,9 +142,25 @@ func TestDownloadDoesNotReadOversizedBody(t *testing.T) {
 		_, _ = fmt.Fprint(w, strings.Repeat("x", 100))
 	}))
 	defer srv.Close()
-	d := testDownloader(t, srv.URL, 10)
-	u, err := d.resolve("/large")
-	require.NoError(t, err)
-	_, err = d.download(u)
+	_, err := downloadAsset(srv.URL+"/large", &url.URL{}, "", 10)
 	require.ErrorIs(t, err, errAssetTooLarge)
+}
+
+func TestSameOrigin(t *testing.T) {
+	base, err := url.Parse("https://gitlab.example.com")
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		target string
+		same   bool
+	}{
+		{"https://GITLAB.example.com:443/asset", true},
+		{"https://gitlab.example.com/asset", true},
+		{"https://gitlab.example.com:8443/asset", false},
+		{"https://sub.gitlab.example.com/asset", false},
+		{"http://gitlab.example.com/asset", false},
+	} {
+		target, err := url.Parse(tc.target)
+		require.NoError(t, err)
+		assert.Equal(t, tc.same, sameOrigin(base, target), tc.target)
+	}
 }

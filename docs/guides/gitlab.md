@@ -127,11 +127,9 @@ pipeleek gl release scan --url https://gitlab.example.com --token [redacted] \
 `--tag` requires `--repo`; alternatively, `--release-limit N` scans the newest N
 published releases per project (`0` means all).
 `--include-sources` adds one generated source ZIP per release.
-External HTTP(S) assets are included, but GitLab credentials stay on the configured
-origin, so ensure linked hosts are authorized scan targets.
-`--max-artifact-size` limits downloaded bytes, not extracted archive size;
-oversized assets and HTTP 403/404 downloads are skipped, while other download or processing failures produce a
-nonzero exit after remaining assets are scanned.
+Downloads send the token only to the configured GitLab origin, not external
+assets or redirects; ensure linked hosts are authorized scan targets.
+`--max-artifact-size` limits downloaded bytes, not extracted archive size.
 
 ## Secret Detection in Pipelines And Artifacts
 

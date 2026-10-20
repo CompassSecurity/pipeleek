@@ -29,7 +29,8 @@ func NewScanCmd() *cobra.Command {
 		Use: "scan", Short: "Scan GitLab release assets for secrets",
 		Long: `Scan linked assets of published GitLab releases for secrets.
 By default, scan all releases of all token-visible projects, including HTTP(S)
-assets hosted outside GitLab. GitLab credentials are never sent to other origins.
+assets hosted outside GitLab. Downloads send the token only to the configured
+GitLab origin; external assets and redirects do not receive it.
 Use --include-sources to also scan one generated source ZIP per release.
 
 Assets exceeding --max-artifact-size (downloaded bytes) are skipped.
@@ -47,7 +48,7 @@ pipeleek gl release scan --url https://gitlab.example.com --token [redacted] --r
 pipeleek gl release scan --url https://gitlab.example.com --token [redacted] --namespace group --release-limit 5`,
 		Args: cobra.NoArgs, Run: Scan,
 	}
-	common := config.DefaultCommonScanOptions()
+	var common config.CommonScanOptions
 	flags.AddCommonScanFlagsNoArtifacts(cmd, &common)
 	cmd.Flags().String("max-artifact-size", "500Mb", "Maximum downloaded bytes per asset; extracted archive sizes are not limited")
 	cmd.Flags().StringP("repo", "r", "", "Single repository to scan, format: namespace/repo")
@@ -101,15 +102,13 @@ func Scan(cmd *cobra.Command, args []string) {
 	}
 	s := releasescan.NewScanner(opts)
 	logging.RegisterStatusHook(s.Status)
-	err = s.Scan()
-	if ui != nil {
-		if err == nil {
-			ui.Wait()
-		} else {
+	if err := s.Scan(); err != nil {
+		if ui != nil {
 			_ = ui.Close()
 		}
-	}
-	if err != nil {
 		log.Fatal().Err(err).Msg("Release scan failed")
+	}
+	if ui != nil {
+		ui.Wait()
 	}
 }

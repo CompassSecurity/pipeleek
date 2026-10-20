@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/scanner"
+	scannerartifact "github.com/CompassSecurity/pipeleek/pkg/scanner/artifact"
 	"github.com/h2non/filetype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProcessSingleFileExecutableAndUTF8(t *testing.T) {
+func TestScanFileExecutableAndUTF8(t *testing.T) {
 	for _, container := range []string{"standalone", "zip", "tar"} {
 		for _, binary := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/binary=%v", container, binary), func(t *testing.T) {
@@ -70,7 +71,7 @@ func TestProcessSingleFileExecutableAndUTF8(t *testing.T) {
 					content, name = buf.Bytes(), "bundle.tar"
 				}
 				var found, after bool
-				_, err := ProcessSingleFile(content, name, ProcessOptions{
+				err := scannerartifact.ScanFile(content, name, scannerartifact.ScanOptions{
 					HitTimeout: time.Minute,
 					ReportFinding: func(f scanner.Finding, file, ancestry string) {
 						if strings.Contains(f.Text, "CI_REGISTRY_PASSWORD="+secret) {
