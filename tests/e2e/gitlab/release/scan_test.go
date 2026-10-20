@@ -372,6 +372,31 @@ func TestReleaseScanSizeSkipDebugLog(t *testing.T) {
 	assert.Contains(t, output, `"skippedAssets":1`)
 }
 
+func TestReleaseScanProjectURLDebugLog(t *testing.T) {
+	f := newFixture(t, links("/asset"), plainAsset)
+	for _, level := range []string{"info", "debug"} {
+		t.Run(level, func(t *testing.T) {
+			output, err := f.run(t, "--release-limit", "1", "--log-level", level)
+			require.NoError(t, err, output)
+			var found bool
+			for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+				var event struct {
+					Level   string `json:"level"`
+					Message string `json:"message"`
+					URL     string `json:"url"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(line), &event))
+				if event.Message == "Fetch project releases" {
+					found = true
+					assert.Equal(t, "debug", event.Level)
+					assert.Equal(t, f.server.URL+"/group/project", event.URL)
+				}
+			}
+			assert.Equal(t, level == "debug", found)
+		})
+	}
+}
+
 func TestReleaseScanUnavailableAssetsAreSilent(t *testing.T) {
 	f := newFixture(t, links("/forbidden", "/missing", "/good"), func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

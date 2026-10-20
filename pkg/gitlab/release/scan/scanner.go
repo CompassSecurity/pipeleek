@@ -128,6 +128,11 @@ func (s *Scanner) scan(git *gitlab.Client, base *url.URL) error {
 	}
 	err := s.projectsForScan(git, func(project *gitlab.Project) error {
 		s.projects.Add(1)
+		projectURL := project.WebURL
+		if projectURL == "" {
+			projectURL = base.JoinPath(project.PathWithNamespace).String()
+		}
+		log.Debug().Str("url", projectURL).Str("project", project.PathWithNamespace).Msg("Fetch project releases")
 		if err := s.projectReleases(git, project, enqueue); err != nil {
 			s.failures.Add(1)
 			log.Error().Err(err).Str("project", project.PathWithNamespace).Msg("Failed discovering release assets")

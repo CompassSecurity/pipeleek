@@ -51,6 +51,7 @@ func scanFile(content []byte, filename, ancestry string, opts ScanOptions, depth
 
 func detectFile(content []byte, filename, ancestry string, opts ScanOptions) error {
 	if !utf8.Valid(content) || bytes.ContainsRune(content, '\x00') {
+		log.Debug().Str("file", filename).Msg("Binary artifact, extracting strings")
 		content = archive.ExtractPrintableStrings(content, archive.MinStringLength)
 	}
 	findings, err := engine.DetectHitsWithOptions(content, 1, opts.VerifyCredentials,
