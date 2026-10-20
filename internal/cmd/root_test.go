@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -164,65 +165,30 @@ func TestTerminalRestorer(t *testing.T) {
 	})
 }
 
-func TestFatalHook(t *testing.T) {
-	t.Run("fatal_level_calls_TerminalRestorer", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
+func TestTerminalRestoringWriter_FatalRestoresAfterWriting(t *testing.T) {
+	var output bytes.Buffer
+	var calls []string
+	writer := &terminalRestoringWriter{
+		underlying: writerFunc(func(p []byte) (int, error) {
+			calls = append(calls, "write")
+			return output.Write(p)
+		}),
+		restore: func() { calls = append(calls, "restore") },
+		exit:    func(code int) { calls = append(calls, fmt.Sprintf("exit:%d", code)) },
+	}
 
-		called := false
-		TerminalRestorer = func() { called = true }
+	n, err := writer.Write([]byte(`{"level":"fatal","message":"failure"}`))
 
-		hook := FatalHook{}
+	require.NoError(t, err)
+	assert.Equal(t, len(`{"level":"fatal","message":"failure"}`), n)
+	assert.Equal(t, []string{"write", "restore", "exit:1"}, calls)
+	assert.Contains(t, output.String(), "failure")
+}
 
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		event := logger.Fatal()
+type writerFunc func([]byte) (int, error)
 
-		hook.Run(event, zerolog.FatalLevel, "test")
-
-		assert.True(t, called, "TerminalRestorer should be called for fatal level")
-	})
-
-	t.Run("non_fatal_level_does_not_call_TerminalRestorer", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		hook := FatalHook{}
-
-		levels := []zerolog.Level{
-			zerolog.TraceLevel,
-			zerolog.DebugLevel,
-			zerolog.InfoLevel,
-			zerolog.WarnLevel,
-			zerolog.ErrorLevel,
-		}
-
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		for _, lvl := range levels {
-			event := logger.WithLevel(lvl)
-			hook.Run(event, lvl, "test")
-			assert.False(t, called, "TerminalRestorer should not be called for non-fatal levels")
-		}
-	})
-
-	t.Run("nil_TerminalRestorer_does_not_panic", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		TerminalRestorer = nil
-		hook := FatalHook{}
-
-		assert.NotPanics(t, func() {
-			var buf bytes.Buffer
-			logger := zerolog.New(&buf)
-			event := logger.Fatal()
-			hook.Run(event, zerolog.FatalLevel, "test")
-		})
-	})
+func (f writerFunc) Write(p []byte) (int, error) {
+	return f(p)
 }
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {

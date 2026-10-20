@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"runtime"
@@ -149,15 +150,22 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	return originalLen, nil
 }
 
-// FatalHook is a zerolog hook that restores terminal state before fatal exits
-type FatalHook struct{}
+type terminalRestoringWriter struct {
+	underlying io.Writer
+	restore    func()
+	exit       func(int)
+}
 
-func (h FatalHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
-	if level == zerolog.FatalLevel {
-		if TerminalRestorer != nil {
-			TerminalRestorer()
+func (w *terminalRestoringWriter) Write(p []byte) (n int, err error) {
+	n, err = w.underlying.Write(p)
+	var logEntry map[string]interface{}
+	if json.Unmarshal(p, &logEntry) == nil && logEntry["level"] == "fatal" {
+		if w.restore != nil {
+			w.restore()
 		}
+		w.exit(1)
 	}
+	return n, err
 }
 
 func initLogger(cmd *cobra.Command) {
@@ -186,14 +194,16 @@ func initLogger(cmd *cobra.Command) {
 
 	// note: CloseLogger is defined at package scope
 
-	fatalHook := FatalHook{}
-
 	if JsonLogoutput {
 		// For JSON output, wrap with HitLevelWriter to transform level field
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(defaultOut)
+		hitWriter.SetOutput(&terminalRestoringWriter{
+			underlying: defaultOut,
+			restore:    TerminalRestorer,
+			exit:       os.Exit,
+		})
 		logging.SetGlobalHitWriter(hitWriter)
-		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger().Hook(fatalHook)
+		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	} else {
 		// For console output, use custom FormatLevel to color the hit level
 		output := zerolog.ConsoleWriter{
@@ -204,9 +214,13 @@ func initLogger(cmd *cobra.Command) {
 		}
 		// Wrap with HitLevelWriter to transform JSON before ConsoleWriter processes it
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&output)
+		hitWriter.SetOutput(&terminalRestoringWriter{
+			underlying: &output,
+			restore:    TerminalRestorer,
+			exit:       os.Exit,
+		})
 		logging.SetGlobalHitWriter(hitWriter)
-		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger().Hook(fatalHook)
+		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	}
 }
 

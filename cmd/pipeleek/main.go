@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"io"
 	"os"
 
 	"github.com/CompassSecurity/pipeleek/internal/cmd"
@@ -10,22 +8,6 @@ import (
 )
 
 var originalTermState *term.State
-
-type TerminalRestoringWriter struct {
-	underlying io.Writer
-}
-
-func (w *TerminalRestoringWriter) Write(p []byte) (n int, err error) {
-	var logEntry map[string]interface{}
-	if err := json.Unmarshal(p, &logEntry); err == nil {
-		if level, ok := logEntry["level"].(string); ok && level == "fatal" {
-			_, _ = w.underlying.Write(p)
-			restoreTerminalState()
-			os.Exit(1)
-		}
-	}
-	return w.underlying.Write(p)
-}
 
 func main() {
 	saveTerminalState()
@@ -56,9 +38,4 @@ func restoreTerminalState() {
 		stdinFD := int(os.Stdin.Fd())
 		_ = term.Restore(stdinFD, originalTermState)
 	}
-}
-
-// GetTerminalRestoringWriter wraps the given writer to restore terminal state on fatal logs
-func GetTerminalRestoringWriter(w io.Writer) io.Writer {
-	return &TerminalRestoringWriter{underlying: w}
 }

@@ -76,29 +76,20 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 // TerminalRestoringWriter wraps an io.Writer to restore terminal state on fatal logs
 type TerminalRestoringWriter struct {
 	underlying io.Writer
+	restore    func()
+	exit       func(int)
 }
 
 func (w *TerminalRestoringWriter) Write(p []byte) (n int, err error) {
+	n, err = w.underlying.Write(p)
 	var logEntry map[string]interface{}
-	if err := json.Unmarshal(p, &logEntry); err == nil {
-		if level, ok := logEntry["level"].(string); ok && level == "fatal" {
-			_, _ = w.underlying.Write(p)
-			RestoreTerminalState()
-			os.Exit(1)
+	if json.Unmarshal(p, &logEntry) == nil && logEntry["level"] == "fatal" {
+		if w.restore != nil {
+			w.restore()
 		}
+		w.exit(1)
 	}
-	return w.underlying.Write(p)
-}
-
-// FatalHook is a zerolog hook that restores terminal state before fatal exits
-type FatalHook struct{}
-
-func (h FatalHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
-	if level == zerolog.FatalLevel {
-		if TerminalRestorer != nil {
-			TerminalRestorer()
-		}
-	}
+	return n, err
 }
 
 // SaveTerminalState saves the current terminal state for later restoration
@@ -146,14 +137,16 @@ func InitLogger(cmd *cobra.Command) {
 		}
 	}
 
-	fatalHook := FatalHook{}
-
 	if JsonLogoutput {
 		// For JSON output, wrap with HitLevelWriter to transform level field
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(defaultOut)
+		hitWriter.SetOutput(&TerminalRestoringWriter{
+			underlying: defaultOut,
+			restore:    RestoreTerminalState,
+			exit:       os.Exit,
+		})
 		logging.SetGlobalHitWriter(hitWriter)
-		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger().Hook(fatalHook)
+		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	} else {
 		// For console output, use custom FormatLevel to color the hit level
 		output := zerolog.ConsoleWriter{
@@ -164,9 +157,13 @@ func InitLogger(cmd *cobra.Command) {
 		}
 		// Wrap with HitLevelWriter to transform JSON before ConsoleWriter processes it
 		hitWriter := &logging.HitLevelWriter{}
-		hitWriter.SetOutput(&output)
+		hitWriter.SetOutput(&TerminalRestoringWriter{
+			underlying: &output,
+			restore:    RestoreTerminalState,
+			exit:       os.Exit,
+		})
 		logging.SetGlobalHitWriter(hitWriter)
-		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger().Hook(fatalHook)
+		log.Logger = zerolog.New(hitWriter).With().Timestamp().Logger()
 	}
 }
 

@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,61 +14,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFatalHook_FatalLevelCallsTerminalRestorer(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
-
-	called := false
-	TerminalRestorer = func() { called = true }
-
-	hook := FatalHook{}
-	var buf bytes.Buffer
-	logger := zerolog.New(&buf)
-	event := logger.Fatal()
-	hook.Run(event, zerolog.FatalLevel, "test message")
-
-	assert.True(t, called, "TerminalRestorer should be called on fatal level")
-}
-
-func TestFatalHook_NonFatalLevelsDoNotCallTerminalRestorer(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
-
-	levels := []zerolog.Level{
-		zerolog.TraceLevel,
-		zerolog.DebugLevel,
-		zerolog.InfoLevel,
-		zerolog.WarnLevel,
-		zerolog.ErrorLevel,
+func TestTerminalRestoringWriter_FatalRestoresAfterWriting(t *testing.T) {
+	var output bytes.Buffer
+	var calls []string
+	writer := &TerminalRestoringWriter{
+		underlying: writerFunc(func(p []byte) (int, error) {
+			calls = append(calls, "write")
+			return output.Write(p)
+		}),
+		restore: func() { calls = append(calls, "restore") },
+		exit:    func(code int) { calls = append(calls, fmt.Sprintf("exit:%d", code)) },
 	}
 
-	hook := FatalHook{}
-	var buf bytes.Buffer
-	logger := zerolog.New(&buf)
+	n, err := writer.Write([]byte(`{"level":"fatal","message":"failure"}`))
 
-	for _, lvl := range levels {
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		event := logger.WithLevel(lvl)
-		hook.Run(event, lvl, "test")
-		assert.False(t, called, "TerminalRestorer should not be called for level %v", lvl)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, len(`{"level":"fatal","message":"failure"}`), n)
+	assert.Equal(t, []string{"write", "restore", "exit:1"}, calls)
+	assert.Contains(t, output.String(), "failure")
 }
 
-func TestFatalHook_NilTerminalRestorerDoesNotPanic(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
+type writerFunc func([]byte) (int, error)
 
-	TerminalRestorer = nil
-	hook := FatalHook{}
-
-	assert.NotPanics(t, func() {
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		event := logger.Fatal()
-		hook.Run(event, zerolog.FatalLevel, "test")
-	})
+func (f writerFunc) Write(p []byte) (int, error) {
+	return f(p)
 }
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {
