@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -137,92 +136,6 @@ func TestGlobalJSONFlagRegistered(t *testing.T) {
 
 func TestPersistentPreRunRegistered(t *testing.T) {
 	assert.NotNil(t, rootCmd.PersistentPreRun, "PersistentPreRun should be registered")
-}
-
-func TestTerminalRestorer(t *testing.T) {
-	t.Run("TerminalRestorer_can_be_set", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		TerminalRestorer()
-		assert.True(t, called, "TerminalRestorer should be callable")
-	})
-
-	t.Run("TerminalRestorer_nil_safe", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		TerminalRestorer = nil
-		assert.NotPanics(t, func() {
-			if TerminalRestorer != nil {
-				TerminalRestorer()
-			}
-		})
-	})
-}
-
-func TestFatalHook(t *testing.T) {
-	t.Run("fatal_level_calls_TerminalRestorer", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		hook := FatalHook{}
-
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		event := logger.Fatal()
-
-		hook.Run(event, zerolog.FatalLevel, "test")
-
-		assert.True(t, called, "TerminalRestorer should be called for fatal level")
-	})
-
-	t.Run("non_fatal_level_does_not_call_TerminalRestorer", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		hook := FatalHook{}
-
-		levels := []zerolog.Level{
-			zerolog.TraceLevel,
-			zerolog.DebugLevel,
-			zerolog.InfoLevel,
-			zerolog.WarnLevel,
-			zerolog.ErrorLevel,
-		}
-
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		for _, lvl := range levels {
-			event := logger.WithLevel(lvl)
-			hook.Run(event, lvl, "test")
-			assert.False(t, called, "TerminalRestorer should not be called for non-fatal levels")
-		}
-	})
-
-	t.Run("nil_TerminalRestorer_does_not_panic", func(t *testing.T) {
-		originalRestorer := TerminalRestorer
-		defer func() { TerminalRestorer = originalRestorer }()
-
-		TerminalRestorer = nil
-		hook := FatalHook{}
-
-		assert.NotPanics(t, func() {
-			var buf bytes.Buffer
-			logger := zerolog.New(&buf)
-			event := logger.Fatal()
-			hook.Run(event, zerolog.FatalLevel, "test")
-		})
-	})
 }
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {

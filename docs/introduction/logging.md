@@ -91,6 +91,11 @@ pipeleek gl scan -u https://gitlab.com -t glpat-xxxxx --log-level=trace
 
 You can change interactively between log levels by pressing `t`: Trace, `d`: Debug, `i`: info, `w`: Warn, `e`: Error.
 
+Keyboard shortcuts are enabled only when standard input is a terminal. Pressing
+Escape or Ctrl+C stops the shortcut listener and restores normal terminal input.
+Terminal input is also restored when a command finishes, returns an error, logs
+a fatal error, or completes graceful shutdown.
+
 ```bash
 pipeleek gl scan -u https://gitlab.com -t glpat-[redacted] --secrets-verification=false --verbose
 # Human Pressed d on keyboard

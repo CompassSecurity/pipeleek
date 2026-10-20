@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/rs/zerolog/log"
 )
 
@@ -18,6 +19,6 @@ func RegisterGracefulShutdownHandler(handler ShutdownHandler) {
 		<-sigChannel
 		log.Info().Msg("Received interrupt signal, shutting down gracefully...")
 		handler()
-		os.Exit(0)
+		logging.Exit(0)
 	}()
 }

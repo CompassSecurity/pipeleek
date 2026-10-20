@@ -3,8 +3,6 @@ package logging
 import (
 	"sync"
 
-	"atomicgo.dev/keyboard"
-	"atomicgo.dev/keyboard/keys"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -43,47 +41,27 @@ func defaultStatusHook() *zerolog.Event {
 }
 
 func ShortcutListeners(status ShortcutStatusFN) {
-	err := keyboard.Listen(func(key keys.Key) (stop bool, err error) {
-		switch key.Code {
-		case keys.CtrlC, keys.Escape:
-			return true, nil
-		case keys.RuneKey:
-			if key.String() == "t" {
-				zerolog.SetGlobalLevel(zerolog.TraceLevel)
-				log.Info().Str("logLevel", "trace").Msg("New Log level")
-			}
-
-			if key.String() == "d" {
-				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-				log.Info().Str("logLevel", "debug").Msg("New Log level")
-			}
-
-			if key.String() == "i" {
-				zerolog.SetGlobalLevel(zerolog.InfoLevel)
-				log.Info().Str("logLevel", "info").Msg("New Log level")
-			}
-
-			if key.String() == "w" {
-				zerolog.SetGlobalLevel(zerolog.WarnLevel)
-				log.Info().Str("logLevel", "warn").Msg("New Log level")
-			}
-
-			if key.String() == "e" {
-				zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-				log.Info().Str("logLevel", "error").Msg("New Log level")
-			}
-
-			if key.String() == "s" {
-				currentHook := GetStatusHook()
-				log := currentHook()
-				log.Msg("Status")
-			}
-		}
-
-		return false, nil
-	})
-
-	if err != nil {
+	if err := shortcuts.start(); err != nil {
 		log.Error().Err(err).Msg("Failed hooking keyboard bindings")
 	}
+}
+
+func handleShortcut(key string) bool {
+	switch key {
+	case "\x03", "\x1b":
+		return true
+	case "t", "d", "i", "w", "e":
+		level := map[string]zerolog.Level{
+			"t": zerolog.TraceLevel,
+			"d": zerolog.DebugLevel,
+			"i": zerolog.InfoLevel,
+			"w": zerolog.WarnLevel,
+			"e": zerolog.ErrorLevel,
+		}[key]
+		zerolog.SetGlobalLevel(level)
+		log.Info().Str("logLevel", level.String()).Msg("New Log level")
+	case "s":
+		GetStatusHook()().Msg("Status")
+	}
+	return false
 }

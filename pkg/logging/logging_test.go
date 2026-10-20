@@ -3,12 +3,60 @@ package logging
 import (
 	"bytes"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/require"
 )
+
+func TestShortcutListenersSkipNonTerminal(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reader.Close()) })
+	t.Cleanup(func() { require.NoError(t, writer.Close()) })
+	originalStdin := os.Stdin
+	os.Stdin = reader
+	t.Cleanup(func() { os.Stdin = originalStdin })
+
+	var terminal shortcutTerminal
+	require.NoError(t, terminal.start())
+	require.Nil(t, terminal.session)
+	require.NoError(t, terminal.stop())
+	require.NoError(t, terminal.stop(), "cleanup must be idempotent")
+}
+
+func TestHandleShortcut(t *testing.T) {
+	originalLevel := zerolog.GlobalLevel()
+	originalLogger := log.Logger
+	originalHook := GetStatusHook()
+	t.Cleanup(func() {
+		zerolog.SetGlobalLevel(originalLevel)
+		log.Logger = originalLogger
+		RegisterStatusHook(originalHook)
+	})
+	log.Logger = zerolog.New(io.Discard)
+	for key, level := range map[string]zerolog.Level{
+		"t": zerolog.TraceLevel, "d": zerolog.DebugLevel, "i": zerolog.InfoLevel,
+		"w": zerolog.WarnLevel, "e": zerolog.ErrorLevel,
+	} {
+		require.False(t, handleShortcut(key))
+		require.Equal(t, level, zerolog.GlobalLevel())
+	}
+	called := false
+	RegisterStatusHook(func() *zerolog.Event {
+		called = true
+		return log.Info()
+	})
+	require.False(t, handleShortcut("s"))
+	require.True(t, called)
+	require.False(t, handleShortcut("\x1b[A"), "arrow keys must not stop the listener")
+	require.False(t, handleShortcut("unknown"))
+	require.True(t, handleShortcut("\x03"))
+	require.True(t, handleShortcut("\x1b"))
+}
 
 func TestSetLogLevel(t *testing.T) {
 	tests := []struct {

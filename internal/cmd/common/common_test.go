@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,63 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestFatalHook_FatalLevelCallsTerminalRestorer(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
-
-	called := false
-	TerminalRestorer = func() { called = true }
-
-	hook := FatalHook{}
-	var buf bytes.Buffer
-	logger := zerolog.New(&buf)
-	event := logger.Fatal()
-	hook.Run(event, zerolog.FatalLevel, "test message")
-
-	assert.True(t, called, "TerminalRestorer should be called on fatal level")
-}
-
-func TestFatalHook_NonFatalLevelsDoNotCallTerminalRestorer(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
-
-	levels := []zerolog.Level{
-		zerolog.TraceLevel,
-		zerolog.DebugLevel,
-		zerolog.InfoLevel,
-		zerolog.WarnLevel,
-		zerolog.ErrorLevel,
-	}
-
-	hook := FatalHook{}
-	var buf bytes.Buffer
-	logger := zerolog.New(&buf)
-
-	for _, lvl := range levels {
-		called := false
-		TerminalRestorer = func() { called = true }
-
-		event := logger.WithLevel(lvl)
-		hook.Run(event, lvl, "test")
-		assert.False(t, called, "TerminalRestorer should not be called for level %v", lvl)
-	}
-}
-
-func TestFatalHook_NilTerminalRestorerDoesNotPanic(t *testing.T) {
-	orig := TerminalRestorer
-	defer func() { TerminalRestorer = orig }()
-
-	TerminalRestorer = nil
-	hook := FatalHook{}
-
-	assert.NotPanics(t, func() {
-		var buf bytes.Buffer
-		logger := zerolog.New(&buf)
-		event := logger.Fatal()
-		hook.Run(event, zerolog.FatalLevel, "test")
-	})
-}
 
 func TestCustomWriter_WritesCorrectly(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -391,31 +333,5 @@ func TestInitLogger_NoLogFile(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	assert.NotPanics(t, func() {
 		InitLogger(cmd)
-	})
-}
-
-// TestSaveAndRestoreTerminalState verifies that SaveTerminalState and RestoreTerminalState
-// do not panic regardless of whether stdin is a terminal.
-func TestSaveAndRestoreTerminalState(t *testing.T) {
-	origState := originalTermState
-	defer func() { originalTermState = origState }()
-
-	assert.NotPanics(t, func() {
-		SaveTerminalState()
-	})
-
-	assert.NotPanics(t, func() {
-		RestoreTerminalState()
-	})
-}
-
-// TestRestoreTerminalState_NilState verifies no panic when terminal state was never saved.
-func TestRestoreTerminalState_NilState(t *testing.T) {
-	origState := originalTermState
-	defer func() { originalTermState = origState }()
-
-	originalTermState = nil
-	assert.NotPanics(t, func() {
-		RestoreTerminalState()
 	})
 }
