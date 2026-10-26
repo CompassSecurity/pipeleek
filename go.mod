@@ -6,7 +6,7 @@ require (
 	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.38646
 	github.com/PuerkitoBio/goquery v1.13.0
-	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.2
+	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.3
 	github.com/bndr/gojenkins v1.2.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.19.3
@@ -32,6 +32,12 @@ require (
 )
 
 require (
+	github.com/go-git/gcfg/v2 v2.0.2 // indirect
+	github.com/go-git/go-billy/v6 v6.0.0-beta.1 // indirect
+	github.com/go-git/go-git/v6 v6.0.0-beta.1 // indirect
+)
+
+require (
 	cloud.google.com/go/auth v0.18.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
@@ -43,7 +49,7 @@ require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/BobuSumisu/aho-corasick v1.0.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProtonMail/go-crypto v1.3.0 // indirect
+	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
 	github.com/Unpackerr/iso9660 v0.0.3 // indirect
@@ -130,7 +136,7 @@ require (
 	github.com/jlaffaye/ftp v0.2.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/kevinburke/ssh_config v1.4.0 // indirect
+	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
