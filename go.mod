@@ -24,7 +24,7 @@ require (
 	github.com/trufflesecurity/trufflehog/v3 v3.99.7
 	gitlab.com/gitlab-org/api/client-go v1.46.0
 	gitlab.com/mitchenielsen/gitlab-ci-go v0.0.5
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
 	golift.io/xtractr v0.8.0
