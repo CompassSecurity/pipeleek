@@ -6,7 +6,7 @@ require (
 	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.38646
 	github.com/PuerkitoBio/goquery v1.13.0
-	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.5
+	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.6
 	github.com/bndr/gojenkins v1.2.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.19.3
@@ -44,7 +44,6 @@ require (
 	github.com/BobuSumisu/aho-corasick v1.0.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
-	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
 	github.com/Unpackerr/iso9660 v0.0.3 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
@@ -72,7 +71,6 @@ require (
 	github.com/cavaliergopher/cpio v1.0.1 // indirect
 	github.com/cavaliergopher/rpm v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charlievieth/fastwalk v1.0.14 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/containerd/console v1.0.5
@@ -86,7 +84,6 @@ require (
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/expr-lang/expr v1.17.8 // indirect
@@ -132,7 +129,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect
-	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.1 // indirect
@@ -147,10 +143,7 @@ require (
 	github.com/mewkiz/flac v1.0.14 // indirect
 	github.com/mewkiz/pkg v0.0.0-20260703220044-4fb89b18cc87 // indirect
 	github.com/mewpkg/term v0.0.0-20241026122259-37a80af23985 // indirect
-	github.com/mholt/archives v0.1.6-0.20260429171216-ef71b7a32fae // indirect
 	github.com/microsoft/go-mssqldb v1.8.2 // indirect
-	github.com/mikelolasagasti/xz v1.0.1 // indirect
-	github.com/minio/minlz v1.1.1 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect
 	github.com/moby/moby/client v0.5.1 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
@@ -176,7 +169,6 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
-	github.com/sorairolake/lzip-go v0.3.8 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
