@@ -260,6 +260,8 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			filterFindings = filter.AnalyzeUnfilteredAutodiscovery()
 		} else if hasAutodiscoveryFilters && filterType == "autodiscoverFilter" {
 			filterFindings = filter.AnalyzeWithGitLabProjectPaths(analysisFilterValue, gitLabProjectPathValues(project))
+		} else if hasAutodiscoveryFilters && filterType == "autodiscoverTopics" {
+			filterFindings = filter.AnalyzeTopicOnlyAutodiscovery(filterValue)
 		}
 
 		event := log.Info().
@@ -275,7 +277,11 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 				event = event.Str("autodiscoveryFilterBypass", ruleID)
 			}
 			if ruleID, ok := reviewFindingRuleID(filterFindings); ok {
-				event = event.Str("autodiscoveryFilterReview", ruleID)
+				reviewField := "autodiscoveryFilterReview"
+				if filterType == "autodiscoverTopics" {
+					reviewField = "autodiscoveryScopeReview"
+				}
+				event = event.Str(reviewField, ruleID)
 			}
 		} else if ruleID, ok := vulnerableFindingRuleID(filterFindings); ok {
 			event = event.Str("autodiscoveryFilterBypass", ruleID)

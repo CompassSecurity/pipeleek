@@ -219,14 +219,15 @@ func TestGLRenovateConfigJSJSON5NegativeArray(t *testing.T) {
 
 func TestGLRenovateNonFilterScopesAreNotAnalyzed(t *testing.T) {
 	scopes := []struct {
-		name       string
-		fileType   string
-		key        string
-		value      string
-		wantBypass bool
+		name            string
+		fileType        string
+		key             string
+		value           string
+		wantBypass      bool
+		wantScopeReview string
 	}{
 		{name: "namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `["gitlab-com/gl-infra"]`},
-		{name: "topics", fileType: "javascript-topics", key: "autodiscoverTopics", value: `["renovate-managed"]`},
+		{name: "topics only", fileType: "javascript-topics", key: "autodiscoverTopics", value: `["renovate-managed"]`, wantScopeReview: "topic-only-autodiscovery"},
 		{name: "projects unsupported on GitLab", fileType: "javascript-projects", key: "autodiscoverProjects", value: `["project"]`, wantBypass: true},
 		{name: "empty namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `[]`, wantBypass: true},
 		{name: "empty topics", fileType: "javascript-topics", key: "autodiscoverTopics", value: `[]`, wantBypass: true},
@@ -256,6 +257,11 @@ func TestGLRenovateNonFilterScopesAreNotAnalyzed(t *testing.T) {
 			} else {
 				assert.NotContains(t, output, "autodiscoveryFilterBypass=")
 				assert.NotContains(t, output, "autodiscoveryFilterReview=")
+			}
+			if scope.wantScopeReview != "" {
+				assert.Contains(t, output, "autodiscoveryScopeReview="+scope.wantScopeReview)
+			} else {
+				assert.NotContains(t, output, "autodiscoveryScopeReview=")
 			}
 		})
 	}

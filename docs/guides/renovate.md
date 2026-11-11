@@ -61,7 +61,7 @@ Flat extglobs using `@`, `+`, `?`, or `*` are analyzed. Nested or other unsuppor
 
 GitLab project path variables (`CI_PROJECT_ROOT_NAMESPACE`, `CI_PROJECT_NAMESPACE`, and `CI_PROJECT_PATH`) are resolved from the current project before analysis. If a variable cannot be resolved, Pipeleek reports an `unresolved-variable` review finding.
 
-`autodiscoverNamespaces` and `autodiscoverTopics` are recognized as scopes but are not analyzed as `autodiscoverFilter` patterns.
+`autodiscoverNamespaces` is recognized as a scope but is not analyzed as an `autodiscoverFilter` pattern. When topics are the only scope, Pipeleek reports `autodiscoveryScopeReview=topic-only-autodiscovery`; topic values are not analyzed as path patterns.
 
 ### Identify Renovate Bots Directly
 

@@ -82,6 +82,7 @@ const (
 	RuleIDRegexEngineReview       = "regex-engine-review"
 	RuleIDUnsupportedExtglob      = "unsupported-extglob"
 	RuleIDUnresolvedVariable      = "unresolved-variable"
+	RuleIDTopicOnlyAutodiscovery  = "topic-only-autodiscovery"
 )
 
 type GitLabProjectPathValues struct {
@@ -175,6 +176,15 @@ func AnalyzeUnfilteredAutodiscovery() []Finding {
 		RuleID:  RuleIDUnfilteredAutodiscovery,
 		Verdict: Vulnerable,
 		Message: "Autodiscovery is enabled without a scope filter, so every project visible to Renovate's token is eligible for discovery.",
+	}}
+}
+
+func AnalyzeTopicOnlyAutodiscovery(topics string) []Finding {
+	return []Finding{{
+		RuleID:  RuleIDTopicOnlyAutodiscovery,
+		Verdict: NeedsReview,
+		Pattern: topics,
+		Message: "Autodiscovery is scoped only by project topics; verify who can assign matching topics because topics are not a namespace or path boundary.",
 	}}
 }
 

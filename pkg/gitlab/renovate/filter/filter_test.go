@@ -198,6 +198,14 @@ func TestAnalyze_UnfilteredAutodiscovery(t *testing.T) {
 	assert.Equal(t, Vulnerable, findings[0].Verdict)
 }
 
+func TestAnalyzeTopicOnlyAutodiscovery(t *testing.T) {
+	findings := AnalyzeTopicOnlyAutodiscovery(`['renovate-managed']`)
+	require.Len(t, findings, 1)
+	assert.Equal(t, RuleIDTopicOnlyAutodiscovery, findings[0].RuleID)
+	assert.Equal(t, NeedsReview, findings[0].Verdict)
+	assert.Equal(t, `['renovate-managed']`, findings[0].Pattern)
+}
+
 func TestAnalyzeWithGitLabProjectPaths(t *testing.T) {
 	paths := GitLabProjectPathValues{
 		ProjectPath:      "group/subgroup/renovate",
