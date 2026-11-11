@@ -7,6 +7,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectCiCdConfig(t *testing.T) {
@@ -153,6 +154,21 @@ func TestDetectAutodiscovery(t *testing.T) {
 			cicdConf:          "RENOVATE_AUTODISCOVER=false",
 			configFileContent: "",
 			want:              false,
+		},
+		{
+			name:     "ignores disabled flag at end of quoted YAML scalar",
+			cicdConf: `RENOVATE_EXTRA_FLAGS: "--autodiscover=false"`,
+			want:     false,
+		},
+		{
+			name:     "ignores disabled environment variable at end of quoted YAML scalar",
+			cicdConf: `script: "export RENOVATE_AUTODISCOVER=false"`,
+			want:     false,
+		},
+		{
+			name:     "does not treat a false prefix as disabled",
+			cicdConf: `RENOVATE_EXTRA_FLAGS: "--autodiscover=falsehood"`,
+			want:     true,
 		},
 		{
 			name:              "no autodiscovery configuration",
@@ -341,6 +357,29 @@ func TestDetectAutodiscoveryFiltersWithSource(t *testing.T) {
 			assert.Equal(t, tt.wantCommaDelimited, commaDelimited)
 		})
 	}
+}
+
+func TestDetectAutodiscoveryScopeOptions(t *testing.T) {
+	options := DetectAutodiscoveryScopeOptions(
+		`RENOVATE_AUTODISCOVER_FILTER: 'ci/**'`,
+		[]string{
+			`module.exports = { autodiscoverFilter: 'js/**', autodiscoverProjects: ['unsupported'] };`,
+			`{"autodiscoverFilter":["json/**"],"autodiscoverNamespaces":["acme"],"autodiscoverTopics":["managed"]}`,
+		},
+	)
+	require.Len(t, options, 4)
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverFilter", Value: "ci/**", CommaDelimited: true}, options[0])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: `["acme"]`}, options[1])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverProjects", Value: `['unsupported']`}, options[2])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverTopics", Value: `["managed"]`}, options[3])
+
+	options = DetectAutodiscoveryScopeOptions("", []string{`module.exports = { autodiscoverFilter: 'js/**' };`, `{"autodiscoverFilter":"json/**"}`})
+	require.Len(t, options, 1)
+	assert.Equal(t, "js/**", options[0].Value)
+
+	options = DetectAutodiscoveryScopeOptions("RENOVATE_AUTODISCOVER_FILTER: 'env/**'\nscript: renovate --autodiscover-filter=cli/**", nil)
+	require.Len(t, options, 1)
+	assert.Equal(t, "cli/**", options[0].Value)
 }
 
 func TestExtractSelfHostedOptions(t *testing.T) {

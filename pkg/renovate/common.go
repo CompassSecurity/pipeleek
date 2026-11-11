@@ -24,8 +24,8 @@ func DetectCiCdConfig(cicdConf string) bool {
 }
 
 var (
-	disabledAutodiscoverFlag   = regexp.MustCompile(`(?i)--autodiscover(?:\s*=\s*|\s+)(?:"false"|'false'|false)(?:\s|$)`)
-	disabledAutodiscoverEnv    = regexp.MustCompile(`(?im)(?:^|[^A-Z0-9_])RENOVATE_AUTODISCOVER\s*(?::|=)\s*(?:"false"|'false'|false)(?:\s|#|$)`)
+	disabledAutodiscoverFlag   = regexp.MustCompile(`(?i)--autodiscover(?:\s*=\s*|\s+)(?:"false"|'false'|false)(?:\s|["']|$)`)
+	disabledAutodiscoverEnv    = regexp.MustCompile(`(?im)(?:^|[^A-Z0-9_])RENOVATE_AUTODISCOVER\s*(?::|=)\s*(?:"false"|'false'|false)(?:\s|["']|#|$)`)
 	disabledAutodiscoverConfig = regexp.MustCompile(`(?im)(?:^|[,{;\s])["']?autodiscover["']?\s*[:=]\s*(?:"false"|'false'|false)(?:\s*[,;}#]|$)`)
 )
 
@@ -79,21 +79,53 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 
 // DetectAutodiscoveryFiltersWithSource additionally reports whether an autodiscoverFilter value came from env or CLI input, where commas delimit patterns.
 func DetectAutodiscoveryFiltersWithSource(cicdConf, configFileContent string) (bool, string, string, bool) {
+	return detectAutodiscoveryFilterGroup(cicdConf, configFileContent, "")
+}
+
+type AutodiscoveryScopeOption struct {
+	Type           string
+	Value          string
+	CommaDelimited bool
+}
+
+func DetectAutodiscoveryScopeOptions(cicdConf string, configContents []string) []AutodiscoveryScopeOption {
+	var options []AutodiscoveryScopeOption
+	for _, optionType := range []string{"autodiscoverFilter", "autodiscoverNamespaces", "autodiscoverProjects", "autodiscoverTopics"} {
+		found, _, value, commaDelimited := detectAutodiscoveryFilterGroup(cicdConf, "", optionType)
+		if !found {
+			for _, content := range configContents {
+				found, _, value, commaDelimited = detectAutodiscoveryFilterGroup("", content, optionType)
+				if found {
+					break
+				}
+			}
+		}
+		if found {
+			options = append(options, AutodiscoveryScopeOption{Type: optionType, Value: value, CommaDelimited: commaDelimited})
+		}
+	}
+	return options
+}
+
+func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType string) (bool, string, string, bool) {
 	type groupDef struct {
 		name string
 		keys []string
 	}
 
 	groups := []groupDef{
-		{"autodiscoverFilter", []string{"autodiscoverFilter", "RENOVATE_AUTODISCOVER_FILTER", "--autodiscover-filter"}},
-		{"autodiscoverNamespaces", []string{"autodiscoverNamespaces", "RENOVATE_AUTODISCOVER_NAMESPACES", "--autodiscover-namespaces"}},
-		{"autodiscoverProjects", []string{"autodiscoverProjects", "RENOVATE_AUTODISCOVER_PROJECTS", "--autodiscover-projects"}},
-		{"autodiscoverTopics", []string{"autodiscoverTopics", "RENOVATE_AUTODISCOVER_TOPICS", "--autodiscover-topics"}},
+		{"autodiscoverFilter", []string{"autodiscoverFilter", "--autodiscover-filter", "RENOVATE_AUTODISCOVER_FILTER"}},
+		{"autodiscoverNamespaces", []string{"autodiscoverNamespaces", "--autodiscover-namespaces", "RENOVATE_AUTODISCOVER_NAMESPACES"}},
+		{"autodiscoverProjects", []string{"autodiscoverProjects", "--autodiscover-projects", "RENOVATE_AUTODISCOVER_PROJECTS"}},
+		{"autodiscoverTopics", []string{"autodiscoverTopics", "--autodiscover-topics", "RENOVATE_AUTODISCOVER_TOPICS"}},
 	}
 
 	sources := []string{configFileContent, cicdConf}
 
 	for _, g := range groups {
+		if optionType != "" && g.name != optionType {
+			continue
+		}
 		for _, src := range sources {
 			if strings.TrimSpace(src) == "" {
 				continue

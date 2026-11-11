@@ -96,6 +96,10 @@ type GitLabProjectPathValues struct {
 // Empty or whitespace-only inputs return nil.
 func Analyze(filterValue string) []Finding {
 	patterns := parsePatterns(filterValue)
+	return analyzePatterns(patterns)
+}
+
+func analyzePatterns(patterns []parsedPattern) []Finding {
 	if len(patterns) == 0 {
 		return nil
 	}
@@ -132,43 +136,47 @@ func Analyze(filterValue string) []Finding {
 }
 
 func AnalyzeWithGitLabProjectPaths(filterValue string, paths GitLabProjectPathValues) []Finding {
-	variables := []struct {
-		name  string
-		value string
-	}{
-		{name: "CI_PROJECT_ROOT_NAMESPACE", value: paths.RootNamespace},
-		{name: "CI_PROJECT_NAMESPACE", value: paths.ProjectNamespace},
-		{name: "CI_PROJECT_PATH", value: paths.ProjectPath},
+	variables := map[string]string{
+		"CI_PROJECT_ROOT_NAMESPACE": paths.RootNamespace,
+		"CI_PROJECT_NAMESPACE":      paths.ProjectNamespace,
+		"CI_PROJECT_PATH":           paths.ProjectPath,
 	}
-	for _, variable := range variables {
-		if variable.value == "" && strings.Contains(filterValue, "$"+variable.name) {
-			return []Finding{{
-				RuleID:  RuleIDUnresolvedVariable,
-				Verdict: NeedsReview,
-				Pattern: filterValue,
-				Message: "Filter uses a GitLab project path variable whose value could not be resolved from project metadata.",
-			}}
+	resolvedFilter := reEnvironmentVariable.ReplaceAllStringFunc(filterValue, func(token string) string {
+		name := strings.TrimSuffix(strings.TrimPrefix(token, "${"), "}")
+		if strings.HasPrefix(token, "$") && !strings.HasPrefix(token, "${") {
+			name = token[1:]
 		}
+		if value := variables[name]; value != "" {
+			return value
+		}
+		return token
+	})
+	patterns := parsePatterns(resolvedFilter)
+	var knownPatterns []parsedPattern
+	unresolved := false
+	unknownExclusion := false
+	for _, pattern := range patterns {
+		if reEnvironmentVariable.MatchString(pattern.raw) {
+			unresolved = true
+			unknownExclusion = unknownExclusion || pattern.negated || strings.HasPrefix(pattern.raw, "$")
+			continue
+		}
+		knownPatterns = append(knownPatterns, pattern)
 	}
-
-	replacer := strings.NewReplacer(
-		"${CI_PROJECT_ROOT_NAMESPACE}", paths.RootNamespace,
-		"$CI_PROJECT_ROOT_NAMESPACE", paths.RootNamespace,
-		"${CI_PROJECT_NAMESPACE}", paths.ProjectNamespace,
-		"$CI_PROJECT_NAMESPACE", paths.ProjectNamespace,
-		"${CI_PROJECT_PATH}", paths.ProjectPath,
-		"$CI_PROJECT_PATH", paths.ProjectPath,
-	)
-	resolvedFilter := replacer.Replace(filterValue)
-	if reEnvironmentVariable.MatchString(resolvedFilter) {
-		return []Finding{{
-			RuleID:  RuleIDUnresolvedVariable,
-			Verdict: NeedsReview,
-			Pattern: filterValue,
-			Message: "Filter uses an environment variable that could not be resolved from GitLab project metadata.",
-		}}
+	if !unresolved {
+		return analyzePatterns(patterns)
 	}
-	return Analyze(resolvedFilter)
+	var findings []Finding
+	positives, _ := splitPosNeg(knownPatterns)
+	if !unknownExclusion && len(positives) > 0 {
+		findings = analyzePatterns(knownPatterns)
+	}
+	return append(findings, Finding{
+		RuleID:  RuleIDUnresolvedVariable,
+		Verdict: NeedsReview,
+		Pattern: filterValue,
+		Message: "Filter uses an environment variable that could not be resolved from GitLab project metadata.",
+	})
 }
 
 func AnalyzeUnfilteredAutodiscovery() []Finding {
@@ -704,7 +712,7 @@ func validNamespaceCandidates(p parsedPattern) []string {
 		return nil
 	}
 
-	candidates := make([]string, 0, len(bases)*len(gitLabProbeSuffixAlphabet))
+	var candidates []string
 	for _, base := range bases {
 		for i := 0; i < len(gitLabProbeSuffixAlphabet); i++ {
 			candidate := base + string(gitLabProbeSuffixAlphabet[i]) + "/project"
@@ -842,14 +850,14 @@ func literalNamespacePrefix(p parsedPattern) string {
 		s = raw
 	}
 
-	s = scanLiteralPrefix(s)
+	s = scanLiteralPrefix(s, p.kind == KindRegex)
 	return strings.ToLower(strings.TrimSuffix(s, "/"))
 }
 
 // scanLiteralPrefix returns the portion of s before the first glob/regex metacharacter.
-func scanLiteralPrefix(s string) string {
+func scanLiteralPrefix(s string, regex bool) string {
 	for i, c := range s {
-		if strings.ContainsRune(`*?{[(\\^$|`, c) {
+		if strings.ContainsRune(`*?{[(\\^$|`, c) || regex && c == '.' {
 			return s[:i]
 		}
 	}

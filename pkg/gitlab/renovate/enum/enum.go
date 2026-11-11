@@ -239,16 +239,33 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			dumpConfigFileContents(project, ciCdYml, configFileContent, filename, "renovate-enum-out")
 		}
 
-		autodiscoveryConfigContent := combineAutodiscoveryConfigFiles(configFiles, configFilePath, configFileContent)
-		isSelfHostedConfigContent := strings.Join([]string{ciCdYml, autodiscoveryConfigContent}, "\n")
+		configContents := autodiscoveryConfigFilesByPrecedence(configFiles, configFilePath, configFileContent)
+		isSelfHostedConfigContent := strings.Join(append([]string{ciCdYml}, configContents...), "\n")
 
-		autodiscovery := detectAutodiscovery(ciCdYml, autodiscoveryConfigContent)
+		autodiscovery := detectAutodiscovery(ciCdYml, "")
+		for _, content := range configContents {
+			autodiscovery = autodiscovery || detectAutodiscovery("", content)
+		}
 		filterType := ""
 		filterValue := ""
 		filterUsesCommaDelimiter := false
 		hasAutodiscoveryFilters := false
 		if autodiscovery {
-			hasAutodiscoveryFilters, filterType, filterValue, filterUsesCommaDelimiter = renovateutil.DetectAutodiscoveryFiltersWithSource(ciCdYml, autodiscoveryConfigContent)
+			options := renovateutil.DetectAutodiscoveryScopeOptions(ciCdYml, configContents)
+			if len(options) > 0 {
+				selected := options[0]
+				for _, option := range options {
+					value := option.Value
+					if option.Type == "autodiscoverFilter" && option.CommaDelimited {
+						value = commaDelimitedFilterPatterns(value)
+					}
+					if hasEffectiveAutodiscoveryScope(option.Type, value) {
+						selected = option
+						break
+					}
+				}
+				hasAutodiscoveryFilters, filterType, filterValue, filterUsesCommaDelimiter = true, selected.Type, selected.Value, selected.CommaDelimited
+			}
 		}
 		analysisFilterValue := filterValue
 		if filterType == "autodiscoverFilter" && filterUsesCommaDelimiter {
@@ -396,7 +413,7 @@ func detectRenovateConfigFiles(git *gitlab.Client, project *gitlab.Project) []re
 	return configs
 }
 
-func combineAutodiscoveryConfigFiles(configs []renovateConfigFile, primaryPath, primaryContent string) string {
+func autodiscoveryConfigFilesByPrecedence(configs []renovateConfigFile, primaryPath, primaryContent string) []string {
 	var contents []string
 	if primaryPath == "config.js" {
 		if primaryContent != "" {
@@ -411,6 +428,9 @@ func combineAutodiscoveryConfigFiles(configs []renovateConfigFile, primaryPath, 
 		}
 	}
 
+	if primaryPath != "config.js" && primaryContent != "" {
+		contents = append(contents, primaryContent)
+	}
 	for _, config := range configs {
 		if config.path == "config.js" || config.path == primaryPath {
 			continue
@@ -419,10 +439,7 @@ func combineAutodiscoveryConfigFiles(configs []renovateConfigFile, primaryPath, 
 			contents = append(contents, config.content)
 		}
 	}
-	if primaryPath != "config.js" && primaryContent != "" {
-		contents = append(contents, primaryContent)
-	}
-	return strings.Join(contents, "\n")
+	return contents
 }
 
 func fetchCurrentSelfHostedOptions(opts EnumOptions) []string {

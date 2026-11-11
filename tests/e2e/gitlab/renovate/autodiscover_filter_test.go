@@ -267,6 +267,47 @@ func TestGLRenovateNonFilterScopesAreNotAnalyzed(t *testing.T) {
 	}
 }
 
+func TestGLRenovateMixedScopesAndConfigFiles(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		content    string
+		extraFiles map[string]string
+		wantType   string
+		wantValue  string
+		wantReview bool
+	}{
+		{name: "empty filter and namespaces", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverFilter: [], autodiscoverNamespaces: ['acme'] };`, wantType: "autodiscoverNamespaces", wantValue: "acme"},
+		{name: "empty filter and topics", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverFilter: [], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverTopics", wantValue: "managed", wantReview: true},
+		{name: "unsupported projects and topics", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverProjects: ['project'], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverTopics", wantValue: "managed", wantReview: true},
+		{name: "topics with namespaces", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverNamespaces: ['acme'], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverNamespaces", wantValue: "acme"},
+		{name: "JSON filter with unrelated javascript", path: "renovate.json", content: `{"autodiscover":true,"autodiscoverFilter":["acme/**"]}`, extraFiles: map[string]string{"config.js": `module.exports = { platform: 'gitlab' };`}, wantType: "autodiscoverFilter", wantValue: "acme/**"},
+		{name: "javascript filter takes precedence", path: "renovate.json", content: `{"autodiscover":true,"autodiscoverFilter":["*"]}`, extraFiles: map[string]string{"config.js": `module.exports = { autodiscoverFilter: ['acme/**'] };`}, wantType: "autodiscoverFilter", wantValue: "acme/**"},
+	}
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{name: test.name, filePath: test.path, fileType: "raw", extraFiles: test.extraFiles}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: test.name, value: test.content}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+			assert.Contains(t, output, "autodiscoveryFilterType="+test.wantType)
+			assert.Contains(t, output, test.wantValue)
+			assert.NotContains(t, output, "autodiscoveryFilterBypass=")
+			if test.wantReview {
+				assert.Contains(t, output, "autodiscoveryScopeReview=topic-only-autodiscovery")
+			} else {
+				assert.NotContains(t, output, "autodiscoveryScopeReview=")
+			}
+		})
+	}
+}
+
 func TestGLRenovateAutodiscoveryWithoutScopeIsVulnerable(t *testing.T) {
 	source := autodiscoverFilterSource{name: "unfiltered CI autodiscovery", ciMode: "no-filter"}
 	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "unfiltered"}})
@@ -458,6 +499,8 @@ func ciYAMLForFilter(mode, filterValue string) string {
 func renovateFilterConfigContent(fileType, filterValue string) string {
 	quoted, _ := json.Marshal(filterValue)
 	switch fileType {
+	case "raw":
+		return filterValue
 	case "json":
 		return `{"autodiscover":true,"autodiscoverFilter":` + string(quoted) + `}`
 	case "json5":

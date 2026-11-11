@@ -63,6 +63,8 @@ GitLab project path variables (`CI_PROJECT_ROOT_NAMESPACE`, `CI_PROJECT_NAMESPAC
 
 `autodiscoverNamespaces` is recognized as a scope but is not analyzed as an `autodiscoverFilter` pattern. When topics are the only scope, Pipeleek reports `autodiscoveryScopeReview=topic-only-autodiscovery`; topic values are not analyzed as path patterns.
 
+Scope settings are extracted from each discovered configuration separately. When the same setting appears in several sources, the scanner prefers CI command-line flags, then CI environment variables, then `config.js`, the primary configuration file, and other discovered configuration files. This is a best-effort static interpretation; verify the bot's effective runtime configuration when settings conflict.
+
 ### Identify Renovate Bots Directly
 
 Use the `bots` command to identify Renovate bot users directly, even if the target instance has little or no visible Renovate configuration.

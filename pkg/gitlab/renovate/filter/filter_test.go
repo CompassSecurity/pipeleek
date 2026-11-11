@@ -242,6 +242,28 @@ func TestAnalyzeWithGitLabProjectPaths(t *testing.T) {
 	findings = AnalyzeWithGitLabProjectPaths("${RENOVATE_PROJECT}", paths)
 	assert.Equal(t, NeedsReview, verdictOf(findings))
 	assert.True(t, hasRule(findings, RuleIDUnresolvedVariable))
+
+	for _, value := range []string{"$CI_PROJECT_PATH_SLUG", "${CI_PROJECT_PATH}"} {
+		findings = AnalyzeWithGitLabProjectPaths(value, GitLabProjectPathValues{})
+		assert.True(t, hasRule(findings, RuleIDUnresolvedVariable), value)
+	}
+	findings = AnalyzeWithGitLabProjectPaths("$CI_PROJECT_PATH_SLUG", paths)
+	assert.True(t, hasRule(findings, RuleIDUnresolvedVariable))
+
+	findings = AnalyzeWithGitLabProjectPaths(`["*", "trusted/${CUSTOM}"]`, paths)
+	assert.True(t, hasRule(findings, RuleIDUnrestrictedWildcard))
+	assert.True(t, hasRule(findings, RuleIDUnresolvedVariable))
+	for _, value := range []string{`["*", "!${CUSTOM}"]`, `["*", "${CUSTOM}"]`, `["!other/*", "trusted/${CUSTOM}"]`} {
+		findings = AnalyzeWithGitLabProjectPaths(value, paths)
+		assert.Equal(t, NeedsReview, verdictOf(findings), value)
+		assert.True(t, hasRule(findings, RuleIDUnresolvedVariable), value)
+	}
+}
+
+func TestAnalyzeRegexDotDoesNotExtendNamespacePrefix(t *testing.T) {
+	findings := Analyze(`/^acme\/.*$/`)
+	assert.False(t, hasRule(findings, RuleIDPathBoundaryBypass))
+	assert.Equal(t, "acme.name", literalNamespacePrefix(classifyPattern("acme.name*/*")))
 }
 
 func TestAnalyze_UnsupportedExtglobNeedsReview(t *testing.T) {
