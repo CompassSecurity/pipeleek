@@ -23,12 +23,19 @@ func DetectCiCdConfig(cicdConf string) bool {
 		format.ContainsI(cicdConf, "npx renovate")
 }
 
+var (
+	disabledAutodiscoverFlag   = regexp.MustCompile(`(?i)--autodiscover(?:\s*=\s*|\s+)(?:"false"|'false'|false)(?:\s|$)`)
+	disabledAutodiscoverEnv    = regexp.MustCompile(`(?im)(?:^|[^A-Z0-9_])RENOVATE_AUTODISCOVER\s*(?::|=)\s*(?:"false"|'false'|false)(?:\s|#|$)`)
+	disabledAutodiscoverConfig = regexp.MustCompile(`(?im)(?:^|[,{;\s])["']?autodiscover["']?\s*[:=]\s*(?:"false"|'false'|false)(?:\s*[,;}#]|$)`)
+)
+
 // DetectAutodiscovery checks for autodiscover configuration in CI/CD or config files.
 func DetectAutodiscovery(cicdConf string, configFileContent string) bool {
-	hasAutodiscoveryInConfigFile := format.ContainsI(configFileContent, "autodiscover")
+	hasAutodiscoveryInConfigFile := format.ContainsI(configFileContent, "autodiscover") &&
+		!disabledAutodiscoverConfig.MatchString(configFileContent)
 
 	hasAutodiscoveryinCiCD := (format.ContainsI(cicdConf, "--autodiscover") || format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER")) &&
-		(!format.ContainsI(cicdConf, "--autodiscover=false") && !format.ContainsI(cicdConf, "--autodiscover false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER: false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER=false"))
+		!disabledAutodiscoverFlag.MatchString(cicdConf) && !disabledAutodiscoverEnv.MatchString(cicdConf)
 
 	return hasAutodiscoveryInConfigFile || hasAutodiscoveryinCiCD
 }
@@ -66,6 +73,12 @@ func tryParseJSON(jsonStr, key string) (string, bool) {
 
 // DetectAutodiscoveryFilters checks for autodiscovery filter configuration and returns whether filters exist, filter type, and filter value.
 func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, string, string) {
+	found, filterType, filterValue, _ := DetectAutodiscoveryFiltersWithSource(cicdConf, configFileContent)
+	return found, filterType, filterValue
+}
+
+// DetectAutodiscoveryFiltersWithSource additionally reports whether an autodiscoverFilter value came from env or CLI input, where commas delimit patterns.
+func DetectAutodiscoveryFiltersWithSource(cicdConf, configFileContent string) (bool, string, string, bool) {
 	type groupDef struct {
 		name string
 		keys []string
@@ -90,26 +103,44 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 					continue
 				}
 				if val, ok := tryParseJSON(src, key); ok {
-					return true, g.name, val
+					return true, g.name, val, false
 				}
 			}
 		}
 
 		for _, key := range g.keys {
-			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,]+)`)
-			for _, src := range sources {
+			if key == "--autodiscover-filter" || key == "RENOVATE_AUTODISCOVER_FILTER" {
+				separator := `\s*(?:=|\s+)\s*`
+				if key == "RENOVATE_AUTODISCOVER_FILTER" {
+					separator = `\s*(?:=|:)\s*`
+				}
+				re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + separator + `(?:([^\s"']*\$\{\{[^}]*\}\}[^\s"']*)|"([^"]*)"|'([^']*)'|([^\s"']+))`)
+				for sourceIndex, src := range sources {
+					if m := re.FindStringSubmatch(src); len(m) > 0 {
+						for _, value := range m[1:] {
+							if value != "" {
+								return true, g.name, value, sourceIndex == 1
+							}
+						}
+						return true, g.name, "", sourceIndex == 1
+					}
+				}
+				continue
+			}
+			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,"']+)`)
+			for sourceIndex, src := range sources {
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
 					if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) ||
 						(strings.HasPrefix(val, `'`) && strings.HasSuffix(val, `'`)) {
 						val = val[1 : len(val)-1]
 					}
-					return true, g.name, val
+					return true, g.name, val, g.name == "autodiscoverFilter" && sourceIndex == 1 && (strings.HasPrefix(key, "RENOVATE_") || strings.HasPrefix(key, "--"))
 				}
 			}
 		}
 	}
-	return false, "", ""
+	return false, "", "", false
 }
 
 // FetchCurrentSelfHostedOptions retrieves the list of self-hosted Renovate configuration options.
@@ -141,17 +172,35 @@ func ExtractSelfHostedOptions(data []byte) []string {
 
 	var options []string
 	for _, match := range matches {
-		options = append(options, strings.ReplaceAll(strings.TrimSpace(match), "## ", ""))
+		option := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(match), "##"))
+		option = strings.Trim(option, "`")
+		if option != "" {
+			options = append(options, option)
+		}
 	}
 
 	return options
 }
 
+var selfHostedOptionWordBoundary = regexp.MustCompile(`([a-z0-9])([A-Z])`)
+
 // IsSelfHostedConfig checks if a Renovate configuration contains self-hosted options.
 func IsSelfHostedConfig(config string, selfHostedOptions []string) bool {
-	for _, option := range selfHostedOptions {
-		if format.ContainsI(config, option) {
-			return true
+	for _, rawOption := range selfHostedOptions {
+		option := strings.Trim(strings.TrimSpace(rawOption), "`")
+		if option == "" {
+			continue
+		}
+		snakeCaseOption := selfHostedOptionWordBoundary.ReplaceAllString(option, `${1}_${2}`)
+		aliases := []string{
+			option,
+			"RENOVATE_" + strings.ToUpper(snakeCaseOption),
+			"--" + strings.ReplaceAll(strings.ToLower(snakeCaseOption), "_", "-"),
+		}
+		for _, alias := range aliases {
+			if format.ContainsI(config, alias) {
+				return true
+			}
 		}
 	}
 	return false

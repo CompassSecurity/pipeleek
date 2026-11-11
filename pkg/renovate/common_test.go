@@ -95,6 +95,18 @@ func TestDetectAutodiscovery(t *testing.T) {
 			want:              true,
 		},
 		{
+			name:              "ignores autodiscover false in javascript config",
+			cicdConf:          "",
+			configFileContent: "module.exports = { autodiscover: false };",
+			want:              false,
+		},
+		{
+			name:              "ignores autodiscover false in JSON5 config",
+			cicdConf:          "",
+			configFileContent: `{ autodiscover: false, }`,
+			want:              false,
+		},
+		{
 			name:              "detects --autodiscover flag in CI/CD",
 			cicdConf:          "renovate --autodiscover",
 			configFileContent: "",
@@ -125,6 +137,18 @@ func TestDetectAutodiscovery(t *testing.T) {
 			want:              false,
 		},
 		{
+			name:              "ignores single-quoted RENOVATE_AUTODISCOVER false",
+			cicdConf:          `RENOVATE_AUTODISCOVER: 'false'`,
+			configFileContent: "",
+			want:              false,
+		},
+		{
+			name:              "ignores double-quoted RENOVATE_AUTODISCOVER false",
+			cicdConf:          `RENOVATE_AUTODISCOVER: "false"`,
+			configFileContent: "",
+			want:              false,
+		},
+		{
 			name:              "ignores RENOVATE_AUTODISCOVER=false",
 			cicdConf:          "RENOVATE_AUTODISCOVER=false",
 			configFileContent: "",
@@ -134,6 +158,12 @@ func TestDetectAutodiscovery(t *testing.T) {
 			name:              "no autodiscovery configuration",
 			cicdConf:          "renovate --help",
 			configFileContent: `{"extends": ["config:base"]}`,
+			want:              false,
+		},
+		{
+			name:              "ignores quoted --autodiscover false",
+			cicdConf:          `renovate --autodiscover="false"`,
+			configFileContent: "",
 			want:              false,
 		},
 		{
@@ -218,6 +248,20 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 			wantFilterValue:   "owner/repo",
 		},
 		{
+			name:            "extracts filter from quoted extra flags",
+			cicdConf:        `RENOVATE_EXTRA_FLAGS: "--autodiscover-filter=+(myname|myname-renovate|myname-projects)*/*"`,
+			wantHasFilters:  true,
+			wantFilterType:  "autodiscoverFilter",
+			wantFilterValue: "+(myname|myname-renovate|myname-projects)*/*",
+		},
+		{
+			name:            "preserves commas in unquoted filter environment value",
+			cicdConf:        "RENOVATE_AUTODISCOVER_FILTER: myname{a,b}*/*",
+			wantHasFilters:  true,
+			wantFilterType:  "autodiscoverFilter",
+			wantFilterValue: "myname{a,b}*/*",
+		},
+		{
 			name:              "handles single quoted values",
 			cicdConf:          `RENOVATE_AUTODISCOVER_FILTER: 'owner/*'`,
 			configFileContent: "",
@@ -257,6 +301,44 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 			assert.Equal(t, tt.wantHasFilters, hasFilters)
 			assert.Equal(t, tt.wantFilterType, filterType)
 			assert.Equal(t, tt.wantFilterValue, filterValue)
+		})
+	}
+}
+
+func TestDetectAutodiscoveryFiltersWithSource(t *testing.T) {
+	tests := []struct {
+		name               string
+		cicdConf           string
+		configFileContent  string
+		wantFilterValue    string
+		wantCommaDelimited bool
+	}{
+		{
+			name:               "env filter uses comma delimiter",
+			cicdConf:           `RENOVATE_AUTODISCOVER_FILTER: "branchbooks/*,*"`,
+			wantFilterValue:    "branchbooks/*,*",
+			wantCommaDelimited: true,
+		},
+		{
+			name:               "extra flags filter uses comma delimiter",
+			cicdConf:           `RENOVATE_EXTRA_FLAGS: "--autodiscover-filter=branchbooks/*,*"`,
+			wantFilterValue:    "branchbooks/*,*",
+			wantCommaDelimited: true,
+		},
+		{
+			name:               "config file commas are preserved",
+			configFileContent:  `{"autodiscoverFilter":"myname{a,b}*/*"}`,
+			wantFilterValue:    "myname{a,b}*/*",
+			wantCommaDelimited: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			found, filterType, filterValue, commaDelimited := DetectAutodiscoveryFiltersWithSource(tt.cicdConf, tt.configFileContent)
+			assert.True(t, found)
+			assert.Equal(t, "autodiscoverFilter", filterType)
+			assert.Equal(t, tt.wantFilterValue, filterValue)
+			assert.Equal(t, tt.wantCommaDelimited, commaDelimited)
 		})
 	}
 }
@@ -307,6 +389,11 @@ Yet another option.
 ## option4`),
 			want: []string{"option1", "option2", "option3", "option4"},
 		},
+		{
+			name: "strips markdown code ticks from option headings",
+			data: []byte("## `autodiscoverFilter`\n"),
+			want: []string{"autodiscoverFilter"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -338,6 +425,22 @@ func TestIsSelfHostedConfig(t *testing.T) {
 			config: `{"ALLOWSCRIPTS": true}`,
 			selfHostedOptions: []string{
 				"allowScripts",
+			},
+			want: true,
+		},
+		{
+			name:   "detects environment variable alias",
+			config: "RENOVATE_AUTODISCOVER_FILTER: ['group/**']",
+			selfHostedOptions: []string{
+				"autodiscoverFilter",
+			},
+			want: true,
+		},
+		{
+			name:   "detects command-line flag alias",
+			config: "renovate --autodiscover-filter=group/**",
+			selfHostedOptions: []string{
+				"autodiscoverFilter",
 			},
 			want: true,
 		},

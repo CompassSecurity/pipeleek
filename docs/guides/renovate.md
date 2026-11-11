@@ -37,23 +37,31 @@ For example, we enumerated Renovate configs found on GitLab.com. One project was
 ```bash
 pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 2025-09-30T07:11:06Z info Fetching projects
-2025-09-30T07:11:12Z info Identified Renovate (bot) configuration autodiscoveryFilterType= autodiscoveryFilterValue= hasAutodiscovery=true hasAutodiscoveryFilters=false hasConfigFile=true pipelines=enabled selfHostedConfigFile=true url=https://gitlab.com/test-group/renovate-bot
+2025-09-30T07:11:12Z info Renovate configuration autodiscoveryFilterBypass=unfiltered-autodiscovery hasAutodiscovery=true pipelines=enabled isSelfHosted=true url=https://gitlab.com/test-group/renovate-bot
 2025-09-30T07:11:16Z info Fetched all projects
 2025-09-30T07:11:16Z info Done, Bye Bye 🏳️‍🌈🔥
 ```
+
+Each project summary uses the message `Renovate configuration` with `hasAutodiscovery`, `pipelines`, `isSelfHosted`, and `url`. `isSelfHosted=true` means a self-hosted-only Renovate option was found in the combined configuration files or CI configuration; it does not mean a dedicated self-hosted config file exists. When present, autodiscovery filter details and bypass/review findings are included on the same line.
 
 This makes the bot susceptible to autodiscovery exploits, since it will renovate any repository it can access.
 
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
 
-Pipeleek reports filter analysis on the main enum log line through `autodiscoveryFilterBypass`.
-The field is only emitted when a vulnerable finding is detected and contains the matching vulnerable rule ID (for example: `V1`, `V2`, `V3`, `V4`).
+Pipeleek analyzes `autodiscoverFilter` patterns and reports vulnerable scopes through `autodiscoveryFilterBypass`. Values name the issue directly: `negation-only-filter`, `unrestricted-wildcard`, `unanchored-regex`, `path-boundary-bypass`, or `unfiltered-autodiscovery`. Review findings are reported through `autodiscoveryFilterReview`, such as `unsupported-extglob` or `unresolved-variable`.
 Quick examples (filter value -> example bypass path):
 
-- `V1`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`
-- `V2`: `*` -> `attacker/any-repo`
-- `V3`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
-- `V4`: `/^acme-org/` -> `acme-org-evil/x`
+- `negation-only-filter`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`
+- `unrestricted-wildcard`: `*` -> `attacker/any-repo`
+- `unanchored-regex`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
+- `path-boundary-bypass`: `/^acme-org/` -> `acme-org-evil/x`
+- `unfiltered-autodiscovery`: autodiscovery enabled with no filter -> any token-visible project
+
+Flat extglobs using `@`, `+`, `?`, or `*` are analyzed. Nested or other unsupported extglobs produce an `unsupported-extglob` review finding rather than being treated as safe.
+
+GitLab project path variables (`CI_PROJECT_ROOT_NAMESPACE`, `CI_PROJECT_NAMESPACE`, and `CI_PROJECT_PATH`) are resolved from the current project before analysis. If a variable cannot be resolved, Pipeleek reports an `unresolved-variable` review finding.
+
+`autodiscoverNamespaces` and `autodiscoverTopics` are recognized as scopes but are not analyzed as `autodiscoverFilter` patterns.
 
 ### Identify Renovate Bots Directly
 

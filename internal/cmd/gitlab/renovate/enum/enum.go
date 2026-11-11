@@ -3,6 +3,7 @@ package enum
 import (
 	"github.com/CompassSecurity/pipeleek/pkg/config"
 	pkgrenovate "github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/enum"
+	"github.com/CompassSecurity/pipeleek/pkg/logging"
 	"github.com/spf13/cobra"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -90,6 +91,7 @@ func NewEnumCmd() *cobra.Command {
 
 // enumerate contains the business logic and is now testable in isolation
 func enumerate(opts EnumOptions) {
+	logging.RegisterStatusHook(pkgrenovate.StatusHook)
 	pkgOpts := pkgrenovate.EnumOptions{
 		GitlabUrl:                   opts.URL,
 		GitlabApiToken:              opts.Token,
