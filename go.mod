@@ -6,7 +6,7 @@ require (
 	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.38646
 	github.com/PuerkitoBio/goquery v1.13.0
-	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.6
+	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.7
 	github.com/bndr/gojenkins v1.2.0
 	github.com/docker/go-units v0.5.0
 	github.com/go-git/go-git/v5 v5.19.3
