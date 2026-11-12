@@ -62,6 +62,7 @@ const (
 	RuleIDUnsupportedExtglob      = "unsupported-extglob"
 	RuleIDUnresolvedVariable      = "unresolved-variable"
 	RuleIDTopicOnlyAutodiscovery  = "topic-only-autodiscovery"
+	RuleIDNamespaceScopeReview    = "namespace-scope-unresolved"
 )
 
 type GitLabProjectPathValues struct {
@@ -148,6 +149,7 @@ func splitPosNeg(patterns []parsedPattern) (positive, negative []parsedPattern) 
 }
 
 var reEnvironmentVariable = regexp.MustCompile(`\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})`)
+var reLiteralGitLabSegment = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 func parsePatterns(value string) []parsedPattern {
 	value = strings.TrimSpace(value)
@@ -241,15 +243,7 @@ func parseNamespaceExtglob(pattern string) (namespaceExtglob, bool) {
 }
 
 func isLiteralGitLabSegment(segment string) bool {
-	if segment == "" {
-		return false
-	}
-	for _, character := range segment {
-		if !(character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9' || strings.ContainsRune("_.-", character)) {
-			return false
-		}
-	}
-	return true
+	return reLiteralGitLabSegment.MatchString(segment)
 }
 
 func validGitLabProbePath(path string) bool {

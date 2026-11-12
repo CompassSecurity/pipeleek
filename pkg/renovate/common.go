@@ -10,6 +10,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
+	"gopkg.in/yaml.v3"
 	"resty.dev/v3"
 )
 
@@ -107,6 +108,52 @@ func DetectAutodiscoveryScopeOptions(cicdConf string, configContents []string) [
 	return options
 }
 
+func detectCICDVariable(content, name string) (string, bool) {
+	var document yaml.Node
+	if yaml.Unmarshal([]byte(content), &document) != nil {
+		return "", false
+	}
+	var find func(*yaml.Node) (string, bool)
+	find = func(node *yaml.Node) (string, bool) {
+		if node.Kind == yaml.MappingNode {
+			for index := 0; index+1 < len(node.Content); index += 2 {
+				key, value := node.Content[index], node.Content[index+1]
+				if key.Value == "variables" && value.Kind == yaml.MappingNode {
+					for variableIndex := 0; variableIndex+1 < len(value.Content); variableIndex += 2 {
+						if value.Content[variableIndex].Value != name {
+							continue
+						}
+						variable := value.Content[variableIndex+1]
+						if variable.Kind == yaml.MappingNode {
+							for fieldIndex := 0; fieldIndex+1 < len(variable.Content); fieldIndex += 2 {
+								if variable.Content[fieldIndex].Value == "value" && variable.Content[fieldIndex+1].Kind == yaml.ScalarNode {
+									return variable.Content[fieldIndex+1].Value, true
+								}
+							}
+							return "", true
+						}
+						if variable.Kind == yaml.ScalarNode && variable.Tag != "!!null" {
+							return variable.Value, true
+						}
+						return "", true
+					}
+				}
+				if foundValue, found := find(value); found {
+					return foundValue, true
+				}
+			}
+		} else {
+			for _, child := range node.Content {
+				if foundValue, found := find(child); found {
+					return foundValue, true
+				}
+			}
+		}
+		return "", false
+	}
+	return find(&document)
+}
+
 func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType string) (bool, string, string, bool) {
 	type groupDef struct {
 		name string
@@ -141,13 +188,18 @@ func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType stri
 		}
 
 		for _, key := range g.keys {
-			if key == "--autodiscover-filter" || key == "RENOVATE_AUTODISCOVER_FILTER" {
+			if key == "--autodiscover-filter" || key == "RENOVATE_AUTODISCOVER_FILTER" || key == "--autodiscover-namespaces" || key == "RENOVATE_AUTODISCOVER_NAMESPACES" {
 				separator := `\s*(?:=|\s+)\s*`
-				if key == "RENOVATE_AUTODISCOVER_FILTER" {
+				if strings.HasPrefix(key, "RENOVATE_") {
 					separator = `\s*(?:=|:)\s*`
 				}
 				re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + separator + `(?:([^\s"']*\$\{\{[^}]*\}\}[^\s"']*)|"([^"]*)"|'([^']*)'|([^\s"']+))`)
 				for sourceIndex, src := range sources {
+					if sourceIndex == 1 && strings.HasPrefix(key, "RENOVATE_") {
+						if value, found := detectCICDVariable(src, key); found {
+							return true, g.name, value, true
+						}
+					}
 					if m := re.FindStringSubmatch(src); len(m) > 0 {
 						for _, value := range m[1:] {
 							if value != "" {
@@ -161,6 +213,11 @@ func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType stri
 			}
 			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,"']+)`)
 			for sourceIndex, src := range sources {
+				if sourceIndex == 1 && strings.HasPrefix(key, "RENOVATE_") {
+					if value, found := detectCICDVariable(src, key); found {
+						return true, g.name, value, false
+					}
+				}
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
 					if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) ||

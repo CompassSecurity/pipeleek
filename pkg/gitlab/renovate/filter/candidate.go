@@ -111,6 +111,13 @@ func analyzeCandidates(filterValue string, paths GitLabProjectPathValues) candid
 			prefix = scanLiteralPrefix(prefix, pattern.kind == KindRegex)
 			root, _, hasSlash := strings.Cut(prefix, "/")
 			addRoot(root, hasSlash)
+			if pattern.kind == KindRegex && hasSlash {
+				suffix := "-test"
+				if strings.HasSuffix(prefix, "/") {
+					suffix = "project"
+				}
+				candidates = append(candidates, "attacker/"+prefix+suffix)
+			}
 		}
 	}
 
@@ -119,6 +126,9 @@ func analyzeCandidates(filterValue string, paths GitLabProjectPathValues) candid
 		candidates = append(candidates,
 			root+"-evil/project", root+"evil/project", root+"a/project", root+"0/project",
 			"evil-"+root+"/project", "attacker/"+root+"/project")
+		for _, suffix := range "abcdefghijklmnopqrstuvwxyz0123456789" {
+			candidates = append(candidates, root+string(suffix)+"/project")
+		}
 	}
 	result := candidateResult{Review: unresolved}
 	if unresolved {

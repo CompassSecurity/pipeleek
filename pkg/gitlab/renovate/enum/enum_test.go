@@ -2,6 +2,7 @@ package renovate
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
@@ -54,53 +56,54 @@ func TestFindBypassEvidence(t *testing.T) {
 }
 
 func TestProcessProjectsConcurrentlyUsesBoundedWorkers(t *testing.T) {
-	resetStatus()
-	projectCount := projectProcessingConcurrency * 3
-	projects := make([]*gitlab.Project, projectCount)
-	for i := range projects {
-		projects[i] = &gitlab.Project{ID: int64(i + 1)}
-	}
-
-	started := make(chan struct{}, projectCount)
-	release := make(chan struct{})
-	var active atomic.Int32
-	var maximumActive atomic.Int32
-	var processed atomic.Int32
-	done := make(chan error, 1)
-
-	go func() {
-		done <- processProjectsConcurrently(func(visit util.ProjectIteratorFunc) error {
-			for _, project := range projects {
-				if err := visit(project); err != nil {
-					return err
+	for _, threads := range []int{1, 3, 5} {
+		t.Run(fmt.Sprintf("threads_%d", threads), func(t *testing.T) {
+			resetStatus()
+			projectCount := threads * 3
+			projects := make([]*gitlab.Project, projectCount)
+			for i := range projects {
+				projects[i] = &gitlab.Project{ID: int64(i + 1)}
+			}
+			started := make(chan struct{}, projectCount)
+			release := make(chan struct{})
+			var active atomic.Int32
+			var maximumActive atomic.Int32
+			var processed atomic.Int32
+			done := make(chan error, 1)
+			go func() {
+				done <- processProjectsConcurrently(threads, func(visit util.ProjectIteratorFunc) error {
+					for _, project := range projects {
+						if err := visit(project); err != nil {
+							return err
+						}
+					}
+					return nil
+				}, func(*gitlab.Project) {
+					current := active.Add(1)
+					for previous := maximumActive.Load(); current > previous && !maximumActive.CompareAndSwap(previous, current); previous = maximumActive.Load() {
+					}
+					started <- struct{}{}
+					<-release
+					active.Add(-1)
+					processed.Add(1)
+				})
+			}()
+			for i := 0; i < threads; i++ {
+				select {
+				case <-started:
+				case <-time.After(5 * time.Second):
+					close(release)
+					t.Fatal("workers did not start concurrently")
 				}
 			}
-			return nil
-		}, func(*gitlab.Project) {
-			current := active.Add(1)
-			for previous := maximumActive.Load(); current > previous && !maximumActive.CompareAndSwap(previous, current); previous = maximumActive.Load() {
-			}
-			started <- struct{}{}
-			<-release
-			active.Add(-1)
-			processed.Add(1)
-		})
-	}()
-
-	for i := 0; i < projectProcessingConcurrency; i++ {
-		select {
-		case <-started:
-		case <-time.After(5 * time.Second):
 			close(release)
-			t.Fatal("workers did not start concurrently")
-		}
+			require.NoError(t, <-done)
+			assert.Equal(t, int32(threads), maximumActive.Load())
+			assert.Equal(t, int32(projectCount), processed.Load())
+			assert.Equal(t, int64(projectCount), statusTracker.projectsDiscovered.Load())
+			assert.Equal(t, int64(projectCount), statusTracker.projectsProcessed.Load())
+		})
 	}
-	close(release)
-	require.NoError(t, <-done)
-	assert.Equal(t, int32(projectProcessingConcurrency), maximumActive.Load())
-	assert.Equal(t, int32(projectCount), processed.Load())
-	assert.Equal(t, int64(projectCount), statusTracker.projectsDiscovered.Load())
-	assert.Equal(t, int64(projectCount), statusTracker.projectsProcessed.Load())
 }
 
 func TestStatusHookReportsProgress(t *testing.T) {
@@ -318,6 +321,29 @@ func TestDetectAutodiscovery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := detectAutodiscovery(tt.cicdConf, tt.configFileContent)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestDetectAutodiscoveryWithPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		ci       string
+		configs  []string
+		expected bool
+	}{
+		{name: "higher priority config disables discovery", configs: []string{`module.exports = { autodiscover: false };`, `{"autodiscover":true}`}},
+		{name: "higher priority config enables discovery", configs: []string{`module.exports = { autodiscover: true };`, `{"autodiscover":false}`}, expected: true},
+		{name: "environment disables config", ci: `RENOVATE_AUTODISCOVER: "false"`, configs: []string{`{"autodiscover":true}`}},
+		{name: "environment enables config", ci: `RENOVATE_AUTODISCOVER: "true"`, configs: []string{`{"autodiscover":false}`}, expected: true},
+		{name: "flag overrides environment", ci: "RENOVATE_AUTODISCOVER: true\nscript: renovate --autodiscover=false", configs: []string{`{"autodiscover":true}`}},
+		{name: "bare flag overrides environment", ci: "RENOVATE_AUTODISCOVER: false\nscript: renovate --autodiscover", expected: true},
+		{name: "scope setting does not override explicit false", ci: "RENOVATE_AUTODISCOVER_FILTER: acme/**", configs: []string{`{"autodiscover":false}`}},
+		{name: "scope only retains existing detection", ci: "RENOVATE_AUTODISCOVER_FILTER: acme/**", expected: true},
+		{name: "missing setting", configs: []string{`{"enabled":true}`}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, detectAutodiscoveryWithPrecedence(test.ci, test.configs))
 		})
 	}
 }
@@ -572,6 +598,39 @@ func TestHasEffectiveAutodiscoveryScope(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, hasEffectiveAutodiscoveryScope(tt.filterType, tt.value))
+		})
+	}
+}
+
+func TestAnalyzeFilterWithNamespaces(t *testing.T) {
+	paths := filter.GitLabProjectPathValues{RootNamespace: "acme"}
+	for _, test := range []struct {
+		name       string
+		namespace  string
+		comma      bool
+		wantBypass bool
+		wantReview bool
+	}{
+		{name: "no namespaces", wantBypass: true},
+		{name: "empty namespaces", namespace: "[]", wantBypass: true},
+		{name: "literal namespace", namespace: `["acme"]`},
+		{name: "multiple namespaces", namespace: "acme,other/team", comma: true},
+		{name: "unresolved namespace", namespace: "${NAMESPACE}", wantReview: true},
+		{name: "unsupported namespace glob", namespace: "acme*", wantReview: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var options []renovateutil.AutodiscoveryScopeOption
+			if test.namespace != "" {
+				options = append(options, renovateutil.AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: test.namespace, CommaDelimited: test.comma})
+			}
+			findings := analyzeFilterWithNamespaces("*", paths, options)
+			_, bypass := vulnerableFindingRuleID(findings)
+			assert.Equal(t, test.wantBypass, bypass)
+			rule, review := reviewFindingRuleID(findings)
+			assert.Equal(t, test.wantReview, review)
+			if review {
+				assert.Equal(t, filter.RuleIDNamespaceScopeReview, rule)
+			}
 		})
 	}
 }

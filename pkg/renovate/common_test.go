@@ -347,6 +347,26 @@ func TestDetectAutodiscoveryFiltersWithSource(t *testing.T) {
 			wantFilterValue:    "myname{a,b}*/*",
 			wantCommaDelimited: false,
 		},
+		{
+			name:            "GitLab variable with description and options",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: Renovate autodiscover filter\n    value: 'kubitus-project/**'\n    options:\n      - kubitus-project/**\n",
+			wantFilterValue: "kubitus-project/**", wantCommaDelimited: true,
+		},
+		{
+			name:            "job variable with inline mapping",
+			cicdConf:        "renovate:\n  variables:\n    RENOVATE_AUTODISCOVER_FILTER: {description: filter, value: 'one/*,two/*'}\n",
+			wantFilterValue: "one/*,two/*", wantCommaDelimited: true,
+		},
+		{
+			name:            "variable mapping without value is empty",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: no default\n    options: ['*']\n",
+			wantFilterValue: "", wantCommaDelimited: true,
+		},
+		{
+			name:            "CLI flag takes precedence over nested variable",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    value: 'nested/*'\nscript: renovate --autodiscover-filter=cli/*\n",
+			wantFilterValue: "cli/*", wantCommaDelimited: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -380,6 +400,10 @@ func TestDetectAutodiscoveryScopeOptions(t *testing.T) {
 	options = DetectAutodiscoveryScopeOptions("RENOVATE_AUTODISCOVER_FILTER: 'env/**'\nscript: renovate --autodiscover-filter=cli/**", nil)
 	require.Len(t, options, 1)
 	assert.Equal(t, "cli/**", options[0].Value)
+
+	options = DetectAutodiscoveryScopeOptions(`RENOVATE_AUTODISCOVER_NAMESPACES: "acme,other/team"`, nil)
+	require.Len(t, options, 1)
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: "acme,other/team", CommaDelimited: true}, options[0])
 }
 
 func TestExtractSelfHostedOptions(t *testing.T) {

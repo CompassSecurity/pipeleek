@@ -37,7 +37,7 @@ For example, we enumerated Renovate configs found on GitLab.com. One project was
 ```bash
 pipeleek gl renovate enum -u https://gitlab.com -t glpat-[redacted] --dump
 2025-09-30T07:11:06Z info Fetching projects
-2025-09-30T07:11:12Z info Renovate configuration autodiscoveryFilterBypass=unfiltered-autodiscovery hasAutodiscovery=true pipelines=enabled isSelfHosted=true url=https://gitlab.com/test-group/renovate-bot
+2025-09-30T07:11:12Z info Renovate configuration autodiscoveryBypassExample=pipeleek-abc/project autodiscoveryFilterBypass=unfiltered-autodiscovery autodiscoveryNamespaceStatus=not-found autodiscoveryRegistration=unconfirmed hasAutodiscovery=true isSelfHosted=true pipelines=enabled url=https://gitlab.com/test-group/renovate-bot
 2025-09-30T07:11:16Z info Fetched all projects
 2025-09-30T07:11:16Z info Done, Bye Bye 🏳️‍🌈🔥
 ```
@@ -50,20 +50,25 @@ Even when autodiscovery filters are enabled, weak or poorly written filter regex
 
 Pipeleek analyzes `autodiscoverFilter` patterns and reports vulnerable scopes through `autodiscoveryFilterBypass`. Values name the issue directly: `negation-only-filter`, `unrestricted-wildcard`, `unanchored-regex`, `path-boundary-bypass`, or `unfiltered-autodiscovery`. Review findings are reported through `autodiscoveryFilterReview`, such as `unsupported-extglob` or `unresolved-variable`.
 
-For a bypass finding, `autodiscoveryBypassExample` is a candidate path accepted by the complete filter outside the identified root namespaces. `autodiscoveryNamespaceStatus` reports whether GitLab returned `exists`, `not-found`, or `unknown` for the candidate root. `autodiscoveryRegistration=unconfirmed` means the scan did not attempt registration; a nonexistent namespace is not proof that registration is permitted. Candidate matches do not establish that the bot can access or process the project, and no match does not prove a filter is safe.
+For a filter bypass, `autodiscoveryBypassExample` is a candidate path accepted by the complete filter outside the identified root namespaces. For unfiltered autodiscovery, the example uses `pipeleek-<three random lowercase letters>/project`. `autodiscoveryNamespaceStatus` reports whether GitLab returned `exists`, `not-found`, or `unknown` for the candidate root. `autodiscoveryRegistration=unconfirmed` means the scan did not attempt registration; a nonexistent namespace is not proof that registration is permitted. Candidate matches do not establish that the bot can access or process the project, and no match does not prove a filter is safe.
 Quick examples (filter value -> example bypass path):
 
 - `negation-only-filter`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`
 - `unrestricted-wildcard`: `*` -> `attacker/any-repo`
 - `unanchored-regex`: `/acme-org\/infra/` -> `evil-acme-org/infra-test`
 - `path-boundary-bypass`: `/^acme-org/` -> `acme-org-evil/x`
+- `path-boundary-bypass`: `/^acme-org[1-9]/` -> `acme-org1/project`
 - `unfiltered-autodiscovery`: autodiscovery enabled with no filter -> any token-visible project
 
 Flat extglobs using `@`, `+`, `?`, or `*` are analyzed. Nested or other unsupported extglobs produce an `unsupported-extglob` review finding rather than being treated as safe.
 
+Candidate generation tests common namespace mutations, including each single-letter and single-digit suffix. It is bounded and does not cover every possible multi-character pattern.
+
 GitLab project path variables (`CI_PROJECT_ROOT_NAMESPACE`, `CI_PROJECT_NAMESPACE`, and `CI_PROJECT_PATH`) are resolved from the current project before analysis. If a variable cannot be resolved, Pipeleek reports an `unresolved-variable` review finding.
 
 `autodiscoverNamespaces` is recognized as a scope but is not analyzed as an `autodiscoverFilter` pattern. When topics are the only scope, Pipeleek reports `autodiscoveryScopeReview=topic-only-autodiscovery`; topic values are not analyzed as path patterns.
+
+When a literal `autodiscoverNamespaces` restriction is present, GitLab limits discovery to those namespaces, so outside-namespace filter candidates are not reported as bypasses. Unresolved or unsupported namespace values produce a `namespace-scope-unresolved` review finding.
 
 Scope settings are extracted from each discovered configuration separately. When the same setting appears in several sources, the scanner prefers CI command-line flags, then CI environment variables, then `config.js`, the primary configuration file, and other discovered configuration files. This is a best-effort static interpretation; verify the bot's effective runtime configuration when settings conflict.
 

@@ -65,7 +65,7 @@ To view a full example of the available keys run `pipeleek config gen`.
 
 ### Common Settings
 
-Scan commands inherit from `common`:
+Scan commands and `gl renovate enum` inherit applicable settings from `common`. For `gl renovate enum`, `common.threads` controls concurrent project enumeration and can be overridden with `--threads` (default 4).
 
 The default hit-detection timeout is one minute, or two minutes for `gl release scan`.
 An explicit `common.hit_timeout`, `PIPELEEK_COMMON_HIT_TIMEOUT`, or `--hit-timeout` overrides that default.

@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -35,6 +36,7 @@ type autodiscoverFilterSource struct {
 	fileType   string
 	ciMode     string
 	extraFiles map[string]string
+	onLint     func()
 }
 
 type autodiscoverFilterExpectation struct {
@@ -47,6 +49,86 @@ type autodiscoverFilterExpectation struct {
 }
 
 var ansiEscapeSequence = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func TestGLRenovateEnumThreads(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	configPath := filepath.Join(t.TempDir(), "pipeleek.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("common:\n  threads: 2\n"), 0600))
+	for _, test := range []struct {
+		name    string
+		args    []string
+		env     []string
+		threads int
+	}{
+		{name: "default", env: []string{"PIPELEEK_COMMON_THREADS="}, threads: 4},
+		{name: "flag", args: []string{"--threads", "1"}, threads: 1},
+		{name: "environment", env: []string{"PIPELEEK_COMMON_THREADS=3"}, threads: 3},
+		{name: "flag overrides environment", args: []string{"--threads", "1"}, env: []string{"PIPELEEK_COMMON_THREADS=3"}, threads: 1},
+		{name: "config file", args: []string{"--config", configPath}, env: []string{"PIPELEEK_NO_CONFIG=", "PIPELEEK_COMMON_THREADS="}, threads: 2},
+		{name: "namespace", args: []string{"--namespace", "acme", "--threads", "3"}, threads: 3},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			started := make(chan struct{}, 6)
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			defer releaseOnce.Do(func() { close(release) })
+			source := autodiscoverFilterSource{ciMode: "env-filter", onLint: func() {
+				started <- struct{}{}
+				<-release
+			}}
+			filters := make([]autodiscoverFilterExpectation, 6)
+			for index := range filters {
+				filters[index] = autodiscoverFilterExpectation{value: "trusted/*"}
+			}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, filters)
+			args := append([]string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast"}, test.args...)
+			env := append([]string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, test.env...)
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := testutil.RunCLI(t, args, env, 30*time.Second)
+				done <- err
+			}()
+			for index := 0; index < test.threads; index++ {
+				select {
+				case <-started:
+				case err := <-done:
+					t.Fatalf("CLI exited before workers started: %v", err)
+				case <-time.After(15 * time.Second):
+					t.Fatal("timed out waiting for project workers")
+				}
+			}
+			select {
+			case <-started:
+				t.Error("more projects started than the configured thread limit")
+			case <-time.After(150 * time.Millisecond):
+			}
+			releaseOnce.Do(func() { close(release) })
+			require.NoError(t, <-done)
+		})
+	}
+}
+
+func TestGLRenovateEnumThreadsRejectsInvalid(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  string
+	}{
+		{value: "0", want: "thread count must be at least 1"},
+		{value: "101", want: "thread count too high"},
+	} {
+		t.Run(test.value, func(t *testing.T) {
+			stdout, stderr, err := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", "https://gitlab.example", "--token", "mock-token", "--threads", test.value,
+			}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 30*time.Second)
+			require.Error(t, err)
+			assert.Contains(t, stdout+stderr, test.want)
+		})
+	}
+}
 
 func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
 	filters := []autodiscoverFilterExpectation{
@@ -61,6 +143,8 @@ func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
 		{name: "extglob zero-or-more with suffix wildcard", value: "*(myname|other)*/*", rule: "path-boundary-bypass"},
 		{name: "nested extglob review", value: "@(myname|+(other|else))/*", reviewRule: "unsupported-extglob"},
 		{name: "regex quantified character class", value: "/^myname[0-9]+/", rule: "path-boundary-bypass"},
+		{name: "regex nonzero digit suffix", value: "/^myname[1-9]/", rule: "path-boundary-bypass"},
+		{name: "regex later letter suffix", value: "/^myname[m-z]/", rule: "path-boundary-bypass"},
 		{name: "regex alternatives without boundaries", value: "/^myname|^othername/", rule: "path-boundary-bypass"},
 		{name: "resolved root namespace suffix wildcard", value: "$CI_PROJECT_ROOT_NAMESPACE*/*", rule: "path-boundary-bypass"},
 		{name: "resolved project namespace suffix wildcard", value: "$CI_PROJECT_NAMESPACE*/*", noBypass: true},
@@ -68,6 +152,8 @@ func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
 		{name: "unresolved custom project variable review", value: "${RENOVATE_PROJECT}", reviewRule: "unresolved-variable"},
 		{name: "glob single-character wildcard", value: "myname?/*", rule: "path-boundary-bypass"},
 		{name: "glob character class", value: "myname[0-9]/*", rule: "path-boundary-bypass"},
+		{name: "glob nonzero digit suffix", value: "myname[1-9]/*", rule: "path-boundary-bypass"},
+		{name: "glob final letter suffix", value: "myname[z]/*", rule: "path-boundary-bypass"},
 		{name: "glob brace alternatives with suffix wildcard", value: "myname{a,b}*/*", rule: "path-boundary-bypass", skipForEnvCLI: true},
 	}
 
@@ -154,6 +240,28 @@ func TestGLRenovateCommaDelimitedFilters(t *testing.T) {
 			assertFilterFinding(t, stdout+"\n"+stderr, filter)
 		})
 	}
+}
+
+func TestGLRenovateNestedCIVariable(t *testing.T) {
+	filters := []autodiscoverFilterExpectation{
+		{name: "scoped filter", value: "kubitus-project/**", noBypass: true},
+		{name: "wildcard filter", value: "*", rule: "unrestricted-wildcard"},
+	}
+	source := autodiscoverFilterSource{name: "nested GitLab variable", ciMode: "nested-filter"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, filters)
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	stdout, stderr, err := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+	}, []string{
+		"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+		"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+		"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+	}, 2*time.Minute)
+	require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+	for _, filter := range filters {
+		assertFilterFinding(t, stdout+"\n"+stderr, filter)
+	}
+	assert.NotContains(t, stdout+stderr, "autodiscoveryFilterValue=description:")
 }
 
 func TestGLRenovateConfigJSFilterWhenRenovateJSONExists(t *testing.T) {
@@ -309,6 +417,66 @@ func TestGLRenovateMixedScopesAndConfigFiles(t *testing.T) {
 	}
 }
 
+func TestGLRenovateCombinedNamespaceScope(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range []struct {
+		name       string
+		config     string
+		wantBypass bool
+		wantReview bool
+	}{
+		{name: "wildcard restricted to namespace", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: ['acme'] };`},
+		{name: "wildcard with empty namespaces", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: [] };`, wantBypass: true},
+		{name: "wildcard with unresolved namespace", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: ['${NAMESPACE}'] };`, wantReview: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{filePath: "config.js", fileType: "raw"}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{value: test.config}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+stderr, "")
+			assert.Equal(t, test.wantBypass, strings.Contains(output, "autodiscoveryFilterBypass=unrestricted-wildcard"))
+			assert.Equal(t, test.wantReview, strings.Contains(output, "autodiscoveryFilterReview=namespace-scope-unresolved"))
+		})
+	}
+}
+
+func TestGLRenovateAutodiscoverySettingPrecedence(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range []struct {
+		name       string
+		configJS   string
+		configJSON string
+		ciMode     string
+		want       bool
+	}{
+		{name: "javascript false overrides json true", configJS: `module.exports = { autodiscover: false };`, configJSON: `{"autodiscover":true}`, ciMode: "no-autodiscovery"},
+		{name: "javascript true overrides json false", configJS: `module.exports = { autodiscover: true };`, configJSON: `{"autodiscover":false}`, ciMode: "no-autodiscovery", want: true},
+		{name: "environment false overrides config true", configJS: `module.exports = { autodiscover: true };`, configJSON: `{}`, ciMode: "disabled"},
+		{name: "environment true overrides config false", configJS: `module.exports = { autodiscover: false };`, configJSON: `{}`, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{filePath: "renovate.json", fileType: "raw", ciMode: test.ciMode, extraFiles: map[string]string{"config.js": test.configJS}}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{value: test.configJSON}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+stderr, "")
+			assert.Contains(t, output, fmt.Sprintf("hasAutodiscovery=%t", test.want))
+			if !test.want {
+				assert.NotContains(t, output, "autodiscoveryFilterBypass=")
+			}
+		})
+	}
+}
+
 func TestGLRenovateAutodiscoveryWithoutScopeIsVulnerable(t *testing.T) {
 	source := autodiscoverFilterSource{name: "unfiltered CI autodiscovery", ciMode: "no-filter"}
 	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "unfiltered"}})
@@ -321,7 +489,7 @@ func TestGLRenovateAutodiscoveryWithoutScopeIsVulnerable(t *testing.T) {
 	assert.NotContains(t, output, "hasAutodiscoveryFilters=")
 	assert.NotContains(t, output, "hasConfigFile=")
 	assert.Contains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
-	assert.Contains(t, output, "autodiscoveryBypassExample=pipeleek-check/project")
+	assert.Regexp(t, `autodiscoveryBypassExample=pipeleek-[a-z]{3}/project(?:\s|$)`, output)
 	assert.Contains(t, output, "autodiscoveryNamespaceStatus=not-found")
 	assert.Contains(t, output, "autodiscoveryRegistration=unconfirmed")
 }
@@ -414,12 +582,25 @@ func setupMockGitLabAutodiscoverFilterAPI(t *testing.T, source autodiscoverFilte
 	mux.HandleFunc("/api/v4/namespaces/", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, http.StatusOK, map[string]any{"exists": false})
 	})
-	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, _ *http.Request) {
+	writeProjects := func(w http.ResponseWriter) {
 		projects := make([]map[string]any, 0, len(projectByID))
 		for _, project := range projectByID {
 			projects = append(projects, project)
 		}
 		writeJSON(t, w, http.StatusOK, projects)
+	}
+	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, _ *http.Request) {
+		writeProjects(w)
+	})
+	mux.HandleFunc("/api/v4/groups/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v4/groups/acme":
+			writeJSON(t, w, http.StatusOK, map[string]any{"id": 42, "name": "acme", "path": "acme"})
+		case "/api/v4/groups/42/projects":
+			writeProjects(w)
+		default:
+			http.NotFound(w, r)
+		}
 	})
 	mux.HandleFunc("/api/v4/projects/", func(w http.ResponseWriter, r *http.Request) {
 		rest := strings.TrimPrefix(r.URL.Path, "/api/v4/projects/")
@@ -440,9 +621,14 @@ func setupMockGitLabAutodiscoverFilterAPI(t *testing.T, source autodiscoverFilte
 		}
 
 		if strings.HasPrefix(endpoint, "ci/lint") {
+			if source.onLint != nil {
+				source.onLint()
+			}
 			mergedYAML := `image: renovate/renovate:44` + "\n"
 			if source.filePath == "" {
 				mergedYAML = ciYAMLForFilter(source.ciMode, filter.value)
+			} else if source.ciMode == "disabled" {
+				mergedYAML += "variables:\n  RENOVATE_AUTODISCOVER: 'false'\n"
 			} else if source.ciMode != "no-autodiscovery" {
 				mergedYAML += "variables:\n  RENOVATE_AUTODISCOVER: \"true\"\n"
 			}
@@ -493,6 +679,9 @@ func setupMockGitLabAutodiscoverFilterAPI(t *testing.T, source autodiscoverFilte
 
 func ciYAMLForFilter(mode, filterValue string) string {
 	switch mode {
+	case "nested-filter":
+		quoted, _ := json.Marshal(filterValue)
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: Renovate autodiscover filter\n    value: " + string(quoted) + "\n    options: ['*']\n"
 	case "extra-flags":
 		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_EXTRA_FLAGS: \"--autodiscover-filter=" + filterValue + "\"\n"
 	case "env-filter":

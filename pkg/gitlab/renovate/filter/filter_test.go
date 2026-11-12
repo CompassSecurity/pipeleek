@@ -46,6 +46,24 @@ func TestClassifyPattern(t *testing.T) {
 	}
 }
 
+func TestIsLiteralGitLabSegment(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		valid bool
+	}{
+		{value: "Group_1.project-2", valid: true},
+		{value: ""},
+		{value: "group/project"},
+		{value: "group*"},
+		{value: "group\n"},
+		{value: "grüppe"},
+	} {
+		t.Run(test.value, func(t *testing.T) {
+			assert.Equal(t, test.valid, isLiteralGitLabSegment(test.value))
+		})
+	}
+}
+
 // Half-delimited pattern must be treated as glob (not regex).
 func TestClassifyPattern_HalfDelimitedIsGlob(t *testing.T) {
 	p := classifyPattern("/gms/support/**")

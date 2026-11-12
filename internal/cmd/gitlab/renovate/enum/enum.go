@@ -20,6 +20,7 @@ type EnumOptions struct {
 	Fast                        bool
 	Dump                        bool
 	Page                        int
+	Threads                     int
 	OrderBy                     string
 	ExtendRenovateConfigService string
 }
@@ -36,6 +37,7 @@ var flagBindings = map[string]string{
 	"dump":                           "gitlab.renovate.enum.dump",
 	"page":                           "gitlab.renovate.enum.page",
 	"order-by":                       "gitlab.renovate.enum.order_by",
+	"threads":                        "common.threads",
 	"extend-renovate-config-service": "gitlab.renovate.enum.extend_renovate_config_service",
 }
 
@@ -44,6 +46,7 @@ func RunEnumerate(cmd *cobra.Command, args []string) {
 	config.NewCommandSetup(cmd).
 		WithFlagBindings(flagBindings).
 		RequireKeys("gitlab.url", "gitlab.token").
+		AddValidator(func() error { return config.ValidateThreadCount(config.GetInt("common.threads")) }).
 		MustBind()
 
 	opts := EnumOptions{
@@ -57,6 +60,7 @@ func RunEnumerate(cmd *cobra.Command, args []string) {
 		Fast:                        config.GetBool("gitlab.renovate.enum.fast"),
 		Dump:                        config.GetBool("gitlab.renovate.enum.dump"),
 		Page:                        config.GetInt("gitlab.renovate.enum.page"),
+		Threads:                     config.GetInt("common.threads"),
 		OrderBy:                     config.GetString("gitlab.renovate.enum.order_by"),
 		ExtendRenovateConfigService: config.GetString("gitlab.renovate.enum.extend_renovate_config_service"),
 	}
@@ -83,6 +87,7 @@ func NewEnumCmd() *cobra.Command {
 	enumCmd.Flags().BoolVarP(&fast, "fast", "f", false, "Fast mode - skip renovate config file detection, only check CIDC yml for renovate bot job (default false)")
 	enumCmd.Flags().BoolVarP(&dump, "dump", "d", false, "Dump mode - save all config files to renovate-enum-out folder (default false)")
 	enumCmd.Flags().IntVar(&page, "page", 1, "Page number to start fetching projects from (default 1, fetch all pages)")
+	enumCmd.Flags().Int("threads", config.DefaultCommonScanOptions().MaxScanGoRoutines, "Number of concurrent projects to enumerate")
 	enumCmd.Flags().StringVar(&orderBy, "order-by", "created_at", "Order projects by: id, name, path, created_at, updated_at, star_count, last_activity_at, or similarity")
 	enumCmd.Flags().StringVar(&extendRenovateConfigService, "extend-renovate-config-service", "", "Base URL of the resolver service e.g.  http://localhost:3000 (docker run -ti -p 3000:3000 jfrcomp/renovate-config-resolver:latest). Renovate configs can be extended by shareable preset, resolving them makes enumeration more accurate.")
 
@@ -101,6 +106,7 @@ func enumerate(opts EnumOptions) {
 		Fast:                        opts.Fast,
 		Dump:                        opts.Dump,
 		Page:                        opts.Page,
+		Threads:                     opts.Threads,
 		Repository:                  opts.Repository,
 		Namespace:                   opts.Namespace,
 		OrderBy:                     opts.OrderBy,
