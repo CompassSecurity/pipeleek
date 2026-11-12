@@ -49,6 +49,8 @@ This makes the bot susceptible to autodiscovery exploits, since it will renovate
 Even when autodiscovery filters are enabled, weak or poorly written filter regexes can still allow attackers to bypass them and exploit the bot.
 
 Pipeleek analyzes `autodiscoverFilter` patterns and reports vulnerable scopes through `autodiscoveryFilterBypass`. Values name the issue directly: `negation-only-filter`, `unrestricted-wildcard`, `unanchored-regex`, `path-boundary-bypass`, or `unfiltered-autodiscovery`. Review findings are reported through `autodiscoveryFilterReview`, such as `unsupported-extglob` or `unresolved-variable`.
+
+For a bypass finding, `autodiscoveryBypassExample` is a candidate path accepted by the complete filter outside the identified root namespaces. `autodiscoveryNamespaceStatus` reports whether GitLab returned `exists`, `not-found`, or `unknown` for the candidate root. `autodiscoveryRegistration=unconfirmed` means the scan did not attempt registration; a nonexistent namespace is not proof that registration is permitted. Candidate matches do not establish that the bot can access or process the project, and no match does not prove a filter is safe.
 Quick examples (filter value -> example bypass path):
 
 - `negation-only-filter`: `["!/acme-org/private/.*"]` -> `attacker/any-repo`

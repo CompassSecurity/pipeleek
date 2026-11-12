@@ -280,6 +280,9 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 		} else if hasAutodiscoveryFilters && filterType == "autodiscoverTopics" {
 			filterFindings = filter.AnalyzeTopicOnlyAutodiscovery(filterValue)
 		}
+		if autodiscovery && len(filterFindings) > 0 && filterFindings[0].RuleID == filter.RuleIDUnfilteredAutodiscovery {
+			filterFindings[0].Evidence = []string{"pipeleek-check/project"}
+		}
 
 		event := log.Info().
 			Bool("hasAutodiscovery", autodiscovery).
@@ -287,6 +290,11 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			Str("url", project.WebURL)
 		if len(opts.SelfHostedOptions) > 0 {
 			event = event.Bool("isSelfHosted", isSelfHostedConfig(isSelfHostedConfigContent, opts))
+		}
+		if evidence, status := findBypassEvidence(git, filterFindings); evidence != "" {
+			event = event.Str("autodiscoveryBypassExample", evidence).
+				Str("autodiscoveryNamespaceStatus", status).
+				Str("autodiscoveryRegistration", "unconfirmed")
 		}
 		if hasAutodiscoveryFilters {
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
@@ -316,6 +324,39 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			log.Debug().Msg(format.GetPlatformAgnosticNewline() + yml)
 		}
 	}
+}
+
+func findBypassEvidence(git *gitlab.Client, findings []filter.Finding) (string, string) {
+	for _, finding := range findings {
+		if finding.Verdict != filter.Vulnerable || len(finding.Evidence) == 0 {
+			continue
+		}
+		example := finding.Evidence[0]
+		status := "unknown"
+		for index, evidence := range finding.Evidence {
+			if index == 3 {
+				break
+			}
+			root, _, ok := strings.Cut(evidence, "/")
+			if !ok || root == "" {
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			result, _, err := git.Namespaces.NamespaceExists(root, nil, gitlab.WithContext(ctx))
+			cancel()
+			if err != nil || result == nil {
+				continue
+			}
+			if !result.Exists {
+				return evidence, "not-found"
+			}
+			if index == 0 {
+				status = "exists"
+			}
+		}
+		return example, status
+	}
+	return "", ""
 }
 
 func gitLabProjectPathValues(project *gitlab.Project) filter.GitLabProjectPathValues {

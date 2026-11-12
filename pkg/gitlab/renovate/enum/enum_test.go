@@ -2,6 +2,8 @@ package renovate
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +19,39 @@ import (
 	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
+
+func TestFindBypassEvidence(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v4/namespaces/taken/exists":
+			_, _ = writer.Write([]byte(`{"exists":true}`))
+		case "/api/v4/namespaces/free/exists":
+			_, _ = writer.Write([]byte(`{"exists":false}`))
+		default:
+			http.Error(writer, "unavailable", http.StatusForbidden)
+		}
+	}))
+	defer server.Close()
+	client, err := gitlab.NewClient("test-token", gitlab.WithBaseURL(server.URL+"/api/v4/"))
+	require.NoError(t, err)
+	for _, test := range []struct {
+		name     string
+		evidence []string
+		want     string
+		status   string
+	}{
+		{name: "unused namespace", evidence: []string{"taken/project", "free/project"}, want: "free/project", status: "not-found"},
+		{name: "occupied namespace", evidence: []string{"taken/project"}, want: "taken/project", status: "exists"},
+		{name: "unknown namespace", evidence: []string{"unknown/project"}, want: "unknown/project", status: "unknown"},
+		{name: "no evidence"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			example, status := findBypassEvidence(client, []filter.Finding{{Verdict: filter.Vulnerable, Evidence: test.evidence}})
+			assert.Equal(t, test.want, example)
+			assert.Equal(t, test.status, status)
+		})
+	}
+}
 
 func TestProcessProjectsConcurrentlyUsesBoundedWorkers(t *testing.T) {
 	resetStatus()

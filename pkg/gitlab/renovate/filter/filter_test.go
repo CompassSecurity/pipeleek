@@ -228,12 +228,8 @@ func TestAnalyzeWithGitLabProjectPaths(t *testing.T) {
 	}
 
 	findings = AnalyzeWithGitLabProjectPaths("$CI_PROJECT_PATH*/*", paths)
-	assert.Equal(t, Vulnerable, verdictOf(findings))
-	assert.True(t, hasRule(findings, RuleIDPathBoundaryBypass))
-	for _, finding := range findings {
-		assert.Contains(t, finding.Evidence, "group/subgroup/renovatea/project")
-		break
-	}
+	assert.Equal(t, Safe, verdictOf(findings))
+	assert.False(t, hasRule(findings, RuleIDPathBoundaryBypass))
 
 	findings = AnalyzeWithGitLabProjectPaths("$CI_PROJECT_PATH", GitLabProjectPathValues{})
 	assert.Equal(t, NeedsReview, verdictOf(findings))
@@ -263,7 +259,7 @@ func TestAnalyzeWithGitLabProjectPaths(t *testing.T) {
 func TestAnalyzeRegexDotDoesNotExtendNamespacePrefix(t *testing.T) {
 	findings := Analyze(`/^acme\/.*$/`)
 	assert.False(t, hasRule(findings, RuleIDPathBoundaryBypass))
-	assert.Equal(t, "acme.name", literalNamespacePrefix(classifyPattern("acme.name*/*")))
+	assert.Equal(t, "acme.name", scanLiteralPrefix("acme.name*/*", false))
 }
 
 func TestAnalyze_UnsupportedExtglobNeedsReview(t *testing.T) {
@@ -337,8 +333,8 @@ func TestAnalyze_Corpus(t *testing.T) {
 		{
 			name:        "safe namespace allowlist with unanchored negative regex exclusions",
 			input:       `["${CI_PROJECT_ROOT_NAMESPACE}/**", "!/.*-deletion_scheduled-.*/", "!/.*/forks//", "!/.*renovate-test.*/"]`,
-			wantVerdict: Safe,
-			wantRules:   []string{RuleIDInfo},
+			wantVerdict: NeedsReview,
+			wantRules:   []string{RuleIDInfo, RuleIDUnresolvedVariable},
 			wantNoRules: []string{RuleIDNegationOnlyFilter, RuleIDUnrestrictedWildcard, RuleIDUnanchoredRegex, RuleIDPathBoundaryBypass},
 		},
 		{

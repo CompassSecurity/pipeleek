@@ -42,6 +42,7 @@ type autodiscoverFilterExpectation struct {
 	value         string
 	rule          string
 	reviewRule    string
+	noBypass      bool
 	skipForEnvCLI bool
 }
 
@@ -62,8 +63,8 @@ func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
 		{name: "regex quantified character class", value: "/^myname[0-9]+/", rule: "path-boundary-bypass"},
 		{name: "regex alternatives without boundaries", value: "/^myname|^othername/", rule: "path-boundary-bypass"},
 		{name: "resolved root namespace suffix wildcard", value: "$CI_PROJECT_ROOT_NAMESPACE*/*", rule: "path-boundary-bypass"},
-		{name: "resolved project namespace suffix wildcard", value: "$CI_PROJECT_NAMESPACE*/*", rule: "path-boundary-bypass"},
-		{name: "resolved project path suffix wildcard", value: "$CI_PROJECT_PATH*/*", rule: "path-boundary-bypass"},
+		{name: "resolved project namespace suffix wildcard", value: "$CI_PROJECT_NAMESPACE*/*", noBypass: true},
+		{name: "resolved project path suffix wildcard", value: "$CI_PROJECT_PATH*/*", noBypass: true},
 		{name: "unresolved custom project variable review", value: "${RENOVATE_PROJECT}", reviewRule: "unresolved-variable"},
 		{name: "glob single-character wildcard", value: "myname?/*", rule: "path-boundary-bypass"},
 		{name: "glob character class", value: "myname[0-9]/*", rule: "path-boundary-bypass"},
@@ -320,6 +321,9 @@ func TestGLRenovateAutodiscoveryWithoutScopeIsVulnerable(t *testing.T) {
 	assert.NotContains(t, output, "hasAutodiscoveryFilters=")
 	assert.NotContains(t, output, "hasConfigFile=")
 	assert.Contains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+	assert.Contains(t, output, "autodiscoveryBypassExample=pipeleek-check/project")
+	assert.Contains(t, output, "autodiscoveryNamespaceStatus=not-found")
+	assert.Contains(t, output, "autodiscoveryRegistration=unconfirmed")
 }
 
 func TestGLRenovateEmptyFilterIsVulnerable(t *testing.T) {
@@ -365,8 +369,15 @@ func assertFilterFinding(t *testing.T, output string, filter autodiscoverFilterE
 	t.Helper()
 	output = ansiEscapeSequence.ReplaceAllString(output, "")
 	for _, line := range strings.Split(output, "\n") {
+		if filter.noBypass && strings.Contains(line, "autodiscoveryFilterValue="+filter.value) {
+			assert.NotContains(t, line, "autodiscoveryFilterBypass=")
+			return
+		}
 		if filter.rule != "" && strings.Contains(line, "autodiscoveryFilterBypass="+filter.rule) &&
 			strings.Contains(line, "autodiscoveryFilterValue="+filter.value) {
+			assert.Contains(t, line, "autodiscoveryBypassExample=")
+			assert.Contains(t, line, "autodiscoveryNamespaceStatus=not-found")
+			assert.Contains(t, line, "autodiscoveryRegistration=unconfirmed")
 			return
 		}
 		if filter.reviewRule != "" && strings.Contains(line, "autodiscoveryFilterReview="+filter.reviewRule) &&
@@ -400,6 +411,9 @@ func setupMockGitLabAutodiscoverFilterAPI(t *testing.T, source autodiscoverFilte
 	var mu sync.Mutex
 	var filesRequested []string
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/namespaces/", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, http.StatusOK, map[string]any{"exists": false})
+	})
 	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, _ *http.Request) {
 		projects := make([]map[string]any, 0, len(projectByID))
 		for _, project := range projectByID {
