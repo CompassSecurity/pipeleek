@@ -280,6 +280,8 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			filterFindings = filter.AnalyzeUnfilteredAutodiscovery()
 		} else if hasAutodiscoveryFilters && filterType == "autodiscoverFilter" {
 			filterFindings = analyzeFilterWithNamespaces(analysisFilterValue, gitLabProjectPathValues(project), scopeOptions)
+		} else if hasAutodiscoveryFilters && filterType == "autodiscoverNamespaces" {
+			filterFindings = analyzeFilterWithNamespaces("", gitLabProjectPathValues(project), scopeOptions)
 		} else if hasAutodiscoveryFilters && filterType == "autodiscoverTopics" {
 			filterFindings = filter.AnalyzeTopicOnlyAutodiscovery(filterValue)
 		}
@@ -306,7 +308,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			}
 			if ruleID, ok := reviewFindingRuleID(filterFindings); ok {
 				reviewField := "autodiscoveryFilterReview"
-				if filterType == "autodiscoverTopics" {
+				if filterType == "autodiscoverTopics" || filterType == "autodiscoverNamespaces" {
 					reviewField = "autodiscoveryScopeReview"
 				}
 				event = event.Str(reviewField, ruleID)
@@ -407,6 +409,11 @@ var autodiscoveryConfigSetting = regexp.MustCompile(`(?im)(?:^|[,{;\s])["']?auto
 
 func detectAutodiscoveryWithPrecedence(cicdConf string, configContents []string) bool {
 	for index, pattern := range autodiscoverySettingPatterns {
+		if index == 1 {
+			if enabled, found := renovateutil.DetectAutodiscoveryCICDSetting(cicdConf); found {
+				return enabled
+			}
+		}
 		if matches := pattern.FindStringSubmatch(cicdConf); len(matches) > 0 {
 			for _, value := range matches[1:] {
 				if value != "" {

@@ -68,7 +68,7 @@ GitLab project path variables (`CI_PROJECT_ROOT_NAMESPACE`, `CI_PROJECT_NAMESPAC
 
 `autodiscoverNamespaces` is recognized as a scope but is not analyzed as an `autodiscoverFilter` pattern. When topics are the only scope, Pipeleek reports `autodiscoveryScopeReview=topic-only-autodiscovery`; topic values are not analyzed as path patterns.
 
-When a literal `autodiscoverNamespaces` restriction is present, GitLab limits discovery to those namespaces, so outside-namespace filter candidates are not reported as bypasses. Unresolved or unsupported namespace values produce a `namespace-scope-unresolved` review finding.
+When a literal `autodiscoverNamespaces` restriction is present, GitLab limits discovery to those namespaces, so outside-namespace filter candidates are not reported as bypasses. Unresolved or unsupported namespace values produce a `namespace-scope-unresolved` review finding: `autodiscoveryScopeReview` for namespace-only scopes, or `autodiscoveryFilterReview` when a filter is also configured.
 
 Scope settings are extracted from each discovered configuration separately. When the same setting appears in several sources, the scanner prefers CI command-line flags, then CI environment variables, then `config.js`, the primary configuration file, and other discovered configuration files. This is a best-effort static interpretation; verify the bot's effective runtime configuration when settings conflict.
 

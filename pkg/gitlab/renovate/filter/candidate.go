@@ -111,6 +111,9 @@ func analyzeCandidates(filterValue string, paths GitLabProjectPathValues) candid
 			prefix = scanLiteralPrefix(prefix, pattern.kind == KindRegex)
 			root, _, hasSlash := strings.Cut(prefix, "/")
 			addRoot(root, hasSlash)
+			if pattern.kind == KindRegex && root != "" && !isStartAnchored(pattern.body) {
+				candidates = append(candidates, "attacker/"+root)
+			}
 			if pattern.kind == KindRegex && hasSlash {
 				suffix := "-test"
 				if strings.HasSuffix(prefix, "/") {

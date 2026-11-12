@@ -23,6 +23,8 @@ func TestAnalyzeCandidates(t *testing.T) {
 	}{
 		{name: "scoped glob", value: "acme/**"},
 		{name: "unanchored regex", value: "/acme/", wantMatch: true},
+		{name: "unanchored project-name regex", value: "/acme$/", wantMatch: true},
+		{name: "excluded project-name regex", value: `["/acme$/", "!attacker/**"]`},
 		{name: "unanchored multi-segment regex", value: `/acme\/infra/`, wantMatch: true},
 		{name: "multi-segment regex excluded by full list", value: `["/acme\\/infra/", "!attacker/**"]`},
 		{name: "prefix regex", value: "/^acme/", wantMatch: true},
@@ -61,6 +63,7 @@ func TestCandidateProductionEntryPoint(t *testing.T) {
 	assert.Contains(t, analyzeCandidates("/Other/", GitLabProjectPathValues{RootNamespace: "Acme"}).Evidence, "Other-evil/project")
 	assert.Contains(t, analyzeCandidates(`/acme\/infra/`, paths).Evidence, "attacker/acme/infra-test")
 	assert.Contains(t, analyzeCandidates(`/acme-org\/infra/`, paths).Evidence, "attacker/acme-org/infra-test")
+	assert.Contains(t, analyzeCandidates(`/acme$/`, paths).Evidence, "attacker/acme")
 }
 
 func TestCandidateAlphanumericSuffixes(t *testing.T) {
@@ -152,7 +155,7 @@ func TestCandidateEvidenceNodeOracle(t *testing.T) {
 		{`/^acme[1-9]/`}, {`/^acme[m-z]/`}, {`/^acme[9]/`},
 		{"acme[1-9]/*"}, {"acme[m-z]/*"}, {"acme[z]/*"},
 		{`/^acme[1-9]/`, "!acme1/*"}, {"*", "!attacker/**"},
-		{`/acme\/infra/`}, {"+(acme|other)*/*"},
+		{`/acme\/infra/`}, {`/acme$/`}, {"+(acme|other)*/*"},
 	} {
 		encoded, err := json.Marshal(patterns)
 		require.NoError(t, err)

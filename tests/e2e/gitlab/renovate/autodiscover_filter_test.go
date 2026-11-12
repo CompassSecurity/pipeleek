@@ -135,6 +135,7 @@ func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
 		{name: "negation-only filter", value: "!my-org/old-*", rule: "negation-only-filter"},
 		{name: "bare wildcard", value: "*", rule: "unrestricted-wildcard"},
 		{name: "unanchored regex", value: "/myname/", rule: "unanchored-regex"},
+		{name: "unanchored project-name regex", value: "/myname$/", rule: "unanchored-regex"},
 		{name: "anchored regex without namespace boundary", value: "/^myname/", rule: "path-boundary-bypass"},
 		{name: "extglob sibling suffix", value: "+(myname|myname-renovate|myname-projects)*/*", rule: "path-boundary-bypass"},
 		{name: "extglob plus repetition", value: "+(myname|other)/*", rule: "path-boundary-bypass"},
@@ -336,6 +337,8 @@ func TestGLRenovateNonFilterScopesAreNotAnalyzed(t *testing.T) {
 		wantScopeReview string
 	}{
 		{name: "namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `["gitlab-com/gl-infra"]`},
+		{name: "unresolved namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `['${NAMESPACE}']`, wantScopeReview: "namespace-scope-unresolved"},
+		{name: "unsupported namespace glob", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `['acme*']`, wantScopeReview: "namespace-scope-unresolved"},
 		{name: "topics only", fileType: "javascript-topics", key: "autodiscoverTopics", value: `["renovate-managed"]`, wantScopeReview: "topic-only-autodiscovery"},
 		{name: "projects unsupported on GitLab", fileType: "javascript-projects", key: "autodiscoverProjects", value: `["project"]`, wantBypass: true},
 		{name: "empty namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `[]`, wantBypass: true},
@@ -510,15 +513,19 @@ func TestGLRenovateEmptyFilterIsVulnerable(t *testing.T) {
 }
 
 func TestGLRenovateDisabledAutodiscoveryIsNotVulnerable(t *testing.T) {
-	source := autodiscoverFilterSource{name: "disabled CI autodiscovery", ciMode: "disabled"}
-	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "disabled"}})
-	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
-		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
-	}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
-	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
-	output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
-	assert.Contains(t, output, "hasAutodiscovery=false")
-	assert.NotContains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+	for _, mode := range []string{"disabled", "nested-disabled"} {
+		t.Run(mode, func(t *testing.T) {
+			source := autodiscoverFilterSource{name: "disabled CI autodiscovery", ciMode: mode}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "disabled"}})
+			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+			}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
+			require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+			assert.Contains(t, output, "hasAutodiscovery=false")
+			assert.NotContains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+		})
+	}
 }
 
 func TestGLRenovateConfigDisablesAutodiscovery(t *testing.T) {
@@ -692,6 +699,8 @@ func ciYAMLForFilter(mode, filterValue string) string {
 		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'true'\n"
 	case "disabled":
 		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'false'\n"
+	case "nested-disabled":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER:\n    description: Enable autodiscovery\n    value: 'false'\n"
 	case "empty-filter":
 		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'true'\n  RENOVATE_AUTODISCOVER_FILTER: ''\n"
 	default:

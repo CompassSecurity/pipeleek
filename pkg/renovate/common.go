@@ -154,6 +154,21 @@ func detectCICDVariable(content, name string) (string, bool) {
 	return find(&document)
 }
 
+func DetectAutodiscoveryCICDSetting(content string) (bool, bool) {
+	value, found := detectCICDVariable(content, "RENOVATE_AUTODISCOVER")
+	if !found {
+		return false, false
+	}
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
 func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType string) (bool, string, string, bool) {
 	type groupDef struct {
 		name string
