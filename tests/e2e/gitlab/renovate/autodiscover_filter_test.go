@@ -1,0 +1,818 @@
+//go:build e2e
+
+package e2e
+
+import (
+	"bufio"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/CompassSecurity/pipeleek/tests/e2e/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type autodiscoverFilterSource struct {
+	name       string
+	filePath   string
+	fileType   string
+	ciMode     string
+	extraFiles map[string]string
+	onLint     func()
+}
+
+type autodiscoverFilterExpectation struct {
+	name          string
+	value         string
+	rule          string
+	reviewRule    string
+	noBypass      bool
+	skipForEnvCLI bool
+}
+
+var ansiEscapeSequence = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func TestGLRenovateEnumThreads(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	configPath := filepath.Join(t.TempDir(), "pipeleek.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("common:\n  threads: 2\n"), 0600))
+	for _, test := range []struct {
+		name    string
+		args    []string
+		env     []string
+		threads int
+	}{
+		{name: "default", env: []string{"PIPELEEK_COMMON_THREADS="}, threads: 4},
+		{name: "flag", args: []string{"--threads", "1"}, threads: 1},
+		{name: "environment", env: []string{"PIPELEEK_COMMON_THREADS=3"}, threads: 3},
+		{name: "flag overrides environment", args: []string{"--threads", "1"}, env: []string{"PIPELEEK_COMMON_THREADS=3"}, threads: 1},
+		{name: "config file", args: []string{"--config", configPath}, env: []string{"PIPELEEK_NO_CONFIG=", "PIPELEEK_COMMON_THREADS="}, threads: 2},
+		{name: "namespace", args: []string{"--namespace", "acme", "--threads", "3"}, threads: 3},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			started := make(chan struct{}, 6)
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			defer releaseOnce.Do(func() { close(release) })
+			source := autodiscoverFilterSource{ciMode: "env-filter", onLint: func() {
+				started <- struct{}{}
+				<-release
+			}}
+			filters := make([]autodiscoverFilterExpectation, 6)
+			for index := range filters {
+				filters[index] = autodiscoverFilterExpectation{value: "trusted/*"}
+			}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, filters)
+			args := append([]string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast"}, test.args...)
+			env := append([]string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, test.env...)
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := testutil.RunCLI(t, args, env, 30*time.Second)
+				done <- err
+			}()
+			for index := 0; index < test.threads; index++ {
+				select {
+				case <-started:
+				case err := <-done:
+					t.Fatalf("CLI exited before workers started: %v", err)
+				case <-time.After(15 * time.Second):
+					t.Fatal("timed out waiting for project workers")
+				}
+			}
+			select {
+			case <-started:
+				t.Error("more projects started than the configured thread limit")
+			case <-time.After(150 * time.Millisecond):
+			}
+			releaseOnce.Do(func() { close(release) })
+			require.NoError(t, <-done)
+		})
+	}
+}
+
+func TestGLRenovateEnumThreadsRejectsInvalid(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  string
+	}{
+		{value: "0", want: "thread count must be at least 1"},
+		{value: "101", want: "thread count too high"},
+	} {
+		t.Run(test.value, func(t *testing.T) {
+			stdout, stderr, err := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", "https://gitlab.example", "--token", "mock-token", "--threads", test.value,
+			}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 30*time.Second)
+			require.Error(t, err)
+			assert.Contains(t, stdout+stderr, test.want)
+		})
+	}
+}
+
+func TestGLRenovateAutodiscoverFilterSources(t *testing.T) {
+	filters := []autodiscoverFilterExpectation{
+		{name: "negation-only filter", value: "!my-org/old-*", rule: "negation-only-filter"},
+		{name: "bare wildcard", value: "*", rule: "unrestricted-wildcard"},
+		{name: "unanchored regex", value: "/myname/", rule: "unanchored-regex"},
+		{name: "unanchored project-name regex", value: "/myname$/", rule: "unanchored-regex"},
+		{name: "anchored regex without namespace boundary", value: "/^myname/", rule: "path-boundary-bypass"},
+		{name: "extglob sibling suffix", value: "+(myname|myname-renovate|myname-projects)*/*", rule: "path-boundary-bypass"},
+		{name: "extglob plus repetition", value: "+(myname|other)/*", rule: "path-boundary-bypass"},
+		{name: "extglob at with suffix wildcard", value: "@(myname|other)*/*", rule: "path-boundary-bypass"},
+		{name: "extglob optional with suffix wildcard", value: "?(myname|other)*/*", rule: "path-boundary-bypass"},
+		{name: "extglob zero-or-more with suffix wildcard", value: "*(myname|other)*/*", rule: "path-boundary-bypass"},
+		{name: "nested extglob review", value: "@(myname|+(other|else))/*", reviewRule: "unsupported-extglob"},
+		{name: "regex quantified character class", value: "/^myname[0-9]+/", rule: "path-boundary-bypass"},
+		{name: "regex nonzero digit suffix", value: "/^myname[1-9]/", rule: "path-boundary-bypass"},
+		{name: "regex later letter suffix", value: "/^myname[m-z]/", rule: "path-boundary-bypass"},
+		{name: "regex alternatives without boundaries", value: "/^myname|^othername/", rule: "path-boundary-bypass"},
+		{name: "resolved root namespace suffix wildcard", value: "$CI_PROJECT_ROOT_NAMESPACE*/*", rule: "path-boundary-bypass"},
+		{name: "resolved project namespace suffix wildcard", value: "$CI_PROJECT_NAMESPACE*/*", noBypass: true},
+		{name: "resolved project path suffix wildcard", value: "$CI_PROJECT_PATH*/*", noBypass: true},
+		{name: "unresolved custom project variable review", value: "${RENOVATE_PROJECT}", reviewRule: "unresolved-variable"},
+		{name: "glob single-character wildcard", value: "myname?/*", rule: "path-boundary-bypass"},
+		{name: "glob character class", value: "myname[0-9]/*", rule: "path-boundary-bypass"},
+		{name: "glob nonzero digit suffix", value: "myname[1-9]/*", rule: "path-boundary-bypass"},
+		{name: "glob final letter suffix", value: "myname[z]/*", rule: "path-boundary-bypass"},
+		{name: "glob brace alternatives with suffix wildcard", value: "myname{a,b}*/*", rule: "path-boundary-bypass", skipForEnvCLI: true},
+	}
+
+	sources := []autodiscoverFilterSource{
+		{name: "ci yaml RENOVATE_EXTRA_FLAGS", ciMode: "extra-flags"},
+		{name: "ci yaml RENOVATE_AUTODISCOVER_FILTER", ciMode: "env-filter"},
+		{name: "ci yaml command-line flag", ciMode: "script-flag"},
+		{name: "renovate.json", filePath: "renovate.json", fileType: "json"},
+		{name: "renovate.json5", filePath: "renovate.json5", fileType: "json5"},
+		{name: ".github/renovate.json", filePath: ".github/renovate.json", fileType: "json"},
+		{name: ".github/renovate.json5", filePath: ".github/renovate.json5", fileType: "json5"},
+		{name: ".gitlab/renovate.json", filePath: ".gitlab/renovate.json", fileType: "json"},
+		{name: ".gitlab/renovate.json5", filePath: ".gitlab/renovate.json5", fileType: "json5"},
+		{name: ".renovaterc", filePath: ".renovaterc", fileType: "key-value"},
+		{name: ".renovaterc.json", filePath: ".renovaterc.json", fileType: "json"},
+		{name: ".renovaterc.json5", filePath: ".renovaterc.json5", fileType: "json5"},
+		{name: "config.js", filePath: "config.js", fileType: "javascript"},
+	}
+
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, source := range sources {
+		t.Run(source.name, func(t *testing.T) {
+			apiURL, requestedFiles := setupMockGitLabAutodiscoverFilterAPI(t, source, filters)
+			args := []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}
+			if source.filePath == "" {
+				args = append(args, "--fast")
+			}
+
+			env := []string{
+				"HTTP_PROXY=" + selfHostedProxy,
+				"HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy,
+				"https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost",
+				"no_proxy=127.0.0.1,localhost",
+				"FORCE_COLOR=0",
+				"NO_COLOR=1",
+			}
+			stdout, stderr, exitErr := testutil.RunCLI(t, args, env, 2*time.Minute)
+			require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+
+			for _, filter := range filters {
+				if source.ciMode != "" && filter.skipForEnvCLI {
+					continue
+				}
+				assertFilterFinding(t, stdout+"\n"+stderr, filter)
+			}
+			assert.Contains(t, stdout+"\n"+stderr, "isSelfHosted=true")
+			if source.filePath != "" {
+				assert.Contains(t, requestedFiles(), source.filePath, "enum did not fetch the configured Renovate file")
+			}
+		})
+	}
+}
+
+func TestGLRenovateCommaDelimitedFilters(t *testing.T) {
+	sources := []autodiscoverFilterSource{
+		{name: "RENOVATE_AUTODISCOVER_FILTER", ciMode: "env-filter"},
+		{name: "RENOVATE_EXTRA_FLAGS", ciMode: "extra-flags"},
+		{name: "command-line flag", ciMode: "script-flag"},
+	}
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, source := range sources {
+		t.Run(source.name, func(t *testing.T) {
+			filter := autodiscoverFilterExpectation{
+				name:  source.name + " with comma-delimited wildcard",
+				value: "branchbooks/*,*",
+				rule:  "unrestricted-wildcard",
+			}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{filter})
+			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+			}, []string{
+				"HTTP_PROXY=" + selfHostedProxy,
+				"HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy,
+				"https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost",
+				"no_proxy=127.0.0.1,localhost",
+				"FORCE_COLOR=0",
+				"NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+			assertFilterFinding(t, stdout+"\n"+stderr, filter)
+		})
+	}
+}
+
+func TestGLRenovateNestedCIVariable(t *testing.T) {
+	filters := []autodiscoverFilterExpectation{
+		{name: "scoped filter", value: "kubitus-project/**", noBypass: true},
+		{name: "wildcard filter", value: "*", rule: "unrestricted-wildcard"},
+	}
+	source := autodiscoverFilterSource{name: "nested GitLab variable", ciMode: "nested-filter"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, filters)
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	stdout, stderr, err := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+	}, []string{
+		"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+		"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+		"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+	}, 2*time.Minute)
+	require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+	for _, filter := range filters {
+		assertFilterFinding(t, stdout+"\n"+stderr, filter)
+	}
+	assert.NotContains(t, stdout+stderr, "autodiscoveryFilterValue=description:")
+}
+
+func TestGLRenovateConfigJSFilterWhenRenovateJSONExists(t *testing.T) {
+	source := autodiscoverFilterSource{
+		name:     "renovate.json plus config.js",
+		filePath: "renovate.json",
+		fileType: "json",
+		extraFiles: map[string]string{
+			"config.js": `module.exports = { autodiscover: true, autodiscoverFilter: ["release-process/**"] };`,
+		},
+	}
+	apiURL, requestedFiles := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "coexisting config files"}})
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token",
+	}, []string{
+		"HTTP_PROXY=" + selfHostedProxy,
+		"HTTPS_PROXY=" + selfHostedProxy,
+		"http_proxy=" + selfHostedProxy,
+		"https_proxy=" + selfHostedProxy,
+		"NO_PROXY=127.0.0.1,localhost",
+		"no_proxy=127.0.0.1,localhost",
+		"FORCE_COLOR=0",
+		"NO_COLOR=1",
+	}, 2*time.Minute)
+	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+	output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+	assert.Contains(t, output, "Renovate configuration")
+	assert.Contains(t, output, "hasAutodiscovery=true")
+	assert.Contains(t, output, "autodiscoverFilter")
+	assert.Contains(t, output, "release-process/**")
+	assert.NotContains(t, output, "hasConfigFile=")
+	assert.NotContains(t, output, "hasAutodiscoveryFilters=")
+	assert.Contains(t, output, "isSelfHosted=true")
+	assert.NotContains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+	assert.Contains(t, requestedFiles(), "renovate.json")
+	assert.Contains(t, requestedFiles(), "config.js")
+}
+
+func TestGLRenovateConfigJSJSON5NegativeArray(t *testing.T) {
+	filter := autodiscoverFilterExpectation{
+		name:  "single-quoted negative-only filter",
+		value: `['!gitlab-community/**',]`,
+		rule:  "negation-only-filter",
+	}
+	source := autodiscoverFilterSource{name: "JSON5-style config.js filter", filePath: "config.js", fileType: "javascript-array"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{filter})
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token",
+	}, []string{
+		"HTTP_PROXY=" + selfHostedProxy,
+		"HTTPS_PROXY=" + selfHostedProxy,
+		"http_proxy=" + selfHostedProxy,
+		"https_proxy=" + selfHostedProxy,
+		"NO_PROXY=127.0.0.1,localhost",
+		"no_proxy=127.0.0.1,localhost",
+		"FORCE_COLOR=0",
+		"NO_COLOR=1",
+	}, 2*time.Minute)
+	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+	assertFilterFinding(t, stdout+"\n"+stderr, filter)
+}
+
+func TestGLRenovateNonFilterScopesAreNotAnalyzed(t *testing.T) {
+	scopes := []struct {
+		name            string
+		fileType        string
+		key             string
+		value           string
+		wantBypass      bool
+		wantScopeReview string
+	}{
+		{name: "namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `["gitlab-com/gl-infra"]`},
+		{name: "unresolved namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `['${NAMESPACE}']`, wantScopeReview: "namespace-scope-unresolved"},
+		{name: "unsupported namespace glob", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `['acme*']`, wantScopeReview: "namespace-scope-unresolved"},
+		{name: "topics only", fileType: "javascript-topics", key: "autodiscoverTopics", value: `["renovate-managed"]`, wantScopeReview: "topic-only-autodiscovery"},
+		{name: "projects unsupported on GitLab", fileType: "javascript-projects", key: "autodiscoverProjects", value: `["project"]`, wantBypass: true},
+		{name: "empty namespaces", fileType: "javascript-namespaces", key: "autodiscoverNamespaces", value: `[]`, wantBypass: true},
+		{name: "empty topics", fileType: "javascript-topics", key: "autodiscoverTopics", value: `[]`, wantBypass: true},
+	}
+	for _, scope := range scopes {
+		t.Run(scope.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{name: scope.name, filePath: "config.js", fileType: scope.fileType}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: scope.name, value: scope.value}})
+			selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token",
+			}, []string{
+				"HTTP_PROXY=" + selfHostedProxy,
+				"HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy,
+				"https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost",
+				"no_proxy=127.0.0.1,localhost",
+				"FORCE_COLOR=0",
+				"NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+			assert.Contains(t, output, "autodiscoveryFilterType="+scope.key)
+			if scope.wantBypass {
+				assert.Contains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+			} else {
+				assert.NotContains(t, output, "autodiscoveryFilterBypass=")
+				assert.NotContains(t, output, "autodiscoveryFilterReview=")
+			}
+			if scope.wantScopeReview != "" {
+				assert.Contains(t, output, "autodiscoveryScopeReview="+scope.wantScopeReview)
+			} else {
+				assert.NotContains(t, output, "autodiscoveryScopeReview=")
+			}
+		})
+	}
+}
+
+func TestGLRenovateMixedScopesAndConfigFiles(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		content    string
+		extraFiles map[string]string
+		wantType   string
+		wantValue  string
+		wantReview bool
+	}{
+		{name: "empty filter and namespaces", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverFilter: [], autodiscoverNamespaces: ['acme'] };`, wantType: "autodiscoverNamespaces", wantValue: "acme"},
+		{name: "empty filter and topics", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverFilter: [], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverTopics", wantValue: "managed", wantReview: true},
+		{name: "unsupported projects and topics", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverProjects: ['project'], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverTopics", wantValue: "managed", wantReview: true},
+		{name: "topics with namespaces", path: "config.js", content: `module.exports = { autodiscover: true, autodiscoverNamespaces: ['acme'], autodiscoverTopics: ['managed'] };`, wantType: "autodiscoverNamespaces", wantValue: "acme"},
+		{name: "JSON filter with unrelated javascript", path: "renovate.json", content: `{"autodiscover":true,"autodiscoverFilter":["acme/**"]}`, extraFiles: map[string]string{"config.js": `module.exports = { platform: 'gitlab' };`}, wantType: "autodiscoverFilter", wantValue: "acme/**"},
+		{name: "javascript filter takes precedence", path: "renovate.json", content: `{"autodiscover":true,"autodiscoverFilter":["*"]}`, extraFiles: map[string]string{"config.js": `module.exports = { autodiscoverFilter: ['acme/**'] };`}, wantType: "autodiscoverFilter", wantValue: "acme/**"},
+	}
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{name: test.name, filePath: test.path, fileType: "raw", extraFiles: test.extraFiles}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: test.name, value: test.content}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+			assert.Contains(t, output, "autodiscoveryFilterType="+test.wantType)
+			assert.Contains(t, output, test.wantValue)
+			assert.NotContains(t, output, "autodiscoveryFilterBypass=")
+			if test.wantReview {
+				assert.Contains(t, output, "autodiscoveryScopeReview=topic-only-autodiscovery")
+			} else {
+				assert.NotContains(t, output, "autodiscoveryScopeReview=")
+			}
+		})
+	}
+}
+
+func TestGLRenovateCombinedNamespaceScope(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range []struct {
+		name       string
+		config     string
+		wantBypass bool
+		wantReview bool
+	}{
+		{name: "wildcard restricted to namespace", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: ['acme'] };`},
+		{name: "wildcard with empty namespaces", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: [] };`, wantBypass: true},
+		{name: "wildcard with unresolved namespace", config: `module.exports = { autodiscover: true, autodiscoverFilter: ['*'], autodiscoverNamespaces: ['${NAMESPACE}'] };`, wantReview: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{filePath: "config.js", fileType: "raw"}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{value: test.config}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+stderr, "")
+			assert.Equal(t, test.wantBypass, strings.Contains(output, "autodiscoveryFilterBypass=unrestricted-wildcard"))
+			assert.Equal(t, test.wantReview, strings.Contains(output, "autodiscoveryFilterReview=namespace-scope-unresolved"))
+		})
+	}
+}
+
+func TestGLRenovateAutodiscoverySettingPrecedence(t *testing.T) {
+	selfHostedProxy := setupMockSelfHostedOptionsProxy(t)
+	for _, test := range []struct {
+		name       string
+		configJS   string
+		configJSON string
+		ciMode     string
+		want       bool
+	}{
+		{name: "javascript false overrides json true", configJS: `module.exports = { autodiscover: false };`, configJSON: `{"autodiscover":true}`, ciMode: "no-autodiscovery"},
+		{name: "javascript true overrides json false", configJS: `module.exports = { autodiscover: true };`, configJSON: `{"autodiscover":false}`, ciMode: "no-autodiscovery", want: true},
+		{name: "environment false overrides config true", configJS: `module.exports = { autodiscover: true };`, configJSON: `{}`, ciMode: "disabled"},
+		{name: "environment true overrides config false", configJS: `module.exports = { autodiscover: false };`, configJSON: `{}`, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := autodiscoverFilterSource{filePath: "renovate.json", fileType: "raw", ciMode: test.ciMode, extraFiles: map[string]string{"config.js": test.configJS}}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{value: test.configJSON}})
+			stdout, stderr, err := testutil.RunCLI(t, []string{"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token"}, []string{
+				"HTTP_PROXY=" + selfHostedProxy, "HTTPS_PROXY=" + selfHostedProxy,
+				"http_proxy=" + selfHostedProxy, "https_proxy=" + selfHostedProxy,
+				"NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost", "FORCE_COLOR=0", "NO_COLOR=1",
+			}, 2*time.Minute)
+			require.NoError(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+stderr, "")
+			assert.Contains(t, output, fmt.Sprintf("hasAutodiscovery=%t", test.want))
+			if !test.want {
+				assert.NotContains(t, output, "autodiscoveryFilterBypass=")
+			}
+		})
+	}
+}
+
+func TestGLRenovateAutodiscoveryWithoutScopeIsVulnerable(t *testing.T) {
+	source := autodiscoverFilterSource{name: "unfiltered CI autodiscovery", ciMode: "no-filter"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "unfiltered"}})
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+	}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
+	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+	output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+	assert.Contains(t, output, "hasAutodiscovery=true")
+	assert.NotContains(t, output, "hasAutodiscoveryFilters=")
+	assert.NotContains(t, output, "hasConfigFile=")
+	assert.Contains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+	assert.Regexp(t, `autodiscoveryBypassExample=pipeleek-[a-z]{3}/project(?:\s|$)`, output)
+	assert.Contains(t, output, "autodiscoveryNamespaceStatus=not-found")
+	assert.Contains(t, output, "autodiscoveryRegistration=unconfirmed")
+}
+
+func TestGLRenovateEmptyFilterIsVulnerable(t *testing.T) {
+	source := autodiscoverFilterSource{name: "empty CI filter", ciMode: "empty-filter"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "empty filter"}})
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+	}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
+	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+	output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+	assert.Contains(t, output, "hasAutodiscovery=true")
+	assert.NotContains(t, output, "hasAutodiscoveryFilters=")
+	assert.NotContains(t, output, "hasConfigFile=")
+	assert.Contains(t, output, "autodiscoveryFilterValue=")
+	assert.Contains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+}
+
+func TestGLRenovateDisabledAutodiscoveryIsNotVulnerable(t *testing.T) {
+	for _, mode := range []string{"disabled", "nested-disabled"} {
+		t.Run(mode, func(t *testing.T) {
+			source := autodiscoverFilterSource{name: "disabled CI autodiscovery", ciMode: mode}
+			apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "disabled"}})
+			stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+				"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token", "--fast",
+			}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
+			require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+			output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+			assert.Contains(t, output, "hasAutodiscovery=false")
+			assert.NotContains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+		})
+	}
+}
+
+func TestGLRenovateConfigDisablesAutodiscovery(t *testing.T) {
+	source := autodiscoverFilterSource{name: "config.js disables autodiscovery", filePath: "config.js", fileType: "javascript-disabled", ciMode: "no-autodiscovery"}
+	apiURL, _ := setupMockGitLabAutodiscoverFilterAPI(t, source, []autodiscoverFilterExpectation{{name: "disabled config"}})
+	stdout, stderr, exitErr := testutil.RunCLI(t, []string{
+		"gl", "renovate", "enum", "--url", apiURL, "--token", "mock-token",
+	}, []string{"FORCE_COLOR=0", "NO_COLOR=1"}, 2*time.Minute)
+	require.NoError(t, exitErr, "enum failed\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
+	output := ansiEscapeSequence.ReplaceAllString(stdout+"\n"+stderr, "")
+	assert.Contains(t, output, "hasAutodiscovery=false")
+	assert.NotContains(t, output, "autodiscoveryFilterBypass=unfiltered-autodiscovery")
+}
+
+func assertFilterFinding(t *testing.T, output string, filter autodiscoverFilterExpectation) {
+	t.Helper()
+	output = ansiEscapeSequence.ReplaceAllString(output, "")
+	for _, line := range strings.Split(output, "\n") {
+		if filter.noBypass && strings.Contains(line, "autodiscoveryFilterValue="+filter.value) {
+			assert.NotContains(t, line, "autodiscoveryFilterBypass=")
+			return
+		}
+		if filter.rule != "" && strings.Contains(line, "autodiscoveryFilterBypass="+filter.rule) &&
+			strings.Contains(line, "autodiscoveryFilterValue="+filter.value) {
+			assert.Contains(t, line, "autodiscoveryBypassExample=")
+			assert.Contains(t, line, "autodiscoveryNamespaceStatus=not-found")
+			assert.Contains(t, line, "autodiscoveryRegistration=unconfirmed")
+			return
+		}
+		if filter.reviewRule != "" && strings.Contains(line, "autodiscoveryFilterReview="+filter.reviewRule) &&
+			strings.Contains(line, "autodiscoveryFilterValue="+filter.value) {
+			return
+		}
+	}
+	t.Fatalf("expected CLI output to report filter %q with bypass rule %s or review rule %s\noutput:\n%s", filter.value, filter.rule, filter.reviewRule, output)
+}
+
+func setupMockGitLabAutodiscoverFilterAPI(t *testing.T, source autodiscoverFilterSource, filters []autodiscoverFilterExpectation) (string, func() []string) {
+	t.Helper()
+	filterByProjectID := make(map[int64]autodiscoverFilterExpectation, len(filters))
+	projectByID := make(map[int64]map[string]any, len(filters))
+	for i, filter := range filters {
+		id := int64(1000 + i)
+		filterByProjectID[id] = filter
+		projectByID[id] = map[string]any{
+			"id":                      id,
+			"name":                    fmt.Sprintf("filter-%d", i),
+			"path":                    fmt.Sprintf("filter-%d", i),
+			"path_with_namespace":     fmt.Sprintf("group/subgroup/filter-%d", i),
+			"namespace":               map[string]any{"id": 2000, "name": "subgroup", "path": "subgroup", "kind": "group", "full_path": "group/subgroup"},
+			"web_url":                 fmt.Sprintf("https://gitlab.example/group/subgroup/filter-%d", i),
+			"default_branch":          "main",
+			"builds_access_level":     "enabled",
+			"repository_access_level": "enabled",
+		}
+	}
+
+	var mu sync.Mutex
+	var filesRequested []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/namespaces/", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, http.StatusOK, map[string]any{"exists": false})
+	})
+	writeProjects := func(w http.ResponseWriter) {
+		projects := make([]map[string]any, 0, len(projectByID))
+		for _, project := range projectByID {
+			projects = append(projects, project)
+		}
+		writeJSON(t, w, http.StatusOK, projects)
+	}
+	mux.HandleFunc("/api/v4/projects", func(w http.ResponseWriter, _ *http.Request) {
+		writeProjects(w)
+	})
+	mux.HandleFunc("/api/v4/groups/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v4/groups/acme":
+			writeJSON(t, w, http.StatusOK, map[string]any{"id": 42, "name": "acme", "path": "acme"})
+		case "/api/v4/groups/42/projects":
+			writeProjects(w)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	mux.HandleFunc("/api/v4/projects/", func(w http.ResponseWriter, r *http.Request) {
+		rest := strings.TrimPrefix(r.URL.Path, "/api/v4/projects/")
+		projectIDText, endpoint, ok := strings.Cut(rest, "/")
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		var projectID int64
+		if _, err := fmt.Sscan(projectIDText, &projectID); err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		filter, exists := filterByProjectID[projectID]
+		if !exists {
+			http.NotFound(w, r)
+			return
+		}
+
+		if strings.HasPrefix(endpoint, "ci/lint") {
+			if source.onLint != nil {
+				source.onLint()
+			}
+			mergedYAML := `image: renovate/renovate:44` + "\n"
+			if source.filePath == "" {
+				mergedYAML = ciYAMLForFilter(source.ciMode, filter.value)
+			} else if source.ciMode == "disabled" {
+				mergedYAML += "variables:\n  RENOVATE_AUTODISCOVER: 'false'\n"
+			} else if source.ciMode != "no-autodiscovery" {
+				mergedYAML += "variables:\n  RENOVATE_AUTODISCOVER: \"true\"\n"
+			}
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"valid":       true,
+				"merged_yaml": mergedYAML,
+				"errors":      []string{},
+				"warnings":    []string{},
+			})
+			return
+		}
+
+		const filesPrefix = "repository/files/"
+		if strings.HasPrefix(endpoint, filesPrefix) && r.Method == http.MethodGet {
+			filePath := strings.TrimPrefix(endpoint, filesPrefix)
+			mu.Lock()
+			filesRequested = append(filesRequested, filePath)
+			mu.Unlock()
+			content := ""
+			if filePath == source.filePath && source.filePath != "" {
+				content = renovateFilterConfigContent(source.fileType, filter.value)
+			} else if extraContent, ok := source.extraFiles[filePath]; ok {
+				content = extraContent
+			} else {
+				http.NotFound(w, r)
+				return
+			}
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"file_name": filepath.Base(filePath),
+				"file_path": filePath,
+				"size":      len(content),
+				"encoding":  "base64",
+				"content":   base64.StdEncoding.EncodeToString([]byte(content)),
+				"ref":       "main",
+			})
+			return
+		}
+		http.NotFound(w, r)
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server.URL, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), filesRequested...)
+	}
+}
+
+func ciYAMLForFilter(mode, filterValue string) string {
+	switch mode {
+	case "nested-filter":
+		quoted, _ := json.Marshal(filterValue)
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: Renovate autodiscover filter\n    value: " + string(quoted) + "\n    options: ['*']\n"
+	case "extra-flags":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_EXTRA_FLAGS: \"--autodiscover-filter=" + filterValue + "\"\n"
+	case "env-filter":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER_FILTER: '" + filterValue + "'\n"
+	case "script-flag":
+		return "image: renovate/renovate:44\nscript:\n  - \"renovate --autodiscover-filter='" + filterValue + "'\"\n"
+	case "no-filter":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'true'\n"
+	case "disabled":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'false'\n"
+	case "nested-disabled":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER:\n    description: Enable autodiscovery\n    value: 'false'\n"
+	case "empty-filter":
+		return "image: renovate/renovate:44\nvariables:\n  RENOVATE_AUTODISCOVER: 'true'\n  RENOVATE_AUTODISCOVER_FILTER: ''\n"
+	default:
+		panic("unknown CI filter source: " + mode)
+	}
+}
+
+func renovateFilterConfigContent(fileType, filterValue string) string {
+	quoted, _ := json.Marshal(filterValue)
+	switch fileType {
+	case "raw":
+		return filterValue
+	case "json":
+		return `{"autodiscover":true,"autodiscoverFilter":` + string(quoted) + `}`
+	case "json5":
+		return `{ autodiscover: true, autodiscoverFilter: ` + string(quoted) + `, }`
+	case "key-value":
+		return "autodiscover=true\nautodiscoverFilter: '" + filterValue + "'\n"
+	case "javascript":
+		return "module.exports = { autodiscover: true, autodiscoverFilter: " + string(quoted) + " };\n"
+	case "javascript-disabled":
+		return "module.exports = { autodiscover: false };\n"
+	case "javascript-array":
+		return "module.exports = { autodiscover: true, autodiscoverFilter: " + filterValue + " };\n"
+	case "javascript-namespaces":
+		return "module.exports = { autodiscover: true, autodiscoverNamespaces: " + filterValue + " };\n"
+	case "javascript-projects":
+		return "module.exports = { autodiscover: true, autodiscoverProjects: " + filterValue + " };\n"
+	case "javascript-topics":
+		return "module.exports = { autodiscover: true, autodiscoverTopics: " + filterValue + " };\n"
+	default:
+		panic("unknown Renovate config type: " + fileType)
+	}
+}
+
+func setupMockSelfHostedOptionsProxy(t *testing.T) string {
+	t.Helper()
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: "raw.githubusercontent.com"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"raw.githubusercontent.com"},
+	}
+	certificateDER, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+	certificate, err := tls.X509KeyPair(
+		pemEncode("CERTIFICATE", certificateDER),
+		pemEncodeECPrivateKey(privateKey),
+	)
+	require.NoError(t, err)
+
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodConnect || r.Host != "raw.githubusercontent.com:443" {
+			http.Error(w, "unexpected proxy request", http.StatusBadRequest)
+			return
+		}
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "hijacking unavailable", http.StatusInternalServerError)
+			return
+		}
+		connection, buffered, err := hijacker.Hijack()
+		if err != nil {
+			return
+		}
+		defer connection.Close()
+		if _, err := buffered.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
+			return
+		}
+		if err := buffered.Flush(); err != nil {
+			return
+		}
+
+		tlsConnection := tls.Server(connection, &tls.Config{Certificates: []tls.Certificate{certificate}})
+		defer tlsConnection.Close()
+		if err := tlsConnection.Handshake(); err != nil {
+			return
+		}
+		request, err := http.ReadRequest(bufio.NewReader(tlsConnection))
+		if err != nil {
+			return
+		}
+		defer request.Body.Close()
+		body := "## `selfHostedType`\n## `autodiscoverFilter`\n"
+		_, _ = fmt.Fprintf(tlsConnection, "HTTP/1.1 200 OK\r\nContent-Type: text/markdown\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s", len(body), body)
+	}))
+	t.Cleanup(proxy.Close)
+	return proxy.URL
+}
+
+func writeJSON(t *testing.T, w http.ResponseWriter, status int, value any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	require.NoError(t, json.NewEncoder(w).Encode(value))
+}
+
+func pemEncode(blockType string, data []byte) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: data})
+}
+
+func pemEncodeECPrivateKey(key *ecdsa.PrivateKey) []byte {
+	der, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return pemEncode("EC PRIVATE KEY", der)
+}

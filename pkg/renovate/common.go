@@ -10,6 +10,7 @@ import (
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/rs/zerolog/log"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
+	"gopkg.in/yaml.v3"
 	"resty.dev/v3"
 )
 
@@ -23,12 +24,19 @@ func DetectCiCdConfig(cicdConf string) bool {
 		format.ContainsI(cicdConf, "npx renovate")
 }
 
+var (
+	disabledAutodiscoverFlag   = regexp.MustCompile(`(?i)--autodiscover(?:\s*=\s*|\s+)(?:"false"|'false'|false)(?:\s|["']|$)`)
+	disabledAutodiscoverEnv    = regexp.MustCompile(`(?im)(?:^|[^A-Z0-9_])RENOVATE_AUTODISCOVER\s*(?::|=)\s*(?:"false"|'false'|false)(?:\s|["']|#|$)`)
+	disabledAutodiscoverConfig = regexp.MustCompile(`(?im)(?:^|[,{;\s])["']?autodiscover["']?\s*[:=]\s*(?:"false"|'false'|false)(?:\s*[,;}#]|$)`)
+)
+
 // DetectAutodiscovery checks for autodiscover configuration in CI/CD or config files.
 func DetectAutodiscovery(cicdConf string, configFileContent string) bool {
-	hasAutodiscoveryInConfigFile := format.ContainsI(configFileContent, "autodiscover")
+	hasAutodiscoveryInConfigFile := format.ContainsI(configFileContent, "autodiscover") &&
+		!disabledAutodiscoverConfig.MatchString(configFileContent)
 
 	hasAutodiscoveryinCiCD := (format.ContainsI(cicdConf, "--autodiscover") || format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER")) &&
-		(!format.ContainsI(cicdConf, "--autodiscover=false") && !format.ContainsI(cicdConf, "--autodiscover false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER: false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER=false"))
+		!disabledAutodiscoverFlag.MatchString(cicdConf) && !disabledAutodiscoverEnv.MatchString(cicdConf)
 
 	return hasAutodiscoveryInConfigFile || hasAutodiscoveryinCiCD
 }
@@ -66,21 +74,120 @@ func tryParseJSON(jsonStr, key string) (string, bool) {
 
 // DetectAutodiscoveryFilters checks for autodiscovery filter configuration and returns whether filters exist, filter type, and filter value.
 func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, string, string) {
+	found, filterType, filterValue, _ := DetectAutodiscoveryFiltersWithSource(cicdConf, configFileContent)
+	return found, filterType, filterValue
+}
+
+// DetectAutodiscoveryFiltersWithSource additionally reports whether an autodiscoverFilter value came from env or CLI input, where commas delimit patterns.
+func DetectAutodiscoveryFiltersWithSource(cicdConf, configFileContent string) (bool, string, string, bool) {
+	return detectAutodiscoveryFilterGroup(cicdConf, configFileContent, "")
+}
+
+type AutodiscoveryScopeOption struct {
+	Type           string
+	Value          string
+	CommaDelimited bool
+}
+
+func DetectAutodiscoveryScopeOptions(cicdConf string, configContents []string) []AutodiscoveryScopeOption {
+	var options []AutodiscoveryScopeOption
+	for _, optionType := range []string{"autodiscoverFilter", "autodiscoverNamespaces", "autodiscoverProjects", "autodiscoverTopics"} {
+		found, _, value, commaDelimited := detectAutodiscoveryFilterGroup(cicdConf, "", optionType)
+		if !found {
+			for _, content := range configContents {
+				found, _, value, commaDelimited = detectAutodiscoveryFilterGroup("", content, optionType)
+				if found {
+					break
+				}
+			}
+		}
+		if found {
+			options = append(options, AutodiscoveryScopeOption{Type: optionType, Value: value, CommaDelimited: commaDelimited})
+		}
+	}
+	return options
+}
+
+func detectCICDVariable(content, name string) (string, bool) {
+	var document yaml.Node
+	if yaml.Unmarshal([]byte(content), &document) != nil {
+		return "", false
+	}
+	var find func(*yaml.Node) (string, bool)
+	find = func(node *yaml.Node) (string, bool) {
+		if node.Kind == yaml.MappingNode {
+			for index := 0; index+1 < len(node.Content); index += 2 {
+				key, value := node.Content[index], node.Content[index+1]
+				if key.Value == "variables" && value.Kind == yaml.MappingNode {
+					for variableIndex := 0; variableIndex+1 < len(value.Content); variableIndex += 2 {
+						if value.Content[variableIndex].Value != name {
+							continue
+						}
+						variable := value.Content[variableIndex+1]
+						if variable.Kind == yaml.MappingNode {
+							for fieldIndex := 0; fieldIndex+1 < len(variable.Content); fieldIndex += 2 {
+								if variable.Content[fieldIndex].Value == "value" && variable.Content[fieldIndex+1].Kind == yaml.ScalarNode {
+									return variable.Content[fieldIndex+1].Value, true
+								}
+							}
+							return "", true
+						}
+						if variable.Kind == yaml.ScalarNode && variable.Tag != "!!null" {
+							return variable.Value, true
+						}
+						return "", true
+					}
+				}
+				if foundValue, found := find(value); found {
+					return foundValue, true
+				}
+			}
+		} else {
+			for _, child := range node.Content {
+				if foundValue, found := find(child); found {
+					return foundValue, true
+				}
+			}
+		}
+		return "", false
+	}
+	return find(&document)
+}
+
+func DetectAutodiscoveryCICDSetting(content string) (bool, bool) {
+	value, found := detectCICDVariable(content, "RENOVATE_AUTODISCOVER")
+	if !found {
+		return false, false
+	}
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func detectAutodiscoveryFilterGroup(cicdConf, configFileContent, optionType string) (bool, string, string, bool) {
 	type groupDef struct {
 		name string
 		keys []string
 	}
 
 	groups := []groupDef{
-		{"autodiscoverFilter", []string{"autodiscoverFilter", "RENOVATE_AUTODISCOVER_FILTER", "--autodiscover-filter"}},
-		{"autodiscoverNamespaces", []string{"autodiscoverNamespaces", "RENOVATE_AUTODISCOVER_NAMESPACES", "--autodiscover-namespaces"}},
-		{"autodiscoverProjects", []string{"autodiscoverProjects", "RENOVATE_AUTODISCOVER_PROJECTS", "--autodiscover-projects"}},
-		{"autodiscoverTopics", []string{"autodiscoverTopics", "RENOVATE_AUTODISCOVER_TOPICS", "--autodiscover-topics"}},
+		{"autodiscoverFilter", []string{"autodiscoverFilter", "--autodiscover-filter", "RENOVATE_AUTODISCOVER_FILTER"}},
+		{"autodiscoverNamespaces", []string{"autodiscoverNamespaces", "--autodiscover-namespaces", "RENOVATE_AUTODISCOVER_NAMESPACES"}},
+		{"autodiscoverProjects", []string{"autodiscoverProjects", "--autodiscover-projects", "RENOVATE_AUTODISCOVER_PROJECTS"}},
+		{"autodiscoverTopics", []string{"autodiscoverTopics", "--autodiscover-topics", "RENOVATE_AUTODISCOVER_TOPICS"}},
 	}
 
 	sources := []string{configFileContent, cicdConf}
 
 	for _, g := range groups {
+		if optionType != "" && g.name != optionType {
+			continue
+		}
 		for _, src := range sources {
 			if strings.TrimSpace(src) == "" {
 				continue
@@ -90,26 +197,54 @@ func DetectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, strin
 					continue
 				}
 				if val, ok := tryParseJSON(src, key); ok {
-					return true, g.name, val
+					return true, g.name, val, false
 				}
 			}
 		}
 
 		for _, key := range g.keys {
-			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,]+)`)
-			for _, src := range sources {
+			if key == "--autodiscover-filter" || key == "RENOVATE_AUTODISCOVER_FILTER" || key == "--autodiscover-namespaces" || key == "RENOVATE_AUTODISCOVER_NAMESPACES" {
+				separator := `\s*(?:=|\s+)\s*`
+				if strings.HasPrefix(key, "RENOVATE_") {
+					separator = `\s*(?:=|:)\s*`
+				}
+				re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + separator + `(?:([^\s"']*\$\{\{[^}]*\}\}[^\s"']*)|"([^"]*)"|'([^']*)'|([^\s"']+))`)
+				for sourceIndex, src := range sources {
+					if sourceIndex == 1 && strings.HasPrefix(key, "RENOVATE_") {
+						if value, found := detectCICDVariable(src, key); found {
+							return true, g.name, value, true
+						}
+					}
+					if m := re.FindStringSubmatch(src); len(m) > 0 {
+						for _, value := range m[1:] {
+							if value != "" {
+								return true, g.name, value, sourceIndex == 1
+							}
+						}
+						return true, g.name, "", sourceIndex == 1
+					}
+				}
+				continue
+			}
+			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|"[^"]*"|'[^']*'|[^\s,]*\$\{\{[^\}]*\}\}[^\s,]*|\{[^\}]*\}|[^\s,"']+)`)
+			for sourceIndex, src := range sources {
+				if sourceIndex == 1 && strings.HasPrefix(key, "RENOVATE_") {
+					if value, found := detectCICDVariable(src, key); found {
+						return true, g.name, value, false
+					}
+				}
 				if m := re.FindStringSubmatch(src); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
 					if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) ||
 						(strings.HasPrefix(val, `'`) && strings.HasSuffix(val, `'`)) {
 						val = val[1 : len(val)-1]
 					}
-					return true, g.name, val
+					return true, g.name, val, g.name == "autodiscoverFilter" && sourceIndex == 1 && (strings.HasPrefix(key, "RENOVATE_") || strings.HasPrefix(key, "--"))
 				}
 			}
 		}
 	}
-	return false, "", ""
+	return false, "", "", false
 }
 
 // FetchCurrentSelfHostedOptions retrieves the list of self-hosted Renovate configuration options.
@@ -141,17 +276,35 @@ func ExtractSelfHostedOptions(data []byte) []string {
 
 	var options []string
 	for _, match := range matches {
-		options = append(options, strings.ReplaceAll(strings.TrimSpace(match), "## ", ""))
+		option := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(match), "##"))
+		option = strings.Trim(option, "`")
+		if option != "" {
+			options = append(options, option)
+		}
 	}
 
 	return options
 }
 
+var selfHostedOptionWordBoundary = regexp.MustCompile(`([a-z0-9])([A-Z])`)
+
 // IsSelfHostedConfig checks if a Renovate configuration contains self-hosted options.
 func IsSelfHostedConfig(config string, selfHostedOptions []string) bool {
-	for _, option := range selfHostedOptions {
-		if format.ContainsI(config, option) {
-			return true
+	for _, rawOption := range selfHostedOptions {
+		option := strings.Trim(strings.TrimSpace(rawOption), "`")
+		if option == "" {
+			continue
+		}
+		snakeCaseOption := selfHostedOptionWordBoundary.ReplaceAllString(option, `${1}_${2}`)
+		aliases := []string{
+			option,
+			"RENOVATE_" + strings.ToUpper(snakeCaseOption),
+			"--" + strings.ReplaceAll(strings.ToLower(snakeCaseOption), "_", "-"),
+		}
+		for _, alias := range aliases {
+			if format.ContainsI(config, alias) {
+				return true
+			}
 		}
 	}
 	return false

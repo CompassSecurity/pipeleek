@@ -1,15 +1,132 @@
 package renovate
 
 import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
+	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
+	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
+
+func TestFindBypassEvidence(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v4/namespaces/taken/exists":
+			_, _ = writer.Write([]byte(`{"exists":true}`))
+		case "/api/v4/namespaces/free/exists":
+			_, _ = writer.Write([]byte(`{"exists":false}`))
+		default:
+			http.Error(writer, "unavailable", http.StatusForbidden)
+		}
+	}))
+	defer server.Close()
+	client, err := gitlab.NewClient("test-token", gitlab.WithBaseURL(server.URL+"/api/v4/"))
+	require.NoError(t, err)
+	for _, test := range []struct {
+		name     string
+		evidence []string
+		want     string
+		status   string
+	}{
+		{name: "unused namespace", evidence: []string{"taken/project", "free/project"}, want: "free/project", status: "not-found"},
+		{name: "occupied namespace", evidence: []string{"taken/project"}, want: "taken/project", status: "exists"},
+		{name: "unknown namespace", evidence: []string{"unknown/project"}, want: "unknown/project", status: "unknown"},
+		{name: "no evidence"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			example, status := findBypassEvidence(client, []filter.Finding{{Verdict: filter.Vulnerable, Evidence: test.evidence}})
+			assert.Equal(t, test.want, example)
+			assert.Equal(t, test.status, status)
+		})
+	}
+}
+
+func TestProcessProjectsConcurrentlyUsesBoundedWorkers(t *testing.T) {
+	for _, threads := range []int{1, 3, 5} {
+		t.Run(fmt.Sprintf("threads_%d", threads), func(t *testing.T) {
+			resetStatus()
+			projectCount := threads * 3
+			projects := make([]*gitlab.Project, projectCount)
+			for i := range projects {
+				projects[i] = &gitlab.Project{ID: int64(i + 1)}
+			}
+			started := make(chan struct{}, projectCount)
+			release := make(chan struct{})
+			var active atomic.Int32
+			var maximumActive atomic.Int32
+			var processed atomic.Int32
+			done := make(chan error, 1)
+			go func() {
+				done <- processProjectsConcurrently(threads, func(visit util.ProjectIteratorFunc) error {
+					for _, project := range projects {
+						if err := visit(project); err != nil {
+							return err
+						}
+					}
+					return nil
+				}, func(*gitlab.Project) {
+					current := active.Add(1)
+					for previous := maximumActive.Load(); current > previous && !maximumActive.CompareAndSwap(previous, current); previous = maximumActive.Load() {
+					}
+					started <- struct{}{}
+					<-release
+					active.Add(-1)
+					processed.Add(1)
+				})
+			}()
+			for i := 0; i < threads; i++ {
+				select {
+				case <-started:
+				case <-time.After(5 * time.Second):
+					close(release)
+					t.Fatal("workers did not start concurrently")
+				}
+			}
+			close(release)
+			require.NoError(t, <-done)
+			assert.Equal(t, int32(threads), maximumActive.Load())
+			assert.Equal(t, int32(projectCount), processed.Load())
+			assert.Equal(t, int64(projectCount), statusTracker.projectsDiscovered.Load())
+			assert.Equal(t, int64(projectCount), statusTracker.projectsProcessed.Load())
+		})
+	}
+}
+
+func TestStatusHookReportsProgress(t *testing.T) {
+	resetStatus()
+	statusTracker.projectsDiscovered.Store(8)
+	statusTracker.projectsProcessed.Store(5)
+	statusTracker.renovateConfigsFound.Store(2)
+
+	var output bytes.Buffer
+	oldLogger := log.Logger
+	log.Logger = zerolog.New(&output)
+	defer func() { log.Logger = oldLogger }()
+
+	StatusHook().Msg("Status")
+	for _, field := range []string{
+		`"projectsDiscovered":8`,
+		`"projectsProcessed":5`,
+		`"projectsOutstanding":3`,
+		`"renovateConfigsFound":2`,
+	} {
+		assert.True(t, strings.Contains(output.String(), field), "status output missing %s: %s", field, output.String())
+	}
+}
 
 func TestExtractSelfHostedOptions(t *testing.T) {
 	tests := []struct {
@@ -196,6 +313,7 @@ func TestDetectAutodiscovery(t *testing.T) {
 		{"RENOVATE_AUTODISCOVER env", "RENOVATE_AUTODISCOVER: true", "", true},
 		{"autodiscover disabled", "--autodiscover=false", "", false},
 		{"autodiscover false env", "RENOVATE_AUTODISCOVER: false", "", false},
+		{"autodiscover quoted false env", `RENOVATE_AUTODISCOVER: 'false'`, "", false},
 		{"no autodiscover", "image: renovate", "", false},
 	}
 
@@ -203,6 +321,32 @@ func TestDetectAutodiscovery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := detectAutodiscovery(tt.cicdConf, tt.configFileContent)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestDetectAutodiscoveryWithPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		ci       string
+		configs  []string
+		expected bool
+	}{
+		{name: "higher priority config disables discovery", configs: []string{`module.exports = { autodiscover: false };`, `{"autodiscover":true}`}},
+		{name: "higher priority config enables discovery", configs: []string{`module.exports = { autodiscover: true };`, `{"autodiscover":false}`}, expected: true},
+		{name: "environment disables config", ci: `RENOVATE_AUTODISCOVER: "false"`, configs: []string{`{"autodiscover":true}`}},
+		{name: "environment enables config", ci: `RENOVATE_AUTODISCOVER: "true"`, configs: []string{`{"autodiscover":false}`}, expected: true},
+		{name: "nested environment disables config", ci: "variables:\n  RENOVATE_AUTODISCOVER:\n    description: Run autodiscovery\n    value: 'false'\n", configs: []string{`{"autodiscover":true}`}},
+		{name: "nested environment enables config", ci: "variables:\n  RENOVATE_AUTODISCOVER:\n    value: 'true'\n", configs: []string{`{"autodiscover":false}`}, expected: true},
+		{name: "flag overrides nested environment", ci: "variables:\n  RENOVATE_AUTODISCOVER:\n    value: 'false'\nscript: renovate --autodiscover\n", expected: true},
+		{name: "flag overrides environment", ci: "RENOVATE_AUTODISCOVER: true\nscript: renovate --autodiscover=false", configs: []string{`{"autodiscover":true}`}},
+		{name: "bare flag overrides environment", ci: "RENOVATE_AUTODISCOVER: false\nscript: renovate --autodiscover", expected: true},
+		{name: "scope setting does not override explicit false", ci: "RENOVATE_AUTODISCOVER_FILTER: acme/**", configs: []string{`{"autodiscover":false}`}},
+		{name: "scope only retains existing detection", ci: "RENOVATE_AUTODISCOVER_FILTER: acme/**", expected: true},
+		{name: "missing setting", configs: []string{`{"enabled":true}`}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, detectAutodiscoveryWithPrecedence(test.ci, test.configs))
 		})
 	}
 }
@@ -231,6 +375,13 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 			expectFound: true,
 			expectType:  "autodiscoverFilter",
 			expectValue: "mygroup/*",
+		},
+		{
+			name:        "filter in quoted RENOVATE_EXTRA_FLAGS",
+			cicd:        `RENOVATE_EXTRA_FLAGS: "--autodiscover-filter=+(migzu|migzu-renovate|migzu-projects)*/*"`,
+			expectFound: true,
+			expectType:  "autodiscoverFilter",
+			expectValue: "+(migzu|migzu-renovate|migzu-projects)*/*",
 		},
 		{
 			name:        "autodiscoverNamespaces flag",
@@ -277,7 +428,7 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 }
 
 func TestIsSelfHostedConfig(t *testing.T) {
-	opts := EnumOptions{SelfHostedOptions: []string{"self-hosted", "custom-platform"}}
+	opts := EnumOptions{SelfHostedOptions: []string{"self-hosted", "custom-platform", "autodiscoverFilter"}}
 
 	tests := []struct {
 		name           string
@@ -286,6 +437,7 @@ func TestIsSelfHostedConfig(t *testing.T) {
 	}{
 		{"contains self-hosted", `{"platform": "self-hosted"}`, true},
 		{"contains custom-platform", `endpoint: custom-platform`, true},
+		{"contains autodiscoverFilter", `{"autodiscoverFilter": ["group/**"]}`, true},
 		{"no self-hosted", `{"platform": "github"}`, false},
 	}
 
@@ -375,40 +527,40 @@ func TestVulnerableFindingRuleID(t *testing.T) {
 		},
 		{
 			name:     "single Vulnerable finding",
-			findings: []filter.Finding{{RuleID: "V3", Verdict: filter.Vulnerable}},
-			wantRule: "V3",
+			findings: []filter.Finding{{RuleID: filter.RuleIDUnanchoredRegex, Verdict: filter.Vulnerable}},
+			wantRule: filter.RuleIDUnanchoredRegex,
 			wantOK:   true,
 		},
 		{
 			name:     "single NeedsReview finding",
-			findings: []filter.Finding{{RuleID: "N4", Verdict: filter.NeedsReview}},
+			findings: []filter.Finding{{RuleID: filter.RuleIDRegexEngineReview, Verdict: filter.NeedsReview}},
 			wantOK:   false,
 		},
 		{
 			name:     "only Safe findings returns false",
-			findings: []filter.Finding{{RuleID: "INFO", Verdict: filter.Safe}},
+			findings: []filter.Finding{{RuleID: filter.RuleIDInfo, Verdict: filter.Safe}},
 			wantOK:   false,
 		},
 		{
 			name:     "only Broken findings returns false",
-			findings: []filter.Finding{{RuleID: "N2", Verdict: filter.Broken}},
+			findings: []filter.Finding{{RuleID: filter.RuleIDLeadingSlashGlob, Verdict: filter.Broken}},
 			wantOK:   false,
 		},
 		{
 			name: "Vulnerable beats NeedsReview",
 			findings: []filter.Finding{
-				{RuleID: "N4", Verdict: filter.NeedsReview},
-				{RuleID: "V4", Verdict: filter.Vulnerable},
+				{RuleID: filter.RuleIDRegexEngineReview, Verdict: filter.NeedsReview},
+				{RuleID: filter.RuleIDPathBoundaryBypass, Verdict: filter.Vulnerable},
 			},
-			wantRule: "V4",
+			wantRule: filter.RuleIDPathBoundaryBypass,
 			wantOK:   true,
 		},
 		{
 			name: "Broken and NeedsReview returns false",
 			findings: []filter.Finding{
-				{RuleID: "INFO", Verdict: filter.Safe},
-				{RuleID: "N4", Verdict: filter.NeedsReview},
-				{RuleID: "N2", Verdict: filter.Broken},
+				{RuleID: filter.RuleIDInfo, Verdict: filter.Safe},
+				{RuleID: filter.RuleIDRegexEngineReview, Verdict: filter.NeedsReview},
+				{RuleID: filter.RuleIDLeadingSlashGlob, Verdict: filter.Broken},
 			},
 			wantOK: false,
 		},
@@ -423,4 +575,78 @@ func TestVulnerableFindingRuleID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHasEffectiveAutodiscoveryScope(t *testing.T) {
+	tests := []struct {
+		name       string
+		filterType string
+		value      string
+		want       bool
+	}{
+		{name: "nonempty autodiscover filter", filterType: "autodiscoverFilter", value: "group/**", want: true},
+		{name: "empty autodiscover filter", filterType: "autodiscoverFilter", value: "", want: false},
+		{name: "null autodiscover filter", filterType: "autodiscoverFilter", value: "<nil>", want: false},
+		{name: "empty autodiscover filter array", filterType: "autodiscoverFilter", value: "[]", want: false},
+		{name: "blank autodiscover filter array", filterType: "autodiscoverFilter", value: `["", "  "]`, want: false},
+		{name: "nonempty namespaces", filterType: "autodiscoverNamespaces", value: `["group"]`, want: true},
+		{name: "empty namespaces", filterType: "autodiscoverNamespaces", value: "[]", want: false},
+		{name: "null namespaces", filterType: "autodiscoverNamespaces", value: "<nil>", want: false},
+		{name: "nonempty topics", filterType: "autodiscoverTopics", value: `["managed"]`, want: true},
+		{name: "empty topics", filterType: "autodiscoverTopics", value: "[]", want: false},
+		{name: "null topics", filterType: "autodiscoverTopics", value: "<nil>", want: false},
+		{name: "projects are unsupported on GitLab", filterType: "autodiscoverProjects", value: `["project"]`, want: false},
+		{name: "empty projects are unsupported on GitLab", filterType: "autodiscoverProjects", value: "[]", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hasEffectiveAutodiscoveryScope(tt.filterType, tt.value))
+		})
+	}
+}
+
+func TestAnalyzeFilterWithNamespaces(t *testing.T) {
+	paths := filter.GitLabProjectPathValues{RootNamespace: "acme"}
+	for _, test := range []struct {
+		name       string
+		namespace  string
+		comma      bool
+		wantBypass bool
+		wantReview bool
+	}{
+		{name: "no namespaces", wantBypass: true},
+		{name: "empty namespaces", namespace: "[]", wantBypass: true},
+		{name: "literal namespace", namespace: `["acme"]`},
+		{name: "multiple namespaces", namespace: "acme,other/team", comma: true},
+		{name: "unresolved namespace", namespace: "${NAMESPACE}", wantReview: true},
+		{name: "unsupported namespace glob", namespace: "acme*", wantReview: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var options []renovateutil.AutodiscoveryScopeOption
+			if test.namespace != "" {
+				options = append(options, renovateutil.AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: test.namespace, CommaDelimited: test.comma})
+			}
+			findings := analyzeFilterWithNamespaces("*", paths, options)
+			_, bypass := vulnerableFindingRuleID(findings)
+			assert.Equal(t, test.wantBypass, bypass)
+			rule, review := reviewFindingRuleID(findings)
+			assert.Equal(t, test.wantReview, review)
+			if review {
+				assert.Equal(t, filter.RuleIDNamespaceScopeReview, rule)
+			}
+		})
+	}
+}
+
+func TestCommaDelimitedFilterPatterns(t *testing.T) {
+	filterValue := "branchbooks/*, *"
+	analysisValue := commaDelimitedFilterPatterns(filterValue)
+	assert.Equal(t, `["branchbooks/*","*"]`, analysisValue)
+	findings := filter.Analyze(analysisValue)
+	for _, finding := range findings {
+		if finding.RuleID == filter.RuleIDUnrestrictedWildcard {
+			return
+		}
+	}
+	t.Fatal("expected the comma-separated bare wildcard to be detected")
 }

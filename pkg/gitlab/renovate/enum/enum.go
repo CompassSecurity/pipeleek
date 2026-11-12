@@ -1,6 +1,7 @@
 package renovate
 
 import (
+	"context"
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -8,17 +9,58 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
+	"time"
 
+	"github.com/CompassSecurity/pipeleek/pkg/config"
 	"github.com/CompassSecurity/pipeleek/pkg/format"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/renovate/filter"
 	"github.com/CompassSecurity/pipeleek/pkg/gitlab/util"
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	renovateutil "github.com/CompassSecurity/pipeleek/pkg/renovate"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/wandb/parallel"
 	"github.com/yosuke-furukawa/json5/encoding/json5"
+	"gopkg.in/yaml.v3"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
+
+type renovateEnumStatusTracker struct {
+	startedAt            atomic.Int64
+	projectsDiscovered   atomic.Int64
+	projectsProcessed    atomic.Int64
+	renovateConfigsFound atomic.Int64
+}
+
+var statusTracker renovateEnumStatusTracker
+
+func StatusHook() *zerolog.Event {
+	projectsDiscovered := statusTracker.projectsDiscovered.Load()
+	projectsProcessed := statusTracker.projectsProcessed.Load()
+	projectsOutstanding := projectsDiscovered - projectsProcessed
+	if projectsOutstanding < 0 {
+		projectsOutstanding = 0
+	}
+
+	event := log.Info().
+		Int64("projectsDiscovered", projectsDiscovered).
+		Int64("projectsProcessed", projectsProcessed).
+		Int64("projectsOutstanding", projectsOutstanding).
+		Int64("renovateConfigsFound", statusTracker.renovateConfigsFound.Load())
+	if startedAt := statusTracker.startedAt.Load(); startedAt != 0 {
+		event = event.Dur("elapsed", time.Since(time.Unix(0, startedAt)))
+	}
+	return event
+}
+
+func resetStatus() {
+	statusTracker.startedAt.Store(time.Now().UnixNano())
+	statusTracker.projectsDiscovered.Store(0)
+	statusTracker.projectsProcessed.Store(0)
+	statusTracker.renovateConfigsFound.Store(0)
+}
 
 // EnumOptions contains all options for the renovate enum command
 type EnumOptions struct {
@@ -31,6 +73,7 @@ type EnumOptions struct {
 	Dump                        bool
 	SelfHostedOptions           []string
 	Page                        int
+	Threads                     int
 	Repository                  string
 	Namespace                   string
 	OrderBy                     string
@@ -40,6 +83,10 @@ type EnumOptions struct {
 
 // RunEnumerate performs the renovate enumeration with the given options
 func RunEnumerate(opts EnumOptions) {
+	resetStatus()
+	if len(opts.SelfHostedOptions) == 0 {
+		opts.SelfHostedOptions = fetchCurrentSelfHostedOptions(opts)
+	}
 	git, err := util.GetGitlabClient(opts.GitlabApiToken, opts.GitlabUrl)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Failed creating gitlab client")
@@ -77,7 +124,9 @@ func scanSingleProject(git *gitlab.Client, projectName string, opts EnumOptions)
 	if resp.StatusCode == 404 {
 		log.Fatal().Msg("Project not found")
 	}
+	statusTracker.projectsDiscovered.Add(1)
 	identifyRenovateBotJob(git, project, opts)
+	statusTracker.projectsProcessed.Add(1)
 }
 
 func scanNamespace(git *gitlab.Client, namespace string, opts EnumOptions) {
@@ -99,10 +148,11 @@ func scanNamespace(git *gitlab.Client, namespace string, opts EnumOptions) {
 		IncludeSubGroups: gitlab.Ptr(true),
 	}
 
-	err = util.IterateGroupProjects(git, group.ID, projectOpts, func(project *gitlab.Project) error {
+	err = processProjectsConcurrently(opts.Threads, func(callback util.ProjectIteratorFunc) error {
+		return util.IterateGroupProjects(git, group.ID, projectOpts, callback)
+	}, func(project *gitlab.Project) {
 		log.Debug().Str("url", project.WebURL).Msg("Check project")
 		identifyRenovateBotJob(git, project, opts)
-		return nil
 	})
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed iterating group projects")
@@ -126,10 +176,11 @@ func fetchProjects(git *gitlab.Client, opts EnumOptions) {
 		Search:     gitlab.Ptr(opts.ProjectSearchQuery),
 	}
 
-	err := util.IterateProjects(git, projectOpts, func(project *gitlab.Project) error {
+	err := processProjectsConcurrently(opts.Threads, func(callback util.ProjectIteratorFunc) error {
+		return util.IterateProjects(git, projectOpts, callback)
+	}, func(project *gitlab.Project) {
 		log.Debug().Str("url", project.WebURL).Msg("Check project")
 		identifyRenovateBotJob(git, project, opts)
-		return nil
 	})
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed iterating projects")
@@ -137,6 +188,23 @@ func fetchProjects(git *gitlab.Client, opts EnumOptions) {
 	}
 
 	log.Info().Msg("Fetched all projects")
+}
+
+func processProjectsConcurrently(threads int, iterate func(util.ProjectIteratorFunc) error, process func(*gitlab.Project)) error {
+	if threads <= 0 {
+		threads = config.DefaultCommonScanOptions().MaxScanGoRoutines
+	}
+	workers := parallel.Limited(context.Background(), threads)
+	err := iterate(func(project *gitlab.Project) error {
+		statusTracker.projectsDiscovered.Add(1)
+		workers.Go(func(context.Context) {
+			process(project)
+			statusTracker.projectsProcessed.Add(1)
+		})
+		return nil
+	})
+	workers.Wait()
+	return err
 }
 
 func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts EnumOptions) {
@@ -149,8 +217,15 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 	hasCiCdRenovateConfig := detectCiCdConfig(ciCdYml)
 	var configFile *gitlab.File = nil
 	var configFileContent string
+	var configFilePath string
+	var configFiles []renovateConfigFile
 	if !opts.Fast {
-		configFile, configFileContent = detectRenovateConfigFile(git, project)
+		configFiles = detectRenovateConfigFiles(git, project)
+		if len(configFiles) > 0 {
+			configFile = configFiles[0].file
+			configFileContent = configFiles[0].content
+			configFilePath = configFiles[0].path
+		}
 
 		if opts.ExtendRenovateConfigService != "" {
 			// Replace any occurrence of "local>" with "gitlab>" this best effort
@@ -160,6 +235,7 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 	}
 
 	if hasCiCdRenovateConfig || configFile != nil {
+		statusTracker.renovateConfigsFound.Add(1)
 		if opts.Dump {
 			filename := ""
 			if configFile != nil {
@@ -168,38 +244,81 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			dumpConfigFileContents(project, ciCdYml, configFileContent, filename, "renovate-enum-out")
 		}
 
-		selfHostedConfigFile := false
-		if configFile != nil {
-			selfHostedConfigFile = isSelfHostedConfig(configFileContent, opts)
-		}
+		configContents := autodiscoveryConfigFilesByPrecedence(configFiles, configFilePath, configFileContent)
+		isSelfHostedConfigContent := strings.Join(append([]string{ciCdYml}, configContents...), "\n")
 
-		autodiscovery := detectAutodiscovery(ciCdYml, configFileContent)
+		autodiscovery := detectAutodiscoveryWithPrecedence(ciCdYml, configContents)
 		filterType := ""
 		filterValue := ""
+		filterUsesCommaDelimiter := false
 		hasAutodiscoveryFilters := false
+		var scopeOptions []renovateutil.AutodiscoveryScopeOption
 		if autodiscovery {
-			hasAutodiscoveryFilters, filterType, filterValue = detectAutodiscoveryFilters(ciCdYml, configFileContent)
+			scopeOptions = renovateutil.DetectAutodiscoveryScopeOptions(ciCdYml, configContents)
+			if len(scopeOptions) > 0 {
+				selected := scopeOptions[0]
+				for _, option := range scopeOptions {
+					value := option.Value
+					if option.Type == "autodiscoverFilter" && option.CommaDelimited {
+						value = commaDelimitedFilterPatterns(value)
+					}
+					if hasEffectiveAutodiscoveryScope(option.Type, value) {
+						selected = option
+						break
+					}
+				}
+				hasAutodiscoveryFilters, filterType, filterValue, filterUsesCommaDelimiter = true, selected.Type, selected.Value, selected.CommaDelimited
+			}
+		}
+		analysisFilterValue := filterValue
+		if filterType == "autodiscoverFilter" && filterUsesCommaDelimiter {
+			analysisFilterValue = commaDelimitedFilterPatterns(filterValue)
 		}
 
 		var filterFindings []filter.Finding
-		if hasAutodiscoveryFilters && filterValue != "" {
-			filterFindings = filter.Analyze(filterValue)
+		if autodiscovery && !hasEffectiveAutodiscoveryScope(filterType, analysisFilterValue) {
+			filterFindings = filter.AnalyzeUnfilteredAutodiscovery()
+		} else if hasAutodiscoveryFilters && filterType == "autodiscoverFilter" {
+			filterFindings = analyzeFilterWithNamespaces(analysisFilterValue, gitLabProjectPathValues(project), scopeOptions)
+		} else if hasAutodiscoveryFilters && filterType == "autodiscoverNamespaces" {
+			filterFindings = analyzeFilterWithNamespaces("", gitLabProjectPathValues(project), scopeOptions)
+		} else if hasAutodiscoveryFilters && filterType == "autodiscoverTopics" {
+			filterFindings = filter.AnalyzeTopicOnlyAutodiscovery(filterValue)
+		}
+		if autodiscovery && len(filterFindings) > 0 && filterFindings[0].RuleID == filter.RuleIDUnfilteredAutodiscovery {
+			filterFindings[0].Evidence = []string{"pipeleek-" + format.RandomStringN(3) + "/project"}
 		}
 
 		event := log.Info().
-			Str("pipelines", string(project.BuildsAccessLevel)).
 			Bool("hasAutodiscovery", autodiscovery).
-			Bool("hasAutodiscoveryFilters", hasAutodiscoveryFilters).
-			Bool("hasConfigFile", configFile != nil).
-			Bool("selfHostedConfigFile", selfHostedConfigFile).
+			Str("pipelines", string(project.BuildsAccessLevel)).
 			Str("url", project.WebURL)
+		if len(opts.SelfHostedOptions) > 0 {
+			event = event.Bool("isSelfHosted", isSelfHostedConfig(isSelfHostedConfigContent, opts))
+		}
+		if evidence, status := findBypassEvidence(git, filterFindings); evidence != "" {
+			event = event.Str("autodiscoveryBypassExample", evidence).
+				Str("autodiscoveryNamespaceStatus", status).
+				Str("autodiscoveryRegistration", "unconfirmed")
+		}
 		if hasAutodiscoveryFilters {
 			event = event.Str("autodiscoveryFilterType", filterType).Str("autodiscoveryFilterValue", filterValue)
 			if ruleID, ok := vulnerableFindingRuleID(filterFindings); ok {
 				event = event.Str("autodiscoveryFilterBypass", ruleID)
 			}
+			if ruleID, ok := reviewFindingRuleID(filterFindings); ok {
+				reviewField := "autodiscoveryFilterReview"
+				if filterType == "autodiscoverTopics" || filterType == "autodiscoverNamespaces" {
+					reviewField = "autodiscoveryScopeReview"
+				}
+				event = event.Str(reviewField, ruleID)
+			}
+		} else if ruleID, ok := vulnerableFindingRuleID(filterFindings); ok {
+			event = event.Str("autodiscoveryFilterBypass", ruleID)
+		} else if ruleID, ok := reviewFindingRuleID(filterFindings); ok {
+			event = event.Str("autodiscoveryScopeReview", ruleID)
 		}
-		event.Msg("Identified Renovate (bot) configuration")
+		event.Msg("Renovate configuration")
 
 		if hasCiCdRenovateConfig {
 			yml, err := format.PrettyPrintYAML(ciCdYml)
@@ -209,6 +328,62 @@ func identifyRenovateBotJob(git *gitlab.Client, project *gitlab.Project, opts En
 			}
 			log.Debug().Msg(format.GetPlatformAgnosticNewline() + yml)
 		}
+	}
+}
+
+func findBypassEvidence(git *gitlab.Client, findings []filter.Finding) (string, string) {
+	for _, finding := range findings {
+		if finding.Verdict != filter.Vulnerable || len(finding.Evidence) == 0 {
+			continue
+		}
+		example := finding.Evidence[0]
+		status := "unknown"
+		for index, evidence := range finding.Evidence {
+			if index == 3 {
+				break
+			}
+			root, _, ok := strings.Cut(evidence, "/")
+			if !ok || root == "" {
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			result, _, err := git.Namespaces.NamespaceExists(root, nil, gitlab.WithContext(ctx))
+			cancel()
+			if err != nil || result == nil {
+				continue
+			}
+			if !result.Exists {
+				return evidence, "not-found"
+			}
+			if index == 0 {
+				status = "exists"
+			}
+		}
+		return example, status
+	}
+	return "", ""
+}
+
+func gitLabProjectPathValues(project *gitlab.Project) filter.GitLabProjectPathValues {
+	projectPath := project.PathWithNamespace
+	namespacePath := ""
+	if project.Namespace != nil {
+		namespacePath = project.Namespace.FullPath
+	}
+	if namespacePath == "" {
+		namespacePath = projectPath
+		if slash := strings.LastIndexByte(namespacePath, '/'); slash >= 0 {
+			namespacePath = namespacePath[:slash]
+		} else {
+			namespacePath = ""
+		}
+	}
+	rootNamespace, _, _ := strings.Cut(namespacePath, "/")
+
+	return filter.GitLabProjectPathValues{
+		ProjectPath:      projectPath,
+		ProjectNamespace: namespacePath,
+		RootNamespace:    rootNamespace,
 	}
 }
 
@@ -222,67 +397,84 @@ func detectCiCdConfig(cicdConf string) bool {
 }
 
 func detectAutodiscovery(cicdConf string, configFileContent string) bool {
-	// Check for autodiscover flag: https://docs.renovatebot.com/self-hosted-configuration/#autodiscover
-	hasAutodiscoveryInConfigFile := format.ContainsI(configFileContent, "autodiscover")
-
-	hasAutodiscoveryinCiCD := (format.ContainsI(cicdConf, "--autodiscover") || format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER")) &&
-		(!format.ContainsI(cicdConf, "--autodiscover=false") && !format.ContainsI(cicdConf, "--autodiscover false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER: false") && !format.ContainsI(cicdConf, "RENOVATE_AUTODISCOVER=false"))
-
-	return hasAutodiscoveryInConfigFile || hasAutodiscoveryinCiCD
+	return renovateutil.DetectAutodiscovery(cicdConf, configFileContent)
 }
 
-func detectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, string, string) {
-	type groupDef struct {
-		name string
-		keys []string
+var autodiscoverySettingPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)--autodiscover(?:[ \t]*(?:=|[ \t])[ \t]*(?:"(true|false)"|'(true|false)'|(true|false)))?(?:[ \t\r\n"';#]|$)`),
+	regexp.MustCompile(`(?im)(?:^|[^A-Z0-9_])RENOVATE_AUTODISCOVER[ \t]*[:=][ \t]*(?:"(true|false)"|'(true|false)'|(true|false))(?:[ \t\r\n"';,#]|$)`),
+}
+
+var autodiscoveryConfigSetting = regexp.MustCompile(`(?im)(?:^|[,{;\s])["']?autodiscover["']?\s*[:=]\s*(?:"(true|false)"|'(true|false)'|(true|false))(?:\s*[,;}#]|[ \t]*$)`)
+
+func detectAutodiscoveryWithPrecedence(cicdConf string, configContents []string) bool {
+	for index, pattern := range autodiscoverySettingPatterns {
+		if index == 1 {
+			if enabled, found := renovateutil.DetectAutodiscoveryCICDSetting(cicdConf); found {
+				return enabled
+			}
+		}
+		if matches := pattern.FindStringSubmatch(cicdConf); len(matches) > 0 {
+			for _, value := range matches[1:] {
+				if value != "" {
+					return strings.EqualFold(value, "true")
+				}
+			}
+			if index == 0 {
+				return true
+			}
+		}
 	}
-
-	groups := []groupDef{
-		{"autodiscoverFilter", []string{"autodiscoverFilter", "RENOVATE_AUTODISCOVER_FILTER", "--autodiscover-filter"}},
-		{"autodiscoverNamespaces", []string{"autodiscoverNamespaces", "RENOVATE_AUTODISCOVER_NAMESPACES", "--autodiscover-namespaces"}},
-		{"autodiscoverProjects", []string{"autodiscoverProjects", "RENOVATE_AUTODISCOVER_PROJECTS", "--autodiscover-projects"}},
-		{"autodiscoverTopics", []string{"autodiscoverTopics", "RENOVATE_AUTODISCOVER_TOPICS", "--autodiscover-topics"}},
-	}
-
-	sources := []string{configFileContent, cicdConf}
-
-	for _, g := range groups {
-		for _, key := range g.keys {
-			re := regexp.MustCompile(`(?is)` + regexp.QuoteMeta(key) + `\s*[:= ]\s*(\[[^\]]*\]|\{[^\}]*\}|".*?"|'.*?'|[^\s,]+)`)
-			for _, src := range sources {
-				if m := re.FindStringSubmatch(src); len(m) > 1 {
-					val := strings.TrimSpace(m[1])
-					if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) ||
-						(strings.HasPrefix(val, `'`) && strings.HasSuffix(val, `'`)) {
-						val = val[1 : len(val)-1]
-					}
-					return true, g.name, val
+	for _, content := range configContents {
+		if matches := autodiscoveryConfigSetting.FindStringSubmatch(content); len(matches) > 0 {
+			for _, value := range matches[1:] {
+				if value != "" {
+					return strings.EqualFold(value, "true")
 				}
 			}
 		}
 	}
-	return false, "", ""
+	if detectAutodiscovery(cicdConf, "") {
+		return true
+	}
+	for _, content := range configContents {
+		if detectAutodiscovery("", content) {
+			return true
+		}
+	}
+	return false
 }
 
-// detectRenovateConfigFile checks for common Renovate configuration files in the project repository
-func detectRenovateConfigFile(git *gitlab.Client, project *gitlab.Project) (*gitlab.File, string) {
-	// https://docs.renovatebot.com/configuration-options/
-	configFiles := []string{
-		"renovate.json",
-		"renovate.json5",
-		".github/renovate.json",
-		".github/renovate.json5",
-		".gitlab/renovate.json",
-		".gitlab/renovate.json5",
-		".renovaterc",
-		".renovaterc.json",
-		".renovaterc.json5",
-		"config.js",
-	}
+func detectAutodiscoveryFilters(cicdConf, configFileContent string) (bool, string, string) {
+	return renovateutil.DetectAutodiscoveryFilters(cicdConf, configFileContent)
+}
 
+type renovateConfigFile struct {
+	path    string
+	file    *gitlab.File
+	content string
+}
+
+var renovateConfigPaths = []string{
+	"renovate.json",
+	"renovate.json5",
+	".github/renovate.json",
+	".github/renovate.json5",
+	".gitlab/renovate.json",
+	".gitlab/renovate.json5",
+	".renovaterc",
+	".renovaterc.json",
+	".renovaterc.json5",
+	"config.js",
+}
+
+// detectRenovateConfigFiles returns all supported Renovate config files; the first remains the primary config.
+func detectRenovateConfigFiles(git *gitlab.Client, project *gitlab.Project) []renovateConfigFile {
+	// https://docs.renovatebot.com/configuration-options/
 	opts := gitlab.GetFileOptions{Ref: gitlab.Ptr(project.DefaultBranch)}
-	for _, configFile := range configFiles {
-		file, _, err := git.RepositoryFiles.GetFile(project.ID, configFile, &opts)
+	var configs []renovateConfigFile
+	for _, path := range renovateConfigPaths {
+		file, _, err := git.RepositoryFiles.GetFile(project.ID, path, &opts)
 		if err != nil {
 			continue
 		}
@@ -290,14 +482,14 @@ func detectRenovateConfigFile(git *gitlab.Client, project *gitlab.Project) (*git
 		if file != nil {
 			conf, err := b64.StdEncoding.DecodeString(file.Content)
 			if err != nil {
-				log.Error().Stack().Err(err).Msg("Failed decoding renovate config base64 content")
-				return file, ""
+				log.Debug().Err(err).Str("file", path).Msg("Failed decoding Renovate config file")
+				continue
 			}
 
-			if strings.HasSuffix(strings.ToLower(configFile), ".json5") {
+			if strings.HasSuffix(strings.ToLower(path), ".json5") {
 				var js interface{}
 				if err := json5.Unmarshal(conf, &js); err != nil {
-					log.Debug().Stack().Err(err).Msg("Failed parsing renovate config file as JSON5")
+					log.Debug().Err(err).Str("file", path).Msg("Failed parsing Renovate config file as JSON5")
 					continue
 				}
 
@@ -305,11 +497,40 @@ func detectRenovateConfigFile(git *gitlab.Client, project *gitlab.Project) (*git
 				conf = normalized
 			}
 
-			return file, string(conf)
+			configs = append(configs, renovateConfigFile{path: path, file: file, content: string(conf)})
 		}
 	}
 
-	return nil, ""
+	return configs
+}
+
+func autodiscoveryConfigFilesByPrecedence(configs []renovateConfigFile, primaryPath, primaryContent string) []string {
+	var contents []string
+	if primaryPath == "config.js" {
+		if primaryContent != "" {
+			contents = append(contents, primaryContent)
+		}
+	} else {
+		for _, config := range configs {
+			if config.path == "config.js" && config.content != "" {
+				contents = append(contents, config.content)
+				break
+			}
+		}
+	}
+
+	if primaryPath != "config.js" && primaryContent != "" {
+		contents = append(contents, primaryContent)
+	}
+	for _, config := range configs {
+		if config.path == "config.js" || config.path == primaryPath {
+			continue
+		}
+		if config.content != "" {
+			contents = append(contents, config.content)
+		}
+	}
+	return contents
 }
 
 func fetchCurrentSelfHostedOptions(opts EnumOptions) []string {
@@ -317,26 +538,11 @@ func fetchCurrentSelfHostedOptions(opts EnumOptions) []string {
 }
 
 func extractSelfHostedOptions(data []byte) []string {
-	var re = regexp.MustCompile(`(?m)## .*`)
-	matches := re.FindAllString(string(data), -1)
-
-	var options []string
-	for _, match := range matches {
-		options = append(options, strings.ReplaceAll(strings.TrimSpace(match), "## ", ""))
-	}
-
-	return options
+	return renovateutil.ExtractSelfHostedOptions(data)
 }
 
 func isSelfHostedConfig(config string, opts EnumOptions) bool {
-	selfHostedOptions := fetchCurrentSelfHostedOptions(opts)
-	for _, option := range selfHostedOptions {
-		// Check if the content contains any of the self-hosted options
-		if format.ContainsI(config, option) {
-			return true
-		}
-	}
-	return false
+	return renovateutil.IsSelfHostedConfig(config, opts.SelfHostedOptions)
 }
 
 func extendRenovateConfig(renovateConfig string, project *gitlab.Project, opts EnumOptions) string {
@@ -382,10 +588,99 @@ func validateOrderBy(orderBy string) error {
 	return nil
 }
 
+func hasEffectiveAutodiscoveryScope(filterType, filterValue string) bool {
+	value := strings.TrimSpace(filterValue)
+	if value == "" || value == "<nil>" || strings.EqualFold(value, "null") {
+		return false
+	}
+	if strings.HasPrefix(value, "[") {
+		var patterns []string
+		if err := json5.Unmarshal([]byte(value), &patterns); err == nil {
+			for _, pattern := range patterns {
+				if strings.TrimSpace(pattern) != "" {
+					return filterType != "autodiscoverProjects"
+				}
+			}
+			return false
+		}
+	}
+
+	switch filterType {
+	case "autodiscoverFilter":
+		return true
+	case "autodiscoverNamespaces", "autodiscoverTopics":
+		return true
+	default:
+		return false
+	}
+}
+
+var literalNamespacePath = regexp.MustCompile(`^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$`)
+
+func analyzeFilterWithNamespaces(filterValue string, paths filter.GitLabProjectPathValues, options []renovateutil.AutodiscoveryScopeOption) []filter.Finding {
+	findings := filter.AnalyzeWithGitLabProjectPaths(filterValue, paths)
+	for _, option := range options {
+		if option.Type != "autodiscoverNamespaces" || !hasEffectiveAutodiscoveryScope(option.Type, option.Value) {
+			continue
+		}
+		var namespaces []string
+		value := strings.TrimSpace(option.Value)
+		if strings.HasPrefix(value, "[") {
+			if json5.Unmarshal([]byte(value), &namespaces) != nil && yaml.Unmarshal([]byte(value), &namespaces) != nil {
+				return []filter.Finding{{RuleID: filter.RuleIDNamespaceScopeReview, Verdict: filter.NeedsReview, Pattern: value}}
+			}
+		} else if option.CommaDelimited {
+			namespaces = strings.Split(value, ",")
+		} else {
+			namespaces = []string{value}
+		}
+		for _, namespace := range namespaces {
+			namespace = strings.TrimSpace(namespace)
+			if !literalNamespacePath.MatchString(namespace) {
+				return []filter.Finding{{RuleID: filter.RuleIDNamespaceScopeReview, Verdict: filter.NeedsReview, Pattern: value}}
+			}
+			for _, segment := range strings.Split(namespace, "/") {
+				if segment == "." || segment == ".." {
+					return []filter.Finding{{RuleID: filter.RuleIDNamespaceScopeReview, Verdict: filter.NeedsReview, Pattern: value}}
+				}
+			}
+		}
+		var scopedFindings []filter.Finding
+		for _, finding := range findings {
+			if finding.Verdict != filter.Vulnerable {
+				scopedFindings = append(scopedFindings, finding)
+			}
+		}
+		return scopedFindings
+	}
+	return findings
+}
+
+func commaDelimitedFilterPatterns(filterValue string) string {
+	patterns := strings.Split(filterValue, ",")
+	for i := range patterns {
+		patterns[i] = strings.TrimSpace(patterns[i])
+	}
+	serialized, err := json.Marshal(patterns)
+	if err != nil {
+		return filterValue
+	}
+	return string(serialized)
+}
+
 // vulnerableFindingRuleID returns the first vulnerable rule ID from findings.
 func vulnerableFindingRuleID(findings []filter.Finding) (string, bool) {
 	for _, f := range findings {
 		if f.Verdict == filter.Vulnerable {
+			return f.RuleID, true
+		}
+	}
+	return "", false
+}
+
+func reviewFindingRuleID(findings []filter.Finding) (string, bool) {
+	for _, f := range findings {
+		if f.Verdict == filter.NeedsReview {
 			return f.RuleID, true
 		}
 	}

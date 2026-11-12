@@ -7,6 +7,7 @@ import (
 
 	"github.com/CompassSecurity/pipeleek/pkg/httpclient"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectCiCdConfig(t *testing.T) {
@@ -95,6 +96,18 @@ func TestDetectAutodiscovery(t *testing.T) {
 			want:              true,
 		},
 		{
+			name:              "ignores autodiscover false in javascript config",
+			cicdConf:          "",
+			configFileContent: "module.exports = { autodiscover: false };",
+			want:              false,
+		},
+		{
+			name:              "ignores autodiscover false in JSON5 config",
+			cicdConf:          "",
+			configFileContent: `{ autodiscover: false, }`,
+			want:              false,
+		},
+		{
 			name:              "detects --autodiscover flag in CI/CD",
 			cicdConf:          "renovate --autodiscover",
 			configFileContent: "",
@@ -125,15 +138,48 @@ func TestDetectAutodiscovery(t *testing.T) {
 			want:              false,
 		},
 		{
+			name:              "ignores single-quoted RENOVATE_AUTODISCOVER false",
+			cicdConf:          `RENOVATE_AUTODISCOVER: 'false'`,
+			configFileContent: "",
+			want:              false,
+		},
+		{
+			name:              "ignores double-quoted RENOVATE_AUTODISCOVER false",
+			cicdConf:          `RENOVATE_AUTODISCOVER: "false"`,
+			configFileContent: "",
+			want:              false,
+		},
+		{
 			name:              "ignores RENOVATE_AUTODISCOVER=false",
 			cicdConf:          "RENOVATE_AUTODISCOVER=false",
 			configFileContent: "",
 			want:              false,
 		},
 		{
+			name:     "ignores disabled flag at end of quoted YAML scalar",
+			cicdConf: `RENOVATE_EXTRA_FLAGS: "--autodiscover=false"`,
+			want:     false,
+		},
+		{
+			name:     "ignores disabled environment variable at end of quoted YAML scalar",
+			cicdConf: `script: "export RENOVATE_AUTODISCOVER=false"`,
+			want:     false,
+		},
+		{
+			name:     "does not treat a false prefix as disabled",
+			cicdConf: `RENOVATE_EXTRA_FLAGS: "--autodiscover=falsehood"`,
+			want:     true,
+		},
+		{
 			name:              "no autodiscovery configuration",
 			cicdConf:          "renovate --help",
 			configFileContent: `{"extends": ["config:base"]}`,
+			want:              false,
+		},
+		{
+			name:              "ignores quoted --autodiscover false",
+			cicdConf:          `renovate --autodiscover="false"`,
+			configFileContent: "",
 			want:              false,
 		},
 		{
@@ -218,6 +264,20 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 			wantFilterValue:   "owner/repo",
 		},
 		{
+			name:            "extracts filter from quoted extra flags",
+			cicdConf:        `RENOVATE_EXTRA_FLAGS: "--autodiscover-filter=+(myname|myname-renovate|myname-projects)*/*"`,
+			wantHasFilters:  true,
+			wantFilterType:  "autodiscoverFilter",
+			wantFilterValue: "+(myname|myname-renovate|myname-projects)*/*",
+		},
+		{
+			name:            "preserves commas in unquoted filter environment value",
+			cicdConf:        "RENOVATE_AUTODISCOVER_FILTER: myname{a,b}*/*",
+			wantHasFilters:  true,
+			wantFilterType:  "autodiscoverFilter",
+			wantFilterValue: "myname{a,b}*/*",
+		},
+		{
 			name:              "handles single quoted values",
 			cicdConf:          `RENOVATE_AUTODISCOVER_FILTER: 'owner/*'`,
 			configFileContent: "",
@@ -259,6 +319,91 @@ func TestDetectAutodiscoveryFilters(t *testing.T) {
 			assert.Equal(t, tt.wantFilterValue, filterValue)
 		})
 	}
+}
+
+func TestDetectAutodiscoveryFiltersWithSource(t *testing.T) {
+	tests := []struct {
+		name               string
+		cicdConf           string
+		configFileContent  string
+		wantFilterValue    string
+		wantCommaDelimited bool
+	}{
+		{
+			name:               "env filter uses comma delimiter",
+			cicdConf:           `RENOVATE_AUTODISCOVER_FILTER: "branchbooks/*,*"`,
+			wantFilterValue:    "branchbooks/*,*",
+			wantCommaDelimited: true,
+		},
+		{
+			name:               "extra flags filter uses comma delimiter",
+			cicdConf:           `RENOVATE_EXTRA_FLAGS: "--autodiscover-filter=branchbooks/*,*"`,
+			wantFilterValue:    "branchbooks/*,*",
+			wantCommaDelimited: true,
+		},
+		{
+			name:               "config file commas are preserved",
+			configFileContent:  `{"autodiscoverFilter":"myname{a,b}*/*"}`,
+			wantFilterValue:    "myname{a,b}*/*",
+			wantCommaDelimited: false,
+		},
+		{
+			name:            "GitLab variable with description and options",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: Renovate autodiscover filter\n    value: 'kubitus-project/**'\n    options:\n      - kubitus-project/**\n",
+			wantFilterValue: "kubitus-project/**", wantCommaDelimited: true,
+		},
+		{
+			name:            "job variable with inline mapping",
+			cicdConf:        "renovate:\n  variables:\n    RENOVATE_AUTODISCOVER_FILTER: {description: filter, value: 'one/*,two/*'}\n",
+			wantFilterValue: "one/*,two/*", wantCommaDelimited: true,
+		},
+		{
+			name:            "variable mapping without value is empty",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    description: no default\n    options: ['*']\n",
+			wantFilterValue: "", wantCommaDelimited: true,
+		},
+		{
+			name:            "CLI flag takes precedence over nested variable",
+			cicdConf:        "variables:\n  RENOVATE_AUTODISCOVER_FILTER:\n    value: 'nested/*'\nscript: renovate --autodiscover-filter=cli/*\n",
+			wantFilterValue: "cli/*", wantCommaDelimited: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			found, filterType, filterValue, commaDelimited := DetectAutodiscoveryFiltersWithSource(tt.cicdConf, tt.configFileContent)
+			assert.True(t, found)
+			assert.Equal(t, "autodiscoverFilter", filterType)
+			assert.Equal(t, tt.wantFilterValue, filterValue)
+			assert.Equal(t, tt.wantCommaDelimited, commaDelimited)
+		})
+	}
+}
+
+func TestDetectAutodiscoveryScopeOptions(t *testing.T) {
+	options := DetectAutodiscoveryScopeOptions(
+		`RENOVATE_AUTODISCOVER_FILTER: 'ci/**'`,
+		[]string{
+			`module.exports = { autodiscoverFilter: 'js/**', autodiscoverProjects: ['unsupported'] };`,
+			`{"autodiscoverFilter":["json/**"],"autodiscoverNamespaces":["acme"],"autodiscoverTopics":["managed"]}`,
+		},
+	)
+	require.Len(t, options, 4)
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverFilter", Value: "ci/**", CommaDelimited: true}, options[0])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: `["acme"]`}, options[1])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverProjects", Value: `['unsupported']`}, options[2])
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverTopics", Value: `["managed"]`}, options[3])
+
+	options = DetectAutodiscoveryScopeOptions("", []string{`module.exports = { autodiscoverFilter: 'js/**' };`, `{"autodiscoverFilter":"json/**"}`})
+	require.Len(t, options, 1)
+	assert.Equal(t, "js/**", options[0].Value)
+
+	options = DetectAutodiscoveryScopeOptions("RENOVATE_AUTODISCOVER_FILTER: 'env/**'\nscript: renovate --autodiscover-filter=cli/**", nil)
+	require.Len(t, options, 1)
+	assert.Equal(t, "cli/**", options[0].Value)
+
+	options = DetectAutodiscoveryScopeOptions(`RENOVATE_AUTODISCOVER_NAMESPACES: "acme,other/team"`, nil)
+	require.Len(t, options, 1)
+	assert.Equal(t, AutodiscoveryScopeOption{Type: "autodiscoverNamespaces", Value: "acme,other/team", CommaDelimited: true}, options[0])
 }
 
 func TestExtractSelfHostedOptions(t *testing.T) {
@@ -307,6 +452,11 @@ Yet another option.
 ## option4`),
 			want: []string{"option1", "option2", "option3", "option4"},
 		},
+		{
+			name: "strips markdown code ticks from option headings",
+			data: []byte("## `autodiscoverFilter`\n"),
+			want: []string{"autodiscoverFilter"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -338,6 +488,22 @@ func TestIsSelfHostedConfig(t *testing.T) {
 			config: `{"ALLOWSCRIPTS": true}`,
 			selfHostedOptions: []string{
 				"allowScripts",
+			},
+			want: true,
+		},
+		{
+			name:   "detects environment variable alias",
+			config: "RENOVATE_AUTODISCOVER_FILTER: ['group/**']",
+			selfHostedOptions: []string{
+				"autodiscoverFilter",
+			},
+			want: true,
+		},
+		{
+			name:   "detects command-line flag alias",
+			config: "renovate --autodiscover-filter=group/**",
+			selfHostedOptions: []string{
+				"autodiscoverFilter",
 			},
 			want: true,
 		},
