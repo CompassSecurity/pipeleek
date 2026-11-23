@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	code.gitea.io/sdk/gitea v0.25.1
 	github.com/CircleCI-Public/circleci-cli v0.1.38646
-	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/PuerkitoBio/goquery v1.14.0
 	github.com/benjaminnkem/minimatch-go v0.1.0
 	github.com/betterleaks/betterleaks/v2 v2.0.0-rc.7
 	github.com/bndr/gojenkins v1.2.0
@@ -52,7 +52,7 @@ require (
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
 	github.com/Unpackerr/iso9660 v0.0.3 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
-	github.com/andybalholm/cascadia v1.3.4 // indirect
+	github.com/andybalholm/cascadia v1.3.5 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.7 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.38 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.37 // indirect
