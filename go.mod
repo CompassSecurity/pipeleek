@@ -27,7 +27,7 @@ require (
 	golang.org/x/net v0.63.0
 	golang.org/x/term v0.48.0
 	golang.org/x/text v0.44.0
-	golift.io/xtractr v0.8.0
+	golift.io/xtractr v0.9.0
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -51,7 +51,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/TheZeroSlave/zapsentry v1.23.0 // indirect
 	github.com/Unpackerr/iso9660 v0.0.3 // indirect
-	github.com/andybalholm/brotli v1.2.7 // indirect
+	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/andybalholm/cascadia v1.3.5 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.7 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.38 // indirect
@@ -131,7 +131,7 @@ require (
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
-	github.com/klauspost/compress v1.20.3 // indirect
+	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.1 // indirect
@@ -151,7 +151,7 @@ require (
 	github.com/moby/moby/client v0.5.1 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nwaples/rardecode/v2 v2.4.5 // indirect
+	github.com/nwaples/rardecode/v2 v2.4.6 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
@@ -207,7 +207,7 @@ require (
 	golang.org/x/sync v0.25.0 // indirect
 	golift.io/ape v0.2.0 // indirect
 	golift.io/asar v0.1.0 // indirect
-	golift.io/udf v0.1.0 // indirect
+	golift.io/udf v0.2.0 // indirect
 	google.golang.org/api v0.264.0 // indirect
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260720211330-0afa2a65878a // indirect
